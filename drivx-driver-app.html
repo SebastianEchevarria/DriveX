@@ -592,7 +592,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     <div class="modal-title" id="km-modal-title">Foto km de entrada</div>
     <div class="modal-sub">Fotografía el odómetro — obligatorio</div>
 
-    <div class="photo-zone" id="km-photo-zone" onclick="document.getElementById('km-camera-input').click()">
+    <div class="photo-zone" id="km-photo-zone" onclick="triggerKmCamera()">
       <input type="file" id="km-camera-input" accept="image/*" capture="environment" style="display:none" onchange="onKmPhoto(this)">
       <div class="pz-icon" id="km-pz-icon">📷</div>
       <div class="pz-hint" id="km-pz-hint">Toca para hacer la foto</div>
@@ -1172,7 +1172,15 @@ function confirmKm() {
 var gastosTotals = { gasolina:0, peaje:0, parking:0, lavado:0, datafono:0, otros:0 };
 var gastosHashes = {};
 
-function triggerCat(cat) { document.getElementById('input-'+cat).click(); }
+function triggerKmCamera() {
+  var inp = document.getElementById('km-camera-input');
+  if (inp) inp.click();
+}
+
+function triggerCat(cat) {
+  var inp = document.getElementById('input-' + cat);
+  if (inp) inp.click();
+}
 
 var catNames  = { gasolina:'Gasolina', peaje:'Peaje', parking:'Parking', lavado:'Lavado', datafono:'Datáfono', otros:'Otros' };
 var catColors  = { gasolina:'var(--amber)', peaje:'var(--cyan)', parking:'var(--cyan)', lavado:'var(--purple)', datafono:'var(--purple)', otros:'var(--red)' };
