@@ -1256,7 +1256,7 @@ function onCatFile(input, cat) {
       toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
     }
 
-    var prompt = 'Ticket/recibo. JSON sin markdown: {"importe":NUMERO,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null","confianza":0-1}. Importe=TOTAL con IVA sin €. Hora=hora del ticket HH:MM. Fecha=dd/mm.';
+    var prompt = 'Ticket/recibo de gasto. Responde SOLO con JSON sin markdown: {"importe":NUMERO,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null","confianza":0-1}. REGLAS PARA EL IMPORTE: (1) Si el ticket tiene SOLO UN total, usa ese. (2) Si el ticket tiene TRES totales como "Total cobrado", "Total suministrado/suminist." y "Total devuelto", usa UNICAMENTE el valor de "Total suministrado" o "Total suminist." — ignora los otros dos. (3) Nunca sumes ni restes los totales entre sí. (4) El importe es solo el número decimal sin € ni texto. Hora=hora HH:MM del ticket. Fecha=dd/mm.';
 
     analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
