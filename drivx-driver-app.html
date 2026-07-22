@@ -405,44 +405,44 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
     <!-- Category buttons -->
     <div class="cat-grid">
-      <div class="cat-btn" id="cat-gasolina" onclick="triggerCat('gasolina')">
-        <input type="file" id="input-gasolina" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'gasolina')">
+      <div class="cat-btn" id="cat-gasolina" style="position:relative">
+        <input type="file" id="input-gasolina" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'gasolina')">
         <div class="cat-count" id="count-gasolina">0</div>
         <div class="cat-icon">⛽</div>
         <div class="cat-name">Gasolina</div>
         <div class="cat-total" id="total-gasolina" style="color:var(--amber)">€ 0</div>
       </div>
-      <div class="cat-btn" id="cat-peaje" onclick="triggerCat('peaje')">
-        <input type="file" id="input-peaje" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'peaje')">
+      <div class="cat-btn" id="cat-peaje" style="position:relative">
+        <input type="file" id="input-peaje" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'peaje')">
         <div class="cat-count" id="count-peaje">0</div>
         <div class="cat-icon">🛣️</div>
         <div class="cat-name">Peaje</div>
         <div class="cat-total" id="total-peaje" style="color:var(--cyan)">€ 0</div>
       </div>
-      <div class="cat-btn" id="cat-parking" onclick="triggerCat('parking')">
-        <input type="file" id="input-parking" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'parking')">
+      <div class="cat-btn" id="cat-parking" style="position:relative">
+        <input type="file" id="input-parking" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'parking')">
         <div class="cat-count" id="count-parking">0</div>
         <div class="cat-icon">🅿️</div>
         <div class="cat-name">Parking</div>
         <div class="cat-total" id="total-parking" style="color:var(--cyan)">€ 0</div>
       </div>
-      <div class="cat-btn" id="cat-lavado" onclick="triggerCat('lavado')">
-        <input type="file" id="input-lavado" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'lavado')">
+      <div class="cat-btn" id="cat-lavado" style="position:relative">
+        <input type="file" id="input-lavado" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'lavado')">
         <div class="cat-count" id="count-lavado">0</div>
         <div class="cat-icon">🚿</div>
         <div class="cat-name">Lavado</div>
         <div class="cat-total" id="total-lavado" style="color:var(--purple)">€ 0</div>
       </div>
       <!-- Lavado manual button (separate, below grid) -->
-      <div class="cat-btn" id="cat-datafono" onclick="triggerCat('datafono')">
-        <input type="file" id="input-datafono" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'datafono')">
+      <div class="cat-btn" id="cat-datafono" style="position:relative">
+        <input type="file" id="input-datafono" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'datafono')">
         <div class="cat-count" id="count-datafono">0</div>
         <div class="cat-icon">💳</div>
         <div class="cat-name">Datáfono</div>
         <div class="cat-total" id="total-datafono" style="color:var(--purple)">€ 0</div>
       </div>
-      <div class="cat-btn" id="cat-otros" onclick="triggerCat('otros')">
-        <input type="file" id="input-otros" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'otros')">
+      <div class="cat-btn" id="cat-otros" style="position:relative">
+        <input type="file" id="input-otros" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'otros')">
         <div class="cat-count" id="count-otros">0</div>
         <div class="cat-icon">🔧</div>
         <div class="cat-name">Otros</div>
@@ -592,8 +592,10 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     <div class="modal-title" id="km-modal-title">Foto km de entrada</div>
     <div class="modal-sub">Fotografía el odómetro — obligatorio</div>
 
-    <div class="photo-zone" id="km-photo-zone" onclick="triggerKmCamera()">
-      <input type="file" id="km-camera-input" accept="image/*" capture="environment" style="display:none" onchange="onKmPhoto(this)">
+    <div class="photo-zone" id="km-photo-zone" style="position:relative">
+      <input type="file" id="km-camera-input" accept="image/*" capture="environment"
+        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10"
+        onchange="onKmPhoto(this)">
       <div class="pz-icon" id="km-pz-icon">📷</div>
       <div class="pz-hint" id="km-pz-hint">Toca para hacer la foto</div>
     </div>
@@ -975,7 +977,6 @@ function loginAs(u) {
 }
 
 function updateGastosInputs() {
-  // Test user (cid='test') can use gallery; all others camera only
   var isTest = currentUser && currentUser.cid === 'test';
   var ids = ['input-gasolina','input-peaje','input-parking','input-lavado','input-datafono','input-otros','km-camera-input'];
   ids.forEach(function(id) {
@@ -983,11 +984,10 @@ function updateGastosInputs() {
     if (!inp) return;
     if (isTest) {
       inp.removeAttribute('capture');
-      inp.accept = 'image/*';
     } else {
       inp.setAttribute('capture', 'environment');
-      inp.accept = 'image/*';
     }
+    inp.accept = 'image/*';
   });
 }
 
