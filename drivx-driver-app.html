@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DRIVX · Conductor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root {
+  --bg:       #070b12;
+  --surface:  #0d1420;
+  --surface2: #111b2b;
+  --border:   #1c2d42;
+  --border2:  #243347;
+  --text:     #e8edf5;
+  --text2:    #8fa3bc;
+  --text3:    #4a6080;
+  --green:    #00e676;
+  --cyan:     #00d4ff;
+  --amber:    #ffb300;
+  --red:      #ff4757;
+  --purple:   #7c5cfc;
+  --mono:     'JetBrains Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; }
+
+/* ── APP SHELL ── */
+#app { height:100vh; display:flex; flex-direction:column; }
+.screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.screen.active { display:flex; }
+.scroll { flex:1; overflow-y:auto; padding:0 16px 100px; }
+.scroll::-webkit-scrollbar { display:none; }
+
+/* ── NAV BAR ── */
+#navbar {
+  display:none; position:fixed; bottom:0; left:0; right:0;
+  background:rgba(7,11,18,0.95); border-top:1px solid var(--border);
+  backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom));
+  z-index:100; grid-template-columns:repeat(4,1fr);
+}
+#navbar.visible { display:grid; }
+.nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text3); cursor:pointer; transition:color .15s; }
+.nav-btn.active { color:var(--cyan); }
+.nav-btn span { font-size:20px; }
+.nav-btn small { font-size:9px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+
+/* ── HEADER ── */
+.header { padding:16px 16px 12px; display:flex; align-items:center; justify-content:space-between; }
+.header-title { font-size:20px; font-weight:800; }
+.header-sub { font-size:12px; color:var(--text3); margin-top:1px; }
+
+/* ── LOGIN ── */
+#screen-login { background:var(--bg); align-items:center; justify-content:center; padding:32px 24px; }
+.login-tag { font-size:11px; color:var(--text3); letter-spacing:3px; text-transform:uppercase; margin-bottom:36px; }
+.login-card { width:100%; max-width:360px; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 24px; }
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:11px; font-weight:600; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.field input { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:12px 14px; border-radius:10px; font-size:15px; font-family:'Inter',sans-serif; outline:none; transition:border-color .15s; }
+.field input:focus { border-color:var(--cyan); }
+.btn-primary { width:100%; padding:14px; border-radius:12px; border:none; background:var(--cyan); color:#000; font-size:15px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; transition:opacity .15s; }
+.btn-primary:active { opacity:.8; }
+.login-divider { display:flex; align-items:center; gap:10px; margin:20px 0; }
+.login-divider span { font-size:11px; color:var(--text3); white-space:nowrap; }
+.login-divider::before,.login-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+.btn-secondary { width:100%; padding:13px; border-radius:12px; border:1px solid var(--border2); background:transparent; color:var(--text2); font-size:14px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+.login-error { background:rgba(255,71,87,.1); border:1px solid rgba(255,71,87,.3); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:14px; display:none; }
+
+/* ── HOME ── */
+.driver-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:20px; margin:0 0 16px; }
+.driver-name { font-size:22px; font-weight:800; margin-bottom:2px; }
+.driver-meta { font-size:12px; color:var(--text3); font-family:var(--mono); }
+.status-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; margin-top:10px; }
+.status-badge.offline { background:rgba(74,96,128,.15); color:var(--text3); border:1px solid var(--border); }
+.status-badge.online { background:rgba(0,230,118,.1); color:var(--green); border:1px solid rgba(0,230,118,.3); }
+.status-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+
+/* Fichar button */
+.fichar-wrap { padding:0 0 16px; }
+.btn-fichar { width:100%; padding:20px; border-radius:20px; border:none; font-size:18px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:12px; transition:all .2s; }
+.btn-fichar.entrada { background:linear-gradient(135deg,rgba(0,230,118,.15),rgba(0,230,118,.08)); border:2px solid rgba(0,230,118,.4); color:var(--green); }
+.btn-fichar.salida  { background:linear-gradient(135deg,rgba(255,71,87,.15),rgba(255,71,87,.08)); border:2px solid rgba(255,71,87,.4); color:var(--red); }
+
+/* KM panel */
+.km-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px; display:none; }
+.km-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.km-item { text-align:center; }
+.km-val { font-family:var(--mono); font-size:18px; font-weight:700; color:var(--cyan); }
+.km-lbl { font-size:10px; color:var(--text3); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
+
+/* Stats row */
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; }
+.stat-val { font-family:var(--mono); font-size:20px; font-weight:700; }
+.stat-lbl { font-size:11px; color:var(--text3); margin-top:3px; }
+
+/* ── KM MODAL ── */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:200; align-items:flex-end; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-sheet { background:var(--surface); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:24px 20px max(24px,env(safe-area-inset-bottom)); width:100%; max-width:480px; }
+.modal-title { font-size:18px; font-weight:800; margin-bottom:4px; }
+.modal-sub { font-size:13px; color:var(--text3); margin-bottom:20px; }
+
+/* Photo zone */
+.photo-zone { border:2px dashed var(--border2); border-radius:16px; padding:32px 20px; text-align:center; cursor:pointer; transition:border-color .15s; margin-bottom:16px; position:relative; }
+.photo-zone:active { border-color:var(--cyan); }
+.photo-zone.has-photo { border-color:rgba(0,230,118,.5); border-style:solid; }
+.photo-zone img { max-width:100%; max-height:180px; border-radius:10px; object-fit:contain; }
+.photo-zone .pz-hint { font-size:13px; color:var(--text3); margin-top:8px; }
+.photo-zone .pz-icon { font-size:40px; margin-bottom:8px; }
+
+.km-input-wrap { position:relative; margin-bottom:16px; }
+.km-input-wrap input { width:100%; background:var(--surface2); border:2px solid var(--border2); color:var(--text); padding:16px 14px; border-radius:14px; font-size:28px; font-family:var(--mono); font-weight:700; text-align:center; outline:none; transition:border-color .15s; }
+.km-input-wrap input:focus { border-color:var(--cyan); }
+.km-input-wrap input.valid { border-color:var(--green); }
+.km-status { font-size:12px; color:var(--text3); text-align:center; min-height:18px; margin-bottom:16px; }
+.km-status.ok { color:var(--green); }
+.km-status.warn { color:var(--amber); }
+
+/* ── GASTOS ── */
+.cat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+.cat-btn { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 8px; text-align:center; cursor:pointer; transition:all .15s; position:relative; }
+.cat-btn:active { transform:scale(.97); }
+.cat-btn .cat-icon { font-size:26px; margin-bottom:6px; }
+.cat-btn .cat-name { font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+.cat-btn .cat-total { font-size:12px; font-family:var(--mono); font-weight:700; margin-top:4px; }
+.cat-btn .cat-count { position:absolute; top:8px; right:8px; background:var(--cyan); color:#000; font-size:9px; font-weight:800; border-radius:10px; padding:2px 6px; font-family:var(--mono); display:none; }
+.cat-btn .cat-count.visible { display:block; }
+
+/* Breakdown sections */
+.breakdown { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:10px; display:none; }
+.breakdown.visible { display:block; }
+.breakdown-header { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; }
+.breakdown-header .bh-left { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+.breakdown-header .bh-right { display:flex; align-items:center; gap:8px; }
+.breakdown-total { font-family:var(--mono); font-size:13px; font-weight:700; }
+.breakdown-list { border-top:1px solid var(--border); display:none; }
+.breakdown-list.open { display:block; }
+.ticket-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); }
+.ticket-item:last-child { border-bottom:none; }
+.ticket-info { display:flex; flex-direction:column; gap:2px; }
+.ticket-name { font-size:13px; font-weight:600; }
+.ticket-meta { font-size:11px; color:var(--text3); font-family:var(--mono); }
+.ticket-amt { font-family:var(--mono); font-size:14px; font-weight:700; }
+.empty-state { text-align:center; padding:32px 16px; color:var(--text3); font-size:13px; }
+
+/* ── FACTURACIÓN ── */
+.plat-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
+.plat-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.plat-logo { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; }
+.plat-name { font-size:15px; font-weight:800; }
+.plat-sub { font-size:11px; color:var(--text3); margin-top:1px; }
+.plat-amounts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+.plat-amt { background:var(--surface2); border-radius:10px; padding:10px 12px; }
+.plat-amt-val { font-family:var(--mono); font-size:17px; font-weight:700; }
+.plat-amt-lbl { font-size:10px; color:var(--text3); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
+.btn-upload { width:100%; padding:11px; border-radius:10px; border:1px solid var(--border2); background:var(--surface2); color:var(--text2); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-upload:active { background:var(--border); }
+
+/* Bolt campanyas */
+.campanyas-row { background:rgba(0,212,255,.05); border:1px solid rgba(0,212,255,.15); border-radius:10px; padding:10px 12px; margin-top:8px; display:none; }
+.campanyas-row.visible { display:block; }
+.campanyas-row label { font-size:10px; color:var(--text3); font-family:var(--mono); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
+.campanyas-row input { width:100%; background:var(--surface); border:1px solid var(--border2); color:var(--text); padding:8px 10px; border-radius:8px; font-size:16px; font-family:var(--mono); font-weight:700; outline:none; }
+
+/* Total bar */
+.total-bar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+.total-bar-label { font-size:13px; color:var(--text2); font-weight:600; }
+.total-bar-val { font-family:var(--mono); font-size:22px; font-weight:800; color:var(--green); }
+
+/* ── PROCESSING ── */
+.processing-bar { display:none; background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); border-radius:12px; padding:12px 16px; margin-bottom:12px; align-items:center; gap:10px; }
+.processing-bar.visible { display:flex; }
+.processing-bar .spin { animation:spin .8s linear infinite; font-size:18px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.processing-text { font-size:13px; color:var(--cyan); font-weight:600; }
+
+/* ── PARKING MODAL ── */
+#parking-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:300; align-items:center; justify-content:center; padding:20px; }
+#fichar-alert-modal.open { display:flex; }
+#parking-modal.open { display:flex; }
+.parking-sheet { background:var(--surface); border:1px solid rgba(0,212,255,.3); border-radius:20px; padding:24px; width:100%; max-width:360px; }
+
+/* ── TOAST ── */
+#toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-80px); background:#1a2d42; border:1px solid var(--border2); color:var(--text); padding:12px 20px; border-radius:12px; font-size:13px; font-weight:600; z-index:500; transition:transform .3s ease; white-space:nowrap; max-width:calc(100vw - 32px); overflow:hidden; text-overflow:ellipsis; }
+#toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── INVITE MODAL ── */
+#invite-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:300; align-items:center; justify-content:center; padding:20px; }
+#invite-modal.open { display:flex; }
+
+/* ── ADMIN MODAL ── */
+#admin-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:400; align-items:center; justify-content:center; padding:20px; }
+#admin-modal.open { display:flex; }
+
+/* ── AYUDA ── */
+.ayuda-btn { width:100%; display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px; border:1px solid var(--border); background:var(--surface); cursor:pointer; text-align:left; transition:background .15s; }
+.ayuda-btn:active { background:var(--surface2); }
+.ayuda-icon { font-size:24px; flex-shrink:0; }
+.ayuda-info { flex:1; }
+.ayuda-title { font-size:14px; font-weight:700; color:var(--text); }
+.ayuda-sub { font-size:12px; color:var(--text3); margin-top:2px; }
+/* ── CITA CARD ── */
+#proxima-cita-card.urgente { border-color:rgba(255,71,87,.5); }
+#proxima-cita-card.urgente #cita-tipo-txt { color:var(--red); }
+#proxima-cita-card.urgente #cita-countdown { background:rgba(255,71,87,.06); border-color:rgba(255,71,87,.2); }
+#proxima-cita-card.urgente .cnt-num { color:var(--red); }
+/* ── CHATBOT ── */
+.chat-msg { display:flex; }
+.chat-msg.user { justify-content:flex-end; }
+.chat-bubble { max-width:85%; padding:10px 14px; border-radius:16px; font-size:14px; line-height:1.5; }
+.bot-bubble { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:4px 16px 16px 16px; }
+.user-bubble { background:var(--cyan); color:#000; font-weight:500; border-radius:16px 4px 16px 16px; }
+.chat-thinking { display:flex; gap:4px; align-items:center; padding:12px 16px; }
+.chat-thinking span { width:7px; height:7px; border-radius:50%; background:var(--text3); animation:thinking .8s infinite; }
+.chat-thinking span:nth-child(2) { animation-delay:.15s; }
+.chat-thinking span:nth-child(3) { animation-delay:.3s; }
+@keyframes thinking { 0%,100%{opacity:.3;transform:translateY(0)} 50%{opacity:1;transform:translateY(-4px)} }
+.quick-btn { padding:6px 12px; border-radius:20px; border:1px solid var(--border2); background:var(--surface2); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.quick-btn:active { background:rgba(0,212,255,.1); border-color:var(--cyan); color:var(--cyan); }
+
+.section-title { font-size:12px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; margin:20px 0 12px; }
+#screen-chatbot { overflow:hidden; position:relative; }
+#ayuda-menu, #ayuda-detail, #ayuda-chat { height:100%; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div id="screen-login" class="screen active">
+  <!-- LOGO SVG -->
+  <svg width="220" height="64" viewBox="0 0 220 64" style="margin-bottom:4px">
+    <!-- Icono -->
+    <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+    <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+    <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+    <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
+    <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+    <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+    <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
+    <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+    <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
+    <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+    <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+    <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+    <circle cx="33" cy="16" r="2.2" fill="#020810"/>
+    <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
+    <!-- Wordmark -->
+    <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+  </svg>
+  <div class="login-tag">Driver App</div>
+  <div class="login-card">
+    <div id="login-error" class="login-error">Email o contraseña incorrectos</div>
+    <div class="field">
+      <label>Email</label>
+      <input id="login-email" type="email" placeholder="tu@drivx.es" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <div class="login-divider"><span>¿Primera vez?</span></div>
+    <button class="btn-secondary" onclick="openInvite()">Activar cuenta con código</button>
+  </div>
+  <!-- Hidden admin: tap logo 5x -->
+  <div id="logo-tap" onclick="adminTap()" style="position:fixed;top:0;right:0;width:60px;height:60px;opacity:0;z-index:99"></div>
+</div>
+
+<!-- ══════════════ HOME ══════════════ -->
+<div id="screen-home" class="screen">
+  <div class="scroll">
+    <div class="header">
+      <div>
+        <div class="header-title" id="home-name">—</div>
+        <div class="header-sub" id="home-meta">—</div>
+      </div>
+      <div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div>
+    </div>
+
+    <!-- KM panel -->
+    <div class="km-panel" id="km-panel">
+      <div class="km-row">
+        <div class="km-item"><div class="km-val" id="km-entrada-val">—</div><div class="km-lbl">Entrada</div></div>
+        <div class="km-item"><div class="km-val" id="km-total-val" style="color:var(--green)">—</div><div class="km-lbl">Turno</div></div>
+        <div class="km-item"><div class="km-val" id="km-salida-val" style="color:var(--amber)">—</div><div class="km-lbl">Salida</div></div>
+      </div>
+    </div>
+
+    <!-- Conductor card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.3);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:var(--cyan)" id="conductor-inicial">—</div>
+        <div>
+          <div style="font-size:17px;font-weight:800;color:var(--text)" id="conductor-nombre">—</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px" id="conductor-modelo">—</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Matrícula</div>
+          <div style="font-size:15px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--cyan)" id="conductor-matricula">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Turno</div>
+          <div style="font-size:13px;font-weight:700;color:var(--amber)" id="conductor-turno">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Póliza de seguro -->
+    <div id="poliza-card" style="display:none;background:var(--surface);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirPoliza()">
+      <span style="font-size:28px">📄</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:800;color:var(--text)">Póliza de seguro</div>
+        <div id="poliza-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">—</div>
+      </div>
+      <span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver PDF →</span>
+    </div>
+
+    <!-- Próxima cita -->
+    <div id="proxima-cita-card" style="display:none;background:var(--surface);border:1px solid rgba(0,212,255,0.35);border-radius:18px;padding:16px 18px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,212,255,0.12);display:flex;align-items:center;justify-content:center;font-size:18px" id="cita-icon">📅</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:800;color:var(--cyan)" id="cita-tipo-txt">Próxima cita</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px" id="cita-lugar-txt">—</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text3)" id="cita-fecha-txt">—</div>
+        </div>
+      </div>
+      <!-- Countdown -->
+      <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.15);border-radius:12px;padding:10px;display:flex;justify-content:center;gap:16px" id="cita-countdown">
+        <div style="text-align:center">
+          <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--cyan)" id="cnt-dias">0</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">días</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--text3);line-height:1.8">:</div>
+        <div style="text-align:center">
+          <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--cyan)" id="cnt-horas">0</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">horas</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--text3);line-height:1.8">:</div>
+        <div style="text-align:center">
+          <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--cyan)" id="cnt-mins">0</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">min</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--text3);line-height:1.8">:</div>
+        <div style="text-align:center">
+          <div style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--cyan)" id="cnt-segs">0</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px">seg</div>
+        </div>
+      </div>
+      <div id="cita-nota-txt" style="font-size:11px;color:var(--text3);margin-top:8px;display:none"></div>
+    </div>
+
+    <!-- Fichar button -->
+    <div class="fichar-wrap">
+      <button class="btn-fichar entrada" id="btn-fichar" onclick="openKmModal()">
+        <span id="fichar-icon">🟢</span>
+        <span id="fichar-text">Fichar entrada</span>
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="stat-apps" style="color:var(--green)">€ 0</div>
+        <div class="stat-lbl">Neto apps hoy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-gastos" style="color:var(--red)">€ 0</div>
+        <div class="stat-lbl">Gastos hoy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-efectivo" style="color:var(--amber)">€ 0</div>
+        <div class="stat-lbl">Efectivo</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-viajes">0</div>
+        <div class="stat-lbl">Viajes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ GASTOS ══════════════ -->
+<div id="screen-gastos" class="screen">
+  <div class="scroll">
+    <div class="header">
+      <div>
+        <div class="header-title">Mis Gastos</div>
+        <div class="header-sub" id="gastos-sub">Hoy · € 0,00</div>
+      </div>
+    </div>
+
+    <!-- Processing -->
+    <div class="processing-bar" id="gastos-processing">
+      <span class="spin">⚙️</span>
+      <span class="processing-text" id="gastos-processing-text">Analizando...</span>
+    </div>
+
+    <!-- Category buttons -->
+    <div class="cat-grid">
+      <div class="cat-btn" id="cat-gasolina" onclick="triggerCat('gasolina')">
+        <input type="file" id="input-gasolina" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'gasolina')">
+        <div class="cat-count" id="count-gasolina">0</div>
+        <div class="cat-icon">⛽</div>
+        <div class="cat-name">Gasolina</div>
+        <div class="cat-total" id="total-gasolina" style="color:var(--amber)">€ 0</div>
+      </div>
+      <div class="cat-btn" id="cat-peaje" onclick="triggerCat('peaje')">
+        <input type="file" id="input-peaje" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'peaje')">
+        <div class="cat-count" id="count-peaje">0</div>
+        <div class="cat-icon">🛣️</div>
+        <div class="cat-name">Peaje</div>
+        <div class="cat-total" id="total-peaje" style="color:var(--cyan)">€ 0</div>
+      </div>
+      <div class="cat-btn" id="cat-parking" onclick="triggerCat('parking')">
+        <input type="file" id="input-parking" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'parking')">
+        <div class="cat-count" id="count-parking">0</div>
+        <div class="cat-icon">🅿️</div>
+        <div class="cat-name">Parking</div>
+        <div class="cat-total" id="total-parking" style="color:var(--cyan)">€ 0</div>
+      </div>
+      <div class="cat-btn" id="cat-lavado" onclick="triggerCat('lavado')">
+        <input type="file" id="input-lavado" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'lavado')">
+        <div class="cat-count" id="count-lavado">0</div>
+        <div class="cat-icon">🚿</div>
+        <div class="cat-name">Lavado</div>
+        <div class="cat-total" id="total-lavado" style="color:var(--purple)">€ 0</div>
+      </div>
+      <!-- Lavado manual button (separate, below grid) -->
+      <div class="cat-btn" id="cat-datafono" onclick="triggerCat('datafono')">
+        <input type="file" id="input-datafono" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'datafono')">
+        <div class="cat-count" id="count-datafono">0</div>
+        <div class="cat-icon">💳</div>
+        <div class="cat-name">Datáfono</div>
+        <div class="cat-total" id="total-datafono" style="color:var(--purple)">€ 0</div>
+      </div>
+      <div class="cat-btn" id="cat-otros" onclick="triggerCat('otros')">
+        <input type="file" id="input-otros" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'otros')">
+        <div class="cat-count" id="count-otros">0</div>
+        <div class="cat-icon">🔧</div>
+        <div class="cat-name">Otros</div>
+        <div class="cat-total" id="total-otros" style="color:var(--red)">€ 0</div>
+      </div>
+    </div>
+
+    <!-- Lavado manual button (separate, below grid) -->
+    <button onclick="openLavadoManual()" style="width:100%;padding:12px;border-radius:12px;border:1px dashed rgba(124,92,252,0.4);background:rgba(124,92,252,0.06);color:var(--purple);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>🚿</span> Añadir lavado manual (sin ticket)
+    </button>
+
+    <!-- Breakdowns -->
+    <div class="section-title">Detalle por categoría</div>
+    <div id="gastos-empty" class="empty-state">📭 Sin tickets registrados hoy</div>
+    <div id="bd-gasolina" class="breakdown"><div class="breakdown-header" onclick="toggleBd('gasolina')"><div class="bh-left"><span>⛽</span><span>Gasolina</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-gasolina" style="color:var(--amber)">€ 0</span><span id="bd-chev-gasolina" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-gasolina"></div></div>
+    <div id="bd-peaje"    class="breakdown"><div class="breakdown-header" onclick="toggleBd('peaje')"><div class="bh-left"><span>🛣️</span><span>Peajes</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-peaje" style="color:var(--cyan)">€ 0</span><span id="bd-chev-peaje" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-peaje"></div></div>
+    <div id="bd-parking"  class="breakdown"><div class="breakdown-header" onclick="toggleBd('parking')"><div class="bh-left"><span>🅿️</span><span>Parking</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-parking" style="color:var(--cyan)">€ 0</span><span id="bd-chev-parking" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-parking"></div></div>
+    <div id="bd-lavado"   class="breakdown"><div class="breakdown-header" onclick="toggleBd('lavado')"><div class="bh-left"><span>🚿</span><span>Lavado</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-lavado" style="color:var(--purple)">€ 0</span><span id="bd-chev-lavado" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-lavado"></div></div>
+    <div id="bd-datafono" class="breakdown"><div class="breakdown-header" onclick="toggleBd('datafono')"><div class="bh-left"><span>💳</span><span>Datáfono</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-datafono" style="color:var(--purple)">€ 0</span><span id="bd-chev-datafono" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-datafono"></div></div>
+    <div id="bd-otros"    class="breakdown"><div class="breakdown-header" onclick="toggleBd('otros')"><div class="bh-left"><span>🔧</span><span>Otros</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-otros" style="color:var(--red)">€ 0</span><span id="bd-chev-otros" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-otros"></div></div>
+  </div>
+</div>
+
+<!-- ══════════════ FACTURACIÓN ══════════════ -->
+<div id="screen-billing" class="screen">
+  <div class="scroll">
+    <div class="header">
+      <div>
+        <div class="header-title">Facturación</div>
+        <div class="header-sub">Plataformas · hoy</div>
+      </div>
+    </div>
+
+    <div class="processing-bar" id="billing-processing">
+      <span class="spin">⚙️</span>
+      <span class="processing-text" id="billing-processing-text">Analizando captura...</span>
+    </div>
+
+    <div class="total-bar">
+      <span class="total-bar-label">Total apps neto</span>
+      <span class="total-bar-val" id="billing-total">€ 0,00</span>
+    </div>
+
+    <!-- UBER -->
+    <div class="plat-card">
+      <div class="plat-header">
+        <div class="plat-logo" style="background:#fff;color:#000">U</div>
+        <div><div class="plat-name">Uber</div><div class="plat-sub">Earnings · hoy</div></div>
+      </div>
+      <div class="plat-amounts">
+        <div class="plat-amt"><div class="plat-amt-val" id="uber-neto" style="color:var(--green)">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="uber-propinas" style="color:var(--amber)">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
+      </div>
+      <input type="file" id="input-uber" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'uber')">
+      <button class="btn-upload" onclick="document.getElementById('input-uber').click()">📸 Subir captura Uber</button>
+    </div>
+
+    <!-- BOLT -->
+    <div class="plat-card">
+      <div class="plat-header">
+        <div class="plat-logo" style="background:#34d186;color:#fff">B</div>
+        <div><div class="plat-name">Bolt</div><div class="plat-sub">Desglose completo · hoy</div></div>
+      </div>
+
+      <!-- Main result -->
+      <div style="background:rgba(52,209,134,0.08);border:1px solid rgba(52,209,134,0.2);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:700;color:var(--text2)">💰 Tus ganancias</span>
+        <span id="bolt-ganancias" style="font-family:var(--mono);font-size:20px;font-weight:800;color:var(--green)">—</span>
+      </div>
+
+      <!-- Desglose app -->
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px">INGRESOS APP</div>
+      <div class="plat-amounts" style="grid-template-columns:1fr 1fr;margin-bottom:8px">
+        <div class="plat-amt"><div class="plat-amt-val" id="bolt-pagos-app" style="color:var(--text)">—</div><div class="plat-amt-lbl">Pagos viajes</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="bolt-propinas" style="color:var(--amber)">—</div><div class="plat-amt-lbl">Propinas</div></div>
+      </div>
+
+      <!-- Campañas (aparece solo si > 0) -->
+      <div id="bolt-camp-row" class="campanyas-row" style="margin-bottom:8px">
+        <label>🎯 CAMPAÑAS</label>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--text2)">Campañas / Bonos</span>
+          <span id="bolt-campanyas-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--cyan)">—</span>
+        </div>
+      </div>
+
+      <!-- Compensaciones (aparece solo si > 0) -->
+      <div id="bolt-comp-row" class="campanyas-row" style="margin-bottom:8px;border-color:rgba(124,92,252,0.3);background:rgba(124,92,252,0.06)">
+        <label style="color:var(--text3)">🔄 COMPENSACIONES</label>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--text2)">Compensaciones</span>
+          <span id="bolt-compensaciones-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--purple)">—</span>
+        </div>
+      </div>
+
+      <!-- Efectivo -->
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px">INGRESOS EN EFECTIVO</div>
+      <div class="plat-amounts" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div class="plat-amt">
+          <div class="plat-amt-val" id="bolt-efectivo-suma" style="color:var(--text)">—</div>
+          <div class="plat-amt-lbl">Viajes + Tasas</div>
+        </div>
+        <div class="plat-amt">
+          <div class="plat-amt-val" id="bolt-efectivo-mano" style="color:var(--amber)">—</div>
+          <div class="plat-amt-lbl">Efectivo en mano</div>
+        </div>
+      </div>
+
+      <input type="file" id="input-bolt" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'bolt')">
+      <button class="btn-upload" onclick="document.getElementById('input-bolt').click()">📸 Subir captura Bolt</button>
+    </div>
+
+    <!-- CABIFY -->
+    <div class="plat-card">
+      <div class="plat-header">
+        <div class="plat-logo" style="background:var(--purple);color:#fff">C</div>
+        <div><div class="plat-name">Cabify</div><div class="plat-sub">Earnings · hoy</div></div>
+      </div>
+      <div class="plat-amounts">
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto" style="color:var(--green)">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas" style="color:var(--amber)">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
+      </div>
+      <input type="file" id="input-cabify" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'cabify')">
+      <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
+    </div>
+
+    <!-- Privados + Efectivo -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="billing-privados" style="color:var(--cyan)">€ 0</div>
+        <div class="stat-lbl">Privados</div>
+        <button style="margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:11px;cursor:pointer" onclick="addPrivado()">+ Añadir</button>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="billing-efectivo" style="color:var(--amber)">€ 0</div>
+        <div class="stat-lbl">Efectivo en poder</div>
+        <button style="margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:11px;cursor:pointer" onclick="setEfectivo()">Editar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ KM MODAL ══════════════ -->
+<div class="modal-overlay" id="km-modal">
+  <div class="modal-sheet">
+    <div class="modal-title" id="km-modal-title">Foto km de entrada</div>
+    <div class="modal-sub">Fotografía el odómetro — obligatorio</div>
+
+    <div class="photo-zone" id="km-photo-zone" onclick="document.getElementById('km-camera-input').click()">
+      <input type="file" id="km-camera-input" accept="image/*" capture="environment" style="display:none" onchange="onKmPhoto(this)">
+      <div class="pz-icon" id="km-pz-icon">📷</div>
+      <div class="pz-hint" id="km-pz-hint">Toca para hacer la foto</div>
+    </div>
+
+    <div class="km-status" id="km-status">—</div>
+
+    <div class="km-input-wrap">
+      <input type="number" id="km-input" placeholder="Km del odómetro" disabled min="0" oninput="onKmType(this.value)">
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button id="km-confirm-btn" class="btn-primary" disabled onclick="confirmKm()" style="opacity:.4;cursor:not-allowed">Confirmar km</button>
+      <button onclick="closeKmModal()" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PARKING MODAL ══════════════ -->
+<div id="parking-modal">
+  <div class="parking-sheet">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:28px">🅿️</span>
+      <div><div style="font-size:16px;font-weight:800">Ticket Parking</div><div style="font-size:12px;color:var(--green)">📷 Foto registrada ✓</div><div id="parking-hora" style="font-size:11px;color:var(--cyan);font-family:var(--mono);margin-top:2px"></div></div>
+    </div>
+    <div class="field">
+      <label>Importe (€)</label>
+      <input id="parking-amt" type="number" min="0" step="0.01" placeholder="0,00" style="font-size:24px;font-family:var(--mono);font-weight:700;text-align:center" onkeydown="if(event.key==='Enter')confirmParking()">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-primary" onclick="confirmParking()">✓ Registrar</button>
+      <button onclick="document.getElementById('parking-modal').classList.remove('open')" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ INVITE MODAL ══════════════ -->
+<div id="invite-modal">
+  <div class="parking-sheet">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px">Activar cuenta</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:20px">Introduce tu código de invitación</div>
+    <div class="field">
+      <label>Código</label>
+      <input id="invite-code" type="text" placeholder="DRVX-XXXX" style="font-family:var(--mono);font-size:18px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')doInvite()">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-primary" onclick="doInvite()">Activar</button>
+      <button onclick="document.getElementById('invite-modal').classList.remove('open')" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ADMIN MODAL ══════════════ -->
+<div id="admin-modal">
+  <div class="parking-sheet">
+    <div style="font-size:16px;font-weight:800;margin-bottom:16px">⚙️ Config Admin</div>
+    <div class="field">
+      <label>Anthropic API Key</label>
+      <input id="admin-key-input" type="password" placeholder="sk-ant-..." style="font-family:var(--mono);font-size:13px">
+    </div>
+    <div id="admin-key-status" style="font-size:12px;color:var(--text3);margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-primary" onclick="saveAdminKey()">Guardar</button>
+      <button onclick="document.getElementById('admin-modal').classList.remove('open')" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ AYUDA ══════════════ -->
+<div id="screen-chatbot" class="screen">
+
+  <!-- MENU VIEW -->
+  <div id="ayuda-menu" style="display:flex;flex-direction:column;height:100%">
+    <div style="padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,212,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">📚</div>
+      <div>
+        <div style="font-size:16px;font-weight:800">Centro de Ayuda</div>
+        <div style="font-size:11px;color:var(--text3)">Normas y procedimientos VTC Infinity</div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+
+      <button class="ayuda-btn" onclick="openTema('privados')">
+        <span class="ayuda-icon">🚫</span>
+        <div class="ayuda-info"><div class="ayuda-title">Viajes privados</div><div class="ayuda-sub">Normas y hoja de ruta Fomento</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('bolt')">
+        <span class="ayuda-icon">🟢</span>
+        <div class="ayuda-info"><div class="ayuda-title">Normas Bolt</div><div class="ayuda-sub">Aceptación, cancelaciones, métricas</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('tesla')">
+        <span class="ayuda-icon">⚡</span>
+        <div class="ayuda-info"><div class="ayuda-title">Carga del Tesla</div><div class="ayuda-sub">Normas de carga y batería</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('limpieza')">
+        <span class="ayuda-icon">🚗</span>
+        <div class="ayuda-info"><div class="ayuda-title">Limpieza y uso del vehículo</div><div class="ayuda-sub">Normas de entrega y mantenimiento</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('pinchazo')">
+        <span class="ayuda-icon">🔧</span>
+        <div class="ayuda-info"><div class="ayuda-title">Kit repara pinchazos</div><div class="ayuda-sub">Material obligatorio en el vehículo</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('grua')">
+        <span class="ayuda-icon">🚨</span>
+        <div class="ayuda-info"><div class="ayuda-title">Cómo pedir una grúa</div><div class="ayuda-sub">Protocolo en caso de avería</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('turnos')">
+        <span class="ayuda-icon">📷</span>
+        <div class="ayuda-info"><div class="ayuda-title">Control de turnos</div><div class="ayuda-sub">Foto km obligatoria inicio y fin</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <!-- Chat libre -->
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-align:center">¿No encuentras lo que buscas?</div>
+        <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,0.3);background:rgba(0,212,255,0.05)">
+          <span class="ayuda-icon">💬</span>
+          <div class="ayuda-info"><div class="ayuda-title" style="color:var(--cyan)">Preguntar al asistente IA</div><div class="ayuda-sub">Haz cualquier pregunta</div></div>
+          <span style="color:var(--cyan)">›</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div id="ayuda-detail" style="display:none;flex-direction:column;height:100%">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+      <button onclick="closeTema()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
+      <div style="font-size:16px;font-weight:800" id="ayuda-detail-title"></div>
+    </div>
+    <div id="ayuda-detail-body" style="flex:1;overflow-y:auto;padding:20px 16px;font-size:14px;line-height:1.7;color:var(--text2)"></div>
+  </div>
+
+  <!-- CHAT VIEW -->
+  <div id="ayuda-chat" style="display:none;position:absolute;inset:0;background:var(--bg);flex-direction:column;">
+    <!-- Header fijo -->
+    <div style="position:absolute;top:0;left:0;right:0;padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg);z-index:10">
+      <button onclick="closeTema()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
+      <div style="font-size:16px;font-weight:800">Asistente IA</div>
+      <div style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
+    </div>
+    <!-- Mensajes con scroll -->
+    <div id="chat-messages" style="position:absolute;top:69px;left:0;right:0;bottom:140px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;">
+      <div class="chat-msg bot"><div class="chat-bubble bot-bubble">👋 Hola, pregúntame lo que necesites sobre VTC Infinity.</div></div>
+    </div>
+    <!-- Input fijo abajo -->
+    <div style="position:fixed;bottom:65px;left:0;right:0;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;background:var(--bg);z-index:200;">
+      <input id="chat-input" type="text" placeholder="Escribe tu pregunta aquí..."
+        style="flex:1;background:#1a2d42;border:2px solid var(--cyan);color:var(--text);padding:12px 14px;border-radius:12px;font-size:14px;font-family:'Inter',sans-serif;outline:none;"
+        onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()" style="width:44px;height:44px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">↑</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════ NAVBAR ══════════════ --><!-- ══════════════ NAVBAR ══════════════ -->
+<nav id="navbar">
+  <button class="nav-btn active" id="nav-home" onclick="showScreen('home')"><span>🏠</span><small>Inicio</small></button>
+  <button class="nav-btn" id="nav-gastos" onclick="showScreen('gastos')"><span>🧾</span><small>Gastos</small></button>
+  <button class="nav-btn" id="nav-billing" onclick="showScreen('billing')"><span>💰</span><small>Facturación</small></button>
+  <button class="nav-btn" id="nav-chatbot" onclick="showScreen('chatbot')"><span>💬</span><small>Ayuda</small></button>
+</nav>
+
+<!-- ══════════════ FICHAR ALERT ══════════════ -->
+<div id="fichar-alert-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:1px solid rgba(255,71,87,.4);border-radius:20px;padding:28px 24px;width:100%;max-width:340px;text-align:center">
+    <div style="font-size:52px;margin-bottom:12px">🔒</div>
+    <div style="font-size:18px;font-weight:800;color:var(--red);margin-bottom:8px">Debes fichar entrada</div>
+    <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:24px">
+      No puedes acceder a <b>Gastos</b> ni a <b>Facturación</b> hasta que hayas fichado tu entrada.<br><br>
+      Ve a <b>Inicio</b> y pulsa el botón de fichar entrada.
+    </div>
+    <button onclick="document.getElementById('fichar-alert-modal').style.display='none';showScreen('home');"
+      style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--green);color:#000;font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif">
+      📷 Ir a fichar entrada
+    </button>
+    <button onclick="document.getElementById('fichar-alert-modal').style.display='none'"
+      style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;margin-top:8px">
+      Cerrar
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════ LAVADO MANUAL MODAL ══════════════ -->
+<div id="lavado-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;align-items:center;justify-content:center;padding:20px">
+  <div class="parking-sheet">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:28px">🚿</span>
+      <div>
+        <div style="font-size:16px;font-weight:800">Lavado Manual</div>
+        <div style="font-size:12px;color:var(--text3)">Sin ticket — introduce el importe</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Importe (€)</label>
+      <input id="lavado-amt" type="number" min="0" step="0.01" placeholder="0,00"
+        style="font-size:24px;font-family:var(--mono);font-weight:700;text-align:center"
+        onkeydown="if(event.key==='Enter')confirmLavadoManual()">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-primary" onclick="confirmLavadoManual()">✓ Registrar</button>
+      <button onclick="document.getElementById('lavado-modal').style.display='none'" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TOAST ══════════════ -->
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  DRIVX DRIVER APP — Clean build with AI from day 1
+// ══════════════════════════════════════════════════════════
+
+// ── USERS ──
+var USERS = {
+  'ahmed@drivx.es': { pass:'Ahmed2024', cid:'ahmed', nombre:'Ahmed Karimi',  matricula:'1234 ABC', modelo:'Tesla Model 3', ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-A8K2' },
+  'paco@drivx.es':  { pass:'Paco2024',  cid:'paco',  nombre:'Paco Ruiz',     matricula:'9012 GHI', modelo:'BMW 5 Series',  ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-P3R7' },
+  'maria@drivx.es': { pass:'Maria2024', cid:'maria', nombre:'María López',   matricula:'5678 DEF', modelo:'Mercedes EQS',  ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-M5L1' },
+  'sonia@drivx.es': { pass:'Sonia2024', cid:'sonia', nombre:'Sonia Martín',  matricula:'3456 JKL', modelo:'Toyota Prius',  ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-S9T4' },
+  'ivan@drivx.es':  { pass:'Ivan2024',  cid:'ivan',  nombre:'Iván Torres',   matricula:'7890 MNO', modelo:'Skoda Octavia', ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-I2V6' },
+  '1111':           { pass:'1111',       cid:'test',  nombre:'Test User',     matricula:'0000 TST', modelo:'Vehículo Test', ciudad:'Test',     turno:'06:00–14:00', invite:'DRVX-TEST' },
+};
+var INVITE_MAP = {};
+Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
+
+// ── STATE ──
+var currentUser = null;
+var kmPhotoTaken = false;
+var kmPhotoBase64 = null;
+var kmPhotoType = null;
+var pendingFichar = 'entrada';
+var kmEntrada = null;
+var parkingPending = {};
+
+var data = {
+  fichado: false, horaEntrada: null, horaSalida: null,
+  kmEntrada: null, kmSalida: null,
+  uber:   { neto:0, propinas:0 },
+  bolt:   { neto:0, propinas:0, campanyas:0, netoReal:0 },
+  cabify: { neto:0, propinas:0 },
+  privados: 0, efectivo: 0,
+  gastos: { gasolina:[], peaje:[], parking:[], lavado:[], datafono:[], otros:[] },
+};
+
+// ── API KEY ──
+// Hardcoded — works everywhere without configuration
+var _HARDCODED_KEY = ''; // key via Vercel env
+function getApiKey() {
+  return localStorage.getItem('drivx_api_key') || '';
+}
+
+// ── CALL AI ──
+function callAI(base64, mediaType, prompt) {
+  var key = getApiKey();
+  var mt = (mediaType && mediaType.startsWith('image/')) ? mediaType : 'image/jpeg';
+
+  // In Claude.ai artifact preview - skip API call, go to OCR
+  if (window.location.hostname && window.location.hostname.includes('claude.ai')) {
+    return Promise.reject(new Error('artifact_preview'));
+  }
+
+  // Try Vercel proxy first (when hosted), fall back to direct API
+  var useProxy = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
+  var endpoint = useProxy ? '/api/ai' : 'https://api.anthropic.com/v1/messages';
+
+  if (useProxy) {
+    return fetch('/api/ai', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ base64:base64, mediaType:mt, prompt:prompt })
+    }).then(function(r){ return r.json(); }).then(function(d){ return d.text || ''; });
+  }
+
+  // Direct API (file:// or localhost)
+  var content = mt.startsWith('image/')
+    ? [{ type:'image', source:{ type:'base64', media_type:mt, data:base64 }}, { type:'text', text:prompt }]
+    : [{ type:'text', text:prompt }];
+
+  return fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:400, messages:[{ role:'user', content:content }]})
+  }).then(function(r){
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(d){ return d.content&&d.content[0]&&d.content[0].text || ''; });
+}
+
+function parseJSON(text) {
+  try { return JSON.parse(text.replace(/```json?|```/g,'').trim()); } catch(e) { return null; }
+}
+
+// ── OCR FALLBACK ──
+var _ocrWorker = null;
+function ocrFallback(base64, mediaType) {
+  return new Promise(function(resolve) {
+    if (typeof Tesseract === 'undefined') { resolve(''); return; }
+    var dataUrl = 'data:'+(mediaType||'image/jpeg')+';base64,'+base64;
+    if (_ocrWorker) {
+      _ocrWorker.recognize(dataUrl).then(function(r){ resolve(r.data.text||''); }).catch(function(){ resolve(''); });
+      return;
+    }
+    Tesseract.createWorker('eng').then(function(w){
+      _ocrWorker = w;
+      return w.recognize(dataUrl);
+    }).then(function(r){ resolve(r.data.text||''); }).catch(function(){ resolve(''); });
+  });
+}
+
+// ── ANALYZE IMAGE ──
+function analyzeImage(base64, mediaType, prompt) {
+  return callAI(base64, mediaType, prompt).catch(function(e) {
+    console.warn('[AI] failed:', e.message, '— using OCR fallback');
+    // Update status in UI to show OCR is being used
+    var st = document.getElementById('km-status');
+    if (st && st.textContent.includes('IA')) {
+      st.textContent = '🔍 OCR leyendo...';
+    }
+    return ocrFallback(base64, mediaType);
+  });
+}
+
+// ── AUTH ──
+function doLogin() {
+  var email = (document.getElementById('login-email').value||'').trim().toLowerCase();
+  var pass  = document.getElementById('login-pass').value||'';
+  var err   = document.getElementById('login-error');
+  var u = USERS[email];
+  if (!u || u.pass !== pass) { err.style.display='block'; return; }
+  err.style.display='none';
+  loginAs(u);
+}
+
+function openInvite() { document.getElementById('invite-modal').classList.add('open'); }
+function doInvite() {
+  var code = (document.getElementById('invite-code').value||'').trim().toUpperCase();
+  var u = INVITE_MAP[code];
+  if (!u) { toast('❌ Código incorrecto'); return; }
+  document.getElementById('invite-modal').classList.remove('open');
+  loginAs(u);
+}
+
+function loginAs(u) {
+  currentUser = u;
+  localStorage.setItem('drivx_current_user', u.email || u.cid);
+  document.getElementById('home-name').textContent = u.nombre;
+  document.getElementById('home-meta').textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
+  // Fill conductor card
+  document.getElementById('conductor-inicial').textContent  = u.nombre.charAt(0).toUpperCase();
+  document.getElementById('conductor-nombre').textContent   = u.nombre;
+  document.getElementById('conductor-modelo').textContent   = u.modelo || '—';
+  document.getElementById('conductor-matricula').textContent = u.matricula;
+  document.getElementById('conductor-turno').textContent    = u.turno;
+  showScreen('home');
+  document.getElementById('navbar').classList.add('visible');
+  updateNavState();
+  updateGastosInputs();
+  loadProximaCita();
+  loadPoliza();
+  setInterval(loadProximaCita, 30000);
+  setInterval(loadPoliza, 30000);
+}
+
+function updateGastosInputs() {
+  // Test user (cid='test') can use gallery; all others camera only
+  var isTest = currentUser && currentUser.cid === 'test';
+  var ids = ['input-gasolina','input-peaje','input-parking','input-lavado','input-datafono','input-otros','km-camera-input'];
+  ids.forEach(function(id) {
+    var inp = document.getElementById(id);
+    if (!inp) return;
+    if (isTest) {
+      inp.removeAttribute('capture');
+      inp.accept = 'image/*';
+    } else {
+      inp.setAttribute('capture', 'environment');
+      inp.accept = 'image/*';
+    }
+  });
+}
+
+function updateNavState() {
+  var unlocked = data.fichado || !!data.horaEntrada;
+  var gastosBtn  = document.getElementById('nav-gastos');
+  var billingBtn = document.getElementById('nav-billing');
+  if (gastosBtn)  { gastosBtn.style.opacity  = unlocked ? '1' : '0.35'; }
+  if (billingBtn) { billingBtn.style.opacity = unlocked ? '1' : '0.35'; }
+}
+
+// ── NAVIGATION ──
+function showScreen(id) {
+  // Block gastos and billing until fichado
+  if ((id === 'gastos' || id === 'billing') && (!data.fichado && !data.horaEntrada)) {
+    var m = document.getElementById('fichar-alert-modal'); if(m) m.style.display='flex';
+    return;
+  }
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('screen-'+id).classList.add('active');
+  var nb = document.getElementById('nav-'+id);
+  if (nb) nb.classList.add('active');
+}
+
+function showMore() { showScreen('chatbot'); }
+
+// ── KM MODAL ──
+function openKmModal() {
+  if (!currentUser) return;
+  pendingFichar = data.fichado ? 'salida' : 'entrada';
+  kmPhotoTaken = false; kmPhotoBase64 = null; kmPhotoType = null;
+  document.getElementById('km-modal-title').textContent = pendingFichar === 'entrada' ? 'Foto km de entrada' : 'Foto km de salida';
+  document.getElementById('km-pz-icon').textContent = '📷';
+  document.getElementById('km-pz-hint').textContent = 'Toca para hacer la foto';
+  document.getElementById('km-photo-zone').classList.remove('has-photo');
+  document.getElementById('km-status').textContent = '—';
+  document.getElementById('km-status').className = 'km-status';
+  var inp = document.getElementById('km-input');
+  inp.value = ''; inp.disabled = true; inp.className = '';
+  var btn = document.getElementById('km-confirm-btn');
+  btn.disabled = true; btn.style.opacity = '.4'; btn.style.cursor = 'not-allowed';
+  document.getElementById('km-camera-input').value = '';
+  updateGastosInputs();
+  document.getElementById('km-modal').classList.add('open');
+}
+
+function closeKmModal() { document.getElementById('km-modal').classList.remove('open'); }
+
+function onKmPhoto(input) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    kmPhotoBase64 = dataUrl.split(',')[1];
+    kmPhotoType   = file.type || 'image/jpeg';
+    kmPhotoTaken  = true;
+
+    // Show preview without destroying the input element
+    var zone = document.getElementById('km-photo-zone');
+    var preview = document.getElementById('km-preview-img');
+    if (!preview) {
+      preview = document.createElement('img');
+      preview.id = 'km-preview-img';
+      preview.style.cssText = 'max-width:100%;max-height:180px;border-radius:10px;object-fit:contain;display:block;margin:0 auto';
+      zone.insertBefore(preview, zone.firstChild);
+    }
+    preview.src = dataUrl;
+    document.getElementById('km-pz-icon').style.display = 'none';
+    document.getElementById('km-pz-hint').textContent = '📷 Foto tomada — toca para repetir';
+    zone.classList.add('has-photo');
+
+    // Enable input for manual entry immediately
+    var inp = document.getElementById('km-input');
+    inp.disabled = false;
+    inp.placeholder = 'Leyendo con IA...';
+
+    var st = document.getElementById('km-status');
+    st.textContent = '🤖 IA leyendo odómetro...';
+    st.className = 'km-status';
+
+    // Call AI
+    var prompt = 'Foto del cuadro de instrumentos. Necesito SOLO el total del odómetro en km (el número grande acumulado, no la autonomía). Ignora fechas (DD.MM.AAAA). Responde SOLO: {"km":NUMERO,"confianza":0.0-1.0}';
+
+    analyzeImage(kmPhotoBase64, kmPhotoType, prompt).then(function(text) {
+      var parsed = parseJSON(text);
+      var km = parsed ? parseInt(parsed.km) : null;
+
+      // Try OCR parse if AI returned raw text
+      if (!km || km < 100) km = ocrParseKm(text);
+
+      if (km && km > 100) {
+        inp.value = km;
+        inp.className = 'valid';
+        st.textContent = '✓ ' + km.toLocaleString('es-ES') + ' km — corrige si es incorrecto';
+        st.className = 'km-status ok';
+        enableKmBtn(km);
+      } else {
+        inp.placeholder = 'Escribe los km aquí';
+        inp.focus();
+        st.textContent = '⚠ No detectado — escribe los km manualmente';
+        st.className = 'km-status warn';
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function ocrParseKm(text) {
+  if (!text) return null;
+  // Remove dates and times
+  var clean = text.replace(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}\b/g,'').replace(/\b\d{1,2}:\d{2}\b/g,'');
+  // Look for number followed by km
+  var m = clean.match(/(\d{4,6})[,.]?\d{0,3}\s*km/i) || clean.match(/km\s*[:\s]*(\d{4,6})/i);
+  if (m) { var v = parseInt(m[1].replace(/\D/g,'')); if (v > 1000 && v < 999999) return v; }
+  // Biggest 5-6 digit number that's not a year
+  var nums = (clean.match(/\b\d{5,6}\b/g)||[]).map(Number).filter(function(n){ return n>=5000&&n<=999999&&!(n>=1900&&n<=2099); });
+  if (nums.length) { nums.sort(function(a,b){return b-a;}); return nums[0]; }
+  return null;
+}
+
+function onKmType(val) {
+  var km = parseInt(val);
+  if (!kmPhotoTaken) return; // Photo required
+  if (km && km > 100) {
+    enableKmBtn(km);
+  } else {
+    var btn = document.getElementById('km-confirm-btn');
+    btn.disabled = true; btn.style.opacity = '.4'; btn.style.cursor = 'not-allowed';
+    btn.textContent = 'Confirmar km';
+  }
+}
+
+function enableKmBtn(km) {
+  var btn = document.getElementById('km-confirm-btn');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  btn.style.cursor = 'pointer';
+  btn.textContent = '✓ Confirmar ' + km.toLocaleString('es-ES') + ' km';
+}
+
+function confirmKm() {
+  if (!kmPhotoTaken) { toast('📷 Primero fotografía el odómetro'); return; }
+  var km = parseInt(document.getElementById('km-input').value);
+  if (!km || km <= 0) { toast('⚠ Introduce los km'); document.getElementById('km-input').focus(); return; }
+
+  closeKmModal();
+
+  var now = new Date();
+  var timeStr = now.toTimeString().slice(0,5);
+
+  if (pendingFichar === 'entrada') {
+    data.fichado = true; data.horaEntrada = timeStr; data.kmEntrada = km; kmEntrada = km;
+    document.getElementById('km-entrada-val').textContent = km.toLocaleString('es-ES');
+    document.getElementById('km-salida-val').textContent  = '—';
+    document.getElementById('km-total-val').textContent   = '—';
+    document.getElementById('km-panel').style.display = 'block';
+    document.getElementById('btn-fichar').className = 'btn-fichar salida';
+    document.getElementById('fichar-icon').textContent = '🔴';
+    document.getElementById('fichar-text').textContent = 'Fichar salida';
+    document.getElementById('home-status').className = 'status-badge online';
+    document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>En turno · '+timeStr;
+    toast('🟢 Entrada fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
+    updateNavState();
+  } else {
+    data.fichado = false; data.horaSalida = timeStr; data.kmSalida = km;
+    var total = kmEntrada ? km - kmEntrada : 0;
+    document.getElementById('km-salida-val').textContent = km.toLocaleString('es-ES');
+    document.getElementById('km-total-val').textContent  = total > 0 ? total.toLocaleString('es-ES') + ' km' : '—';
+    document.getElementById('btn-fichar').className = 'btn-fichar entrada';
+    document.getElementById('fichar-icon').textContent = '🟢';
+    document.getElementById('fichar-text').textContent = 'Fichar entrada';
+    document.getElementById('home-status').className = 'status-badge offline';
+    document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>Turno finalizado';
+    toast('🔴 Salida fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
+  }
+  syncData();
+}
+
+// ── GASTOS ──
+var gastosTotals = { gasolina:0, peaje:0, parking:0, lavado:0, datafono:0, otros:0 };
+var gastosHashes = {};
+
+function triggerCat(cat) { document.getElementById('input-'+cat).click(); }
+
+var catNames  = { gasolina:'Gasolina', peaje:'Peaje', parking:'Parking', lavado:'Lavado', datafono:'Datáfono', otros:'Otros' };
+var catColors  = { gasolina:'var(--amber)', peaje:'var(--cyan)', parking:'var(--cyan)', lavado:'var(--purple)', datafono:'var(--purple)', otros:'var(--red)' };
+var catLimits  = { gasolina:2 };
+var gastosHashes = {};
+var gastosTotals = { gasolina:0, peaje:0, parking:0, lavado:0, datafono:0, otros:0 };
+
+function imageHash(b64) {
+  if (!b64) return '';
+  // Sample 800 chars spread across the full image for reliable hash
+  var len = b64.length;
+  var step = Math.max(1, Math.floor(len / 800));
+  var h = 0;
+  for (var i = 0; i < len; i += step) {
+    h = ((h << 5) - h + b64.charCodeAt(i)) | 0;
+  }
+  return h.toString(36) + '_' + len;
+}
+
+function isDuplicate(cat, importe, hora, hash) {
+  // 1. Same image hash = definitely same ticket
+  if (hash && gastosHashes[hash]) {
+    return '⚠ Ticket ya registrado (misma imagen)';
+  }
+  // 2. Same category + same amount + same hour = duplicate
+  if (importe > 0 && hora) {
+    var existing = data.gastos[cat] || [];
+    for (var i = 0; i < existing.length; i++) {
+      if (Math.abs(existing[i].importe - importe) < 0.01 && existing[i].hora === hora) {
+        return '⚠ Ticket duplicado (mismo importe y hora)';
+      }
+    }
+  }
+  // 3. Check category limit
+  var limit = catLimits[cat];
+  if (limit && (data.gastos[cat]||[]).length >= limit) {
+    return '⚠ Límite de ' + limit + ' ticket' + (limit>1?'s':'') + ' para ' + catNames[cat];
+  }
+  return null; // valid
+}
+
+function triggerCat(cat) { document.getElementById('input-'+cat).click(); }
+
+function onCatFile(input, cat) {
+  if (!input.files[0]) return;
+  if (cat === 'parking') { onParkingFile(input); return; }
+  var file = input.files[0];
+  input.value = '';
+
+  var limit = catLimits[cat];
+  if (limit && data.gastos[cat].length >= limit) {
+    toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
+  }
+
+  var proc = document.getElementById('gastos-processing');
+  var procTxt = document.getElementById('gastos-processing-text');
+  proc.classList.add('visible');
+  procTxt.textContent = '🤖 IA analizando ticket de ' + catNames[cat] + '...';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64  = e.target.result.split(',')[1];
+    var mt   = file.type || 'image/jpeg';
+    var hash = imageHash(b64);
+
+    if (gastosHashes[hash]) {
+      proc.classList.remove('visible');
+      toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
+    }
+
+    var prompt = 'Ticket/recibo. JSON sin markdown: {"importe":NUMERO,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null","confianza":0-1}. Importe=TOTAL con IVA sin €. Hora=hora del ticket HH:MM. Fecha=dd/mm.';
+
+    analyzeImage(b64, mt, prompt).then(function(text) {
+      proc.classList.remove('visible');
+      var parsed  = parseJSON(text);
+      var importe = parsed ? (parseFloat(parsed.importe)||0) : extractAmount(text);
+      var hora    = parsed && parsed.hora  ? parsed.hora  : null;
+      var fecha   = parsed && parsed.fecha ? parsed.fecha : null;
+      var nombre  = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
+
+      // Duplicate: same amount AND same hour
+      var isDup = data.gastos[cat].some(function(t) {
+        if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
+        if (!hora || !t.hora) return false; // no hour info = can't confirm dup
+        return t.hora === hora;
+      });
+      if (isDup) { toast('⚠ Duplicado — mismo importe y hora ya registrados'); return; }
+
+      if (limit && data.gastos[cat].length >= limit) {
+        toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
+      }
+
+      gastosHashes[hash] = true;
+      registerTicket(cat, importe, nombre, fecha, hora);
+    }).catch(function() { proc.classList.remove('visible'); toast('❌ Error analizando ticket'); });
+  };
+  reader.readAsDataURL(file);
+}
+
+function registerTicket(cat, importe, nombre, fecha, hora) {
+  gastosTotals[cat] = (gastosTotals[cat] || 0) + importe;
+  data.gastos[cat].push({ importe:importe, nombre:nombre, fecha:fecha, hora:hora });
+
+  var count = data.gastos[cat].length;
+  var cEl = document.getElementById('count-'+cat);
+  var tEl = document.getElementById('total-'+cat);
+  if (cEl) { cEl.textContent = count; cEl.classList.add('visible'); }
+  if (tEl) tEl.textContent = '€ ' + gastosTotals[cat].toFixed(2).replace('.',',');
+
+  // Dim button when limit reached
+  var limit = catLimits[cat];
+  if (limit && count >= limit) {
+    var btn = document.getElementById('cat-'+cat);
+    if (btn) { btn.style.opacity = '.4'; btn.style.pointerEvents = 'none'; btn.title = 'Límite alcanzado ('+limit+'/'+limit+')'; }
+  }
+
+  // Update breakdown list
+  var bd = document.getElementById('bd-'+cat);
+  if (bd) {
+    bd.classList.add('visible');
+    document.getElementById('bd-total-'+cat).textContent = '€ ' + gastosTotals[cat].toFixed(2).replace('.',',');
+    var li = document.getElementById('bd-list-'+cat);
+    var metaParts = [];
+    if (fecha) metaParts.push(fecha);
+    if (hora)  metaParts.push(hora);
+    if (!metaParts.length) metaParts.push('Hoy');
+    var meta = metaParts.join(' · ');
+    li.innerHTML =
+      '<div class="ticket-item">' +
+        '<div class="ticket-info">' +
+          '<div class="ticket-name">' + nombre + '</div>' +
+          '<div class="ticket-meta">' + meta + '</div>' +
+        '</div>' +
+        '<div class="ticket-amt" style="color:' + catColors[cat] + '">€ ' + importe.toFixed(2).replace('.',',') + '</div>' +
+      '</div>' + li.innerHTML;
+    if (count === 1) { li.classList.add('open'); document.getElementById('bd-chev-'+cat).textContent = '⌄'; }
+  }
+
+  document.getElementById('gastos-empty').style.display = 'none';
+  var total = Object.values(gastosTotals).reduce(function(s,v){ return s+v; }, 0);
+  document.getElementById('gastos-sub').textContent  = 'Hoy · € ' + total.toFixed(2).replace('.',',');
+  document.getElementById('stat-gastos').textContent = '€ ' + total.toFixed(2).replace('.',',');
+
+  var limitMsg = (limit && count >= limit) ? ' — límite alcanzado' : '';
+  toast('✓ ' + catNames[cat] + ' · €' + importe.toFixed(2) + limitMsg);
+  syncData();
+}
+
+// ── LAVADO MANUAL ──
+function openLavadoManual() {
+  document.getElementById('lavado-amt').value = '';
+  document.getElementById('lavado-modal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('lavado-amt').focus(); }, 100);
+}
+
+function confirmLavadoManual() {
+  var amt = parseFloat((document.getElementById('lavado-amt').value||'0').replace(',','.'));
+  if (!amt || amt <= 0) { toast('⚠ Introduce el importe'); return; }
+  document.getElementById('lavado-modal').style.display = 'none';
+  registerTicket('lavado', amt, 'Lavado manual', null, null);
+}
+
+function toggleBd(cat) {
+  var li = document.getElementById('bd-list-'+cat);
+  var ch = document.getElementById('bd-chev-'+cat);
+  li.classList.toggle('open');
+  ch.textContent = li.classList.contains('open') ? '⌄' : '›';
+}
+
+function onParkingFile(input) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  input.value = '';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var mt  = file.type || 'image/jpeg';
+    var hash = imageHash(b64);
+
+    // Check image-level duplicate immediately
+    if (gastosHashes[hash]) { toast('⚠ Ticket ya registrado (misma imagen)'); return; }
+
+    parkingPending = { b64:b64, mt:mt, hash:hash };
+    document.getElementById('parking-amt').value = '';
+    document.getElementById('parking-hora').textContent = '🔍 Leyendo hora...';
+
+    // Show modal right away so user can type while AI reads
+    document.getElementById('parking-modal').classList.add('open');
+    setTimeout(function(){ document.getElementById('parking-amt').focus(); }, 100);
+
+    // AI reads the ticket hora in background
+    var prompt = 'Ticket de parking/aparcamiento. Responde SOLO con JSON: {"hora":"HH:MM o null","fecha":"dd/mm o null","importe":NUMERO_O_NULL}\n- hora: hora del ticket en formato HH:MM. Muy importante.\n- importe: total si aparece, si no null.';
+    analyzeImage(b64, mt, prompt).then(function(text) {
+      var parsed = parseJSON(text);
+      parkingPending.hora   = parsed && parsed.hora   ? parsed.hora   : null;
+      parkingPending.fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
+      var horaEl = document.getElementById('parking-hora');
+      if (horaEl) horaEl.textContent = parkingPending.hora ? '🕐 Hora ticket: ' + parkingPending.hora : '⚠ Hora no detectada';
+      // Pre-fill amount if AI found it
+      if (parsed && parsed.importe) {
+        var amtEl = document.getElementById('parking-amt');
+        if (amtEl && !amtEl.value) amtEl.value = parseFloat(parsed.importe).toFixed(2);
+      }
+    }).catch(function() {
+      parkingPending.hora = null;
+      var horaEl = document.getElementById('parking-hora');
+      if (horaEl) horaEl.textContent = '⚠ Hora no detectada';
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function confirmParking() {
+  var amt = parseFloat((document.getElementById('parking-amt').value||'0').replace(',','.'));
+  if (!amt || amt <= 0) { toast('⚠ Introduce el importe'); return; }
+
+  var hora  = parkingPending.hora  || null;
+  var fecha = parkingPending.fecha || null;
+  var hash  = parkingPending.hash  || null;
+
+  // Duplicate check by hora (if both have hora and they match → duplicate)
+  if (hora) {
+    var existing = data.gastos['parking'] || [];
+    for (var i = 0; i < existing.length; i++) {
+      if (existing[i].hora === hora) {
+        toast('⚠ Ticket duplicado — ya hay un parking a las ' + hora);
+        return;
+      }
+    }
+  }
+
+  document.getElementById('parking-modal').classList.remove('open');
+  if (hash) gastosHashes[hash] = { cat:'parking', importe:amt, hora:hora };
+  registerTicket('parking', amt, 'Parking', fecha, hora);
+  parkingPending = {};
+}
+
+
+// ── FACTURACIÓN ──
+var platData = { uber:{neto:0,propinas:0}, bolt:{neto:0,propinas:0,campanyas:0,netoReal:0}, cabify:{neto:0,propinas:0} };
+
+function onPlatFile(input, plat) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  input.value = '';
+  var proc    = document.getElementById('billing-processing');
+  var procText = document.getElementById('billing-processing-text');
+  proc.classList.add('visible');
+  procText.textContent = '🤖 IA leyendo ' + plat + '...';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var mt  = file.type || 'image/jpeg';
+
+    var prompt;
+    if (plat === 'bolt') {
+      prompt = 'Captura de la app Bolt de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"tus_ganancias":NUMERO,"campanyas":NUMERO,"compensaciones":NUMERO,"propinas":NUMERO,"efectivo_suma":NUMERO,"efectivo_mano":NUMERO,"confianza":0.0}. INSTRUCCIONES: tus_ganancias = campo Tus ganancias/Castigurile tale/Your earnings (el total final). campanyas = Campañas/Campanii/Campaigns/Bonus, si no hay pon 0. compensaciones = Compensaciones/Compensatii, si no hay pon 0. propinas = Propinas/Bacsif/Tips, si no hay pon 0. efectivo_suma = suma de PAGOS POR VIAJES + TASAS DE SERVICIO que estan dentro de la seccion INGRESOS EN EFECTIVO (Venituri in numerar / Cash earnings) UNICAMENTE — no incluyas los pagos por viaje de la seccion app. En imagen 1 ejemplo: 208,03 + 3,07 = 211,10. efectivo_mano = Efectivo en mano/Numerar in mana. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
+    }
+
+    analyzeImage(b64, mt, prompt).then(function(text) {
+      proc.classList.remove('visible');
+      var parsed = parseJSON(text);
+      if (!parsed) { toast('⚠ No se pudo leer · Introduce manualmente'); return; }
+      if (plat === 'bolt') {
+        applyBoltData(parsed);
+      } else {
+        applyPlatData(plat, parseFloat(parsed.neto)||0, parseFloat(parsed.propinas)||0, 0, parseInt(parsed.viajes)||0);
+      }
+    }).catch(function() { proc.classList.remove('visible'); toast('❌ Error leyendo captura'); });
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyBoltData(parsed) {
+  var d = {
+    tus_ganancias:  parseFloat(parsed.tus_ganancias)  || 0,
+    campanyas:      parseFloat(parsed.campanyas)      || 0,
+    compensaciones: parseFloat(parsed.compensaciones) || 0,
+    propinas:       parseFloat(parsed.propinas)       || 0,
+    efectivo_suma:  parseFloat(parsed.efectivo_suma)  || 0,
+    efectivo_mano:  parseFloat(parsed.efectivo_mano)  || 0,
+  };
+  console.log('[BOLT] Extracted:', JSON.stringify(d));
+  platData.bolt = d;
+
+  function fmtEur(v) { return v > 0 ? '€ ' + v.toFixed(2).replace('.',',') : '—'; }
+  function setEl(id, v) { var el = document.getElementById(id); if (el) el.textContent = fmtEur(v); }
+
+  setEl('bolt-ganancias',          d.tus_ganancias);
+  setEl('bolt-campanyas-val',      d.campanyas);
+  setEl('bolt-compensaciones-val', d.compensaciones);
+  setEl('bolt-propinas',           d.propinas);
+  setEl('bolt-efectivo-suma',      d.efectivo_suma);
+  setEl('bolt-efectivo-mano',      d.efectivo_mano);
+
+  var campRow = document.getElementById('bolt-camp-row');
+  var compRow = document.getElementById('bolt-comp-row');
+  if (campRow) campRow.classList.toggle('visible', d.campanyas > 0);
+  if (compRow) compRow.classList.toggle('visible', d.compensaciones > 0);
+
+  updateBillingTotal();
+  var msg = '✓ Bolt · €' + d.tus_ganancias.toFixed(2);
+  if (d.campanyas > 0)      msg += ' · Camp €' + d.campanyas.toFixed(2);
+  if (d.compensaciones > 0) msg += ' · Comp €' + d.compensaciones.toFixed(2);
+  toast(msg);
+  syncData();
+}
+
+function applyPlatData(plat, neto, propinas, campanyas, viajes) {
+  platData[plat].neto = neto; platData[plat].propinas = propinas;
+
+  if (plat === 'bolt') {
+    platData.bolt.campanyas = campanyas;
+    var netoReal = Math.max(0, neto - propinas - campanyas);
+    platData.bolt.netoReal = netoReal;
+    document.getElementById('bolt-neto').textContent = '€ ' + netoReal.toFixed(2).replace('.',',');
+    document.getElementById('bolt-propinas').textContent = '€ ' + propinas.toFixed(2).replace('.',',');
+    document.getElementById('bolt-camp-row').classList.add('visible');
+    document.getElementById('bolt-campanyas').value = campanyas > 0 ? campanyas.toFixed(2) : '';
+    document.getElementById('bolt-formula').textContent = '€'+neto.toFixed(2)+' − €'+propinas.toFixed(2)+' prop. − €'+campanyas.toFixed(2)+' camp. = €'+netoReal.toFixed(2)+' real';
+    toast('✓ Bolt · Neto real €'+netoReal.toFixed(2));
+  } else {
+    document.getElementById(plat+'-neto').textContent = '€ ' + neto.toFixed(2).replace('.',',');
+    document.getElementById(plat+'-propinas').textContent = '€ ' + propinas.toFixed(2).replace('.',',');
+    toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Neto €'+neto.toFixed(2));
+  }
+
+  updateBillingTotal();
+  syncData();
+}
+
+function recalcBolt() {
+  var neto = platData.bolt.neto;
+  var propinas = platData.bolt.propinas;
+  var campanyas = parseFloat(document.getElementById('bolt-campanyas').value||'0');
+  var netoReal = Math.max(0, neto - propinas - campanyas);
+  platData.bolt.campanyas = campanyas;
+  platData.bolt.netoReal = netoReal;
+  document.getElementById('bolt-neto').textContent = '€ ' + netoReal.toFixed(2).replace('.',',');
+  document.getElementById('bolt-formula').textContent = '€'+neto.toFixed(2)+' − €'+propinas.toFixed(2)+' prop. − €'+campanyas.toFixed(2)+' camp. = €'+netoReal.toFixed(2)+' real';
+  updateBillingTotal();
+}
+
+function updateBillingTotal() {
+  var total = platData.uber.neto + platData.bolt.netoReal + platData.cabify.neto;
+  document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
+  document.getElementById('stat-apps').textContent = '€ ' + total.toFixed(2).replace('.',',');
+}
+
+function addPrivado() {
+  var amt = parseFloat(prompt('Importe viaje privado (€):'));
+  if (!amt || amt <= 0) return;
+  data.privados = (data.privados||0) + amt;
+  document.getElementById('billing-privados').textContent = '€ ' + data.privados.toFixed(2).replace('.',',');
+  toast('✓ Privado · €' + amt.toFixed(2));
+  syncData();
+}
+
+function setEfectivo() {
+  var amt = parseFloat(prompt('Efectivo en poder (€):'));
+  if (isNaN(amt) || amt < 0) return;
+  data.efectivo = amt;
+  document.getElementById('billing-efectivo').textContent = '€ ' + amt.toFixed(2).replace('.',',');
+  document.getElementById('stat-efectivo').textContent = '€ ' + amt.toFixed(2).replace('.',',');
+  syncData();
+}
+
+// ── SYNC ──
+function syncData() {
+  if (!currentUser) return;
+  var payload = Object.assign({}, data, {
+    gastos: data.gastos,
+    platData: platData,
+    ts: Date.now()
+  });
+  localStorage.setItem('drivx_conductor_'+currentUser.cid, JSON.stringify(payload));
+}
+
+// ── AYUDA — CONTENIDO POR TEMA ──
+var TEMAS = {
+  privados: {
+    titulo: '🚫 Viajes Privados',
+    contenido: '<b style="color:var(--red)">ESTÁ PROHIBIDO hacer viajes privados sin Hoja de Ruta de Fomento.</b><br><br>' +
+      '⚠️ Si haces un viaje privado sin hoja de ruta:<br>• Te pueden <b>multar</b><br>• Te pueden <b>despedir</b><br><br>' +
+      '<b>¿Qué es un viaje privado?</b><br>Cualquier viaje que hagas por tu cuenta, fuera de las apps (Uber, Bolt, Cabify), recogiendo pasajeros directamente.<br><br>' +
+      '<b>¿Cómo hacerlo correctamente?</b><br>' +
+      '1. Contacta con <b>ANDREA</b> antes del viaje<br>' +
+      '2. Ella te enviará el enlace de Fomento<br>' +
+      '3. Descarga la Hoja de Ruta<br>' +
+      '4. Solo entonces puedes hacer el viaje<br><br>' +
+      '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px;margin-top:8px">🚨 <b>NUNCA</b> recojas pasajeros sin hoja de ruta, aunque el cliente insista.</div>'
+  },
+  bolt: {
+    titulo: '🟢 Normas Bolt',
+    contenido: '<b>VTC Infinity colabora directamente con Bolt</b> — nuestros vehículos tienen prioridad. Por eso las métricas son críticas.<br><br>' +
+      '<b style="color:var(--red)">❌ NO ignorar viajes de Bolt</b><br>' +
+      'Si suena un viaje y no lo aceptas, el ratio baja. Perjudica tu cuenta Y la empresa.<br><br>' +
+      '<b style="color:var(--red)">❌ NO cancelar viajes aceptados</b><br>' +
+      'Una vez aceptado, no lo canceles.<br><br>' +
+      '<b>📊 Métricas mínimas:</b><br>' +
+      '• Tasa de aceptación: mínimo <b style="color:var(--amber)">60%</b><br>' +
+      '  → Si baja del 60%: Bolt puede expulsarte<br>' +
+      '• Calidad: mínimo <b style="color:var(--amber)">80%</b><br>' +
+      '  → Si baja del 80%: pierdes categorías de trabajo<br><br>' +
+      '<div style="background:rgba(52,209,134,.08);border:1px solid rgba(52,209,134,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '✅ <b>Si vas a parar</b> (cargar, descansar, no trabajar):<br>Baja la tasa de aceptación manualmente en la app ANTES de parar.</div><br>' +
+      '<b style="color:var(--red)">⚠️ Si te expulsan de Bolt, tu puesto de trabajo está en peligro.</b>'
+  },
+  tesla: {
+    titulo: '⚡ Carga del Tesla',
+    contenido: '<b>Regla de oro:</b> carga cuando esté por debajo del <b>20%</b> y hasta el <b>80-90%</b>.<br><br>' +
+      '<b style="color:var(--red)">🚫 PROHIBIDO cargar en tramos intermedios</b><br>' +
+      'Cargar a medias daña las baterías. Carga completa siempre.<br><br>' +
+      '<b>⚡ Carga más rápida y barata:</b><br>' +
+      '1. Busca <b>"Supercargador Tesla"</b> en el GPS del coche<br>' +
+      '2. Esto precondiciona la batería antes de llegar<br>' +
+      '3. Verás el mensaje: <i>"La batería se está preparando para la carga"</i> — es normal<br><br>' +
+      '<b>🗺️ Usa el navegador</b> para saber con cuánta carga llegarás al destino.<br><br>' +
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '⚠️ <b>IMPORTANTE:</b> Si el coche sigue conectado tras finalizar la carga al 80-90%, pueden cobrar hasta <b>0,50€/minuto</b> extra.<br><br>' +
+      '👉 Retira el coche del cargador en cuanto termine la carga.</div>'
+  },
+  limpieza: {
+    titulo: '🚗 Limpieza y Uso del Vehículo',
+    contenido: '<b>El coche debe estar limpio y aspirado las 24 horas.</b> Los conductores deben organizarse entre sí.<br><br>' +
+      '<b>🌅 Turno de mañana (día):</b><br>' +
+      '• Rulo de limpieza + aspirado con la <b>Waylet de Repsol</b><br>' +
+      '• Puedes añadir al grupo: bote de limpia cristales + rollo de papel<br>' +
+      '• La empresa abona el importe de la Waylet al final del mes<br><br>' +
+      '<b>🌙 Turno de noche:</b><br>' +
+      '• Solo un aspirado o spray de agua mantiene el coche limpio<br>' +
+      '• La empresa abona <b>1€/día</b> al finalizar el mes<br><br>' +
+      '<b>📦 Entregar el vehículo siempre con:</b><br>' +
+      '• Batería cargada (o suficiente gasolina)<br>' +
+      '• Coche limpio y aspirado<br><br>' +
+      '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '🚫 <b>PROHIBIDO</b> recoger a compañeros en su casa si están muy lejos del punto de recogida inicial.</div>'
+  },
+  pinchazo: {
+    titulo: '🔧 Kit Repara Pinchazos',
+    contenido: '<b>OBLIGATORIO</b> llevar siempre este kit en el vehículo Tesla.<br>Con él, el coche nunca para más de 15 minutos.<br><br>' +
+      '<b>Kit completo (3 elementos):</b><br><br>' +
+      '<b>1. Gato + llave IMAYCC</b><br>' +
+      '📦 Disponible en Amazon · Compacto y fácil de guardar<br><br>' +
+      '<b>2. Kit tapones reparapinchazos LIBRATON</b><br>' +
+      '📦 Disponible en Amazon · Rápido y efectivo<br><br>' +
+      '<b>3. Spray reparapinchazos Norauto 600ml</b><br>' +
+      '📦 Disponible en Amazon y Norauto · 100% seguro<br><br>' +
+      '<div style="background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '✅ Ventajas: no llamas a la grúa, no esperas horas, no pierdes el domingo ni una noche entera de trabajo.</div>'
+  },
+  grua: {
+    titulo: '🚨 Cómo Pedir una Grúa',
+    contenido: 'En caso de avería, sigue estos pasos:<br><br>' +
+      '<b>Paso 1 — Localizar la póliza</b><br>' +
+      'Contacta con <b>@JUANMAVTCINFINITY</b> (Juan) por privado o llámale. Él tiene todas las pólizas y te dará lo necesario para llamar al seguro.<br><br>' +
+      '<b>Paso 2 — Llamar a la aseguradora</b><br>' +
+      'Usa el teléfono de asistencia en carretera que te da Juan. Identifícate como conductor VTC.<br><br>' +
+      '<b>Paso 3 — Información que pedirán:</b><br>' +
+      '• Matrícula, marca y modelo del vehículo<br>' +
+      '• Nombre y número del conductor<br>' +
+      '• Lugar exacto del incidente<br>' +
+      '• Motivo: pinchazo, reventón, accidente, etc.<br>' +
+      '• Envía también fotos a <b>@JUANMAVTCINFINITY</b> por WhatsApp<br><br>' +
+      '<b>Paso 4 — Transferencia</b><br>' +
+      'Da al operador el número del conductor para que la grúa le llame directamente.<br><br>' +
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '📹 <b>SUPERVISIÓN:</b> Envía siempre el vídeo del incidente a @JUANMAVTCINFINITY. Él dirá dónde depositar el vehículo.</div>'
+  },
+  turnos: {
+    titulo: '📷 Control de Turnos',
+    contenido: '<b style="color:var(--red)">🚨 NO FOTO = NO TRABAJO</b><br><br>' +
+      'Es <b>TOTALMENTE OBLIGATORIO</b> enviar una foto de los km al empezar Y al terminar el turno. Todos los días.<br><br>' +
+      '<b>¿Cuándo enviar?</b><br>' +
+      '• 📷 <b>Al EMPEZAR</b> el turno: foto km<br>' +
+      '• 📷 <b>Al TERMINAR</b> el turno: foto km<br>' +
+      '• Enviar al <b>grupo de trabajo</b> de WhatsApp<br><br>' +
+      '<b>¿Cómo ver los km en el Tesla?</b><br>' +
+      '1. Pulsa el icono del <b>coche</b> en la esquina inferior izquierda<br>' +
+      '2. Pulsa <b>"Trayectos"</b> en el menú del vehículo<br>' +
+      '3. Ahí verás los km actuales en <b>"Odómetro"</b><br><br>' +
+      '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '⚠️ El incumplimiento puede conllevar:<br>' +
+      '• Suspensión de trabajo<br>' +
+      '• Sanción disciplinaria<br>' +
+      '• Retirada del puesto de trabajo</div>'
+  }
+};
+
+function openTema(tema) {
+  if (tema === 'chat') {
+    document.getElementById('ayuda-menu').style.display   = 'none';
+    document.getElementById('ayuda-detail').style.display = 'none';
+    document.getElementById('ayuda-chat').style.display   = 'flex';
+    return;
+  }
+  var t = TEMAS[tema];
+  if (!t) return;
+  document.getElementById('ayuda-detail-title').textContent = t.titulo;
+  document.getElementById('ayuda-detail-body').innerHTML   = t.contenido;
+  document.getElementById('ayuda-menu').style.display   = 'none';
+  document.getElementById('ayuda-chat').style.display   = 'none';
+  document.getElementById('ayuda-detail').style.display = 'flex';
+}
+
+function closeTema() {
+  document.getElementById('ayuda-detail').style.display = 'none';
+  document.getElementById('ayuda-chat').style.display   = 'none';
+  document.getElementById('ayuda-menu').style.display   = 'flex';
+}
+
+// ── CHATBOT IA ── 'Eres el asistente virtual de DRIVX, una empresa de conductores VTC llamada VTC INFINITY. Responde en español, de forma clara y concisa. Aquí tienes toda la información de la empresa:\n\n' +
+
+'## VIAJES PRIVADOS\n' +
+'- ESTÁ PROHIBIDO hacer viajes privados (por tu cuenta, fuera de las apps) sin una Hoja de Ruta descargada por Fomento.\n' +
+'- Si haces un viaje privado sin hoja de ruta, te pueden multar Y despedir.\n' +
+'- Para obtener la hoja de ruta: pídela a la compañera ANDREA, ella te enviará el enlace necesario para descargarla en Fomento.\n' +
+'- NUNCA recojas pasajeros sin hoja de ruta, aunque el cliente insista.\n\n' +
+
+'## NORMAS BOLT — MUY IMPORTANTE\n' +
+'- VTC Infinity colabora directamente con Bolt, los vehículos tienen prioridad para recibir viajes.\n' +
+'- NO ignorar viajes de Bolt: si suena un viaje y no lo aceptas, el ratio baja. Dejar sonar viajes sin aceptarlos perjudica tu cuenta Y la empresa.\n' +
+'- NO cancelar viajes aceptados: una vez aceptado un viaje, no cancelarlo.\n' +
+'- Tasa mínima de aceptación: 60%. Si baja del 60%, Bolt puede expulsarte de la plataforma.\n' +
+'- Calidad mínima: 80%. Si la calidad baja del 80%, Bolt te quitará categorías de trabajo.\n' +
+'- Si vas a cargar el coche, descansar, o parar: ANTES de parar, baja la tasa de aceptación manualmente en la app para no acumular viajes ignorados.\n' +
+'- Si te expulsan de Bolt, tu puesto de trabajo está en peligro.\n\n' +
+
+'## CARGA DEL TESLA (normas)\n' +
+'- Cargar SIEMPRE cuando el coche esté por debajo del 20% y hasta el 80-90%.\n' +
+'- PROHIBIDO cargar en tramos intermedios (cargarlo a medias): se dañan las baterías.\n' +
+'- Para carga más rápida y barata: buscar "Supercargador Tesla" en el GPS para precondicionar la batería antes de llegar.\n' +
+'- Aparecerá el mensaje "La batería se está preparando para la carga" — es normal.\n' +
+'- Usa el navegador para saber con cuánta carga llegarás al destino.\n' +
+'- IMPORTANTE: si el coche se queda conectado tras finalizar la carga al 80-90%, pueden cobrar hasta 0,50€/minuto extra. Retira el coche del cargador en cuanto termine.\n' +
+'- Cargadores disponibles: Supercargadores Tesla (aparecen en el GPS del propio Tesla).\n\n' +
+
+'## LIMPIEZA Y USO DEL VEHÍCULO\n' +
+'- Los conductores deben organizarse para que el coche esté SIEMPRE limpio y aspirado las 24 horas.\n' +
+'- Nunca debe haber peleas ni discusiones por la limpieza.\n' +
+'- El conductor de mañana (turno día): puede añadir al grupo de trabajo el gasto del bote de limpia cristales + rollo de papel. También puede hacer un rulo de limpieza + aspirado con la Waylet de Repsol.\n' +
+'- El conductor de noche: solo con un aspirado o spray de agua, el coche se mantiene limpio.\n' +
+'- Gasto de limpieza: la empresa abona el importe de la Waylet (turno día) y 1€/día (turno noche) al finalizar el mes.\n' +
+'- PROHIBIDO recoger a compañeros en su casa si están muy lejos del punto de recogida inicial.\n' +
+'- Entregar el vehículo siempre con la batería cargada (o suficiente gasolina).\n' +
+'- Gasto mínimo de ejemplo para mantenerlo limpio: 50€/mes 24h/7 días.\n\n' +
+
+'## KIT REPARA PINCHAZOS — OBLIGATORIO\n' +
+'- Todos los conductores Tesla deben llevar SIEMPRE el kit de repara pinchazos.\n' +
+'- Componentes recomendados:\n' +
+'  1. Gato + llave IMAYCC (disponible en Amazon)\n' +
+'  2. Kit tapones reparapinchazos LIBRATON (disponible en Amazon)\n' +
+'  3. Spray reparapinchazos Norauto 600ml (disponible en Amazon y Norauto)\n' +
+'- Con este kit, el vehículo nunca parará más de 15 minutos por un pinchazo.\n' +
+'- Evita llamar a la grúa, esperar horas, y perder dinero.\n\n' +
+
+'## CÓMO PEDIR UNA GRÚA\n' +
+'1. LOCALIZAR LA PÓLIZA: Todas las pólizas de seguro las tiene @JUANMAVTCINFINITY. Escríbele por privado o llámale directamente. Te dará lo necesario para llamar al seguro.\n' +
+'2. LLAMAR A LA ASEGURADORA: Marca el teléfono de asistencia en carretera que te da Juan. Identifícate como conductor VTC.\n' +
+'3. INFORMACIÓN QUE PEDIRÁN:\n' +
+'   - Matrícula, marca y modelo del vehículo\n' +
+'   - Nombre y número del conductor VTC\n' +
+'   - Lugar exacto del incidente (dirección o ubicación compartida)\n' +
+'   - Motivo de la avería: pinchazo, reventón, accidente, etc.\n' +
+'   - Fotos y detalles — enviarlos también por WhatsApp a @JUANMAVTCINFINITY\n' +
+'4. TRANSFERENCIA: Da al operador el número de teléfono del conductor para que la grúa le llame directamente.\n' +
+'- SUPERVISIÓN: Enviar siempre el vídeo del incidente a @JUANMAVTCINFINITY. Él dirá dónde depositar el vehículo.\n\n' +
+
+'## CONTROL DE TURNOS — FOTO KM OBLIGATORIA\n' +
+'- Es TOTALMENTE OBLIGATORIO enviar una foto de los kilómetros al EMPEZAR y al TERMINAR el turno.\n' +
+'- Las fotos deben enviarse todos los días al grupo de trabajo cuando estés en turno.\n' +
+'- CÓMO VER LOS KM EN EL TESLA:\n' +
+'  1. Pulsa el icono del coche en la esquina inferior izquierda de la pantalla\n' +
+'  2. Pulsa "Trayectos" en el menú del vehículo\n' +
+'  3. Ahí verás los kilómetros actuales en el apartado "Odómetro"\n' +
+'- NO FOTO = NO TRABAJO\n' +
+'- El incumplimiento puede conllevar: suspensión de trabajo, sanción disciplinaria, retirada del puesto.\n\n' +
+
+'## INFORMACIÓN GENERAL\n' +
+'- Empresa: VTC INFINITY\n' +
+'- Responsable: @JUANMAVTCINFINITY (Juan) — contacto para pólizas, averías, y cualquier incidencia grave.\n' +
+'- Asistente administrativa: ANDREA — contacto para hojas de ruta de viajes privados.\n' +
+'- Las apps de trabajo son: Uber, Bolt y Cabify.\n' +
+'- Los vehículos Tesla se comparten entre varios conductores por turnos.\n\n' +
+
+'Responde siempre de forma directa y útil. Si la pregunta no está relacionada con el trabajo, di que solo puedes ayudar con temas de VTC Infinity. Usa emojis para hacer las respuestas más claras.';
+
+var chatHistory = [];
+
+function sendChat() {
+  var input = document.getElementById('chat-input');
+  var msg = (input.value || '').trim();
+  if (!msg) return;
+  input.value = '';
+  quickAsk(msg);
+}
+
+function quickAsk(msg) {
+  // Hide quick buttons after first use
+  var qb = document.getElementById('quick-btns');
+  if (qb) qb.style.display = 'none';
+
+  addMessage(msg, 'user');
+  chatHistory.push({ role:'user', content: msg });
+
+  // Show thinking indicator
+  var thinking = document.createElement('div');
+  thinking.className = 'chat-msg bot';
+  thinking.id = 'chat-thinking';
+  thinking.innerHTML = '<div class="chat-thinking"><span></span><span></span><span></span></div>';
+  document.getElementById('chat-messages').appendChild(thinking);
+  scrollChat();
+
+  // Call AI or local fallback
+  var isLocal = window.location.protocol === 'file:';
+  if (isLocal) {
+    setTimeout(function() {
+      var t = document.getElementById('chat-thinking');
+      if (t) t.remove();
+      addMessage(localChatbot(msg), 'bot');
+      chatHistory.push({ role:'assistant', content: localChatbot(msg) });
+    }, 600);
+    return;
+  }
+
+  var fullPrompt = KNOWLEDGE_BASE + '\n\nHistorial:\n' +
+    chatHistory.slice(-6).map(function(m){ return m.role+': '+m.content; }).join('\n') +
+    '\n\nResponde a la última pregunta del usuario.';
+
+  callAI(null, null, fullPrompt).then(function(reply) {
+    var t = document.getElementById('chat-thinking');
+    if (t) t.remove();
+    var clean = (reply || 'Lo siento, no pude procesar tu pregunta. Inténtalo de nuevo.').trim();
+    addMessage(clean, 'bot');
+    chatHistory.push({ role:'assistant', content: clean });
+  }).catch(function() {
+    var t = document.getElementById('chat-thinking');
+    if (t) t.remove();
+    var localReply = localChatbot(msg);
+    addMessage(localReply, 'bot');
+  });
+}
+
+function addMessage(text, role) {
+  var msgs = document.getElementById('chat-messages');
+  var div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  var bubble = document.createElement('div');
+  bubble.className = role === 'bot' ? 'chat-bubble bot-bubble' : 'chat-bubble user-bubble';
+  bubble.innerHTML = text.replace(/\n/g,'<br>');
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  scrollChat();
+}
+
+function scrollChat() {
+  var msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Local fallback — smart keyword matching
+function localChatbot(q) {
+  var ql = q.toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e')
+    .replace(/[íìï]/g,'i').replace(/[óòö]/g,'o')
+    .replace(/[úùü]/g,'u').replace(/ñ/g,'n');
+
+  // PINCHAZO / AVERÍA / GRÚA
+  if (/pinchazo|pincha|rueda|averia|avería|grua|grúa|accidente|rompio|roto|revent/.test(ql)) {
+    return '🔧 <b>Tienes un pinchazo o avería — sigue estos pasos:</b><br><br>' +
+      '<b>1. ¿Tienes el kit de repara pinchazos?</b><br>' +
+      '• Kit tapones LIBRATON + Spray Norauto 600ml<br>' +
+      '• Con él lo arreglas en menos de 15 minutos tú solo<br><br>' +
+      '<b>2. Si no puedes arreglarlo — pide grúa:</b><br>' +
+      '• Llama a <b>@JUANMAVTCINFINITY</b> (Juan) — él tiene la póliza del seguro<br>' +
+      '• Juan te dará el teléfono de asistencia en carretera<br>' +
+      '• Llama y da: matrícula, tu nombre, lugar exacto, motivo<br><br>' +
+      '<b>3. Envía a Juan por WhatsApp:</b><br>' +
+      '• Fotos de la avería<br>' +
+      '• Vídeo del incidente<br>' +
+      '• Juan te dirá dónde depositar el vehículo<br><br>' +
+      '<div style="background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:10px;margin-top:4px">' +
+      '📞 Contacto urgente: <b>@JUANMAVTCINFINITY</b></div>';
+  }
+
+  // GRÚA (sin pinchazo)
+  if (/grua|grúa|remolque|asistencia|seguro/.test(ql)) {
+    return '🚨 <b>Cómo pedir la grúa:</b><br><br>' +
+      '1. Contacta con <b>@JUANMAVTCINFINITY</b> para obtener la póliza<br>' +
+      '2. Llama a la aseguradora con: matrícula, nombre, lugar y motivo<br>' +
+      '3. Envía fotos + vídeo a Juan por WhatsApp<br>' +
+      '4. Da tu número al operador para que la grúa te llame directamente<br><br>' +
+      '📹 Envía siempre el vídeo del incidente a @JUANMAVTCINFINITY.';
+  }
+
+  // TESLA / CARGA / BATERÍA / SUPERCARGADOR
+  if (/tesla|carg|bater|superc|enchufe|electricidad|kw|autonomia|autonomía/.test(ql)) {
+    return '⚡ <b>Normas de carga del Tesla:</b><br><br>' +
+      '• Carga cuando esté <b>por debajo del 20%</b><br>' +
+      '• Carga hasta el <b>80-90%</b> — nunca al 100%<br>' +
+      '• <b style="color:#ff4757">PROHIBIDO</b> cargar a medias (daña la batería)<br><br>' +
+      '<b>¿Cómo cargar más rápido?</b><br>' +
+      '1. Busca <b>"Supercargador Tesla"</b> en el GPS del coche<br>' +
+      '2. El coche precondiciona la batería solo<br>' +
+      '3. Verás: <i>"La batería se está preparando para la carga"</i><br><br>' +
+      '<b style="color:#ffb300">⚠️ Muy importante:</b> Retira el coche en cuanto termine la carga.<br>' +
+      'Si lo dejas enchufado al 80-90% cobran <b>0,50€/minuto</b> extra.';
+  }
+
+  // VIAJE PRIVADO / FOMENTO / HOJA DE RUTA
+  if (/privado|cuenta|fomento|hoja|ruta|particular|sin app/.test(ql)) {
+    return '🚫 <b>Viajes privados — normas:</b><br><br>' +
+      'Los viajes privados están <b style="color:#ff4757">PROHIBIDOS</b> sin Hoja de Ruta de Fomento.<br><br>' +
+      '<b>¿Cómo hacerlo legalmente?</b><br>' +
+      '1. Contacta con <b>ANDREA</b> antes del viaje<br>' +
+      '2. Ella te envía el enlace de Fomento<br>' +
+      '3. Descargas la Hoja de Ruta<br>' +
+      '4. Solo entonces puedes hacer el viaje<br><br>' +
+      '<b style="color:#ff4757">Sin hoja de ruta: multa + despido.</b>';
+  }
+
+  // BOLT / RATIO / ACEPTACIÓN / CANCELAR
+  if (/bolt|ratio|acepta|cancel|expulsa|metric|calidad|ignorar|ignorar/.test(ql)) {
+    return '🟢 <b>Normas Bolt:</b><br><br>' +
+      '• <b>NO ignorar viajes</b> — baja el ratio y perjudica a la empresa<br>' +
+      '• <b>NO cancelar</b> viajes ya aceptados<br><br>' +
+      '<b>Mínimos obligatorios:</b><br>' +
+      '• Tasa de aceptación: mínimo <b>60%</b> (si baja → expulsión)<br>' +
+      '• Calidad: mínimo <b>80%</b> (si baja → pierdes categorías)<br><br>' +
+      '<b>✅ Si vas a parar:</b> Baja la tasa en la app ANTES de parar para no acumular ignorados.';
+  }
+
+  // KM / FOTO / TURNO / ODÓMETRO
+  if (/km|kilom|foto|turno|odometr|odómetr|empeza|termina|inicio|final|control/.test(ql)) {
+    return '📷 <b>Control de turnos — foto km OBLIGATORIA:</b><br><br>' +
+      '• Foto al <b>EMPEZAR</b> el turno ← enviar al grupo<br>' +
+      '• Foto al <b>TERMINAR</b> el turno ← enviar al grupo<br><br>' +
+      '<b>¿Cómo ver los km en el Tesla?</b><br>' +
+      '1. Pulsa el icono del <b>coche</b> (esquina inferior izquierda)<br>' +
+      '2. Pulsa <b>"Trayectos"</b><br>' +
+      '3. Busca <b>"Odómetro"</b><br><br>' +
+      '<b style="color:#ff4757">🚨 NO FOTO = NO TRABAJO</b><br>' +
+      'Incumplimiento: suspensión, sanción o retirada del puesto.';
+  }
+
+  // LIMPIEZA / SUCIO / ASPIRAR / WAYLET
+  if (/limpi|sucio|aspira|waylet|cristal|lavar|lavado|mancha/.test(ql)) {
+    return '🚗 <b>Limpieza del vehículo:</b><br><br>' +
+      '<b>Turno mañana (día):</b><br>' +
+      '• Rulo de limpieza + aspirado con la Waylet de Repsol<br>' +
+      '• La empresa abona el importe al final del mes<br><br>' +
+      '<b>Turno noche:</b><br>' +
+      '• Aspirado o spray de agua — suficiente para mantenerlo limpio<br>' +
+      '• La empresa abona <b>1€/día</b> al final del mes<br><br>' +
+      '• Entregar siempre con batería cargada y el coche limpio<br>' +
+      '• <b>Nunca</b> discusiones entre compañeros por la limpieza.';
+  }
+
+  // KIT / PINCHAZOS / MATERIAL / HERRAMIENTA
+  if (/kit|material|herramienta|libraton|norauto|gato|llave|spray/.test(ql)) {
+    return '🔧 <b>Kit repara pinchazos (OBLIGATORIO en el vehículo):</b><br><br>' +
+      '1. <b>Gato + llave IMAYCC</b> → Amazon<br>' +
+      '2. <b>Kit tapones LIBRATON</b> → Amazon<br>' +
+      '3. <b>Spray Norauto 600ml</b> → Amazon / Norauto<br><br>' +
+      '✅ Con este kit, el coche nunca para más de 15 minutos por un pinchazo.<br>' +
+      '✅ No necesitas grúa, no pierdes trabajo.';
+  }
+
+  // ANDREA / JUAN / CONTACTO
+  if (/andrea|juan|contacto|jefe|empresa|quien|quién/.test(ql)) {
+    return '👥 <b>Contactos de la empresa:</b><br><br>' +
+      '• <b>@JUANMAVTCINFINITY (Juan)</b><br>' +
+      '  → Pólizas de seguro, averías, incidencias graves, grúa<br><br>' +
+      '• <b>ANDREA</b><br>' +
+      '  → Hojas de Ruta para viajes privados (Fomento)';
+  }
+
+  // Saludo
+  if (/^(hola|buenas|buenos|hey|hi|hello|que tal)/.test(ql)) {
+    return '👋 ¡Hola! Soy el asistente de VTC Infinity. Puedo ayudarte con:<br><br>' +
+      '• 🚫 Viajes privados y hoja de ruta<br>' +
+      '• 🟢 Normas Bolt<br>' +
+      '• ⚡ Carga del Tesla<br>' +
+      '• 🚗 Limpieza del vehículo<br>' +
+      '• 🔧 Pinchazo o avería<br>' +
+      '• 📷 Control de turnos y foto km<br><br>' +
+      '¿En qué te puedo ayudar?';
+  }
+
+  // Default
+  return '🤖 No tengo información específica sobre eso.<br><br>' +
+    'Para dudas urgentes contacta con:<br>' +
+    '• <b>@JUANMAVTCINFINITY</b> (Juan) — incidencias y averías<br>' +
+    '• <b>ANDREA</b> — hojas de ruta para viajes privados<br><br>' +
+    'O prueba preguntando de otra forma. Por ejemplo:<br>' +
+    '<i>"tengo un pinchazo"</i>, <i>"normas de Bolt"</i>, <i>"cómo cargo el Tesla"</i>';
+}
+
+// ── ADMIN ──
+var _adminTaps = 0, _adminTimer = null;
+function adminTap() {
+  _adminTaps++;
+  clearTimeout(_adminTimer);
+  _adminTimer = setTimeout(function(){ _adminTaps=0; }, 1500);
+  if (_adminTaps >= 5) {
+    _adminTaps = 0;
+    var key = getApiKey();
+    var st = document.getElementById('admin-key-status');
+    if (st) st.textContent = key ? '✅ Key activa: ...'+key.slice(-6) : '⚠ Sin key';
+    document.getElementById('admin-modal').classList.add('open');
+  }
+}
+function saveAdminKey() {
+  var k = (document.getElementById('admin-key-input').value||'').trim();
+  if (!k.startsWith('sk-ant-')) { toast('❌ Key inválida'); return; }
+  localStorage.setItem('drivx_api_key', k);
+  document.getElementById('admin-modal').classList.remove('open');
+  toast('✅ API key guardada');
+}
+
+// ── TOAST ──
+var _toastTimer = null;
+function toast(msg, color) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = color || '#1a2d42';
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
+}
+
+// ── PÓLIZA (lee lo que sube el supervisor) ──
+function loadPoliza() {
+  if (!currentUser) return;
+  var key = 'drivx_poliza_' + currentUser.matricula.replace(/\s/g,'_');
+  var poliza = null;
+  try { poliza = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
+
+  var card = document.getElementById('poliza-card');
+  if (!card) return;
+
+  if (poliza) {
+    card.style.display = 'flex';
+    var nombreEl = document.getElementById('poliza-nombre');
+    if (nombreEl) nombreEl.textContent = poliza.nombre + ' · ' + poliza.fecha;
+  } else {
+    card.style.display = 'none';
+  }
+}
+
+function abrirPoliza() {
+  if (!currentUser) return;
+  var key = 'drivx_poliza_' + currentUser.matricula.replace(/\s/g,'_');
+  var poliza = null;
+  try { poliza = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
+  if (!poliza) return;
+  var win = window.open('','_blank');
+  win.document.write('<html><head><title>'+poliza.nombre+'</title></head><body style="margin:0;height:100vh"><embed src="'+poliza.base64+'" type="application/pdf" width="100%" height="100%"></body></html>');
+}
+
+// ── CITAS (lee lo que escribe la supervisor app) ──
+var _citaInterval = null;
+
+function loadProximaCita() {
+  if (!currentUser) return;
+  var cid = currentUser.cid;
+  var citas = [];
+  try { citas = JSON.parse(localStorage.getItem('drivx_citas_' + cid) || '[]'); } catch(e){}
+
+  // Filter future citas only, sort by date
+  var now = new Date();
+  citas = citas.filter(function(c) {
+    var d = new Date(c.fecha + (c.hora ? 'T' + c.hora : 'T23:59'));
+    return d > now;
+  });
+  citas.sort(function(a, b) {
+    return new Date(a.fecha + 'T' + (a.hora||'00:00')) - new Date(b.fecha + 'T' + (b.hora||'00:00'));
+  });
+
+  var card = document.getElementById('proxima-cita-card');
+  if (!card) return;
+
+  if (!citas.length) {
+    card.style.display = 'none';
+    if (_citaInterval) { clearInterval(_citaInterval); _citaInterval = null; }
+    return;
+  }
+
+  var cita = citas[0];
+  var citaDate = new Date(cita.fecha + 'T' + (cita.hora || '09:00'));
+
+  // Set icon by type
+  var icons = { 'ITV':'🔧','Mecánico':'🔩','Revisión':'🔍','Cambio aceite':'🛢️','Neumáticos':'🏎️','Batería':'⚡','Limpieza':'🚿','Seguro':'📄','VTC':'📋','Otro':'📌' };
+  var icon = icons[cita.tipo] || '📅';
+
+  document.getElementById('cita-icon').textContent     = icon;
+  document.getElementById('cita-tipo-txt').textContent = cita.tipo;
+  document.getElementById('cita-lugar-txt').textContent = cita.lugar || 'Sin dirección';
+  document.getElementById('cita-fecha-txt').textContent = citaDate.toLocaleDateString('es-ES', {weekday:'short',day:'2-digit',month:'short'}) + (cita.hora ? ' · ' + cita.hora : '');
+
+  var notaEl = document.getElementById('cita-nota-txt');
+  if (cita.nota) { notaEl.textContent = '📝 ' + cita.nota; notaEl.style.display = 'block'; }
+  else           { notaEl.style.display = 'none'; }
+
+  card.style.display = 'block';
+
+  // Start/restart countdown
+  if (_citaInterval) clearInterval(_citaInterval);
+  _citaInterval = setInterval(function() { updateCountdown(citaDate); }, 1000);
+  updateCountdown(citaDate);
+}
+
+function updateCountdown(citaDate) {
+  var now  = new Date();
+  var diff = citaDate - now;
+  var card = document.getElementById('proxima-cita-card');
+
+  if (diff <= 0) {
+    // Cita passed — reload to show next one
+    loadProximaCita();
+    return;
+  }
+
+  var dias  = Math.floor(diff / (1000*60*60*24));
+  var horas = Math.floor((diff % (1000*60*60*24)) / (1000*60*60));
+  var mins  = Math.floor((diff % (1000*60*60)) / (1000*60));
+  var segs  = Math.floor((diff % (1000*60)) / 1000);
+
+  var dEl = document.getElementById('cnt-dias');
+  var hEl = document.getElementById('cnt-horas');
+  var mEl = document.getElementById('cnt-mins');
+  var sEl = document.getElementById('cnt-segs');
+
+  if (dEl) dEl.textContent = String(dias);
+  if (hEl) hEl.textContent = String(horas).padStart(2,'0');
+  if (mEl) mEl.textContent = String(mins).padStart(2,'0');
+  if (sEl) sEl.textContent = String(segs).padStart(2,'0');
+
+  // Urgente = menos de 24h
+  if (card) card.classList.toggle('urgente', diff < 86400000);
+}
+
+// ── PRE-WARM OCR ──
+setTimeout(function() {
+  if (typeof Tesseract !== 'undefined' && !_ocrWorker) {
+    Tesseract.createWorker('eng').then(function(w){ _ocrWorker = w; }).catch(function(){});
+  }
+}, 3000);
+</script>
+</body>
+</html>
