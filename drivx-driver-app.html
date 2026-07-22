@@ -405,48 +405,48 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
     <!-- Category buttons -->
     <div class="cat-grid">
-      <div class="cat-btn" id="cat-gasolina" style="position:relative">
-        <input type="file" id="input-gasolina" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'gasolina')">
+      <label class="cat-btn" id="cat-gasolina" for="input-gasolina" style="cursor:pointer">
+        <input type="file" id="input-gasolina" accept="image/*" style="display:none" onchange="onCatFile(this,'gasolina')">
         <div class="cat-count" id="count-gasolina">0</div>
         <div class="cat-icon">⛽</div>
         <div class="cat-name">Gasolina</div>
-        <div class="cat-total" id="total-gasolina" style="color:var(--amber)">€ 0</div>
+        <div class="cat-total" id="total-gasolina" style="color:var(--amber)">€ 0</label>
       </div>
-      <div class="cat-btn" id="cat-peaje" style="position:relative">
-        <input type="file" id="input-peaje" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'peaje')">
+      <label class="cat-btn" id="cat-peaje" for="input-peaje" style="cursor:pointer">
+        <input type="file" id="input-peaje" accept="image/*" style="display:none" onchange="onCatFile(this,'peaje')">
         <div class="cat-count" id="count-peaje">0</div>
         <div class="cat-icon">🛣️</div>
         <div class="cat-name">Peaje</div>
-        <div class="cat-total" id="total-peaje" style="color:var(--cyan)">€ 0</div>
+        <div class="cat-total" id="total-peaje" style="color:var(--cyan)">€ 0</label>
       </div>
-      <div class="cat-btn" id="cat-parking" style="position:relative">
-        <input type="file" id="input-parking" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'parking')">
+      <label class="cat-btn" id="cat-parking" for="input-parking" style="cursor:pointer">
+        <input type="file" id="input-parking" accept="image/*" style="display:none" onchange="onCatFile(this,'parking')">
         <div class="cat-count" id="count-parking">0</div>
         <div class="cat-icon">🅿️</div>
         <div class="cat-name">Parking</div>
-        <div class="cat-total" id="total-parking" style="color:var(--cyan)">€ 0</div>
+        <div class="cat-total" id="total-parking" style="color:var(--cyan)">€ 0</label>
       </div>
-      <div class="cat-btn" id="cat-lavado" style="position:relative">
-        <input type="file" id="input-lavado" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'lavado')">
+      <label class="cat-btn" id="cat-lavado" for="input-lavado" style="cursor:pointer">
+        <input type="file" id="input-lavado" accept="image/*" style="display:none" onchange="onCatFile(this,'lavado')">
         <div class="cat-count" id="count-lavado">0</div>
         <div class="cat-icon">🚿</div>
         <div class="cat-name">Lavado</div>
-        <div class="cat-total" id="total-lavado" style="color:var(--purple)">€ 0</div>
+        <div class="cat-total" id="total-lavado" style="color:var(--purple)">€ 0</label>
       </div>
       <!-- Lavado manual button (separate, below grid) -->
-      <div class="cat-btn" id="cat-datafono" style="position:relative">
-        <input type="file" id="input-datafono" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'datafono')">
+      <label class="cat-btn" id="cat-datafono" for="input-datafono" style="cursor:pointer">
+        <input type="file" id="input-datafono" accept="image/*" style="display:none" onchange="onCatFile(this,'datafono')">
         <div class="cat-count" id="count-datafono">0</div>
         <div class="cat-icon">💳</div>
         <div class="cat-name">Datáfono</div>
-        <div class="cat-total" id="total-datafono" style="color:var(--purple)">€ 0</div>
+        <div class="cat-total" id="total-datafono" style="color:var(--purple)">€ 0</label>
       </div>
-      <div class="cat-btn" id="cat-otros" style="position:relative">
-        <input type="file" id="input-otros" accept="image/*" capture="environment" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10" onchange="onCatFile(this,'otros')">
+      <label class="cat-btn" id="cat-otros" for="input-otros" style="cursor:pointer">
+        <input type="file" id="input-otros" accept="image/*" style="display:none" onchange="onCatFile(this,'otros')">
         <div class="cat-count" id="count-otros">0</div>
         <div class="cat-icon">🔧</div>
         <div class="cat-name">Otros</div>
-        <div class="cat-total" id="total-otros" style="color:var(--red)">€ 0</div>
+        <div class="cat-total" id="total-otros" style="color:var(--red)">€ 0</label>
       </div>
     </div>
 
@@ -592,13 +592,12 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     <div class="modal-title" id="km-modal-title">Foto km de entrada</div>
     <div class="modal-sub">Fotografía el odómetro — obligatorio</div>
 
-    <div class="photo-zone" id="km-photo-zone" style="position:relative">
-      <input type="file" id="km-camera-input" accept="image/*" capture="environment"
-        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10"
-        onchange="onKmPhoto(this)">
+    <label for="km-camera-input" class="photo-zone" id="km-photo-zone" style="cursor:pointer;display:block">
+      <input type="file" id="km-camera-input" accept="image/*"
+        style="display:none" onchange="onKmPhoto(this)">
       <div class="pz-icon" id="km-pz-icon">📷</div>
       <div class="pz-hint" id="km-pz-hint">Toca para hacer la foto</div>
-    </div>
+    </label>
 
     <div class="km-status" id="km-status">—</div>
 
@@ -677,7 +676,14 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     </div>
     <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
 
-      <button class="ayuda-btn" onclick="openTema('privados')">
+      <!-- Chat IA — arriba siempre visible -->
+      <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,0.4);background:rgba(0,212,255,0.07);margin-bottom:4px">
+        <span class="ayuda-icon">💬</span>
+        <div class="ayuda-info"><div class="ayuda-title" style="color:var(--cyan)">Preguntar al asistente IA</div><div class="ayuda-sub">Haz cualquier pregunta sobre VTC Infinity</div></div>
+        <span style="color:var(--cyan)">›</span>
+      </button>
+
+      <div style="border-bottom:1px solid var(--border);margin-bottom:4px"></div>
         <span class="ayuda-icon">🚫</span>
         <div class="ayuda-info"><div class="ayuda-title">Viajes privados</div><div class="ayuda-sub">Normas y hoja de ruta Fomento</div></div>
         <span style="color:var(--text3)">›</span>
@@ -719,15 +725,6 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span style="color:var(--text3)">›</span>
       </button>
 
-      <!-- Chat libre -->
-      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;text-align:center">¿No encuentras lo que buscas?</div>
-        <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,0.3);background:rgba(0,212,255,0.05)">
-          <span class="ayuda-icon">💬</span>
-          <div class="ayuda-info"><div class="ayuda-title" style="color:var(--cyan)">Preguntar al asistente IA</div><div class="ayuda-sub">Haz cualquier pregunta</div></div>
-          <span style="color:var(--cyan)">›</span>
-        </button>
-      </div>
     </div>
   </div>
 
@@ -976,18 +973,24 @@ function loginAs(u) {
   setInterval(loadPoliza, 30000);
 }
 
+function isMobile() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 function updateGastosInputs() {
   var isTest = currentUser && currentUser.cid === 'test';
+  var mobile = isMobile();
   var ids = ['input-gasolina','input-peaje','input-parking','input-lavado','input-datafono','input-otros','km-camera-input'];
   ids.forEach(function(id) {
     var inp = document.getElementById(id);
     if (!inp) return;
-    if (isTest) {
-      inp.removeAttribute('capture');
-    } else {
-      inp.setAttribute('capture', 'environment');
-    }
     inp.accept = 'image/*';
+    // capture only on mobile AND not test user
+    if (mobile && !isTest) {
+      inp.setAttribute('capture', 'environment');
+    } else {
+      inp.removeAttribute('capture');
+    }
   });
 }
 
