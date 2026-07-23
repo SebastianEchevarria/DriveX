@@ -87,9 +87,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .notif-item{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}
 .notif-item:last-child{border-bottom:none}
 .notif-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
-.notif-title{font-size:13px;font-weight:700}
-.notif-sub{font-size:11px;color:var(--text3);margin-top:3px}
-.notif-time{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:4px}
+.notif-title{font-size:13px;font-weight:700;color:var(--text)}
+.notif-sub{font-size:11px;color:var(--text2);margin-top:3px}
+.notif-time{font-size:10px;color:var(--text2);font-family:var(--mono);margin-top:4px}
 
 /* BTN SMALL */
 .btn-sm{padding:7px 14px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
@@ -1091,36 +1091,58 @@ function guardarCita() {
 }
 
 function renderNotifCitas() {
-  var allCitas = [];
-  try { allCitas = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
-  if (!allCitas.length) return;
-
-  // Sort by date
-  allCitas.sort(function(a,b){ return new Date(a.fecha+' '+(a.hora||'00:00')) - new Date(b.fecha+' '+(b.hora||'00:00')); });
-
-  // Show in notif screen (prepend after static ones)
   var container = document.getElementById('notif-dynamic');
   if (!container) return;
 
-  var html = '';
-  allCitas.slice(0,10).forEach(function(c) {
-    var d = new Date(c.fecha + (c.hora ? 'T'+c.hora : 'T00:00'));
-    var isPast = d < new Date();
-    var dateStr = d.toLocaleDateString('es-ES', {day:'2-digit',month:'short',year:'numeric'});
-    var timeStr = c.hora ? ' · ' + c.hora : '';
-    html +=
-      '<div class="notif-item">' +
-        '<div class="notif-dot" style="background:'+(isPast?'var(--text3)':'var(--cyan)')+'"></div>' +
-        '<div style="flex:1">' +
-          '<div class="notif-title">'+c.tipo+' · '+c.matricula+'</div>' +
-          '<div class="notif-sub">'+(c.lugar||'Sin lugar especificado')+(c.nota?' · '+c.nota:'')+'</div>' +
-          '<div class="notif-time">'+dateStr+timeStr+(isPast?' · Pasada':'')+'</div>' +
-        '</div>' +
-        '<button class="btn-sm btn-ghost" onclick="deleteCita('+c.id+')">✕</button>' +
-      '</div>';
+  var allCitas = [];
+  try { allCitas = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(x){}
+
+  // Deduplicate
+  var seen = {};
+  allCitas = allCitas.filter(function(c) {
+    var key = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
+    if (seen[key]) return false; seen[key]=true; return true;
   });
-  container.outerHTML = '<div id="notif-dynamic">'+html+'</div>';
+
+  allCitas.sort(function(a,b){
+    return new Date(a.fecha+'T'+(a.hora||'00:00')) - new Date(b.fecha+'T'+(b.hora||'00:00'));
+  });
+
+  var now = new Date();
+  function dU(fecha,hora){ return Math.round((new Date(fecha+'T'+(hora||'00:00'))-now)/86400000); }
+
+  var future = allCitas.filter(function(c){ return dU(c.fecha,c.hora)>=0; });
+  var past   = allCitas.filter(function(c){ return dU(c.fecha,c.hora)<0; });
+
+  var html = '';
+  future.slice(0,15).forEach(function(c) {
+    var d   = dU(c.fecha, c.hora);
+    var col = d===0?'var(--red)':d<=3?'var(--red)':d<=7?'var(--amber)':d<=30?'var(--cyan)':'var(--green)';
+    var lbl = d===0?'HOY':d===1?'MAÑANA':d+' días';
+    var dateStr = new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
+    html += '<div class="notif-item">'
+      +'<div class="notif-dot" style="background:'+col+'"></div>'
+      +'<div style="flex:1">'
+        +'<div class="notif-title">'+(c.tipo||'Cita')+' · '+(c.matricula||'')+'</div>'
+        +'<div class="notif-sub">'+(c.lugar||'Sin dirección')+(c.nota?' · '+c.nota:'')+'</div>'
+        +'<div class="notif-time">'+dateStr+(c.hora?' · '+c.hora:'')+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0;margin-left:10px">'
+        +'<div style="font-size:14px;font-weight:900;color:'+col+'">'+lbl+'</div>'
+      +'</div>'
+    +'</div>';
+  });
+
+  if (past.length) {
+    html += '<div style="padding:8px 14px;font-size:11px;color:var(--text2);border-top:1px solid var(--border)">'
+      +past.length+' cita'+(past.length>1?'s':'')+' pasada'+(past.length>1?'s':'')+'</div>';
+  }
+
+  if (!html) html = '<div style="padding:14px 16px;color:var(--text2);font-size:13px;text-align:center">Sin citas programadas</div>';
+
+  container.innerHTML = html;
 }
+
 
 function deleteCita(id) {
   // Remove from all keys
@@ -1392,7 +1414,7 @@ function renderITVAlerts() {
 
   list.innerHTML = h;
   list.querySelectorAll('.alerta-ver-btn').forEach(function(btn){
-    btn.onclick = function(){ abrirAlertaMat(btn.getAttribute('data-mat')); };
+    btn.onclick = function(){ verMatAlerta(btn); };
   });
 }
 
@@ -1402,7 +1424,7 @@ var _alertaMatActual = null;
 
 function borrarCitaAlerta(id) {
   deleteCita(id);
-  if (_alertaMatActual) abrirAlertaMat(_alertaMatActual.matricula);
+  if (_alertaMatActual) { var _b={getAttribute:function(){return _alertaMatActual.matricula;}}; verMatAlerta(_b); }
 }
 
 function guardarCitaTallerModal() {
@@ -1439,7 +1461,7 @@ function guardarCitaTallerModal() {
   renderNotifCitas();
   renderITVAlerts();
   renderVehiculosHome();
-  abrirAlertaMat(v.matricula); // refresh modal
+  var _b2={getAttribute:function(){return v.matricula;}}; verMatAlerta(_b2);
 }
 
 
