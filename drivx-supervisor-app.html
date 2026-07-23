@@ -438,7 +438,7 @@ function renderVehiculosHome() {
       ? '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">'+urg+' ⚠</span>'
       : '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
 
-    html += '<button class="ccaa-btn" data-id="'+gid+'" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;cursor:pointer;text-align:left">'
+    html += '<button onclick="toggleCCAA(this.getAttribute(\'data-id\'))" data-id="'+gid+'" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;cursor:pointer;text-align:left">'
       +'<span style="font-size:22px">'+ccIcon+'</span>'
       +'<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">'+cc+'</div>'
       +'<div style="font-size:11px;color:var(--text3);margin-top:1px">'+vl.length+' vehículo'+(vl.length>1?'s':'')+'</div></div>'
@@ -507,9 +507,7 @@ function renderVehiculosHome() {
     var mat=VEHICULOS.find(function(v){return v.matricula.replace(/[^a-zA-Z0-9]/g,'')===raw;});
     if(mat) el.onclick=function(){openMatModal(mat.matricula);};
   });
-  container.querySelectorAll('.ccaa-btn').forEach(function(el){
-    el.onclick=function(){toggleCCAA(el.getAttribute('data-id'));};
-  });
+  // ccaa-btn onclick set inline
 }
 
 
