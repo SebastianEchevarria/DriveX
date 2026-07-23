@@ -49,20 +49,20 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 /* ── HEADER ── */
 .header { padding:16px 16px 12px; display:flex; align-items:center; justify-content:space-between; }
 .header-title { font-size:20px; font-weight:800; }
-.header-sub { font-size:12px; color:var(--text3); margin-top:1px; }
+.header-sub { font-size:12px; color:var(--text2); margin-top:1px; }
 
 /* ── LOGIN ── */
 #screen-login { background:var(--bg); align-items:center; justify-content:center; padding:32px 24px; }
-.login-tag { font-size:11px; color:var(--text3); letter-spacing:3px; text-transform:uppercase; margin-bottom:36px; }
+.login-tag { font-size:11px; color:var(--text2); letter-spacing:3px; text-transform:uppercase; margin-bottom:36px; }
 .login-card { width:100%; max-width:360px; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 24px; }
 .field { margin-bottom:14px; }
-.field label { display:block; font-size:11px; font-weight:600; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.field label { display:block; font-size:11px; font-weight:600; color:var(--text2); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
 .field input { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:12px 14px; border-radius:10px; font-size:15px; font-family:'Inter',sans-serif; outline:none; transition:border-color .15s; }
 .field input:focus { border-color:var(--cyan); }
 .btn-primary { width:100%; padding:14px; border-radius:12px; border:none; background:var(--cyan); color:#000; font-size:15px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; transition:opacity .15s; }
 .btn-primary:active { opacity:.8; }
 .login-divider { display:flex; align-items:center; gap:10px; margin:20px 0; }
-.login-divider span { font-size:11px; color:var(--text3); white-space:nowrap; }
+.login-divider span { font-size:11px; color:var(--text2); white-space:nowrap; }
 .login-divider::before,.login-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 .btn-secondary { width:100%; padding:13px; border-radius:12px; border:1px solid var(--border2); background:transparent; color:var(--text2); font-size:14px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
 .login-error { background:rgba(255,71,87,.1); border:1px solid rgba(255,71,87,.3); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:14px; display:none; }
@@ -70,9 +70,9 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 /* ── HOME ── */
 .driver-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:20px; margin:0 0 16px; }
 .driver-name { font-size:22px; font-weight:800; margin-bottom:2px; }
-.driver-meta { font-size:12px; color:var(--text3); font-family:var(--mono); }
+.driver-meta { font-size:12px; color:var(--text2); font-family:var(--mono); }
 .status-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; margin-top:10px; }
-.status-badge.offline { background:rgba(74,96,128,.15); color:var(--text3); border:1px solid var(--border); }
+.status-badge.offline { background:rgba(74,96,128,.15); color:var(--text2); border:1px solid var(--border); }
 .status-badge.online { background:rgba(0,230,118,.1); color:var(--green); border:1px solid rgba(0,230,118,.3); }
 .status-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
 
@@ -87,34 +87,34 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .km-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
 .km-item { text-align:center; }
 .km-val { font-family:var(--mono); font-size:18px; font-weight:700; color:var(--cyan); }
-.km-lbl { font-size:10px; color:var(--text3); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
+.km-lbl { font-size:10px; color:var(--text2); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
 
 /* Stats row */
 .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
 .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; }
 .stat-val { font-family:var(--mono); font-size:20px; font-weight:700; }
-.stat-lbl { font-size:11px; color:var(--text3); margin-top:3px; }
+.stat-lbl { font-size:11px; color:var(--text2); margin-top:3px; }
 
 /* ── KM MODAL ── */
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:200; align-items:flex-end; justify-content:center; }
 .modal-overlay.open { display:flex; }
 .modal-sheet { background:var(--surface); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:24px 20px max(24px,env(safe-area-inset-bottom)); width:100%; max-width:480px; }
 .modal-title { font-size:18px; font-weight:800; margin-bottom:4px; }
-.modal-sub { font-size:13px; color:var(--text3); margin-bottom:20px; }
+.modal-sub { font-size:13px; color:var(--text2); margin-bottom:20px; }
 
 /* Photo zone */
 .photo-zone { border:2px dashed var(--border2); border-radius:16px; padding:32px 20px; text-align:center; cursor:pointer; transition:border-color .15s; margin-bottom:16px; position:relative; }
 .photo-zone:active { border-color:var(--cyan); }
 .photo-zone.has-photo { border-color:rgba(0,230,118,.5); border-style:solid; }
 .photo-zone img { max-width:100%; max-height:180px; border-radius:10px; object-fit:contain; }
-.photo-zone .pz-hint { font-size:13px; color:var(--text3); margin-top:8px; }
+.photo-zone .pz-hint { font-size:13px; color:var(--text2); margin-top:8px; }
 .photo-zone .pz-icon { font-size:40px; margin-bottom:8px; }
 
 .km-input-wrap { position:relative; margin-bottom:16px; }
 .km-input-wrap input { width:100%; background:var(--surface2); border:2px solid var(--border2); color:var(--text); padding:16px 14px; border-radius:14px; font-size:28px; font-family:var(--mono); font-weight:700; text-align:center; outline:none; transition:border-color .15s; }
 .km-input-wrap input:focus { border-color:var(--cyan); }
 .km-input-wrap input.valid { border-color:var(--green); }
-.km-status { font-size:12px; color:var(--text3); text-align:center; min-height:18px; margin-bottom:16px; }
+.km-status { font-size:12px; color:var(--text2); text-align:center; min-height:18px; margin-bottom:16px; }
 .km-status.ok { color:var(--green); }
 .km-status.warn { color:var(--amber); }
 
@@ -141,27 +141,27 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .ticket-item:last-child { border-bottom:none; }
 .ticket-info { display:flex; flex-direction:column; gap:2px; }
 .ticket-name { font-size:13px; font-weight:600; }
-.ticket-meta { font-size:11px; color:var(--text3); font-family:var(--mono); }
+.ticket-meta { font-size:11px; color:var(--text2); font-family:var(--mono); }
 .ticket-amt { font-family:var(--mono); font-size:14px; font-weight:700; }
-.empty-state { text-align:center; padding:32px 16px; color:var(--text3); font-size:13px; }
+.empty-state { text-align:center; padding:32px 16px; color:var(--text2); font-size:13px; }
 
 /* ── FACTURACIÓN ── */
 .plat-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
 .plat-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
 .plat-logo { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; }
 .plat-name { font-size:15px; font-weight:800; }
-.plat-sub { font-size:11px; color:var(--text3); margin-top:1px; }
+.plat-sub { font-size:11px; color:var(--text2); margin-top:1px; }
 .plat-amounts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
 .plat-amt { background:var(--surface2); border-radius:10px; padding:10px 12px; }
 .plat-amt-val { font-family:var(--mono); font-size:17px; font-weight:700; }
-.plat-amt-lbl { font-size:10px; color:var(--text3); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
+.plat-amt-lbl { font-size:10px; color:var(--text2); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
 .btn-upload { width:100%; padding:11px; border-radius:10px; border:1px solid var(--border2); background:var(--surface2); color:var(--text2); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; }
 .btn-upload:active { background:var(--border); }
 
 /* Bolt campanyas */
 .campanyas-row { background:rgba(0,212,255,.05); border:1px solid rgba(0,212,255,.15); border-radius:10px; padding:10px 12px; margin-top:8px; display:none; }
 .campanyas-row.visible { display:block; }
-.campanyas-row label { font-size:10px; color:var(--text3); font-family:var(--mono); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
+.campanyas-row label { font-size:10px; color:var(--text2); font-family:var(--mono); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
 .campanyas-row input { width:100%; background:var(--surface); border:1px solid var(--border2); color:var(--text); padding:8px 10px; border-radius:8px; font-size:16px; font-family:var(--mono); font-weight:700; outline:none; }
 
 /* Total bar */
@@ -200,7 +200,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .ayuda-icon { font-size:24px; flex-shrink:0; }
 .ayuda-info { flex:1; }
 .ayuda-title { font-size:14px; font-weight:700; color:var(--text); }
-.ayuda-sub { font-size:12px; color:var(--text3); margin-top:2px; }
+.ayuda-sub { font-size:12px; color:var(--text2); margin-top:2px; }
 /* ── CITA CARD ── */
 #proxima-cita-card.urgente { border-color:rgba(255,71,87,.5); }
 #proxima-cita-card.urgente #cita-tipo-txt { color:var(--red); }
@@ -220,7 +220,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .quick-btn { padding:6px 12px; border-radius:20px; border:1px solid var(--border2); background:var(--surface2); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
 .quick-btn:active { background:rgba(0,212,255,.1); border-color:var(--cyan); color:var(--cyan); }
 
-.section-title { font-size:12px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; margin:20px 0 12px; }
+.section-title { font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1.5px; margin:20px 0 12px; }
 #screen-chatbot { overflow:hidden; position:relative; }
 #ayuda-menu, #ayuda-detail, #ayuda-chat { height:100%; }
 </style>
@@ -822,12 +822,44 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 // ── USERS ──
 var USERS = {
-  'ahmed@drivx.es': { pass:'Ahmed2024', cid:'ahmed', nombre:'Ahmed Karimi',  matricula:'1234 ABC', modelo:'Tesla Model 3', ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-A8K2' },
-  'paco@drivx.es':  { pass:'Paco2024',  cid:'paco',  nombre:'Paco Ruiz',     matricula:'9012 GHI', modelo:'BMW 5 Series',  ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-P3R7' },
-  'maria@drivx.es': { pass:'Maria2024', cid:'maria', nombre:'María López',   matricula:'5678 DEF', modelo:'Mercedes EQS',  ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-M5L1' },
-  'sonia@drivx.es': { pass:'Sonia2024', cid:'sonia', nombre:'Sonia Martín',  matricula:'3456 JKL', modelo:'Toyota Prius',  ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-S9T4' },
-  'ivan@drivx.es':  { pass:'Ivan2024',  cid:'ivan',  nombre:'Iván Torres',   matricula:'7890 MNO', modelo:'Skoda Octavia', ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-I2V6' },
-  '1111':           { pass:'1111',       cid:'test',  nombre:'Test User',     matricula:'0000 TST', modelo:'Vehículo Test', ciudad:'Test',     turno:'06:00–14:00', invite:'DRVX-TEST' },
+  // 1234 ABC — Tesla Model 3 — Málaga
+  'ahmed@drivx.es':   { pass:'Ahmed2024',   cid:'ahmed',   nombre:'Ahmed Karimi',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-A8K2' },
+  'carlos@drivx.es':  { pass:'Carlos2024',  cid:'carlos',  nombre:'Carlos Vega',     matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'14:00–22:00', invite:'DRVX-C1V4' },
+  'rafael@drivx.es':  { pass:'Rafael2024',  cid:'rafael',  nombre:'Rafael Ortiz',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'22:00–06:00', invite:'DRVX-R5O8' },
+  // 9012 GHI — BMW 5 Series — Málaga
+  'paco@drivx.es':    { pass:'Paco2024',    cid:'paco',    nombre:'Paco Ruiz',       matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-P3R7' },
+  'lucia@drivx.es':   { pass:'Lucia2024',   cid:'lucia',   nombre:'Lucía Fernández', matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'14:00–22:00', invite:'DRVX-L2F9' },
+  'omar@drivx.es':    { pass:'Omar2024',    cid:'omar',    nombre:'Omar Hassan',     matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'22:00–06:00', invite:'DRVX-O7H3' },
+  // 5678 DEF — Mercedes EQS — Valencia
+  'maria@drivx.es':   { pass:'Maria2024',   cid:'maria',   nombre:'María López',     matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-M5L1' },
+  'david@drivx.es':   { pass:'David2024',   cid:'david',   nombre:'David Serrano',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-D4S6' },
+  'fatima@drivx.es':  { pass:'Fatima2024',  cid:'fatima',  nombre:'Fátima Benali',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-F8B2' },
+  // 3456 JKL — Toyota Prius — Valencia
+  'miguel@drivx.es':  { pass:'Miguel2024',  cid:'miguel',  nombre:'Miguel Ángel',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-M3A7' },
+  'sonia@drivx.es':   { pass:'Sonia2024',   cid:'sonia',   nombre:'Sonia Martín',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-S9T4' },
+  'elena@drivx.es':   { pass:'Elena2024',   cid:'elena',   nombre:'Elena Castro',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-E1C5' },
+  // 7890 MNO — Skoda Octavia — Valencia
+  'nadia@drivx.es':   { pass:'Nadia2024',   cid:'nadia',   nombre:'Nadia Popescu',   matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-N6P0' },
+  'jorge@drivx.es':   { pass:'Jorge2024',   cid:'jorge',   nombre:'Jorge Molina',    matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-J4M1' },
+  'ivan@drivx.es':    { pass:'Ivan2024',    cid:'ivan',    nombre:'Iván Torres',     matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-I2V6' },
+  // TEST
+  '1111':             { pass:'1111',         cid:'test',    nombre:'Test User',       matricula:'0000 TST', modelo:'Vehículo Test',  ciudad:'Test',     turno:'06:00–14:00', invite:'DRVX-TEST' },
+  // 2345 CLM — Tesla Model Y — Albacete
+  'andres@drivx.es':  { pass:'Andres2024',   cid:'andres',  nombre:'Andrés Molina',   matricula:'2345 CLM', modelo:'Tesla Model Y',       ciudad:'Albacete',    turno:'06:00–14:00', invite:'DRVX-A1M5' },
+  'beatriz@drivx.es': { pass:'Beatriz2024',  cid:'beatriz', nombre:'Beatriz Ramos',   matricula:'2345 CLM', modelo:'Tesla Model Y',       ciudad:'Albacete',    turno:'14:00–22:00', invite:'DRVX-B2R6' },
+  'cristian@drivx.es':{ pass:'Cristian2024', cid:'cristian',nombre:'Cristian Núñez',  matricula:'2345 CLM', modelo:'Tesla Model Y',       ciudad:'Albacete',    turno:'22:00–06:00', invite:'DRVX-C3N7' },
+  // 6789 CLM — Toyota Camry — Cuenca
+  'diana@drivx.es':   { pass:'Diana2024',    cid:'diana',   nombre:'Diana Herrero',   matricula:'6789 CLM', modelo:'Toyota Camry',        ciudad:'Cuenca',      turno:'06:00–14:00', invite:'DRVX-D4H8' },
+  'ernesto@drivx.es': { pass:'Ernesto2024',  cid:'ernesto', nombre:'Ernesto Sanz',    matricula:'6789 CLM', modelo:'Toyota Camry',        ciudad:'Cuenca',      turno:'14:00–22:00', invite:'DRVX-E5S9' },
+  'felix@drivx.es':   { pass:'Felix2024',    cid:'felix',   nombre:'Félix Carrasco',  matricula:'6789 CLM', modelo:'Toyota Camry',        ciudad:'Cuenca',      turno:'22:00–06:00', invite:'DRVX-F6C0' },
+  // 1122 CLM — Tesla Model 3 — Toledo
+  'gloria@drivx.es':  { pass:'Gloria2024',   cid:'gloria',  nombre:'Gloria Prieto',   matricula:'1122 CLM', modelo:'Tesla Model 3',       ciudad:'Toledo',      turno:'06:00–14:00', invite:'DRVX-G7P1' },
+  'hector@drivx.es':  { pass:'Hector2024',   cid:'hector',  nombre:'Héctor Ibáñez',   matricula:'1122 CLM', modelo:'Tesla Model 3',       ciudad:'Toledo',      turno:'14:00–22:00', invite:'DRVX-H8I2' },
+  'irene@drivx.es':   { pass:'Irene2024',    cid:'irene',   nombre:'Irene Blanco',    matricula:'1122 CLM', modelo:'Tesla Model 3',       ciudad:'Toledo',      turno:'22:00–06:00', invite:'DRVX-I9B3' },
+  // 3344 CLM — VW Passat — Ciudad Real
+  'javier@drivx.es':  { pass:'Javier2024',   cid:'javier',  nombre:'Javier Cano',     matricula:'3344 CLM', modelo:'Volkswagen Passat',   ciudad:'Ciudad Real', turno:'06:00–14:00', invite:'DRVX-J0C4' },
+  'karen@drivx.es':   { pass:'Karen2024',    cid:'karen',   nombre:'Karen Flores',    matricula:'3344 CLM', modelo:'Volkswagen Passat',   ciudad:'Ciudad Real', turno:'14:00–22:00', invite:'DRVX-K1F5' },
+  'luis@drivx.es':    { pass:'Luis2024',     cid:'luis',    nombre:'Luis Méndez',     matricula:'3344 CLM', modelo:'Volkswagen Passat',   ciudad:'Ciudad Real', turno:'22:00–06:00', invite:'DRVX-L2M6' },
 };
 var INVITE_MAP = {};
 Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
@@ -2105,7 +2137,6 @@ function updateCountdown(citaDate) {
   var card = document.getElementById('proxima-cita-card');
 
   if (diff <= 0) {
-    // Cita passed — reload to show next one
     loadProximaCita();
     return;
   }
@@ -2125,8 +2156,39 @@ function updateCountdown(citaDate) {
   if (mEl) mEl.textContent = String(mins).padStart(2,'0');
   if (sEl) sEl.textContent = String(segs).padStart(2,'0');
 
-  // Urgente = menos de 24h
-  if (card) card.classList.toggle('urgente', diff < 86400000);
+  // Color by urgency
+  var color, borderColor, bgColor, cntBg;
+  if (diff < 86400000) {          // < 1 day — RED urgent
+    color = '#ff4757'; borderColor = 'rgba(255,71,87,.6)'; bgColor = 'rgba(255,71,87,.06)'; cntBg = 'rgba(255,71,87,.1)';
+  } else if (diff < 3*86400000) { // < 3 days — RED
+    color = '#ff4757'; borderColor = 'rgba(255,71,87,.45)'; bgColor = 'rgba(255,71,87,.05)'; cntBg = 'rgba(255,71,87,.08)';
+  } else if (diff < 7*86400000) { // < 7 days — AMBER
+    color = '#ffb300'; borderColor = 'rgba(255,179,0,.5)'; bgColor = 'rgba(255,179,0,.05)'; cntBg = 'rgba(255,179,0,.1)';
+  } else {                        // > 7 days — CYAN (normal)
+    color = '#00d4ff'; borderColor = 'rgba(0,212,255,.35)'; bgColor = 'transparent'; cntBg = 'rgba(0,212,255,.06)';
+  }
+
+  if (card) {
+    card.style.borderColor = borderColor;
+    card.style.background  = bgColor;
+  }
+
+  // Update tipo text color
+  var tipoEl = document.getElementById('cita-tipo-txt');
+  if (tipoEl) tipoEl.style.color = color;
+
+  // Update icon bg
+  var iconEl = document.getElementById('cita-icon');
+  if (iconEl) iconEl.style.background = 'rgba('+
+    (diff < 7*86400000 ? (diff < 3*86400000 ? '255,71,87' : '255,179,0') : '0,212,255') + ',.12)';
+
+  // Update countdown numbers color
+  var cntEl = document.getElementById('cita-countdown');
+  if (cntEl) {
+    cntEl.style.background   = cntBg;
+    cntEl.style.borderColor  = borderColor;
+  }
+  [dEl, hEl, mEl, sEl].forEach(function(el){ if(el) el.style.color = color; });
 }
 
 // ── PRE-WARM OCR ──
