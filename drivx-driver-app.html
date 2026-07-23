@@ -1284,7 +1284,74 @@ function onCatFile(input, cat) {
   var proc = document.getElementById('gastos-processing');
   var procTxt = document.getElementById('gastos-processing-text');
   proc.classList.add('visible');
-  procTxt.textContent = '🤖 IA analizando ticket de ' + catNames[cat] + '...';
+  procTxt.textContent = '🤖 IA verificando ticket de ' + catNames[cat] + '...';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64  = e.target.result.split(',')[1];
+    var mt   = file.type || 'image/jpeg';
+    var hash = imageHash(b64);
+
+    if (gastosHashes[hash]) {
+      proc.classList.remove('visible');
+      toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
+    }
+
+    // Category-specific verification prompts
+    var catDescriptions = {
+      gasolina: 'ticket de gasolina o recarga eléctrica de vehículo (palabras clave: gasolina, diesel, litros, precio/litro, PLENERGY, Repsol, BP, Cepsa, Total, carburante, kWh, carga eléctrica)',
+      peaje:    'ticket de peaje de autopista o autovía (palabras clave: autopista, peaje, estación, vía, cobrador, importe, IVA incluido, CESA, Abertis, AP-7)',
+      datafono: 'recibo de cobro con datáfono/TPV a un cliente (palabras clave: VISA, Mastercard, contactless, VENTA, TPV, comercio, autorización, banco, Payments, EUR grande en el centro)',
+      lavado:   'ticket de lavado de coche (palabras clave: lavado, autolavado, limpieza, car wash)',
+      otros:    'cualquier ticket o recibo de gasto de vehículo profesional'
+    };
+
+    var desc = catDescriptions[cat] || catDescriptions.otros;
+    var verifyPrompt = 'Analiza esta imagen. ¿Es un ' + desc + '? Responde SOLO con JSON sin markdown: {"es_correcto":true/false,"tipo_detectado":"descripcion breve de lo que es","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. es_correcto=true SOLO si coincide exactamente con la categoría pedida.';
+
+    analyzeImage(b64, mt, verifyPrompt).then(function(text) {
+      proc.classList.remove('visible');
+      var parsed = parseJSON(text);
+
+      // Check if ticket matches category
+      if (parsed && parsed.es_correcto === false) {
+        var tipoDetectado = parsed.tipo_detectado || 'otro tipo de ticket';
+        toast('❌ Ticket incorrecto — parece un ticket de ' + tipoDetectado + '. Súbelo en la categoría correcta.');
+        return;
+      }
+
+      var importe = parsed ? (parseFloat(parsed.importe)||0) : extractAmount(text);
+
+      // Special rule for gasolina/carga: use "Total suministrado" if 3 totals
+      if (cat === 'gasolina' && text.toLowerCase().includes('suminist')) {
+        var match = text.match(/suministr[ao][^\d]*(\d+[,\.]\d+)/i);
+        if (match) importe = parseFloat(match[1].replace(',','.'));
+      }
+
+      var hora   = parsed && parsed.hora   ? parsed.hora   : null;
+      var fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
+      var nombre = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
+
+      // Duplicate check: same amount AND same hour
+      var isDup = data.gastos[cat].some(function(t) {
+        if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
+        if (!hora || !t.hora) return false;
+        return t.hora === hora;
+      });
+      if (isDup) { toast('⚠ Duplicado — mismo importe y hora ya registrados'); return; }
+
+      if (limit && data.gastos[cat].length >= limit) {
+        toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
+      }
+
+      gastosHashes[hash] = true;
+      registerTicket(cat, importe, nombre, fecha, hora);
+    }).catch(function() { proc.classList.remove('visible'); toast('❌ Error analizando ticket'); });
+  };
+  reader.readAsDataURL(file);
+}
+
+
 
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -1418,9 +1485,14 @@ function onParkingFile(input) {
     setTimeout(function(){ document.getElementById('parking-amt').focus(); }, 100);
 
     // AI reads the ticket hora in background
-    var prompt = 'Ticket de parking/aparcamiento. Responde SOLO con JSON: {"hora":"HH:MM o null","fecha":"dd/mm o null","importe":NUMERO_O_NULL}\n- hora: hora del ticket en formato HH:MM. Muy importante.\n- importe: total si aparece, si no null.';
+    var prompt = 'Analiza esta imagen. ¿Es un ticket de parking o aparcamiento (tiene QR, código de barras, fecha/hora de entrada/salida, referencia de plaza o zona)? Responde SOLO con JSON: {"es_parking":true/false,"hora":"HH:MM o null","fecha":"dd/mm o null","importe":NUMERO_O_NULL}. es_parking=true solo si es claramente un ticket de parking/aparcamiento.';
     analyzeImage(b64, mt, prompt).then(function(text) {
       var parsed = parseJSON(text);
+      if (parsed && parsed.es_parking === false) {
+        toast('❌ No es un ticket de parking. Súbelo en la categoría correcta.');
+        parkingPending = {};
+        return;
+      }
       parkingPending.hora   = parsed && parsed.hora   ? parsed.hora   : null;
       parkingPending.fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
       var horaEl = document.getElementById('parking-hora');
