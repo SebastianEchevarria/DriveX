@@ -350,27 +350,27 @@ var VEHICULOS = [
   {
     matricula: '1234 ABC', modelo: 'Tesla Model 3', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '⚡',
     docs: { itv: { fecha:'2025-11-02', ok:true }, seguro: { fecha:'15/03/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['ahmed']
+    conductores: ['ahmed','carlos','rafael']
   },
   {
     matricula: '9012 GHI', modelo: 'BMW 5 Series', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '🚗',
     docs: { itv: { fecha:'2024-11-15', ok:false }, seguro: { fecha:'28/02/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['paco']
+    conductores: ['paco','lucia','omar']
   },
   {
     matricula: '5678 DEF', modelo: 'Mercedes EQS', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '⚡',
     docs: { itv: { fecha:'2025-10-28', ok:true }, seguro: { fecha:'01/06/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['maria']
+    conductores: ['maria','david','fatima']
   },
   {
     matricula: '3456 JKL', modelo: 'Toyota Prius', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
     docs: { itv: { fecha:'2024-12-15', ok:false, warn:true }, seguro: { fecha:'20/04/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['sonia']
+    conductores: ['sonia','miguel','elena']
   },
   {
     matricula: '7890 MNO', modelo: 'Skoda Octavia', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
     docs: { itv: { fecha:'2025-11-10', ok:true }, seguro: { fecha:'15/09/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['ivan']
+    conductores: ['ivan','nadia','jorge']
   },
   {
     matricula: '0000 TST', modelo: 'Vehículo Test', ciudad: 'Test', ccaa: 'Andalucía', icon: '🔧',
@@ -573,11 +573,28 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 var CONDUCTORES = [
-  { cid:'ahmed', nombre:'Ahmed Karimi',  matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'06:00–14:00', color:'#00d4ff' },
-  { cid:'paco',  nombre:'Paco Ruiz',     matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'06:00–14:00', color:'#ffb300' },
-  { cid:'maria', nombre:'María López',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'06:00–14:00', color:'#7c5cfc' },
-  { cid:'sonia', nombre:'Sonia Martín',  matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'14:00–22:00', color:'#00e676' },
-  { cid:'ivan',  nombre:'Iván Torres',   matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'22:00–06:00', color:'#ff4757' },
+  // 1234 ABC — Tesla Model 3 — Málaga
+  { cid:'ahmed',   nombre:'Ahmed Karimi',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'06:00–14:00', color:'#00d4ff' },
+  { cid:'carlos',  nombre:'Carlos Vega',     matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'14:00–22:00', color:'#00d4ff' },
+  { cid:'rafael',  nombre:'Rafael Ortiz',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'22:00–06:00', color:'#00d4ff' },
+  // 9012 GHI — BMW 5 Series — Málaga
+  { cid:'paco',    nombre:'Paco Ruiz',       matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'06:00–14:00', color:'#ffb300' },
+  { cid:'lucia',   nombre:'Lucía Fernández', matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'14:00–22:00', color:'#ffb300' },
+  { cid:'omar',    nombre:'Omar Hassan',     matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'22:00–06:00', color:'#ffb300' },
+  // 5678 DEF — Mercedes EQS — Valencia
+  { cid:'maria',   nombre:'María López',     matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'06:00–14:00', color:'#7c5cfc' },
+  { cid:'david',   nombre:'David Serrano',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'14:00–22:00', color:'#7c5cfc' },
+  { cid:'fatima',  nombre:'Fátima Benali',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'22:00–06:00', color:'#7c5cfc' },
+  // 3456 JKL — Toyota Prius — Valencia
+  { cid:'sonia',   nombre:'Sonia Martín',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'14:00–22:00', color:'#00e676' },
+  { cid:'miguel',  nombre:'Miguel Ángel',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'06:00–14:00', color:'#00e676' },
+  { cid:'elena',   nombre:'Elena Castro',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'22:00–06:00', color:'#00e676' },
+  // 7890 MNO — Skoda Octavia — Valencia
+  { cid:'ivan',    nombre:'Iván Torres',     matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'22:00–06:00', color:'#ff4757' },
+  { cid:'nadia',   nombre:'Nadia Popescu',   matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'06:00–14:00', color:'#ff4757' },
+  { cid:'jorge',   nombre:'Jorge Molina',    matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'14:00–22:00', color:'#ff4757' },
+  // 0000 TST — Test
+  { cid:'test',    nombre:'Test User',       matricula:'0000 TST', modelo:'Vehículo Test',  ciudad:'Test',     turno:'06:00–14:00', color:'#00d4ff' },
 ];
 
 var supervisorData = { ts: Date.now() };
@@ -931,12 +948,54 @@ function toast(msg) {
     <div class="field">
       <label>Conductor / Matrícula</label>
       <select id="cita-conductor" class="form-input">
-        <option value="ahmed">Ahmed Karimi · 1234 ABC</option>
-        <option value="paco">Paco Ruiz · 9012 GHI</option>
-        <option value="maria">María López · 5678 DEF</option>
-        <option value="sonia">Sonia Martín · 3456 JKL</option>
-        <option value="ivan">Iván Torres · 7890 MNO</option>
-        <option value="test">Test User · 0000 TST</option>
+        <optgroup label="1234 ABC — Tesla Model 3">
+          <option value="ahmed">Ahmed Karimi · 06:00–14:00</option>
+          <option value="carlos">Carlos Vega · 14:00–22:00</option>
+          <option value="rafael">Rafael Ortiz · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="9012 GHI — BMW 5 Series">
+          <option value="paco">Paco Ruiz · 06:00–14:00</option>
+          <option value="lucia">Lucía Fernández · 14:00–22:00</option>
+          <option value="omar">Omar Hassan · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="5678 DEF — Mercedes EQS">
+          <option value="maria">María López · 06:00–14:00</option>
+          <option value="david">David Serrano · 14:00–22:00</option>
+          <option value="fatima">Fátima Benali · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="3456 JKL — Toyota Prius">
+          <option value="miguel">Miguel Ángel · 06:00–14:00</option>
+          <option value="sonia">Sonia Martín · 14:00–22:00</option>
+          <option value="elena">Elena Castro · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="7890 MNO — Skoda Octavia">
+          <option value="nadia">Nadia Popescu · 06:00–14:00</option>
+          <option value="jorge">Jorge Molina · 14:00–22:00</option>
+          <option value="ivan">Iván Torres · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="0000 TST — Test">
+          <option value="test">Test User</option>
+        </optgroup>
+        <optgroup label="2345 CLM — Tesla Model Y">
+          <option value="andres">Andrés Molina · 06:00–14:00</option>
+          <option value="beatriz">Beatriz Ramos · 14:00–22:00</option>
+          <option value="cristian">Cristian Núñez · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="6789 CLM — Toyota Camry">
+          <option value="diana">Diana Herrero · 06:00–14:00</option>
+          <option value="ernesto">Ernesto Sanz · 14:00–22:00</option>
+          <option value="felix">Félix Carrasco · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="1122 CLM — Tesla Model 3">
+          <option value="gloria">Gloria Prieto · 06:00–14:00</option>
+          <option value="hector">Héctor Ibáñez · 14:00–22:00</option>
+          <option value="irene">Irene Blanco · 22:00–06:00</option>
+        </optgroup>
+        <optgroup label="3344 CLM — VW Passat">
+          <option value="javier">Javier Cano · 06:00–14:00</option>
+          <option value="karen">Karen Flores · 14:00–22:00</option>
+          <option value="luis">Luis Méndez · 22:00–06:00</option>
+        </optgroup>
       </select>
     </div>
     <div class="field">
