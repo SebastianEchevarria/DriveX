@@ -1307,7 +1307,10 @@ function onCatFile(input, cat) {
     };
 
     var desc = catDescriptions[cat] || catDescriptions.otros;
-    var verifyPrompt = 'Analiza esta imagen. ¿Es un ' + desc + '? Responde SOLO con JSON sin markdown: {"es_correcto":true/false,"tipo_detectado":"descripcion breve de lo que es","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. es_correcto=true SOLO si coincide exactamente con la categoría pedida.';
+    var importeRule = cat === 'gasolina'
+      ? ' REGLA IMPORTE GASOLINA: si el ticket tiene TRES totales (Total cobrado, Total suministrado/suminist., Total devuelto), usa ÚNICAMENTE el valor de "Total suministrado" o "Total suminist." — ignora los otros dos. Si solo hay un total, usa ese.'
+      : '';
+    var verifyPrompt = 'Analiza esta imagen. ¿Es un ' + desc + '? Responde SOLO con JSON sin markdown: {"es_correcto":true/false,"tipo_detectado":"descripcion breve de lo que es","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. es_correcto=true SOLO si coincide exactamente con la categoría pedida.' + importeRule;
 
     analyzeImage(b64, mt, verifyPrompt).then(function(text) {
       proc.classList.remove('visible');
