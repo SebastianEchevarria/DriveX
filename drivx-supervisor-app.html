@@ -224,6 +224,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <button onclick="openCitaForMat()" class="btn-primary" style="border-radius:14px;font-size:14px;margin-bottom:10px">
         📅 Registrar cita ITV en la app
       </button>
+      <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:9px;border-radius:12px;background:rgba(0,212,255,.06);border:1px dashed rgba(0,212,255,.3);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:8px">
+        <input type="file" accept="image/*" style="display:none" onchange="scanAndOpenCita(this, _currentMat)">
+        📸 Escanear confirmación con IA
+      </label>
 
       <!-- Nueva cita de taller -->
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px">
@@ -1878,13 +1882,88 @@ function toast(msg) {
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
+
+// ══ SCAN IMAGE ══
+function scanCitaImage(input) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  var statusEl = document.getElementById('cita-scan-status');
+  var labelEl  = document.getElementById('cita-scan-label');
+  if (statusEl) { statusEl.style.display='block'; statusEl.textContent='⏳ Analizando imagen...'; statusEl.style.color='var(--cyan)'; }
+  if (labelEl)  labelEl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var prompt = 'Eres un extractor de datos de citas de vehiculos. Analiza esta imagen (confirmacion de ITV, email de taller, SMS, captura). Extrae SOLO en JSON sin markdown: {"tipo":"ITV","fecha":"YYYY-MM-DD","hora":"HH:MM","lugar":"nombre estacion y direccion completa","nota":"tipo inspeccion u otra info relevante"}. fecha en YYYY-MM-DD obligatorio. hora en HH:MM. Si no encuentras un dato pon null. Responde UNICAMENTE el JSON.';
+    callAI(b64, file.type||'image/jpeg', prompt).then(function(text) {
+      try {
+        var clean = text.replace(/```[a-z]*/g,'').replace(/```/g,'').trim();
+        var data = JSON.parse(clean);
+        if (data.tipo)  { var s=document.getElementById('cita-tipo');  if(s) s.value=data.tipo; }
+        if (data.fecha) { var s=document.getElementById('cita-fecha'); if(s) s.value=data.fecha; }
+        if (data.hora)  { var s=document.getElementById('cita-hora');  if(s) s.value=data.hora; }
+        if (data.lugar) { var s=document.getElementById('cita-lugar'); if(s) s.value=data.lugar; }
+        if (data.nota)  { var s=document.getElementById('cita-nota');  if(s) s.value=data.nota; }
+        if (statusEl) { statusEl.textContent='✅ Datos extraidos · revisa y confirma'; statusEl.style.color='var(--green)'; }
+      } catch(ex) {
+        if (statusEl) { statusEl.textContent='⚠ Revisa los campos manualmente'; statusEl.style.color='var(--amber)'; }
+      }
+    }).catch(function(){
+      if (statusEl) { statusEl.textContent='❌ Error al analizar'; statusEl.style.color='var(--red)'; }
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function scanAndOpenCita(input, v) {
+  if (!input.files[0] || !v) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var prompt = 'Eres un extractor de datos de citas de vehiculos. Analiza esta imagen. Extrae SOLO en JSON sin markdown: {"tipo":"ITV","fecha":"YYYY-MM-DD","hora":"HH:MM","lugar":"nombre estacion y direccion completa","nota":"info relevante"}. Responde UNICAMENTE el JSON.';
+    callAI(b64, file.type||'image/jpeg', prompt).then(function(text) {
+      try {
+        var clean = text.replace(/```[a-z]*/g,'').replace(/```/g,'').trim();
+        var data = JSON.parse(clean);
+        // Open cita modal pre-filled
+        document.getElementById('mat-modal').style.display='none';
+        document.getElementById('cita-modal').style.display='flex';
+        if (data.tipo)  { var s=document.getElementById('cita-tipo');  if(s) s.value=data.tipo; }
+        if (data.fecha) { var s=document.getElementById('cita-fecha'); if(s) s.value=data.fecha; }
+        if (data.hora)  { var s=document.getElementById('cita-hora');  if(s) s.value=data.hora; }
+        if (data.lugar) { var s=document.getElementById('cita-lugar'); if(s) s.value=data.lugar; }
+        if (data.nota)  { var s=document.getElementById('cita-nota');  if(s) s.value=data.nota; }
+        // Pre-select first conductor
+        var sel=document.getElementById('cita-conductor');
+        if(sel && v.conductores && v.conductores.length) sel.value=v.conductores[0];
+        var sl=document.getElementById('cita-scan-label'); if(sl) sl.textContent='Subir captura de pantalla';
+        var ss=document.getElementById('cita-scan-status'); if(ss){ss.textContent='✅ Datos cargados · revisa y confirma';ss.style.display='block';ss.style.color='var(--green)';}
+      } catch(ex) { toast('⚠ No se pudo leer la imagen'); }
+    }).catch(function(){ toast('❌ Error al analizar imagen'); });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
 </script>
 
 <!-- ══ NUEVA CITA MODAL ══ -->
 <div class="modal-overlay" id="cita-modal">
   <div class="modal-sheet">
-    <div style="font-size:16px;font-weight:800;margin-bottom:4px">📅 Nueva Cita</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:18px">El conductor recibirá la notificación en su app</div>
+    <div style="font-size:16px;font-weight:800;margin-bottom:8px">📅 Nueva Cita</div>
+    <!-- Scan image -->
+    <div style="background:rgba(0,212,255,.06);border:1px dashed rgba(0,212,255,.35);border-radius:12px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">📸 Escanear cita con IA</div>
+      <label for="cita-scan-input" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;background:rgba(0,212,255,.08);border-radius:8px;color:var(--text)">
+        <input type="file" id="cita-scan-input" accept="image/*" style="display:none" onchange="scanCitaImage(this)">
+        <span style="font-size:18px">🖼️</span>
+        <span style="font-size:12px;font-weight:600" id="cita-scan-label">Subir captura de pantalla</span>
+      </label>
+      <div id="cita-scan-status" style="font-size:11px;color:var(--text3);margin-top:6px;display:none"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">El conductor recibirá la notificación en su app</div>
     <div class="field">
       <label>Conductor / Matrícula</label>
       <select id="cita-conductor" class="form-input">
