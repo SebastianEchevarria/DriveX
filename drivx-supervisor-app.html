@@ -374,7 +374,6 @@ var VEHICULOS = [
     docs: { itv: { fecha:'2026-01-01', ok:true }, seguro: { fecha:'01/01/2026', ok:true }, vtc: { ok:true } },
     conductores: ['test']
   },
-,
   {
     matricula: '2345 CLM', modelo: 'Tesla Model Y', ciudad: 'Albacete', ccaa: 'Castilla-La Mancha', icon: '⚡',
     docs: { itv: { fecha:'2025-08-15', ok:true }, seguro: { fecha:'2025-12-01', ok:true }, vtc: { ok:true } },
@@ -412,99 +411,113 @@ function toggleCCAA(id) {
 function renderVehiculosHome() {
   var container = document.getElementById('vehiculos-home-list');
   if (!container) return;
+
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
-  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+  function dU(s) { return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function fD(s) { return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+
+  // Group vehicles by CCAA
   var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
-  var ccaaIcons = {'Andalucía':'🌞','Comunidad Valenciana':'🍊','Castilla-La Mancha':'🌾'};
   var groups = {};
-  VEHICULOS.forEach(function(v){ var cc=v.ccaa||'Otras'; if(!groups[cc])groups[cc]=[]; groups[cc].push(v); });
-  Object.keys(groups).forEach(function(cc){ groups[cc].sort(function(a,b){ return dU(a.docs.itv.fecha)-dU(b.docs.itv.fecha); }); });
-  var ccaas = Object.keys(groups).sort(function(a,b){
-    var ai=ccaaOrder.indexOf(a),bi=ccaaOrder.indexOf(b);
-    return (ai<0?99:ai)-(bi<0?99:bi);
+  VEHICULOS.forEach(function(v) {
+    var cc = v.ccaa || 'Otras';
+    if (!groups[cc]) groups[cc] = [];
+    groups[cc].push(v);
   });
+
+  // Sort each group by ITV urgency
+  Object.keys(groups).forEach(function(cc) {
+    groups[cc].sort(function(a,b) { return dU(a.docs.itv.fecha) - dU(b.docs.itv.fecha); });
+  });
+
+  var ccaas = Object.keys(groups).sort(function(a,b) {
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+  });
+
   var html = '';
+  var ccaaIcons = {'Andalucía':'🌞','Comunidad Valenciana':'🍊','Castilla-La Mancha':'🌾'};
 
   ccaas.forEach(function(cc) {
-    var vl=groups[cc]; if(!vl.length) return;
-    var ccIcon=ccaaIcons[cc]||'📍';
-    var gid='ccaa'+cc.replace(/[^a-zA-Z0-9]/g,'');
-    var urg=vl.filter(function(v){var d=dU(v.docs.itv.fecha);return d<0||d<=30;}).length;
-    var urgBadge = urg>0
-      ? '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">'+urg+' ⚠</span>'
-      : '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
+    var vl = groups[cc];
+    if (!vl || !vl.length) return;
+    var ccIcon = ccaaIcons[cc] || '📍';
+    var gid = 'g' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var urg = vl.filter(function(v){ var d=dU(v.docs.itv.fecha); return d<0||d<=30; }).length;
 
-    html += '<button onclick="toggleCCAA(this.getAttribute(\'data-id\'))" data-id="'+gid+'" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;cursor:pointer;text-align:left">'
-      +'<span style="font-size:22px">'+ccIcon+'</span>'
-      +'<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">'+cc+'</div>'
-      +'<div style="font-size:11px;color:var(--text3);margin-top:1px">'+vl.length+' vehículo'+(vl.length>1?'s':'')+'</div></div>'
-      +urgBadge
-      +'<span id="chev_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:8px">›</span>'
-      +'</button>'
-      +'<div id="'+gid+'" style="display:none">';
+    // CCAA header button
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;cursor:pointer" id="btn_'+gid+'">';
+    html += '<span style="font-size:22px">' + ccIcon + '</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">' + cc + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">' + vl.length + ' vehículo' + (vl.length>1?'s':'') + '</div></div>';
+    if (urg > 0) {
+      html += '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">' + urg + ' ⚠</span>';
+    } else {
+      html += '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
+    }
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:8px">›</span>';
+    html += '</div>';
+
+    // Vehicles container (hidden by default)
+    html += '<div id="' + gid + '" style="display:none">';
 
     vl.forEach(function(v) {
-      var id=dU(v.docs.itv.fecha);
-      var bc=(id<0||id<=30)?'rgba(255,71,87,.4)':id<=90?'rgba(255,179,0,.35)':'var(--border)';
-      var ib = id<0
-        ? '<div style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:800;color:var(--red)">🚨 ITV VENCIDA · '+fD(v.docs.itv.fecha)+'</div>'
-        : id<=30
-        ? '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:800;color:var(--red)">⚠ ITV en '+id+' días · '+fD(v.docs.itv.fecha)+'</div>'
-        : id<=90
-        ? '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--amber)">⏰ ITV en '+id+' días · '+fD(v.docs.itv.fecha)+'</div>'
-        : '<div style="font-size:11px;color:var(--text3)">ITV ✓ '+fD(v.docs.itv.fecha)+'</div>';
+      var id = dU(v.docs.itv.fecha);
+      var bc = (id<0||id<=30) ? 'rgba(255,71,87,.4)' : id<=90 ? 'rgba(255,179,0,.35)' : 'var(--border)';
+      var itvTxt = id<0 ? '🚨 ITV VENCIDA' : id<=30 ? '⚠ ITV en '+id+' días' : id<=90 ? '⏰ ITV en '+id+' días' : '✓ ITV '+fD(v.docs.itv.fecha);
+      var itvColor = (id<0||id<=30) ? 'var(--red)' : id<=90 ? 'var(--amber)' : 'var(--text3)';
 
-      var nc=null,ncd=9999;
-      v.conductores.forEach(function(cid){
-        try{ JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c){var d=dU(c.fecha);if(d>=0&&d<ncd){ncd=d;nc=c;}}); }catch(e){}
+      // Conductores rows
+      var condRows = '';
+      v.conductores.forEach(function(cid) {
+        var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+        if (!c) return;
+        var fichado = false;
+        try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_'+cid)||'{}').fichado); } catch(e){}
+        condRows += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+          + '<div><span style="font-size:13px;font-weight:700;color:var(--text)">' + c.nombre + '</span>'
+          + '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>'
+          + '<span style="font-size:11px;font-weight:700;color:'+(fichado?'var(--green)':'var(--text3)')+';">'+(fichado?'● Activo':'○ Inactivo')+'</span>'
+          + '</div>';
       });
-      var cb=nc?'<div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:'+(ncd<=7?'var(--red)':ncd<=30?'var(--amber)':'var(--cyan)')+'">📅 '+nc.tipo+' en '+ncd+' días · '+fD(nc.fecha)+'</div>':'';
 
-      var ch=v.conductores.map(function(cid){
-        var c=CONDUCTORES.find(function(x){return x.cid===cid;}); if(!c)return '';
-        var fi=false; try{fi=!!(JSON.parse(localStorage.getItem('drivx_conductor_'+cid)||'{}').fichado);}catch(e){}
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">'
-          +'<div><span style="font-size:13px;font-weight:700;color:var(--text)">'+c.nombre+'</span>'
-          +'<span style="font-size:11px;color:var(--text3);margin-left:8px;font-family:var(--mono)">'+c.turno+'</span></div>'
-          +'<span style="font-size:11px;font-weight:700;color:'+(fi?'var(--green)':'var(--text3)')+';">'+(fi?'● Activo':'○ Inactivo')+'</span></div>';
-      }).join('');
-
-      var mid='mat'+v.matricula.replace(/[^a-zA-Z0-9]/g,'');
-      html+='<div id="'+mid+'" class="veh-home-card" style="background:var(--surface);border:1px solid '+bc+';border-radius:18px;padding:16px 18px;margin-bottom:10px;cursor:pointer">'
-        +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
-        +'<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>'
-        +'<div style="flex:1"><div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>'
-        +'<div style="font-size:12px;color:var(--text3)">'+v.modelo+' · '+v.ciudad+'</div></div>'
-        +'<span style="font-size:10px;color:var(--text3)">› ver</span></div>'
-        +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">'+ib+cb+'</div>'
-        +'<div style="border-top:1px solid var(--border);padding-top:8px">'+ch+'</div></div>';
+      var mid = 'm' + v.matricula.replace(/[^a-zA-Z0-9]/g,'');
+      html += '<div id="'+mid+'" style="background:var(--surface);border:1px solid '+bc+';border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer">';
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
+      html += '<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>';
+      html += '<div style="flex:1"><div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>';
+      html += '<div style="font-size:12px;color:var(--text3)">'+v.modelo+' · '+v.ciudad+'</div></div>';
+      html += '<span style="font-size:10px;color:var(--text3)">› ver</span></div>';
+      html += '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:8px">'+itvTxt+'</div>';
+      html += '<div style="border-top:1px solid var(--border);padding-top:8px">'+condRows+'</div>';
+      html += '</div>';
     });
-    html += '</div>';
-  });
 
-  // Save which groups are currently open before replacing innerHTML
-  var openGroups = [];
-  container.querySelectorAll('[id^="ccaa"]').forEach(function(el){
-    if (el.style.display !== 'none') openGroups.push(el.id);
+    html += '</div>'; // close group
   });
 
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin vehículos</div>';
 
-  // Restore open groups
-  openGroups.forEach(function(id){
-    var el = document.getElementById(id);
-    var chev = document.getElementById('chev_' + id);
-    if (el) el.style.display = 'block';
-    if (chev) chev.textContent = '⌄';
+  // Attach click handlers
+  ccaas.forEach(function(cc) {
+    var gid = 'g' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var btn = document.getElementById('btn_'+gid);
+    if (btn) btn.onclick = function() {
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_'+gid);
+      if (!el) return;
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
   });
 
-  container.querySelectorAll('.veh-home-card').forEach(function(el){
-    var raw=el.id.replace('mat','');
-    var mat=VEHICULOS.find(function(v){return v.matricula.replace(/[^a-zA-Z0-9]/g,'')===raw;});
-    if(mat) el.onclick=function(){openMatModal(mat.matricula);};
+  container.querySelectorAll('[id^="m"]').forEach(function(el) {
+    if (el.id.length < 3) return;
+    var raw = el.id.slice(1);
+    var mat = VEHICULOS.find(function(v){ return v.matricula.replace(/[^a-zA-Z0-9]/g,'') === raw; });
+    if (mat) el.onclick = function(e) { e.stopPropagation(); openMatModal(mat.matricula); };
   });
-  // ccaa-btn onclick set inline
 }
 
 
@@ -626,7 +639,6 @@ var CONDUCTORES = [
   { cid:'jorge',   nombre:'Jorge Molina',    matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'14:00–22:00', color:'#ff4757' },
   // 0000 TST — Test
   { cid:'test',    nombre:'Test User',       matricula:'0000 TST', modelo:'Vehículo Test',  ciudad:'Test',     turno:'06:00–14:00', color:'#00d4ff' },
-,
   // 2345 CLM — Tesla Model Y — Albacete
   { cid:'andres',   nombre:'Andrés Molina',   matricula:'2345 CLM', modelo:'Tesla Model Y',     ciudad:'Albacete',    turno:'06:00–14:00', color:'#00d4ff' },
   { cid:'beatriz',  nombre:'Beatriz Ramos',   matricula:'2345 CLM', modelo:'Tesla Model Y',     ciudad:'Albacete',    turno:'14:00–22:00', color:'#00d4ff' },
