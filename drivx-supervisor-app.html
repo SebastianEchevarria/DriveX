@@ -221,9 +221,41 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       </a>
 
       <!-- Botón nueva cita interna -->
-      <button onclick="openCitaForMat()" class="btn-primary" style="border-radius:14px;font-size:14px">
-        📅 Registrar cita en la app
+      <button onclick="openCitaForMat()" class="btn-primary" style="border-radius:14px;font-size:14px;margin-bottom:10px">
+        📅 Registrar cita ITV en la app
       </button>
+
+      <!-- Nueva cita de taller -->
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px">🔩 Nueva cita de taller</div>
+        <div class="field">
+          <label>Tipo de servicio</label>
+          <select id="mat-taller-tipo" class="form-input">
+            <option value="Revisión general">🔍 Revisión general</option>
+            <option value="Cambio aceite">🛢️ Cambio de aceite</option>
+            <option value="Frenos">🛑 Frenos</option>
+            <option value="Neumáticos">🏎️ Neumáticos</option>
+            <option value="Batería">⚡ Batería</option>
+            <option value="Climatización">❄️ Climatización</option>
+            <option value="Suspensión">🔧 Suspensión</option>
+            <option value="Filtros">🌀 Filtros</option>
+            <option value="Otro">🔩 Otro</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field"><label>Fecha</label><input id="mat-taller-fecha" type="date" class="form-input"></div>
+          <div class="field"><label>Hora</label><input id="mat-taller-hora" type="time" class="form-input"></div>
+        </div>
+        <div class="field">
+          <label>Taller / Dirección</label>
+          <input id="mat-taller-lugar" type="text" class="form-input" placeholder="Nombre del taller o dirección">
+        </div>
+        <div class="field">
+          <label>Nota (opcional)</label>
+          <input id="mat-taller-nota" type="text" class="form-input" placeholder="Ej: Llevar segunda llave">
+        </div>
+        <button onclick="guardarCitaTallerMat()" class="btn-primary" style="width:100%;border-radius:12px">✓ Crear cita de taller</button>
+      </div>
     </div>
   </div>
 </div>
@@ -800,6 +832,43 @@ function startSync() {
 }
 
 // ══ CITAS ══
+function guardarCitaTallerMat() {
+  if (!_currentMat) return;
+  var v = _currentMat;
+  var tipo  = document.getElementById('mat-taller-tipo').value;
+  var fecha = document.getElementById('mat-taller-fecha').value;
+  var hora  = document.getElementById('mat-taller-hora').value;
+  var lugar = (document.getElementById('mat-taller-lugar').value||'').trim();
+  var nota  = (document.getElementById('mat-taller-nota').value||'').trim();
+
+  if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+
+  v.conductores.forEach(function(cid) {
+    var key = 'drivx_citas_' + cid;
+    var citas = [];
+    try { citas = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){}
+    citas.push({ id:Date.now()+Math.random(), cid:cid, matricula:v.matricula, tipo:tipo, fecha:fecha, hora:hora, lugar:lugar, nota:nota, ts:Date.now() });
+    localStorage.setItem(key, JSON.stringify(citas));
+  });
+
+  var all = [];
+  try { all = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
+  all.push({ id:Date.now()+Math.random(), matricula:v.matricula, tipo:tipo, fecha:fecha, hora:hora, lugar:lugar, nota:nota, ts:Date.now() });
+  localStorage.setItem('drivx_citas', JSON.stringify(all));
+
+  // Reset form
+  document.getElementById('mat-taller-fecha').value = '';
+  document.getElementById('mat-taller-hora').value  = '';
+  document.getElementById('mat-taller-lugar').value = '';
+  document.getElementById('mat-taller-nota').value  = '';
+
+  toast('✅ Cita de taller creada · ' + v.matricula + ' · ' + tipo);
+  renderNotifCitas();
+  renderVehiculosHome();
+  // Refresh citas in modal
+  renderMatCitas(v);
+}
+
 // ══ PÓLIZA PDF ══
 function renderPolizaArea(v) {
   var key = 'drivx_poliza_' + v.matricula.replace(/\s/g,'_');
