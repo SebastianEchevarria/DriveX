@@ -1313,7 +1313,7 @@ function onCatFile(input, cat) {
 
     var catDesc = {
       gasolina: 'ticket de gasolina o recarga eléctrica (gasolina, diesel, litros, precio/litro, PLENERGY, Repsol, BP, kWh, carga eléctrica)',
-      peaje:    'ticket de peaje de autopista (autopista, peaje, estación, vía, cobrador, IVA incluido, CESA, Abertis)',
+      peaje:    'ticket de peaje de autopista o autovía (palabras clave: AUTOPISTA, peaje, estación, vía, Cobr, cobrador, Importe EUR, IVA incluido, FACTURA SIMPLIFICADA de autopista, CESA, Abertis, clase ligero, Trans, tarjeta enmascarada, AP-7, AP-46, DEL SOL)',
       datafono: 'recibo de cobro con datáfono/TPV (VISA, Mastercard, contactless, VENTA, TPV, banco, Payments, EUR grande centrado)',
       lavado:   'ticket de lavado de coche (lavado, autolavado, limpieza, car wash)',
       otros:    'cualquier ticket de gasto de vehículo profesional'
@@ -1330,7 +1330,7 @@ function onCatFile(input, cat) {
       if (parsed && parsed.es_correcto === false) {
         var td = (parsed.tipo_detectado || '').toLowerCase();
         var correctCat = 'otros';
-        if (td.includes('peaje') || td.includes('autopista')) correctCat = 'peaje';
+        if (td.includes('peaje') || td.includes('autopista') || td.includes('autov') || td.includes('cesa') || td.includes('abertis') || td.includes('estaci') || td.includes('factura simplificada')) correctCat = 'peaje';
         else if (td.includes('parking') || td.includes('aparcamiento') || td.includes('qr')) correctCat = 'parking';
         else if (td.includes('visa') || td.includes('pago') || td.includes('contactless') || td.includes('tpv') || td.includes('dat')) correctCat = 'datafono';
         else if (td.includes('gasolina') || td.includes('carburante') || td.includes('carga') || td.includes('litros') || td.includes('kw')) correctCat = 'gasolina';
