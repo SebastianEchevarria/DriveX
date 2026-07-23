@@ -402,6 +402,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+<!-- ══ CAL DELETE MODAL ══ -->
+<div id="cal-del-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:1px solid rgba(255,71,87,.4);border-radius:20px;padding:28px 24px;width:100%;max-width:340px;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">🗑</div>
+    <div style="font-size:17px;font-weight:800;color:var(--red);margin-bottom:8px">¿Eliminar cita?</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6">Se eliminará para todos los conductores de esta matrícula y desaparecerá de la app del conductor.</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="confirmDelCita()" style="flex:1;padding:13px;border-radius:12px;border:none;background:var(--red);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif">Sí, eliminar</button>
+      <button onclick="document.getElementById('cal-del-modal').style.display='none'" style="flex:1;padding:13px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:'Inter',sans-serif">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ NAVBAR ══ --><!-- ══ NAVBAR ══ --><!-- ══ NAVBAR ══ -->
 <nav id="navbar">
   <button class="nav-btn active" id="nav-home"       onclick="showScreen('home')"><span>🏠</span><small>Inicio</small></button>
@@ -1555,7 +1568,9 @@ function getAllCitas() {
     v.conductores.forEach(function(cid) {
       try {
         JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
-          if (!seen[c.id]) { seen[c.id]=true; all.push(c); }
+          // Deduplicate by content: same matricula+tipo+fecha+hora = same cita
+          var key = (c.matricula||'') + '|' + (c.tipo||'') + '|' + (c.fecha||'') + '|' + (c.hora||'');
+          if (!seen[key]) { seen[key]=true; all.push(c); }
         });
       } catch(e){}
     });
@@ -1697,12 +1712,18 @@ function selectCalDay(day) {
       h += '<div style="padding:10px 14px;border-bottom:1px solid var(--border)">';
       h += '<div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:6px">'+(v?v.icon+' ':'')+mat+(v?' · '+v.modelo:'')+'</div>';
       byMat[mat].forEach(function(c) {
-        h += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0">'
+        var cKey = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
+        h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
           +'<span style="font-size:16px">'+(icons[c.tipo]||'📅')+'</span>'
-          +'<div><div style="font-size:13px;font-weight:700">'+c.tipo+'</div>'
+          +'<div style="flex:1"><div style="font-size:13px;font-weight:700">'+c.tipo+'</div>'
           +'<div style="font-size:11px;color:var(--text3)">'+(c.hora?c.hora+' · ':'')+''+(c.lugar||'Sin dirección')+'</div>'
           +(c.nota?'<div style="font-size:11px;color:var(--text3)">📝 '+c.nota+'</div>':'')
-          +'</div></div>';
+          +'</div>'
+          +'<div style="display:flex;gap:6px;flex-shrink:0">'
+          +'<button class="cal-edit-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #00d4ff;background:rgba(0,212,255,.12);color:#00d4ff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">✏️</button>'
+          +'<button class="cal-del-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #ff4757;background:rgba(255,71,87,.12);color:#ff4757;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>'
+          +'</div>'
+          +'</div>';
       });
       h += '</div>';
     });
@@ -1712,9 +1733,64 @@ function selectCalDay(day) {
   detail.style.display = 'block';
   // Scroll to detail
   detail.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  // Attach delete handlers
+  citasEl.querySelectorAll('.cal-del-btn').forEach(function(btn) {
+    btn.onclick = function() { deleteCitaFromCal(btn.getAttribute('data-key'), day); };
+  });
+  citasEl.querySelectorAll('.cal-edit-btn').forEach(function(btn) {
+    btn.onclick = function() { editCitaFromCal(btn.getAttribute('data-key')); };
+  });
 }
 
-// ══ TOAST ══
+function deleteCitaFromCal(key, day) {
+  _pendingDelKey = key;
+  _pendingDelDay = day;
+  var modal = document.getElementById('cal-del-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+var _pendingDelKey = null;
+var _pendingDelDay = null;
+
+function confirmDelCita() {
+  var key = _pendingDelKey;
+  var day = _pendingDelDay;
+  document.getElementById('cal-del-modal').style.display = 'none';
+  if (!key) return;
+
+  // Delete from all conductor keys matching this content
+  var parts = key.split('|');
+  var mat = parts[0], tipo = parts[1], fecha = parts[2], hora = parts[3];
+
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      var k = 'drivx_citas_' + cid;
+      var citas = [];
+      try { citas = JSON.parse(localStorage.getItem(k)||'[]'); } catch(e){}
+      citas = citas.filter(function(c) {
+        return !(c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||''));
+      });
+      localStorage.setItem(k, JSON.stringify(citas));
+    });
+  });
+
+  // Also remove from global list
+  var all = [];
+  try { all = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
+  all = all.filter(function(c) {
+    return !(c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||''));
+  });
+  localStorage.setItem('drivx_citas', JSON.stringify(all));
+
+  toast('🗑 Cita eliminada');
+  renderVehiculosHome();
+  renderNotifCitas();
+  renderCalendar();
+}
+
+
 var _toastTimer = null;
 function toast(msg) {
   var el = document.getElementById('toast');
@@ -1822,4 +1898,69 @@ function toast(msg) {
 </div>
 <input type="file" id="poliza-input" accept="application/pdf" style="position:absolute;left:-9999px;opacity:0" onchange="uploadPoliza(this)">
 </body>
-</html>
+</htmlfunction editCitaFromCal(key) {
+  var parts = key.split('|');
+  var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3];
+  var cita = null;
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      try {
+        JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
+          if (c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||'')) cita=c;
+        });
+      } catch(e){}
+    });
+  });
+  if (!cita) return;
+  _pendingEditKey = key;
+  document.getElementById('edit-tipo').value  = cita.tipo  || '';
+  document.getElementById('edit-fecha').value = cita.fecha || '';
+  document.getElementById('edit-hora').value  = cita.hora  || '';
+  document.getElementById('edit-lugar').value = cita.lugar || '';
+  document.getElementById('edit-nota').value  = cita.nota  || '';
+  document.getElementById('edit-mat-label').textContent = mat;
+  document.getElementById('cal-edit-modal').style.display = 'flex';
+}
+
+var _pendingEditKey = null;
+
+function saveEditCita() {
+  if (!_pendingEditKey) return;
+  var parts = _pendingEditKey.split('|');
+  var mat=parts[0], oldTipo=parts[1], oldFecha=parts[2], oldHora=parts[3];
+  var newTipo  = document.getElementById('edit-tipo').value;
+  var newFecha = document.getElementById('edit-fecha').value;
+  var newHora  = document.getElementById('edit-hora').value;
+  var newLugar = document.getElementById('edit-lugar').value.trim();
+  var newNota  = document.getElementById('edit-nota').value.trim();
+  if (!newFecha) { toast('\u26a0 Selecciona una fecha'); return; }
+
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      var k='drivx_citas_'+cid, citas=[];
+      try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
+      citas=citas.map(function(c){
+        if(c.matricula===mat&&c.tipo===oldTipo&&c.fecha===oldFecha&&(c.hora||'')===(oldHora||''))
+          return Object.assign({},c,{tipo:newTipo,fecha:newFecha,hora:newHora,lugar:newLugar,nota:newNota});
+        return c;
+      });
+      localStorage.setItem(k,JSON.stringify(citas));
+    });
+  });
+  var all=[];
+  try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
+  all=all.map(function(c){
+    if(c.matricula===mat&&c.tipo===oldTipo&&c.fecha===oldFecha&&(c.hora||'')===(oldHora||''))
+      return Object.assign({},c,{tipo:newTipo,fecha:newFecha,hora:newHora,lugar:newLugar,nota:newNota});
+    return c;
+  });
+  localStorage.setItem('drivx_citas',JSON.stringify(all));
+  document.getElementById('cal-edit-modal').style.display='none';
+  _pendingEditKey=null;
+  toast('\u2705 Cita actualizada');
+  renderVehiculosHome(); renderNotifCitas(); renderCalendar();
+}
+
+>
