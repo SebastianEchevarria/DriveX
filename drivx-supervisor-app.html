@@ -669,10 +669,7 @@ function loginSuccess(isTester) {
   document.getElementById('navbar').classList.add('visible');
   var sub = document.getElementById('home-sub');
   if (sub) sub.textContent = isTester ? 'Test Supervisor · pruebas' : 'Ana Martínez · hoy';
-  // Add test conductor to sync list if tester
-  if (isTester) {
-    CONDUCTORES.push({ cid:'test', nombre:'Test User', matricula:'0000 TST', modelo:'Vehículo Test', ciudad:'Test', turno:'00:00–24:00', color:'#00d4ff' });
-  }
+  // test conductor already in CONDUCTORES array
   startSync();
 }
 
@@ -691,6 +688,7 @@ function syncFromDrivers() {
   var homeHTML = '';
 
   CONDUCTORES.forEach(function(c) {
+    if (!c || !c.cid) return;
     var raw = null;
     try { raw = localStorage.getItem('drivx_conductor_' + c.cid); } catch(e){}
     var d = null;
