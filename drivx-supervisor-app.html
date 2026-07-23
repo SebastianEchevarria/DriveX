@@ -486,7 +486,22 @@ function renderVehiculosHome() {
     html += '</div>';
   });
 
+  // Save which groups are currently open before replacing innerHTML
+  var openGroups = [];
+  container.querySelectorAll('[id^="ccaa"]').forEach(function(el){
+    if (el.style.display !== 'none') openGroups.push(el.id);
+  });
+
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin vehículos</div>';
+
+  // Restore open groups
+  openGroups.forEach(function(id){
+    var el = document.getElementById(id);
+    var chev = document.getElementById('chev_' + id);
+    if (el) el.style.display = 'block';
+    if (chev) chev.textContent = '⌄';
+  });
+
   container.querySelectorAll('.veh-home-card').forEach(function(el){
     var raw=el.id.replace('mat','');
     var mat=VEHICULOS.find(function(v){return v.matricula.replace(/[^a-zA-Z0-9]/g,'')===raw;});
