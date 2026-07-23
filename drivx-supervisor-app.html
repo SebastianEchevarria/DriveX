@@ -363,11 +363,49 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+
+<!-- ══ CALENDARIO ══ -->
+<div id="screen-calendario" class="screen">
+  <div class="scroll">
+    <div class="header">
+      <div><div class="header-title">Calendario</div><div class="header-sub" id="cal-sub">Citas programadas</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="calPrev()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:14px">‹</button>
+        <button onclick="calNext()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:14px">›</button>
+      </div>
+    </div>
+
+    <!-- Month/Year -->
+    <div id="cal-month-title" style="text-align:center;font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text)"></div>
+
+    <!-- Day headers -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">L</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">M</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">X</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">J</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">V</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">S</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">D</div>
+    </div>
+
+    <!-- Calendar grid -->
+    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px"></div>
+
+    <!-- Day detail -->
+    <div id="cal-day-detail" style="display:none">
+      <div id="cal-day-title" style="font-size:14px;font-weight:800;margin-bottom:10px;color:var(--cyan)"></div>
+      <div id="cal-day-citas" class="card"></div>
+    </div>
+
+    <div id="cal-no-citas" style="display:none;text-align:center;padding:24px;color:var(--text3);font-size:13px">Sin citas este mes</div>
+  </div>
+</div>
+
 <!-- ══ NAVBAR ══ --><!-- ══ NAVBAR ══ --><!-- ══ NAVBAR ══ -->
 <nav id="navbar">
   <button class="nav-btn active" id="nav-home"       onclick="showScreen('home')"><span>🏠</span><small>Inicio</small></button>
-
-  <button class="nav-btn"        id="nav-vehiculos"   onclick="showScreen('vehiculos')"><span>🚗</span><small>Vehículos</small></button>
+  <button class="nav-btn"        id="nav-calendario"  onclick="showScreen('calendario')"><span>📅</span><small>Calendario</small></button>
   <button class="nav-btn"        id="nav-notif"       onclick="showScreen('notif')"><span>🔔</span><small>Alertas</small></button>
 </nav>
 
@@ -587,9 +625,12 @@ function openMatModal(matricula) {
       '<div style="width:36px;height:36px;border-radius:10px;background:rgba('+hexToRgb(c.color)+',.15);color:'+c.color+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900">'+c.nombre.charAt(0)+'</div>' +
       '<div style="flex:1">' +
         '<div style="font-size:13px;font-weight:700">'+c.nombre+'</div>' +
-        '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+c.turno+' · Entrada: '+horaEnt+' · '+kmEnt+'</div>' +
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+c.turno+' · '+horaEnt+'</div>' +
       '</div>' +
-      '<span class="badge '+(fichado?'online':'offline')+'">'+(fichado?'● En turno':'● Fuera')+'</span>' +
+      '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:800;background:'+(fichado?'rgba(0,230,118,.12)':'rgba(255,71,87,.1)')+';color:'+(fichado?'var(--green)':'var(--red)')+';border:1px solid '+(fichado?'rgba(0,230,118,.3)':'rgba(255,71,87,.25)')+'">' +
+        '<span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>' +
+        (fichado?'Online':'Offline') +
+      '</span>' +
     '</div>';
   });
   document.getElementById('mat-conductores').innerHTML = condHTML || '<div style="padding:14px 16px;color:var(--text3);font-size:13px">Sin conductores asignados</div>';
@@ -718,13 +759,7 @@ function loginSuccess(isTester) {
 }
 
 // ══ NAVIGATION ══
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
-  document.getElementById('screen-'+id).classList.add('active');
-  var nb = document.getElementById('nav-'+id);
-  if (nb) nb.classList.add('active');
-}
+// showScreen replaced by calendar version above
 
 // ══ SYNC — read driver app data from localStorage ══
 function syncFromDrivers() {
@@ -1493,6 +1528,161 @@ function guardarCitaTallerVer() {
   toast('✅ Cita creada · '+v.matricula+' · '+tipo);
   renderNotifCitas(); renderITVAlerts(); renderVehiculosHome();
   verMatAlerta({getAttribute:function(){return v.matricula;}});
+}
+
+
+// ══ CALENDARIO ══
+var _calYear  = new Date().getFullYear();
+var _calMonth = new Date().getMonth();
+var _calSelectedDay = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('screen-'+id).classList.add('active');
+  var nb = document.getElementById('nav-'+id);
+  if (nb) nb.classList.add('active');
+  if (id === 'calendario') renderCalendar();
+}
+
+function calPrev() { _calMonth--; if(_calMonth<0){_calMonth=11;_calYear--;} renderCalendar(); }
+function calNext() { _calMonth++; if(_calMonth>11){_calMonth=0;_calYear++;} renderCalendar(); }
+
+function getAllCitas() {
+  var all = [];
+  var seen = {};
+  VEHICULOS.forEach(function(v) {
+    v.conductores.forEach(function(cid) {
+      try {
+        JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
+          if (!seen[c.id]) { seen[c.id]=true; all.push(c); }
+        });
+      } catch(e){}
+    });
+  });
+  return all;
+}
+
+function renderCalendar() {
+  var monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var titleEl = document.getElementById('cal-month-title');
+  var subEl   = document.getElementById('cal-sub');
+  if (titleEl) titleEl.textContent = monthNames[_calMonth] + ' ' + _calYear;
+  if (subEl)   subEl.textContent   = 'Citas programadas';
+
+  var grid = document.getElementById('cal-grid');
+  if (!grid) return;
+
+  // Get all citas for this month
+  var allCitas = getAllCitas();
+  var citasByDay = {};
+  allCitas.forEach(function(c) {
+    if (!c.fecha) return;
+    var d = new Date(c.fecha);
+    if (d.getFullYear()===_calYear && d.getMonth()===_calMonth) {
+      var day = d.getDate();
+      if (!citasByDay[day]) citasByDay[day] = [];
+      citasByDay[day].push(c);
+    }
+  });
+
+  // First day of month (0=Sun..6=Sat, convert to Mon-first)
+  var firstDay = new Date(_calYear, _calMonth, 1).getDay();
+  firstDay = (firstDay === 0) ? 6 : firstDay - 1; // Mon=0
+  var daysInMonth = new Date(_calYear, _calMonth+1, 0).getDate();
+  var today = new Date();
+  var todayStr = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+
+  var html = '';
+  // Empty cells before first day
+  for (var i=0; i<firstDay; i++) {
+    html += '<div></div>';
+  }
+  // Day cells
+  for (var d=1; d<=daysInMonth; d++) {
+    var hasCitas = citasByDay[d] && citasByDay[d].length > 0;
+    var count = hasCitas ? citasByDay[d].length : 0;
+    var isToday = (today.getDate()===d && today.getMonth()===_calMonth && today.getFullYear()===_calYear);
+    var isSelected = (_calSelectedDay === d);
+    var isPast = new Date(_calYear, _calMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    var bg = isSelected ? 'var(--cyan)' : isToday ? 'rgba(0,212,255,.15)' : hasCitas ? 'rgba(0,212,255,.06)' : 'var(--surface)';
+    var textColor = isSelected ? '#000' : isPast ? 'var(--text3)' : 'var(--text)';
+    var border = isSelected ? '2px solid var(--cyan)' : isToday ? '1px solid rgba(0,212,255,.4)' : hasCitas ? '1px solid rgba(0,212,255,.2)' : '1px solid var(--border)';
+
+    html += '<div id="calday_'+d+'" onclick="selectCalDay('+d+')" style="'
+      +'background:'+bg+';border:'+border+';border-radius:10px;padding:6px 4px;text-align:center;cursor:pointer;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'
+      +'<span style="font-size:14px;font-weight:'+(isToday||isSelected?'900':'600')+';color:'+textColor+'">'+d+'</span>';
+    if (hasCitas) {
+      html += '<span style="background:'+(isSelected?'rgba(0,0,0,.3)':'var(--cyan)')+';color:'+(isSelected?'#fff':'#000')+';border-radius:8px;padding:1px 5px;font-size:9px;font-weight:800">'+count+'</span>';
+    }
+    html += '</div>';
+  }
+
+  grid.innerHTML = html;
+
+  // Show selected day if any
+  if (_calSelectedDay) {
+    selectCalDay(_calSelectedDay);
+  } else {
+    var detail = document.getElementById('cal-day-detail');
+    if (detail) detail.style.display = 'none';
+  }
+}
+
+function selectCalDay(day) {
+  _calSelectedDay = day;
+  renderCalendar();
+
+  var detail  = document.getElementById('cal-day-detail');
+  var titleEl = document.getElementById('cal-day-title');
+  var citasEl = document.getElementById('cal-day-citas');
+  if (!detail || !titleEl || !citasEl) return;
+
+  var monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  titleEl.textContent = day + ' de ' + monthNames[_calMonth] + ' ' + _calYear;
+
+  var allCitas = getAllCitas();
+  var dayCitas = allCitas.filter(function(c) {
+    if (!c.fecha) return false;
+    var d = new Date(c.fecha);
+    return d.getFullYear()===_calYear && d.getMonth()===_calMonth && d.getDate()===day;
+  });
+
+  // Group by matricula
+  var byMat = {};
+  dayCitas.forEach(function(c) {
+    var mat = c.matricula || '—';
+    if (!byMat[mat]) byMat[mat] = [];
+    byMat[mat].push(c);
+  });
+
+  var icons = {'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Filtros':'🌀','Otro':'📌','Otro taller':'🔩'};
+
+  if (!dayCitas.length) {
+    citasEl.innerHTML = '<div style="padding:14px 16px;color:var(--text3);font-size:13px;text-align:center">Sin citas este día</div>';
+  } else {
+    var h = '';
+    Object.keys(byMat).forEach(function(mat) {
+      var v = VEHICULOS.find(function(x){ return x.matricula===mat; });
+      h += '<div style="padding:10px 14px;border-bottom:1px solid var(--border)">';
+      h += '<div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:6px">'+(v?v.icon+' ':'')+mat+(v?' · '+v.modelo:'')+'</div>';
+      byMat[mat].forEach(function(c) {
+        h += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0">'
+          +'<span style="font-size:16px">'+(icons[c.tipo]||'📅')+'</span>'
+          +'<div><div style="font-size:13px;font-weight:700">'+c.tipo+'</div>'
+          +'<div style="font-size:11px;color:var(--text3)">'+(c.hora?c.hora+' · ':'')+''+(c.lugar||'Sin dirección')+'</div>'
+          +(c.nota?'<div style="font-size:11px;color:var(--text3)">📝 '+c.nota+'</div>':'')
+          +'</div></div>';
+      });
+      h += '</div>';
+    });
+    citasEl.innerHTML = h;
+  }
+
+  detail.style.display = 'block';
+  // Scroll to detail
+  detail.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 // ══ TOAST ══
