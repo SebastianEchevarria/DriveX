@@ -132,6 +132,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 /* FORM */
 .form-input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 14px;border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;outline:none}
 .form-input:focus{border-color:var(--cyan)}
+.form-input:invalid:not(:focus){border-color:rgba(255,179,0,.4);background:rgba(255,179,0,.04)}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer;opacity:.8}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
+.form-input:focus{border-color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -170,19 +176,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <div class="scroll">
     <div class="header">
       <div><div class="header-title">Mis Vehículos</div><div class="header-sub" id="home-sub">VTC Infinity</div></div>
-      <button class="btn-sm btn-cyan" onclick="document.getElementById('cita-modal').style.display='flex'">+ Cita</button>
     </div>
 
-    <!-- Stats -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <div class="km-card" style="border-top:2px solid var(--green)">
-        <div class="km-val" id="stat-online" style="color:var(--green)">0</div>
-        <div class="km-lbl">En turno</div>
-      </div>
-      <div class="km-card" style="border-top:2px solid var(--red)">
-        <div class="km-val" id="stat-offline" style="color:var(--red)">0</div>
-        <div class="km-lbl">Fuera de turno</div>
-      </div>
+    <!-- Próximas citas -->
+    <div class="sec-title">📅 Próximas citas</div>
+    <div class="card" id="home-proximas-citas" style="margin-bottom:16px">
+      <div style="padding:14px 16px;text-align:center;color:var(--text3);font-size:13px">Sin citas próximas</div>
     </div>
 
     <!-- Vehículos como botones -->
@@ -259,7 +258,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
           </select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="field"><label>Fecha</label><input id="mat-taller-fecha" type="date" class="form-input"></div>
+          <div class="field"><label>Fecha</label><input id="mat-taller-fecha" type="date" class="form-input" required></div>
           <div class="field"><label>Hora</label><input id="mat-taller-hora" type="time" class="form-input"></div>
         </div>
         <div class="field">
@@ -583,7 +582,9 @@ function renderVehiculosHome() {
     var urg = vl.filter(function(v){ var d=dU(v.docs.itv.fecha); return d<0||d<=30; }).length;
 
     // CCAA header button
-    html += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;cursor:pointer" id="btn_'+gid+'">';
+    var ccBg = {'Andalucía':'#1f1500','Comunidad Valenciana':'#1a0f1f','Castilla-La Mancha':'#0a1a0f'};
+    var ccBorder = {'Andalucía':'#7a4a00','Comunidad Valenciana':'#5a1a7a','Castilla-La Mancha':'#1a5a2a'};
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:'+(ccBg[cc]||'#0d1f35')+';border:2px solid '+(ccBorder[cc]||'#2a4a6e')+';border-radius:14px;margin-bottom:8px;cursor:pointer" id="btn_'+gid+'">';
     html += '<span style="font-size:22px">' + ccIcon + '</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">' + cc + '</div>';
     html += '<div style="font-size:11px;color:var(--text3)">' + vl.length + ' vehículo' + (vl.length>1?'s':'') + '</div></div>';
@@ -596,7 +597,8 @@ function renderVehiculosHome() {
     html += '</div>';
 
     // Vehicles container (hidden by default)
-    html += '<div id="' + gid + '" style="display:none">';
+    var ccGroupBg = {'Andalucía':'rgba(122,74,0,.06)','Comunidad Valenciana':'rgba(90,26,122,.06)','Castilla-La Mancha':'rgba(26,90,42,.06)'};
+    html += '<div id="' + gid + '" style="display:none;background:'+(ccGroupBg[cc]||'transparent')+';border-radius:12px;padding:4px 0;margin-bottom:8px">';
 
     vl.forEach(function(v) {
       var id = dU(v.docs.itv.fecha);
@@ -619,7 +621,7 @@ function renderVehiculosHome() {
       });
 
       var mid = 'm' + v.matricula.replace(/[^a-zA-Z0-9]/g,'');
-      html += '<div id="'+mid+'" style="background:var(--surface);border:1px solid '+bc+';border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer">';
+      html += '<div id="'+mid+'" style="background:#0d1f35;border:2px solid '+bc+';border-radius:18px;padding:16px 18px;margin-bottom:16px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.6)">';
       html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
       html += '<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>';
       html += '<div style="flex:1"><div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>';
@@ -633,7 +635,21 @@ function renderVehiculosHome() {
     html += '</div>'; // close group
   });
 
+  // Save open groups before replacing innerHTML
+  var openGroups = [];
+  container.querySelectorAll('[id^="g"]').forEach(function(el) {
+    if (el.style.display !== 'none' && el.id.length > 1) openGroups.push(el.id);
+  });
+
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin vehículos</div>';
+
+  // Restore open groups
+  openGroups.forEach(function(id) {
+    var el = document.getElementById(id);
+    var chev = document.getElementById('chev_' + id);
+    if (el) el.style.display = 'block';
+    if (chev) chev.textContent = '⌄';
+  });
 
   // Attach click handlers
   ccaas.forEach(function(cc) {
@@ -917,9 +933,51 @@ function hexToRgb(hex) {
   return r+','+g+','+b;
 }
 
+
+function renderHomeProximas() {
+  var el = document.getElementById('home-proximas-citas');
+  if (!el) return;
+  var allCitas = [];
+  try { allCitas = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
+  var seen={};
+  allCitas = allCitas.filter(function(c){
+    var k=(c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
+    if(seen[k]) return false; seen[k]=true; return true;
+  });
+  var now = new Date();
+  function dU(f,hh){ return Math.round((new Date(f+'T'+(hh||'00:00'))-now)/86400000); }
+  var future = allCitas
+    .filter(function(c){ return c.fecha && dU(c.fecha,c.hora)>=0; })
+    .sort(function(a,b){ return new Date(a.fecha+'T'+(a.hora||'00:00'))-new Date(b.fecha+'T'+(b.hora||'00:00')); })
+    .slice(0,5);
+  if (!future.length) {
+    el.innerHTML='<div style="padding:14px 16px;text-align:center;color:var(--text3);font-size:13px">Sin citas próximas</div>';
+    return;
+  }
+  var icons={'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Filtros':'🌀','Otro':'📌','Otro taller':'🔩'};
+  var html='';
+  future.forEach(function(c){
+    var d = dU(c.fecha,c.hora);
+    var col = d===0?'var(--red)':d<=3?'var(--red)':d<=7?'var(--amber)':d<=30?'var(--cyan)':'var(--green)';
+    var lbl = d===0?'HOY':d===1?'MAÑANA':d+' días';
+    var dateStr = new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleDateString('es-ES',{day:'2-digit',month:'short'});
+    var v = VEHICULOS.find(function(x){return x.matricula===c.matricula;});
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:20px">'+(icons[c.tipo]||'📅')+'</span>'
+      +'<div style="flex:1">'
+        +'<div style="font-size:13px;font-weight:800;color:var(--text)">'+(c.tipo||'Cita')+' · <span style="color:var(--cyan)">'+(c.matricula||'')+'</span></div>'
+        +'<div style="font-size:11px;color:var(--text2)">'+(v?v.modelo+' · ':'')+dateStr+(c.hora?' · '+c.hora:'')+(c.lugar?' · '+c.lugar:'')+'</div>'
+      +'</div>'
+      +'<div style="font-size:13px;font-weight:900;color:'+col+'">'+lbl+'</div>'
+    +'</div>';
+  });
+  el.innerHTML=html;
+}
+
 function startSync() {
   syncFromDrivers();
   renderNotifCitas();
+  renderHomeProximas();
   renderVehiculosHome();
   renderITVAlerts();
   initTallerSelect();
@@ -929,6 +987,7 @@ function startSync() {
     renderITVAlerts();
   }, 6000);
   setInterval(renderNotifCitas, 30000);
+  setInterval(renderHomeProximas, 30000);
 }
 
 // ══ CITAS ══
@@ -2063,7 +2122,7 @@ function scanAndOpenCita(input, v) {
     </div>
     <div class="field">
       <label>Fecha</label>
-      <input id="cita-fecha" type="date" class="form-input">
+      <input id="cita-fecha" type="date" class="form-input" required>
     </div>
     <div class="field">
       <label>Hora</label>
