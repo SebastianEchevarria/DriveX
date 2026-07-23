@@ -41,7 +41,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
   z-index:100; grid-template-columns:repeat(4,1fr);
 }
 #navbar.visible { display:grid; }
-.nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text3); cursor:pointer; transition:color .15s; }
+.nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text2); cursor:pointer; transition:color .15s; }
 .nav-btn.active { color:var(--cyan); }
 .nav-btn span { font-size:20px; }
 .nav-btn small { font-size:9px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
@@ -1032,8 +1032,14 @@ function updateNavState() {
   var unlocked = data.fichado || !!data.horaEntrada;
   var gastosBtn  = document.getElementById('nav-gastos');
   var billingBtn = document.getElementById('nav-billing');
-  if (gastosBtn)  { gastosBtn.style.opacity  = unlocked ? '1' : '0.35'; }
-  if (billingBtn) { billingBtn.style.opacity = unlocked ? '1' : '0.35'; }
+  if (gastosBtn) {
+    gastosBtn.style.opacity = unlocked ? '1' : '0.4';
+    gastosBtn.style.color   = unlocked ? 'var(--text)' : 'var(--text3)';
+  }
+  if (billingBtn) {
+    billingBtn.style.opacity = unlocked ? '1' : '0.4';
+    billingBtn.style.color   = unlocked ? 'var(--text)' : 'var(--text3)';
+  }
 }
 
 // ── NAVIGATION ──
