@@ -120,6 +120,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 /* FORM */
 .form-input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 14px;border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;outline:none}
 .form-input:focus{border-color:var(--cyan)}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -221,9 +226,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       </a>
 
       <!-- Botón nueva cita interna -->
-      <button onclick="openCitaForMat()" class="btn-primary" style="border-radius:14px;font-size:14px;margin-bottom:10px">
-        📅 Registrar cita ITV en la app
-      </button>
+      <div style="margin-bottom:10px">
+        <button onclick="openCitaForMat()" class="btn-primary" style="width:100%;border-radius:14px;font-size:14px;margin-bottom:6px">
+          📅 Registrar cita ITV en la app
+        </button>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:9px;border-radius:12px;background:rgba(0,212,255,.06);border:1px dashed rgba(0,212,255,.3);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer">
+          <input type="file" accept="image/*" style="display:none" onchange="scanAndOpenCita(this, _currentMat)">
+          📸 Escanear captura de cita
+        </label>
+      </div>
 
       <!-- Nueva cita de taller -->
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px">
@@ -348,8 +359,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 </div>
 
 <!-- ══ VER MATRÍCULA MODAL ══ -->
-<div id="ver-mat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:flex-end;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">
+<div id="ver-mat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto">
     <!-- Header -->
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);z-index:5">
       <span id="ver-mat-icon" style="font-size:28px">🚗</span>
@@ -727,16 +738,42 @@ function renderMatCitas(v) {
   if (citasEl) citasEl.innerHTML = html || '<div style="padding:14px 16px;color:var(--text3);font-size:13px;text-align:center">Sin citas programadas</div>';
 }
 
+
+function openCitaParaMat(v, tipoDefault) {
+  if (!v) return;
+  _currentCitaVeh = v;
+  // Show matricula display
+  var matDisplay = document.getElementById('cita-mat-display');
+  var matLabel   = document.getElementById('cita-mat-label');
+  var matModel   = document.getElementById('cita-mat-model');
+  var condWrap   = document.getElementById('cita-conductor-wrap');
+  if (matDisplay) matDisplay.style.display = 'block';
+  if (matLabel)   matLabel.textContent = v.matricula;
+  if (matModel)   matModel.textContent = v.modelo + ' · ' + v.ciudad;
+  if (condWrap)   condWrap.style.display = 'none';
+  // Set tipo if provided
+  var tipoSel = document.getElementById('cita-tipo');
+  if (tipoSel && tipoDefault) tipoSel.value = tipoDefault;
+  document.getElementById('cita-modal').style.display = 'flex';
+}
+
+function closeCitaModal() {
+  // Reset conductor wrap visibility
+  var condWrap = document.getElementById('cita-conductor-wrap');
+  var matDisplay = document.getElementById('cita-mat-display');
+  if (condWrap)   condWrap.style.display = 'block';
+  if (matDisplay) matDisplay.style.display = 'none';
+  _currentCitaVeh = null;
+  document.getElementById('cita-modal').style.display = 'none';
+}
+
+var _currentCitaVeh = null;
+
 function openCitaForMat() {
   if (_currentMat) {
-    // Pre-select the conductor of this vehicle in the cita modal
-    var sel = document.getElementById('cita-conductor');
-    if (sel && _currentMat.conductores.length) {
-      sel.value = _currentMat.conductores[0];
-    }
+    document.getElementById('mat-modal').style.display = 'none';
+    openCitaParaMat(_currentMat, 'ITV');
   }
-  document.getElementById('mat-modal').style.display='none';
-  document.getElementById('cita-modal').style.display='flex';
 }
 
 // ══ CONDUCTORES DATA ══
@@ -1035,8 +1072,35 @@ function deletePoliza() {
   toast('🗑 Póliza eliminada');
 }
 
+
+function openCitaModal(mat) {
+  var displayEl = document.getElementById('cita-mat-display');
+  var wrapEl    = document.getElementById('cita-conductor-wrap');
+  var labelEl   = document.getElementById('cita-mat-label');
+  var modelEl   = document.getElementById('cita-mat-model');
+
+  if (mat) {
+    // Called from a specific matrícula — show mat, hide conductor selector
+    var v = VEHICULOS.find(function(x){ return x.matricula === mat; });
+    if (displayEl) displayEl.style.display = 'block';
+    if (wrapEl)    wrapEl.style.display    = 'none';
+    if (labelEl)   labelEl.textContent     = mat;
+    if (modelEl)   modelEl.textContent     = v ? v.modelo + ' · ' + v.ciudad : '';
+    // Store mat for guardarCita
+    document.getElementById('cita-modal')._currentMat = mat;
+  } else {
+    // Generic — show conductor selector
+    if (displayEl) displayEl.style.display = 'none';
+    if (wrapEl)    wrapEl.style.display    = 'block';
+    document.getElementById('cita-modal')._currentMat = null;
+  }
+  document.getElementById('cita-modal').style.display = 'flex';
+}
+
 function guardarCita() {
-  var cid    = document.getElementById('cita-conductor').value;
+  var targetVeh = _currentCitaVeh;
+  var matFromContext = targetVeh ? targetVeh.matricula : null;
+  var cid    = matFromContext ? null : document.getElementById('cita-conductor').value;
   var tipo   = document.getElementById('cita-tipo').value;
   var fecha  = document.getElementById('cita-fecha').value;
   var hora   = document.getElementById('cita-hora').value;
@@ -1045,15 +1109,47 @@ function guardarCita() {
 
   if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
 
-  // Get conductor matricula
-  var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
-  var matricula = c ? c.matricula : '—';
-  var nombre    = c ? c.nombre    : cid;
+  var matricula, nombre, cita;
+  if (matFromContext) {
+    // Came from a matrícula context — save for ALL conductores of that vehicle
+    var v = targetVeh || VEHICULOS.find(function(x){ return x.matricula === matFromContext; });
+    matricula = matFromContext;
+    nombre    = matFromContext;
+    cita = { id: Date.now(), matricula: matricula, tipo: tipo, fecha: fecha, hora: hora||'', lugar: lugar||'', nota: nota||'', ts: Date.now() };
 
-  var cita = {
-    id:        Date.now(),
-    cid:       cid,
-    matricula: matricula,
+    // Save to each conductor
+    if (v) {
+      v.conductores.forEach(function(cond_cid) {
+        var key = 'drivx_citas_' + cond_cid;
+        var citas = [];
+        try { citas = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){}
+        citas.push(Object.assign({}, cita, {cid: cond_cid}));
+        localStorage.setItem(key, JSON.stringify(citas));
+      });
+    }
+
+    // Save to global
+    var allCitas = [];
+    try { allCitas = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
+    allCitas.push(cita);
+    localStorage.setItem('drivx_citas', JSON.stringify(allCitas));
+
+    // Close and reset
+    closeCitaModal();
+    document.getElementById('cita-fecha').value = '';
+    document.getElementById('cita-hora').value  = '';
+    document.getElementById('cita-lugar').value = '';
+    document.getElementById('cita-nota').value  = '';
+    toast('📅 Cita creada · ' + matricula + ' · ' + tipo);
+    renderNotifCitas(); renderVehiculosHome(); if (typeof renderMatCitas==='function' && _currentMat) renderMatCitas(_currentMat);
+    return;
+  }
+
+  // Standard flow (conductor selector)
+  var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+  matricula = c ? c.matricula : '—';
+  nombre    = c ? c.nombre    : cid;
+  cita = { id: Date.now(), cid: cid, matricula: matricula,
     tipo:      tipo,
     fecha:     fecha,       // YYYY-MM-DD
     hora:      hora||'',
@@ -1076,7 +1172,7 @@ function guardarCita() {
   allCitas.push(cita);
   localStorage.setItem(allKey, JSON.stringify(allCitas));
 
-  document.getElementById('cita-modal').style.display='none';
+  closeCitaModal();
 
   // Reset form
   document.getElementById('cita-fecha').value = '';
@@ -1097,7 +1193,6 @@ function renderNotifCitas() {
   var allCitas = [];
   try { allCitas = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(x){}
 
-  // Deduplicate
   var seen = {};
   allCitas = allCitas.filter(function(c) {
     var key = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
@@ -1120,15 +1215,20 @@ function renderNotifCitas() {
     var col = d===0?'var(--red)':d<=3?'var(--red)':d<=7?'var(--amber)':d<=30?'var(--cyan)':'var(--green)';
     var lbl = d===0?'HOY':d===1?'MAÑANA':d+' días';
     var dateStr = new Date(c.fecha+'T'+(c.hora||'00:00')).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'});
-    html += '<div class="notif-item">'
+    var cKey = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
+    html += '<div class="notif-item" style="align-items:center">'
       +'<div class="notif-dot" style="background:'+col+'"></div>'
       +'<div style="flex:1">'
         +'<div class="notif-title">'+(c.tipo||'Cita')+' · '+(c.matricula||'')+'</div>'
         +'<div class="notif-sub">'+(c.lugar||'Sin dirección')+(c.nota?' · '+c.nota:'')+'</div>'
         +'<div class="notif-time">'+dateStr+(c.hora?' · '+c.hora:'')+'</div>'
       +'</div>'
-      +'<div style="text-align:right;flex-shrink:0;margin-left:10px">'
-        +'<div style="font-size:14px;font-weight:900;color:'+col+'">'+lbl+'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:8px">'
+        +'<div style="font-size:13px;font-weight:900;color:'+col+'">'+lbl+'</div>'
+        +'<button class="notif-del-btn" data-key="'+cKey+'" '
+          +'style="width:28px;height:28px;border-radius:8px;border:2px solid #ff4757;background:rgba(255,71,87,.12);color:#ff4757;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center">'
+          +'🗑'
+        +'</button>'
       +'</div>'
     +'</div>';
   });
@@ -1137,10 +1237,18 @@ function renderNotifCitas() {
     html += '<div style="padding:8px 14px;font-size:11px;color:var(--text2);border-top:1px solid var(--border)">'
       +past.length+' cita'+(past.length>1?'s':'')+' pasada'+(past.length>1?'s':'')+'</div>';
   }
-
   if (!html) html = '<div style="padding:14px 16px;color:var(--text2);font-size:13px;text-align:center">Sin citas programadas</div>';
 
   container.innerHTML = html;
+
+  // Attach delete handlers
+  container.querySelectorAll('.notif-del-btn').forEach(function(btn) {
+    btn.onclick = function() {
+      var key = btn.getAttribute('data-key');
+      _pendingNotifDelKey = key;
+      document.getElementById('notif-del-modal').style.display = 'flex';
+    };
+  });
 }
 
 
@@ -1234,11 +1342,9 @@ function renderITVAlerts() {
       var v = VEHICULOS.find(function(x){ return x.matricula===mat; });
       if (!v) return;
       _verMatActual = v;
-      var sel = document.getElementById('cita-conductor');
-      if (sel && v.conductores.length) sel.value = v.conductores[0];
       var tipoSel = document.getElementById('cita-tipo');
       if (tipoSel) tipoSel.value = 'ITV';
-      document.getElementById('cita-modal').style.display = 'flex';
+      openCitaModal(mat);
     };
   });
 }
@@ -1539,11 +1645,8 @@ function verMatAlerta(btn) {
   var regBtn = document.getElementById('ver-reg-cita-btn');
   if (regBtn) regBtn.onclick = function() {
     document.getElementById('ver-mat-modal').style.display = 'none';
-    var sel = document.getElementById('cita-conductor');
-    if (sel && v.conductores.length) sel.value = v.conductores[0];
-    var tipoSel = document.getElementById('cita-tipo');
-    if (tipoSel) tipoSel.value = 'ITV';
-    document.getElementById('cita-modal').style.display = 'flex';
+    document.getElementById('ver-mat-modal').style.display = 'none';
+    openCitaParaMat(v, 'ITV');
   };
 
   document.getElementById('ver-mat-modal').style.display = 'flex';
@@ -1860,45 +1963,7 @@ function saveEditCita() {
   renderVehiculosHome(); renderNotifCitas(); renderCalendar();
 }
 
-function confirmDelCita() {
-  var key = _pendingDelKey;
-  var day = _pendingDelDay;
-  document.getElementById('cal-del-modal').style.display = 'none';
-  if (!key) return;
 
-  // Delete from all conductor keys matching this content
-  var parts = key.split('|');
-  var mat = parts[0], tipo = parts[1], fecha = parts[2], hora = parts[3];
-
-  VEHICULOS.forEach(function(v) {
-    if (v.matricula !== mat) return;
-    v.conductores.forEach(function(cid) {
-      var k = 'drivx_citas_' + cid;
-      var citas = [];
-      try { citas = JSON.parse(localStorage.getItem(k)||'[]'); } catch(e){}
-      citas = citas.filter(function(c) {
-        return !(c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||''));
-      });
-      localStorage.setItem(k, JSON.stringify(citas));
-    });
-  });
-
-  // Also remove from global list
-  var all = [];
-  try { all = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
-  all = all.filter(function(c) {
-    return !(c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||''));
-  });
-  localStorage.setItem('drivx_citas', JSON.stringify(all));
-
-  toast('🗑 Cita eliminada');
-  renderVehiculosHome();
-  renderNotifCitas();
-  renderCalendar();
-}
-
-
-var _toastTimer = null;
 function toast(msg) {
   var el = document.getElementById('toast');
   el.textContent = msg;
@@ -1906,14 +1971,93 @@ function toast(msg) {
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
+
+function scanCitaImage(input) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  var statusEl = document.getElementById('cita-scan-status');
+  var labelEl  = document.getElementById('cita-scan-label');
+  if (statusEl) { statusEl.style.display='block'; statusEl.textContent='⏳ Analizando imagen...'; statusEl.style.color='var(--cyan)'; }
+  if (labelEl)  labelEl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var prompt = 'Analiza esta imagen de una cita. Extrae en JSON sin markdown: {"tipo":"ITV|Taller|Revision general|Cambio aceite|Frenos|Neumaticos|Bateria|Climatizacion|Suspension|Otro","fecha":"YYYY-MM-DD","hora":"HH:MM o null","lugar":"taller o direccion o null","nota":"info adicional o null"}. Nulos si no encuentras el dato.';
+    callAI(b64, file.type||'image/jpeg', prompt).then(function(text) {
+      try {
+        var clean = text.replace(/```[a-z]*/g,'').replace(/```/g,'').trim();
+        var data = JSON.parse(clean);
+        if (data.tipo)  { var s=document.getElementById('cita-tipo');  if(s) s.value=data.tipo; }
+        if (data.fecha) { var s=document.getElementById('cita-fecha'); if(s) s.value=data.fecha; }
+        if (data.hora)  { var s=document.getElementById('cita-hora');  if(s) s.value=data.hora; }
+        if (data.lugar) { var s=document.getElementById('cita-lugar'); if(s) s.value=data.lugar; }
+        if (data.nota)  { var s=document.getElementById('cita-nota');  if(s) s.value=data.nota; }
+        if (statusEl) { statusEl.textContent='✅ Datos extraidos · revisa y confirma'; statusEl.style.color='var(--green)'; }
+      } catch(ex) {
+        if (statusEl) { statusEl.textContent='⚠ Revisa los campos manualmente'; statusEl.style.color='var(--amber)'; }
+      }
+    }).catch(function(){
+      if (statusEl) { statusEl.textContent='❌ Error al analizar'; statusEl.style.color='var(--red)'; }
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function scanAndOpenCita(input, v) {
+  if (!input.files[0] || !v) return;
+  var file = input.files[0];
+  openCitaForMat();
+  var statusEl = document.getElementById('cita-scan-status');
+  var labelEl  = document.getElementById('cita-scan-label');
+  if (statusEl) { statusEl.style.display='block'; statusEl.textContent='⏳ Analizando...'; statusEl.style.color='var(--cyan)'; }
+  if (labelEl)  labelEl.textContent = file.name;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var prompt = 'Analiza esta imagen de una cita. JSON sin markdown: {"tipo":"ITV|Taller|Revision general|Cambio aceite|Frenos|Neumaticos|Bateria|Otro","fecha":"YYYY-MM-DD","hora":"HH:MM o null","lugar":"taller o direccion o null","nota":"info o null"}.';
+    callAI(b64, file.type||'image/jpeg', prompt).then(function(text) {
+      try {
+        var clean = text.replace(/```[a-z]*/g,'').replace(/```/g,'').trim();
+        var data = JSON.parse(clean);
+        if (data.tipo)  { var s=document.getElementById('cita-tipo');  if(s) s.value=data.tipo; }
+        if (data.fecha) { var s=document.getElementById('cita-fecha'); if(s) s.value=data.fecha; }
+        if (data.hora)  { var s=document.getElementById('cita-hora');  if(s) s.value=data.hora; }
+        if (data.lugar) { var s=document.getElementById('cita-lugar'); if(s) s.value=data.lugar; }
+        if (data.nota)  { var s=document.getElementById('cita-nota');  if(s) s.value=data.nota; }
+        if (statusEl) { statusEl.textContent='✅ Datos extraidos'; statusEl.style.color='var(--green)'; }
+      } catch(ex) {
+        if (statusEl) { statusEl.textContent='⚠ Revisa manualmente'; statusEl.style.color='var(--amber)'; }
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
 </script>
 
 <!-- ══ NUEVA CITA MODAL ══ -->
 <div class="modal-overlay" id="cita-modal">
   <div class="modal-sheet">
-    <div style="font-size:16px;font-weight:800;margin-bottom:4px">📅 Nueva Cita</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:18px">El conductor recibirá la notificación en su app</div>
-    <div class="field">
+    <div style="font-size:16px;font-weight:800;margin-bottom:8px">📅 Nueva Cita</div>
+    <!-- Scan image -->
+    <div style="background:rgba(0,212,255,.06);border:1px dashed rgba(0,212,255,.35);border-radius:12px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">📸 Escanear cita con IA</div>
+      <label for="cita-scan-input" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;background:rgba(0,212,255,.08);border-radius:8px;color:var(--text)">
+        <input type="file" id="cita-scan-input" accept="image/*" style="display:none" onchange="scanCitaImage(this)">
+        <span style="font-size:18px">🖼️</span>
+        <span style="font-size:12px;font-weight:600" id="cita-scan-label">Subir captura de pantalla</span>
+      </label>
+      <div id="cita-scan-status" style="font-size:11px;color:var(--text3);margin-top:6px;display:none"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">El conductor recibirá la notificación en su app</div>
+    <div id="cita-mat-display" style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Matrícula</div>
+      <div id="cita-mat-label" style="font-size:16px;font-weight:900;font-family:var(--mono);color:var(--text)">—</div>
+      <div id="cita-mat-model" style="font-size:11px;color:var(--text2)">—</div>
+    </div>
+    <!-- Hidden select kept for non-mat context -->
+    <div id="cita-conductor-wrap" class="field">
       <label>Conductor / Matrícula</label>
       <select id="cita-conductor" class="form-input">
         <optgroup label="1234 ABC — Tesla Model 3">
@@ -1999,7 +2143,7 @@ function toast(msg) {
     </div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button class="btn-primary" onclick="guardarCita()">📅 Crear cita</button>
-      <button onclick="document.getElementById('cita-modal').style.display='none'" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+      <button onclick="closeCitaModal()" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2068,6 +2212,80 @@ function saveEditCita() {
   _pendingEditKey=null;
   toast('\u2705 Cita actualizada');
   renderVehiculosHome(); renderNotifCitas(); renderCalendar();
+}
+
+
+// ══ SCAN CITA IMAGE ══
+
+
+// ══ DELETE NOTIF CITA ══
+var _pendingNotifDelKey = null;
+
+function deleteNotifCita(key) {
+  _pendingNotifDelKey = key;
+  _pendingDelKey = key;
+  var modal = document.getElementById('cal-del-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function confirmDelCita() {
+  var key = _pendingDelKey || _pendingNotifDelKey;
+  document.getElementById('cal-del-modal').style.display = 'none';
+  if (!key) return;
+  var parts = key.split('|');
+  var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3];
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      var k='drivx_citas_'+cid, citas=[];
+      try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
+      citas=citas.filter(function(c){ return !(c.matricula===mat&&c.tipo===tipo&&c.fecha===fecha&&(c.hora||'')===(hora||'')); });
+      localStorage.setItem(k,JSON.stringify(citas));
+    });
+  });
+  var all=[];
+  try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
+  all=all.filter(function(c){ return !(c.matricula===mat&&c.tipo===tipo&&c.fecha===fecha&&(c.hora||'')===(hora||'')); });
+  localStorage.setItem('drivx_citas',JSON.stringify(all));
+  _pendingDelKey=null; _pendingNotifDelKey=null;
+  toast('🗑 Cita eliminada');
+  renderNotifCitas(); renderITVAlerts(); renderVehiculosHome();
+  if (typeof renderCalendar==='function') renderCalendar();
+}
+
+
+var _pendingNotifDelKey = null;
+
+function confirmNotifDel() {
+  document.getElementById('notif-del-modal').style.display = 'none';
+  if (!_pendingNotifDelKey) return;
+  var parts = _pendingNotifDelKey.split('|');
+  var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3];
+
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      var k = 'drivx_citas_'+cid, citas=[];
+      try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
+      citas = citas.filter(function(c){
+        return !(c.matricula===mat&&c.tipo===tipo&&c.fecha===fecha&&(c.hora||'')===(hora||''));
+      });
+      localStorage.setItem(k, JSON.stringify(citas));
+    });
+  });
+
+  var all=[];
+  try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
+  all = all.filter(function(c){
+    return !(c.matricula===mat&&c.tipo===tipo&&c.fecha===fecha&&(c.hora||'')===(hora||''));
+  });
+  localStorage.setItem('drivx_citas', JSON.stringify(all));
+
+  _pendingNotifDelKey = null;
+  toast('🗑 Cita eliminada');
+  renderNotifCitas();
+  renderVehiculosHome();
+  renderCalendar();
 }
 
 >
