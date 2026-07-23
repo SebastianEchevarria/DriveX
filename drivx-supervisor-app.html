@@ -350,58 +350,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 <!-- ══ VER MATRÍCULA MODAL ══ -->
 <div id="ver-mat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:flex-end;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">
-    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:var(--surface)">
-      <span id="ver-mat-icon" style="font-size:22px">🚗</span>
+    <!-- Header -->
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);z-index:5">
+      <span id="ver-mat-icon" style="font-size:28px">🚗</span>
       <div style="flex:1">
-        <div id="ver-mat-plate" style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">—</div>
-        <div id="ver-mat-sub" style="font-size:11px;color:var(--text3)">—</div>
+        <div id="ver-mat-plate" style="font-size:22px;font-weight:900;font-family:var(--mono);color:var(--cyan)">—</div>
+        <div id="ver-mat-sub" style="font-size:12px;color:var(--text2)">—</div>
       </div>
       <button onclick="document.getElementById('ver-mat-modal').style.display='none'"
-        style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:16px">✕</button>
+        style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:18px">✕</button>
     </div>
     <div style="padding:16px" id="ver-mat-body"></div>
   </div>
 </div>
-
-
-<!-- ══ CALENDARIO ══ -->
-<div id="screen-calendario" class="screen">
-  <div class="scroll">
-    <div class="header">
-      <div><div class="header-title">Calendario</div><div class="header-sub" id="cal-sub">Citas programadas</div></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="calPrev()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:14px">‹</button>
-        <button onclick="calNext()" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:14px">›</button>
-      </div>
-    </div>
-
-    <!-- Month/Year -->
-    <div id="cal-month-title" style="text-align:center;font-size:16px;font-weight:800;margin-bottom:12px;color:var(--text)"></div>
-
-    <!-- Day headers -->
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">L</div>
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">M</div>
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">X</div>
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">J</div>
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">V</div>
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">S</div>
-      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px">D</div>
-    </div>
-
-    <!-- Calendar grid -->
-    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px"></div>
-
-    <!-- Day detail -->
-    <div id="cal-day-detail" style="display:none">
-      <div id="cal-day-title" style="font-size:14px;font-weight:800;margin-bottom:10px;color:var(--cyan)"></div>
-      <div id="cal-day-citas" class="card"></div>
-    </div>
-
-    <div id="cal-no-citas" style="display:none;text-align:center;padding:24px;color:var(--text3);font-size:13px">Sin citas este mes</div>
-  </div>
-</div>
-
 
 <!-- ══ CAL EDIT MODAL ══ -->
 <div id="cal-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;align-items:center;justify-content:center;padding:20px">
@@ -478,7 +439,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 var VEHICULOS = [
   {
     matricula: '1234 ABC', modelo: 'Tesla Model 3', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '⚡',
-    docs: { itv: { fecha:'2025-11-02', ok:true }, seguro: { fecha:'15/03/2025', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2026-08-10', ok:true }, seguro: { fecha:'15/03/2025', ok:true }, vtc: { ok:true } },
     conductores: ['ahmed','carlos','rafael']
   },
   {
@@ -488,7 +449,7 @@ var VEHICULOS = [
   },
   {
     matricula: '5678 DEF', modelo: 'Mercedes EQS', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '⚡',
-    docs: { itv: { fecha:'2025-10-28', ok:true }, seguro: { fecha:'01/06/2025', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2026-09-15', ok:true }, seguro: { fecha:'01/06/2025', ok:true }, vtc: { ok:true } },
     conductores: ['maria','david','fatima']
   },
   {
@@ -498,7 +459,7 @@ var VEHICULOS = [
   },
   {
     matricula: '7890 MNO', modelo: 'Skoda Octavia', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
-    docs: { itv: { fecha:'2025-11-10', ok:true }, seguro: { fecha:'15/09/2025', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2027-03-10', ok:true }, seguro: { fecha:'15/09/2025', ok:true }, vtc: { ok:true } },
     conductores: ['ivan','nadia','jorge']
   },
   {
@@ -508,7 +469,7 @@ var VEHICULOS = [
   },
   {
     matricula: '2345 CLM', modelo: 'Tesla Model Y', ciudad: 'Albacete', ccaa: 'Castilla-La Mancha', icon: '⚡',
-    docs: { itv: { fecha:'2025-08-15', ok:true }, seguro: { fecha:'2025-12-01', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2026-07-28', ok:true }, seguro: { fecha:'2025-12-01', ok:true }, vtc: { ok:true } },
     conductores: ['andres','beatriz','cristian']
   },
   {
@@ -518,12 +479,12 @@ var VEHICULOS = [
   },
   {
     matricula: '1122 CLM', modelo: 'Tesla Model 3', ciudad: 'Toledo', ccaa: 'Castilla-La Mancha', icon: '⚡',
-    docs: { itv: { fecha:'2025-09-30', ok:true }, seguro: { fecha:'2025-11-20', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2026-10-30', ok:true }, seguro: { fecha:'2025-11-20', ok:true }, vtc: { ok:true } },
     conductores: ['gloria','hector','irene']
   },
   {
     matricula: '3344 CLM', modelo: 'Volkswagen Passat', ciudad: 'Ciudad Real', ccaa: 'Castilla-La Mancha', icon: '🚗',
-    docs: { itv: { fecha:'2025-12-05', ok:true }, seguro: { fecha:'2026-02-10', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2026-12-05', ok:true }, seguro: { fecha:'2026-02-10', ok:true }, vtc: { ok:true } },
     conductores: ['javier','karen','luis']
   }
 ];
@@ -917,8 +878,6 @@ function startSync() {
   renderNotifCitas();
   renderVehiculosHome();
   renderITVAlerts();
-  renderITVAlerts();
-  renderITVAlerts();
   initTallerSelect();
   setInterval(function(){
     syncFromDrivers();
@@ -1172,27 +1131,66 @@ function renderITVAlerts() {
     .map(function(v){ return {v:v, days:dU(v.docs.itv.fecha)}; })
     .sort(function(a,b){ return a.days - b.days; });
 
+  var urgent = rows.filter(function(x){ return x.days <= 90; });
+  var ok     = rows.filter(function(x){ return x.days > 90; });
   var h = '';
-  rows.forEach(function(x) {
+
+  urgent.forEach(function(x) {
     var v=x.v, d=x.days;
-    var color = d<0 ? 'var(--red)' : d<=30 ? 'var(--red)' : d<=90 ? 'var(--amber)' : 'var(--green)';
-    var lbl   = d<0 ? 'Vencida hace '+Math.abs(d)+' d\u00edas'
-              : d===0 ? 'Vence HOY'
-              : d<=30 ? 'Vence en '+d+' d\u00edas'
-              : d<=90 ? 'Vence en '+d+' d\u00edas'
-              : 'En regla \u00b7 '+d+' d\u00edas';
-    h += '<div class="notif-item">'
-      + '<div class="notif-dot" style="background:'+color+'"></div>'
-      + '<div style="flex:1">'
-        + '<div class="notif-title" style="color:'+color+'">'+v.matricula+' \u00b7 '+v.modelo+'</div>'
-        + '<div class="notif-sub">'+v.ciudad+' \u00b7 '+v.ccaa+'</div>'
-        + '<div class="notif-time">ITV: '+fD(v.docs.itv.fecha)+'</div>'
+    var vencida = d < 0;
+    var color = vencida ? 'var(--red)' : d<=30 ? 'var(--red)' : 'var(--amber)';
+    var lbl = vencida ? '🚨 VENCIDA hace '+Math.abs(d)+' días'
+            : d===0   ? '🚨 Vence HOY'
+            : d<=30   ? '⚠ Vence en '+d+' días'
+            :            '⏰ Vence en '+d+' días';
+    h += '<div style="border-bottom:1px solid var(--border);padding:12px 14px">'
+      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        + '<div style="width:8px;height:8px;border-radius:50%;background:'+color+';flex-shrink:0"></div>'
+        + '<div style="flex:1">'
+          + '<div style="font-size:13px;font-weight:800;color:'+color+'">'+lbl+'</div>'
+          + '<div style="font-size:13px;font-weight:700;color:var(--text)">'+v.matricula+' · '+v.modelo+'</div>'
+          + '<div style="font-size:11px;color:#a8bbd0">'+v.ciudad+' · '+v.ccaa+' · ITV: '+fD(v.docs.itv.fecha)+'</div>'
+        + '</div>'
       + '</div>'
-      + '<button class="btn-sm btn-ghost" style="margin-left:8px;flex-shrink:0" onclick="verMatAlerta(this)" data-mat="'+v.matricula+'">Ver</button>'
-      + '</div>';
+      + '<div style="display:flex;gap:8px">'
+        + '<a href="https://www.itvcita.com/Welcome.do" target="_blank" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:9px;border-radius:10px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);color:var(--amber);font-size:11px;font-weight:800;text-decoration:none">🔧 ITV online</a>'
+        + '<button class="alerta-reg-btn" data-mat="'+v.matricula+'" style="flex:1;padding:9px;border-radius:10px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">📅 Registrar cita</button>'
+        + '<button class="alerta-ver-btn btn-sm btn-ghost" data-mat="'+v.matricula+'" style="flex-shrink:0;font-size:11px">Ver</button>'
+      + '</div>'
+    + '</div>';
   });
 
-  list.innerHTML = h || '<div style="padding:14px 16px;color:var(--green);font-size:13px">\u2713 Todas las ITV en regla</div>';
+  if (ok.length) {
+    h += '<div style="padding:10px 14px;font-size:12px;color:var(--text)">✓ '+ok.length+' vehículo'+(ok.length>1?'s':'')+' con ITV en regla</div>';
+    ok.forEach(function(x) {
+      var v=x.v, d=x.days;
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">'
+        + '<div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div>'
+        + '<div style="flex:1"><div style="font-size:13px;font-weight:700">'+v.matricula+' · '+v.modelo+'</div>'
+        + '<div style="font-size:11px;color:var(--text)">ITV ✓ '+fD(v.docs.itv.fecha)+' ('+d+' días)</div></div>'
+        + '<button class="alerta-ver-btn btn-sm btn-ghost" data-mat="'+v.matricula+'" style="font-size:11px">Ver</button>'
+      + '</div>';
+    });
+  }
+
+  list.innerHTML = h || '<div style="padding:16px;text-align:center;color:var(--green);font-size:13px">✓ Todas las ITV en regla</div>';
+
+  list.querySelectorAll('.alerta-ver-btn').forEach(function(btn){
+    btn.onclick = function(){ verMatAlerta(btn); };
+  });
+  list.querySelectorAll('.alerta-reg-btn').forEach(function(btn){
+    btn.onclick = function(){
+      var mat = btn.getAttribute('data-mat');
+      var v = VEHICULOS.find(function(x){ return x.matricula===mat; });
+      if (!v) return;
+      _verMatActual = v;
+      var sel = document.getElementById('cita-conductor');
+      if (sel && v.conductores.length) sel.value = v.conductores[0];
+      var tipoSel = document.getElementById('cita-tipo');
+      if (tipoSel) tipoSel.value = 'ITV';
+      document.getElementById('cita-modal').style.display = 'flex';
+    };
+  });
 }
 
 function openITVUrl() {
@@ -1323,7 +1321,7 @@ function guardarCitaTaller() {
 
 // ══ ITV ALERTS ══
 function renderITVAlerts() {
-  var list = document.getElementById('itv-alerts-list');
+  var list = document.getElementById('notif-itv-list');
   if (!list) return;
   var now = new Date();
   function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
@@ -1497,69 +1495,77 @@ function verMatAlerta(btn) {
   function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '-'; }
 
+  // Set header
+  var iconEl  = document.getElementById('ver-mat-icon');
+  var plateEl = document.getElementById('ver-mat-plate');
+  var subEl   = document.getElementById('ver-mat-sub');
+  if (iconEl)  iconEl.textContent  = v.icon;
+  if (plateEl) plateEl.textContent = v.matricula;
+  if (subEl)   subEl.textContent   = v.modelo + ' · ' + v.ciudad + ' · ' + v.ccaa;
+
+  // ITV status
   var itvDays  = dU(v.docs.itv.fecha);
-  var itvColor = itvDays<0?'var(--red)':itvDays<=30?'var(--red)':itvDays<=90?'var(--amber)':'var(--green)';
-  var itvLbl   = itvDays<0 ? '🚨 ITV VENCIDA hace '+Math.abs(itvDays)+' días'
-               : itvDays===0 ? '🚨 Vence HOY'
-               : itvDays<=30 ? '⚠ Vence en '+itvDays+' días'
-               : itvDays<=90 ? '⏰ Vence en '+itvDays+' días'
+  var itvColor = itvDays < 0 ? 'var(--red)' : itvDays<=30 ? 'var(--red)' : itvDays<=90 ? 'var(--amber)' : 'var(--green)';
+  var itvLbl   = itvDays < 0  ? '🚨 ITV VENCIDA hace '+Math.abs(itvDays)+' días'
+               : itvDays === 0 ? '🚨 Vence HOY'
+               : itvDays <= 30 ? '⚠ Vence en '+itvDays+' días'
+               : itvDays <= 90 ? '⏰ Vence en '+itvDays+' días'
                : '✓ ITV en regla · '+itvDays+' días';
 
-  document.getElementById('ver-mat-icon').textContent  = v.icon;
-  document.getElementById('ver-mat-plate').textContent = v.matricula;
-  document.getElementById('ver-mat-sub').textContent   = v.modelo+' · '+v.ciudad+' · '+v.ccaa;
-
-  // Citas de esta matrícula
+  // Citas
   var citas = [];
-  v.conductores.forEach(function(cid){
-    try{
-      JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c){ citas.push(c); });
-    }catch(e){}
+  var seen = {};
+  v.conductores.forEach(function(cid) {
+    try {
+      JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
+        var key = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
+        if (!seen[key]) { seen[key]=true; citas.push(c); }
+      });
+    } catch(e){}
   });
-  var seen={}; citas=citas.filter(function(c){if(seen[c.id])return false;seen[c.id]=true;return true;});
-  citas.sort(function(a,b){return new Date(a.fecha)-new Date(b.fecha);});
-  var futureCitas=citas.filter(function(c){return dU(c.fecha)>=0;});
+  citas.sort(function(a,b){ return new Date(a.fecha)-new Date(b.fecha); });
+  var futureCitas = citas.filter(function(c){ return dU(c.fecha) >= 0; });
 
-  var citasH = futureCitas.length ? futureCitas.map(function(c){
-    var d=dU(c.fecha);
-    var icons={'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Otro taller':'🔩','Otro':'📌'};
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
+  var icons = {'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Filtros':'🌀','Otro':'📌','Otro taller':'🔩'};
+
+  var citasH = futureCitas.length ? futureCitas.map(function(c) {
+    var d = dU(c.fecha);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">'
       +'<span style="font-size:18px">'+(icons[c.tipo]||'📅')+'</span>'
-      +'<div style="flex:1"><div style="font-size:13px;font-weight:700">'+c.tipo+'</div>'
-      +'<div style="font-size:11px;color:var(--text3)">'+fD(c.fecha)+(c.hora?' · '+c.hora:'')+(c.lugar?' · '+c.lugar:'')+'</div></div>'
-      +'<button class="del-cita-btn" data-cid="'+c.id+'" style="padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;cursor:pointer">✕</button>'
-      +'</div>';
-  }).join('') : '<div style="font-size:12px;color:var(--text3);padding:6px 0">Sin citas próximas</div>';
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">'+c.tipo+'</div>'
+      +'<div style="font-size:11px;color:var(--text2)">'+fD(c.fecha)+(c.hora?' · '+c.hora:'')+(c.lugar?' · '+c.lugar:'')+'</div></div>'
+      +(d<=7?'<span style="font-size:10px;font-weight:800;color:var(--red)">'+d+'d</span>'
+       :d<=30?'<span style="font-size:10px;color:var(--amber)">'+d+'d</span>':'')
+    +'</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--text2);padding:8px 0">Sin citas próximas</div>';
 
   document.getElementById('ver-mat-body').innerHTML =
-    // ITV status
-    '<div style="background:rgba(0,0,0,.2);border:1px solid '+itvColor+';border-radius:10px;padding:12px 14px;margin-bottom:14px">'
-    +'<div style="font-size:14px;font-weight:800;color:'+itvColor+'">'+itvLbl+'</div>'
-    +'<div style="font-size:12px;color:var(--text3);margin-top:3px">Fecha ITV: '+new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div>'
+    // ITV block
+    '<div style="background:rgba(0,0,0,.2);border:1px solid '+itvColor+';border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    +'<div style="font-size:15px;font-weight:800;color:'+itvColor+'">'+itvLbl+'</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-top:3px">Fecha ITV: '+new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div>'
     +'</div>'
     // Citas
-    +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Citas programadas</div>'
-    +'<div style="margin-bottom:14px">'+citasH+'</div>'
-    // ITV online
-    +'<a href="https://www.itvcita.com/Welcome.do" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:12px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);color:var(--amber);font-size:14px;font-weight:800;text-decoration:none;margin-bottom:10px">🔧 Pedir cita ITV online →</a>'
-    // Nueva cita taller
-    +'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px">'
-    +'<div style="font-size:13px;font-weight:800;margin-bottom:12px">🔩 Nueva cita de taller</div>'
-    +'<div class="field"><label>Tipo</label><select id="vm-tipo" class="form-input"><option value="Revisión general">🔍 Revisión general</option><option value="Cambio aceite">🛢️ Cambio aceite</option><option value="Frenos">🛑 Frenos</option><option value="Neumáticos">🏎️ Neumáticos</option><option value="Batería">⚡ Batería</option><option value="Climatización">❄️ Climatización</option><option value="Suspensión">🔧 Suspensión</option><option value="Otro">🔩 Otro</option></select></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field"><label>Fecha</label><input id="vm-fecha" type="date" class="form-input"></div><div class="field"><label>Hora</label><input id="vm-hora" type="time" class="form-input"></div></div>'
-    +'<div class="field"><label>Taller / Dirección</label><input id="vm-lugar" type="text" class="form-input" placeholder="Nombre del taller"></div>'
-    +'<div class="field"><label>Nota (opcional)</label><input id="vm-nota" type="text" class="form-input" placeholder="Ej: Llevar documentación"></div>'
-    +'<button onclick="guardarCitaTallerVer()" class="btn-primary" style="width:100%;border-radius:12px">✓ Crear cita</button>'
-    +'</div>';
+    +'<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Citas programadas</div>'
+    +'<div style="margin-bottom:16px">'+citasH+'</div>'
+    // Buttons
+    +'<a href="https://www.itvcita.com/Welcome.do" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:12px;background:rgba(255,179,0,.12);border:2px solid rgba(255,179,0,.5);color:var(--amber);font-size:14px;font-weight:800;text-decoration:none;margin-bottom:10px">🔧 Pedir cita ITV online →</a>'
+    +'<button id="ver-reg-cita-btn" style="width:100%;padding:13px;border-radius:12px;background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.4);color:var(--cyan);font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">📅 Registrar cita en el calendario</button>';
+
+  // Attach register button
+  var regBtn = document.getElementById('ver-reg-cita-btn');
+  if (regBtn) regBtn.onclick = function() {
+    document.getElementById('ver-mat-modal').style.display = 'none';
+    var sel = document.getElementById('cita-conductor');
+    if (sel && v.conductores.length) sel.value = v.conductores[0];
+    var tipoSel = document.getElementById('cita-tipo');
+    if (tipoSel) tipoSel.value = 'ITV';
+    document.getElementById('cita-modal').style.display = 'flex';
+  };
 
   document.getElementById('ver-mat-modal').style.display = 'flex';
-  // Attach delete handlers
-  document.getElementById('ver-mat-body').querySelectorAll('.del-cita-btn').forEach(function(btn){
-    btn.onclick = function(){
-      borrarCitaVerMat(btn.getAttribute('data-cid'), matricula);
-    };
-  });
 }
+
 
 function borrarCitaVerMat(id, matricula) {
   deleteCita(id);
@@ -1605,6 +1611,7 @@ function showScreen(id) {
   var nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
   if (id === 'calendario') renderCalendar();
+  if (id === 'notif') renderITVAlerts();
 }
 
 function calPrev() { _calMonth--; if(_calMonth<0){_calMonth=11;_calYear--;} renderCalendar(); }
@@ -1801,6 +1808,74 @@ function deleteCitaFromCal(key, day) {
 
 var _pendingDelKey = null;
 var _pendingDelDay = null;
+
+function editCitaFromCal(key) {
+  var parts = key.split('|');
+  var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3];
+  var cita = null;
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      try {
+        JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
+          if (!cita && c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||''))
+            cita = c;
+        });
+      } catch(e){}
+    });
+  });
+  if (!cita) { console.log('cita not found for key:', key); return; }
+  _pendingEditKey = key;
+  var el;
+  el = document.getElementById('edit-tipo');  if(el) el.value = cita.tipo  || '';
+  el = document.getElementById('edit-fecha'); if(el) el.value = cita.fecha || '';
+  el = document.getElementById('edit-hora');  if(el) el.value = cita.hora  || '';
+  el = document.getElementById('edit-lugar'); if(el) el.value = cita.lugar || '';
+  el = document.getElementById('edit-nota');  if(el) el.value = cita.nota  || '';
+  el = document.getElementById('edit-mat-label'); if(el) el.textContent = mat;
+  var modal = document.getElementById('cal-edit-modal');
+  if (modal) modal.style.display = 'flex';
+  else console.log('cal-edit-modal not found in DOM');
+}
+
+var _pendingEditKey = null;
+
+function saveEditCita() {
+  if (!_pendingEditKey) return;
+  var parts = _pendingEditKey.split('|');
+  var mat=parts[0], oldTipo=parts[1], oldFecha=parts[2], oldHora=parts[3];
+  var newTipo  = document.getElementById('edit-tipo').value;
+  var newFecha = document.getElementById('edit-fecha').value;
+  var newHora  = document.getElementById('edit-hora').value;
+  var newLugar = (document.getElementById('edit-lugar').value||'').trim();
+  var newNota  = (document.getElementById('edit-nota').value||'').trim();
+  if (!newFecha) { toast('⚠ Selecciona una fecha'); return; }
+  VEHICULOS.forEach(function(v) {
+    if (v.matricula !== mat) return;
+    v.conductores.forEach(function(cid) {
+      var k='drivx_citas_'+cid, citas=[];
+      try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
+      citas = citas.map(function(c){
+        if(c.matricula===mat&&c.tipo===oldTipo&&c.fecha===oldFecha&&(c.hora||'')===(oldHora||''))
+          return Object.assign({},c,{tipo:newTipo,fecha:newFecha,hora:newHora,lugar:newLugar,nota:newNota});
+        return c;
+      });
+      localStorage.setItem(k,JSON.stringify(citas));
+    });
+  });
+  var all=[];
+  try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
+  all = all.map(function(c){
+    if(c.matricula===mat&&c.tipo===oldTipo&&c.fecha===oldFecha&&(c.hora||'')===(oldHora||''))
+      return Object.assign({},c,{tipo:newTipo,fecha:newFecha,hora:newHora,lugar:newLugar,nota:newNota});
+    return c;
+  });
+  localStorage.setItem('drivx_citas',JSON.stringify(all));
+  document.getElementById('cal-edit-modal').style.display='none';
+  _pendingEditKey=null;
+  toast('✅ Cita actualizada');
+  renderVehiculosHome(); renderNotifCitas(); renderCalendar();
+}
 
 function confirmDelCita() {
   var key = _pendingDelKey;
