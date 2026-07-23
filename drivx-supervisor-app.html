@@ -1883,6 +1883,15 @@ function toast(msg) {
   _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
 
+// ══ AI CALL ══
+function callAI(base64, mediaType, prompt) {
+  return fetch('/api/ai', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({base64:base64, mediaType:mediaType, prompt:prompt})
+  }).then(function(r){ return r.json(); }).then(function(d){ return d.text||''; });
+}
+
 // ══ SCAN IMAGE ══
 function scanCitaImage(input) {
   if (!input.files[0]) return;
