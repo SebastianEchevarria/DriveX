@@ -1353,46 +1353,6 @@ function onCatFile(input, cat) {
 
 
 
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var b64  = e.target.result.split(',')[1];
-    var mt   = file.type || 'image/jpeg';
-    var hash = imageHash(b64);
-
-    if (gastosHashes[hash]) {
-      proc.classList.remove('visible');
-      toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
-    }
-
-    var prompt = 'Ticket/recibo de gasto. Responde SOLO con JSON sin markdown: {"importe":NUMERO,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null","confianza":0-1}. REGLAS PARA EL IMPORTE: (1) Si el ticket tiene SOLO UN total, usa ese. (2) Si el ticket tiene TRES totales como "Total cobrado", "Total suministrado/suminist." y "Total devuelto", usa UNICAMENTE el valor de "Total suministrado" o "Total suminist." — ignora los otros dos. (3) Nunca sumes ni restes los totales entre sí. (4) El importe es solo el número decimal sin € ni texto. Hora=hora HH:MM del ticket. Fecha=dd/mm.';
-
-    analyzeImage(b64, mt, prompt).then(function(text) {
-      proc.classList.remove('visible');
-      var parsed  = parseJSON(text);
-      var importe = parsed ? (parseFloat(parsed.importe)||0) : extractAmount(text);
-      var hora    = parsed && parsed.hora  ? parsed.hora  : null;
-      var fecha   = parsed && parsed.fecha ? parsed.fecha : null;
-      var nombre  = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
-
-      // Duplicate: same amount AND same hour
-      var isDup = data.gastos[cat].some(function(t) {
-        if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
-        if (!hora || !t.hora) return false; // no hour info = can't confirm dup
-        return t.hora === hora;
-      });
-      if (isDup) { toast('⚠ Duplicado — mismo importe y hora ya registrados'); return; }
-
-      if (limit && data.gastos[cat].length >= limit) {
-        toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
-      }
-
-      gastosHashes[hash] = true;
-      registerTicket(cat, importe, nombre, fecha, hora);
-    }).catch(function() { proc.classList.remove('visible'); toast('❌ Error analizando ticket'); });
-  };
-  reader.readAsDataURL(file);
-}
-
 function registerTicket(cat, importe, nombre, fecha, hora) {
   gastosTotals[cat] = (gastosTotals[cat] || 0) + importe;
   data.gastos[cat].push({ importe:importe, nombre:nombre, fecha:fecha, hora:hora });
