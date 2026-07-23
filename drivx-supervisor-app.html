@@ -349,183 +349,130 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 var VEHICULOS = [
   {
     matricula: '1234 ABC', modelo: 'Tesla Model 3', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '⚡',
-    docs: { itv: { fecha:'2025-11-02', ok:true }, seguro: { fecha:'2025-03-15', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2025-11-02', ok:true }, seguro: { fecha:'15/03/2025', ok:true }, vtc: { ok:true } },
     conductores: ['ahmed']
   },
   {
     matricula: '9012 GHI', modelo: 'BMW 5 Series', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '🚗',
-    docs: { itv: { fecha:'2024-11-15', ok:false }, seguro: { fecha:'2025-02-28', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2024-11-15', ok:false }, seguro: { fecha:'28/02/2025', ok:true }, vtc: { ok:true } },
     conductores: ['paco']
   },
   {
     matricula: '5678 DEF', modelo: 'Mercedes EQS', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '⚡',
-    docs: { itv: { fecha:'2025-10-28', ok:true }, seguro: { fecha:'2025-06-01', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2025-10-28', ok:true }, seguro: { fecha:'01/06/2025', ok:true }, vtc: { ok:true } },
     conductores: ['maria']
   },
   {
     matricula: '3456 JKL', modelo: 'Toyota Prius', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
-    docs: { itv: { fecha:'2024-12-15', ok:false }, seguro: { fecha:'2025-04-20', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2024-12-15', ok:false, warn:true }, seguro: { fecha:'20/04/2025', ok:true }, vtc: { ok:true } },
     conductores: ['sonia']
   },
   {
     matricula: '7890 MNO', modelo: 'Skoda Octavia', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
-    docs: { itv: { fecha:'2025-11-10', ok:true }, seguro: { fecha:'2025-09-15', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2025-11-10', ok:true }, seguro: { fecha:'15/09/2025', ok:true }, vtc: { ok:true } },
     conductores: ['ivan']
   },
   {
     matricula: '0000 TST', modelo: 'Vehículo Test', ciudad: 'Test', ccaa: 'Andalucía', icon: '🔧',
-    docs: { itv: { fecha:'2026-01-01', ok:true }, seguro: { fecha:'2026-01-01', ok:true }, vtc: { ok:true } },
+    docs: { itv: { fecha:'2026-01-01', ok:true }, seguro: { fecha:'01/01/2026', ok:true }, vtc: { ok:true } },
     conductores: ['test']
   },
 ];
 
 var _currentMat = null;
 
+
+function toggleCCAA(id) {
+  var el = document.getElementById(id);
+  var chev = document.getElementById('chev_' + id);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '›' : '⌄';
+}
+
 function renderVehiculosHome() {
   var container = document.getElementById('vehiculos-home-list');
   if (!container) return;
-
   var now = new Date();
-
-  // Helper: days until date
-  function daysUntil(dateStr) {
-    if (!dateStr) return 9999;
-    var d = new Date(dateStr);
-    return Math.round((d - now) / 86400000);
-  }
-
-  // Helper: format date dd/mm/yyyy
-  function fmtDate(dateStr) {
-    if (!dateStr) return '—';
-    var d = new Date(dateStr);
-    return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit', year:'numeric'});
-  }
-
-  // Helper: get urgency for a vehicle (lowest days = most urgent)
-  function getUrgency(v) {
-    var days = daysUntil(v.docs.itv.fecha);
-    // Also check next cita
-    v.conductores.forEach(function(cid) {
-      try {
-        var citas = JSON.parse(localStorage.getItem('drivx_citas_' + cid)||'[]');
-        citas.forEach(function(c) {
-          var d = daysUntil(c.fecha);
-          if (d < days) days = d;
-        });
-      } catch(e){}
-    });
-    return days;
-  }
-
-  // Group by CCAA
-  var ccaaOrder = ['Andalucía', 'Comunidad Valenciana', 'Castilla-La Mancha'];
+  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+  var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+  var ccaaIcons = {'Andalucía':'🌞','Comunidad Valenciana':'🍊','Castilla-La Mancha':'🌾'};
   var groups = {};
-  VEHICULOS.forEach(function(v) {
-    var cc = v.ccaa || 'Otras';
-    if (!groups[cc]) groups[cc] = [];
-    groups[cc].push(v);
+  VEHICULOS.forEach(function(v){ var cc=v.ccaa||'Otras'; if(!groups[cc])groups[cc]=[]; groups[cc].push(v); });
+  Object.keys(groups).forEach(function(cc){ groups[cc].sort(function(a,b){ return dU(a.docs.itv.fecha)-dU(b.docs.itv.fecha); }); });
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai=ccaaOrder.indexOf(a),bi=ccaaOrder.indexOf(b);
+    return (ai<0?99:ai)-(bi<0?99:bi);
   });
-
-  // Sort each group by urgency (most urgent first)
-  Object.keys(groups).forEach(function(cc) {
-    groups[cc].sort(function(a, b) { return getUrgency(a) - getUrgency(b); });
-  });
-
   var html = '';
 
-  // Render each CCAA group
-  var ccaas = Object.keys(groups).sort(function(a,b){
-    return (ccaaOrder.indexOf(a) === -1 ? 99 : ccaaOrder.indexOf(a)) -
-           (ccaaOrder.indexOf(b) === -1 ? 99 : ccaaOrder.indexOf(b));
-  });
-
   ccaas.forEach(function(cc) {
-    var vehList = groups[cc];
-    if (!vehList.length) return;
+    var vl=groups[cc]; if(!vl.length) return;
+    var ccIcon=ccaaIcons[cc]||'📍';
+    var gid='ccaa'+cc.replace(/[^a-zA-Z0-9]/g,'');
+    var urg=vl.filter(function(v){var d=dU(v.docs.itv.fecha);return d<0||d<=30;}).length;
+    var urgBadge = urg>0
+      ? '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">'+urg+' ⚠</span>'
+      : '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
 
-    var ccaaIcons = { 'Andalucía':'🌞', 'Comunidad Valenciana':'🍊', 'Castilla-La Mancha':'🌾' };
-    var ccaaIcon = ccaaIcons[cc] || '📍';
+    html += '<button class="ccaa-btn" data-id="'+gid+'" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;cursor:pointer;text-align:left">'
+      +'<span style="font-size:22px">'+ccIcon+'</span>'
+      +'<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">'+cc+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:1px">'+vl.length+' vehículo'+(vl.length>1?'s':'')+'</div></div>'
+      +urgBadge
+      +'<span id="chev_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:8px">›</span>'
+      +'</button>'
+      +'<div id="'+gid+'" style="display:none">';
 
-    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin:16px 0 8px;display:flex;align-items:center;gap:6px">' +
-      '<span>'+ccaaIcon+'</span><span>'+cc+'</span>' +
-      '<span style="margin-left:auto;color:var(--border2)">'+vehList.length+' vehículo'+(vehList.length>1?'s':'')+'</span>' +
-    '</div>';
+    vl.forEach(function(v) {
+      var id=dU(v.docs.itv.fecha);
+      var bc=(id<0||id<=30)?'rgba(255,71,87,.4)':id<=90?'rgba(255,179,0,.35)':'var(--border)';
+      var ib = id<0
+        ? '<div style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:800;color:var(--red)">🚨 ITV VENCIDA · '+fD(v.docs.itv.fecha)+'</div>'
+        : id<=30
+        ? '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:800;color:var(--red)">⚠ ITV en '+id+' días · '+fD(v.docs.itv.fecha)+'</div>'
+        : id<=90
+        ? '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--amber)">⏰ ITV en '+id+' días · '+fD(v.docs.itv.fecha)+'</div>'
+        : '<div style="font-size:11px;color:var(--text3)">ITV ✓ '+fD(v.docs.itv.fecha)+'</div>';
 
-    vehList.forEach(function(v) {
-      var itvDays  = daysUntil(v.docs.itv.fecha);
-      var itvBad   = itvDays < 0;
-      var itvUrgent = itvDays >= 0 && itvDays <= 30;
-      var itvWarn  = itvDays > 30 && itvDays <= 90;
-      var borderColor = itvBad ? 'rgba(255,71,87,.5)' : itvUrgent ? 'rgba(255,71,87,.35)' : itvWarn ? 'rgba(255,179,0,.35)' : 'var(--border)';
-
-      // ITV badge
-      var itvBadge = '';
-      if (itvBad) {
-        itvBadge = '<div style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:800;color:var(--red)">🚨 ITV VENCIDA · '+fmtDate(v.docs.itv.fecha)+'</div>';
-      } else if (itvUrgent) {
-        itvBadge = '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:800;color:var(--red)">⚠ ITV en '+itvDays+' días · '+fmtDate(v.docs.itv.fecha)+'</div>';
-      } else if (itvWarn) {
-        itvBadge = '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--amber)">⏰ ITV en '+itvDays+' días · '+fmtDate(v.docs.itv.fecha)+'</div>';
-      } else {
-        itvBadge = '<div style="font-size:11px;color:var(--text3)">ITV ✓ '+fmtDate(v.docs.itv.fecha)+'</div>';
-      }
-
-      // Next cita
-      var nextCita = null;
-      var nextCitaDays = 9999;
-      v.conductores.forEach(function(cid) {
-        try {
-          var citas = JSON.parse(localStorage.getItem('drivx_citas_' + cid)||'[]');
-          citas.sort(function(a,b){ return new Date(a.fecha) - new Date(b.fecha); });
-          citas.forEach(function(c) {
-            var d = daysUntil(c.fecha);
-            if (d >= 0 && d < nextCitaDays) { nextCitaDays = d; nextCita = c; }
-          });
-        } catch(e){}
+      var nc=null,ncd=9999;
+      v.conductores.forEach(function(cid){
+        try{ JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c){var d=dU(c.fecha);if(d>=0&&d<ncd){ncd=d;nc=c;}}); }catch(e){}
       });
+      var cb=nc?'<div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:'+(ncd<=7?'var(--red)':ncd<=30?'var(--amber)':'var(--cyan)')+'">📅 '+nc.tipo+' en '+ncd+' días · '+fD(nc.fecha)+'</div>':'';
 
-      var citaBadge = '';
-      if (nextCita) {
-        var citaColor = nextCitaDays <= 7 ? 'var(--red)' : nextCitaDays <= 30 ? 'var(--amber)' : 'var(--cyan)';
-        citaBadge = '<div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:'+citaColor+'" >📅 '+nextCita.tipo+' en '+nextCitaDays+' días · '+fmtDate(nextCita.fecha)+'</div>';
-      }
-
-      // Conductores
-      var condsHTML = v.conductores.map(function(cid) {
-        var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
-        if (!c) return '';
-        var fichado = false;
-        try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_'+cid)||'{}').fichado); } catch(e){}
-        var color = fichado ? 'var(--green)' : 'var(--text3)';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">' +
-          '<div><span style="font-size:13px;font-weight:700;color:var(--text)">'+c.nombre+'</span>' +
-          '<span style="font-size:11px;color:var(--text3);margin-left:8px;font-family:var(--mono)">'+c.turno+'</span></div>' +
-          '<span style="font-size:11px;font-weight:700;color:'+color+'">'+(fichado?'● Activo':'○ Inactivo')+'</span>' +
-        '</div>';
+      var ch=v.conductores.map(function(cid){
+        var c=CONDUCTORES.find(function(x){return x.cid===cid;}); if(!c)return '';
+        var fi=false; try{fi=!!(JSON.parse(localStorage.getItem('drivx_conductor_'+cid)||'{}').fichado);}catch(e){}
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">'
+          +'<div><span style="font-size:13px;font-weight:700;color:var(--text)">'+c.nombre+'</span>'
+          +'<span style="font-size:11px;color:var(--text3);margin-left:8px;font-family:var(--mono)">'+c.turno+'</span></div>'
+          +'<span style="font-size:11px;font-weight:700;color:'+(fi?'var(--green)':'var(--text3)')+';">'+(fi?'● Activo':'○ Inactivo')+'</span></div>';
       }).join('');
 
-              '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
-          '<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>' +
-          '<div style="flex:1">' +
-            '<div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>' +
-            '<div style="font-size:12px;color:var(--text3)">'+v.modelo+' · '+v.ciudad+'</div>' +
-          '</div>' +
-          '<span style="font-size:10px;color:var(--text3)">› ver</span>' +
-        '</div>' +
-        '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">' +
-          itvBadge + citaBadge +
-        '</div>' +
-        '<div style="border-top:1px solid var(--border);padding-top:8px">'+condsHTML+'</div>' +
-      '</div>';
+      var mid='mat'+v.matricula.replace(/[^a-zA-Z0-9]/g,'');
+      html+='<div id="'+mid+'" class="veh-home-card" style="background:var(--surface);border:1px solid '+bc+';border-radius:18px;padding:16px 18px;margin-bottom:10px;cursor:pointer">'
+        +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
+        +'<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>'
+        +'<div style="flex:1"><div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>'
+        +'<div style="font-size:12px;color:var(--text3)">'+v.modelo+' · '+v.ciudad+'</div></div>'
+        +'<span style="font-size:10px;color:var(--text3)">› ver</span></div>'
+        +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">'+ib+cb+'</div>'
+        +'<div style="border-top:1px solid var(--border);padding-top:8px">'+ch+'</div></div>';
     });
+    html += '</div>';
   });
 
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin vehículos</div>';
-
-  // Attach click handlers via event delegation
-  container.querySelectorAll('.veh-home-card').forEach(function(el) {
-    var matId = el.id.replace('mat_','').replace(/_/g,' ');
-    el.onclick = function() { openMatModal(matId); };
+  container.querySelectorAll('.veh-home-card').forEach(function(el){
+    var raw=el.id.replace('mat','');
+    var mat=VEHICULOS.find(function(v){return v.matricula.replace(/[^a-zA-Z0-9]/g,'')===raw;});
+    if(mat) el.onclick=function(){openMatModal(mat.matricula);};
+  });
+  container.querySelectorAll('.ccaa-btn').forEach(function(el){
+    el.onclick=function(){toggleCCAA(el.getAttribute('data-id'));};
   });
 }
 
@@ -540,13 +487,10 @@ function openMatModal(matricula) {
   document.getElementById('mat-icon').textContent   = v.icon;
 
   // Docs
-  function fmtD(s){ var d=new Date(s); return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}); }
-  var itvDays = Math.round((new Date(v.docs.itv.fecha) - new Date())/86400000);
-  var itvClass = itvDays < 0 ? 'doc-bad' : itvDays <= 30 ? 'doc-bad' : itvDays <= 90 ? 'doc-warn' : 'doc-ok';
-  var itvIcon  = itvDays < 0 ? '✗' : itvDays <= 90 ? '⚠' : '✓';
   var docsHTML = '';
-  docsHTML += '<span class="doc-badge '+itvClass+'">ITV '+itvIcon+' '+fmtD(v.docs.itv.fecha)+(itvDays>=0?' ('+itvDays+'d)':'')+'</span>';
-  docsHTML += '<span class="doc-badge '+(v.docs.seguro.ok?'doc-ok':'doc-bad')+'">Seguro '+(v.docs.seguro.ok?'✓':'⚠')+' '+fmtD(v.docs.seguro.fecha)+'</span>';
+  var itvClass = v.docs.itv.ok && !v.docs.itv.warn ? 'doc-ok' : v.docs.itv.warn ? 'doc-warn' : 'doc-bad';
+  docsHTML += '<span class="doc-badge '+itvClass+'">ITV '+(v.docs.itv.ok && !v.docs.itv.warn?'✓':'⚠')+' '+v.docs.itv.fecha+'</span>';
+  docsHTML += '<span class="doc-badge '+(v.docs.seguro.ok?'doc-ok':'doc-bad')+'">Seguro '+(v.docs.seguro.ok?'✓':'⚠')+' '+v.docs.seguro.fecha+'</span>';
   docsHTML += '<span class="doc-badge doc-ok">VTC ✓</span>';
   document.getElementById('mat-docs').innerHTML = docsHTML;
 
@@ -999,12 +943,11 @@ function toast(msg) {
       <label>Tipo de cita</label>
       <select id="cita-tipo" class="form-input">
         <option value="ITV">🔧 ITV</option>
-        <option value="Taller">🔩 Taller mecánico</option>
+        <option value="Mecánico">🔩 Mecánico / Taller</option>
         <option value="Revisión">🔍 Revisión general</option>
         <option value="Cambio aceite">🛢️ Cambio de aceite</option>
         <option value="Neumáticos">🏎️ Neumáticos</option>
         <option value="Batería">⚡ Batería / Carga</option>
-        <option value="Frenos">🛑 Frenos</option>
         <option value="Limpieza">🚿 Limpieza profunda</option>
         <option value="Seguro">📄 Renovación seguro</option>
         <option value="VTC">📋 Gestión VTC</option>
