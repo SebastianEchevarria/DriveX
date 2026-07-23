@@ -1311,48 +1311,31 @@ function onCatFile(input, cat) {
       toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
     }
 
-    var catDesc = {
-      gasolina: 'ticket de gasolina o recarga eléctrica (gasolina, diesel, litros, precio/litro, PLENERGY, Repsol, BP, kWh, carga eléctrica)',
-      peaje:    'ticket de peaje de autopista o autovía (palabras clave: AUTOPISTA, peaje, estación, vía, Cobr, cobrador, Importe EUR, IVA incluido, FACTURA SIMPLIFICADA de autopista, CESA, Abertis, clase ligero, Trans, tarjeta enmascarada, AP-7, AP-46, DEL SOL)',
-      datafono: 'recibo de cobro con datáfono/TPV (VISA, Mastercard, contactless, VENTA, TPV, banco, Payments, EUR grande centrado)',
-      lavado:   'ticket de lavado de coche (lavado, autolavado, limpieza, car wash)',
-      otros:    'cualquier ticket de gasto de vehículo profesional'
-    };
-    var importeRule = cat === 'gasolina'
-      ? ' REGLA IMPORTE: si hay TRES totales (Total cobrado, Total suministrado/suminist., Total devuelto), usa EXCLUSIVAMENTE el de "Total suministrado". Si solo hay uno, usa ese.'
-      : '';
-    var prompt = 'Analiza esta imagen. ¿Es un ' + (catDesc[cat]||catDesc.otros) + '? Responde SOLO con JSON sin markdown: {"es_correcto":true/false,"tipo_detectado":"breve descripción","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. es_correcto=true SOLO si coincide con la categoría pedida.' + importeRule;
+    var prompt = 'Clasifica este ticket. Responde SOLO con JSON sin markdown: {"categoria":"gasolina|peaje|parking|datafono|lavado|otros","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. REGLAS: peaje=si ves AUTOPISTA/autovia/estacion de peaje/via/cobr/CESA/Abertis/factura simplificada autopista/clase ligero/IVA 21 incluido. gasolina=si ves gasolina/diesel/litros/precio litro/PLENERGY/Repsol/kWh/recarga. parking=si ves QR/aparcamiento/parking/plaza/ticket salida. datafono=si ves VISA/Mastercard/contactless/VENTA/TPV/Comercia/Payments/nombre cliente. lavado=si ves lavado/car wash/limpieza vehiculo. otros=cualquier otro caso.' + (cat === 'gasolina' ? ' EXTRA: si hay tres totales (cobrado/suministrado/devuelto) usa SOLO el suministrado.' : '');
 
     analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
-      var parsed  = parseJSON(text);
+      var parsed = parseJSON(text);
 
-      if (parsed && parsed.es_correcto === false) {
-        var td = (parsed.tipo_detectado || '').toLowerCase();
-        var correctCat = 'otros';
-        if (td.includes('peaje') || td.includes('autopista') || td.includes('autov') || td.includes('cesa') || td.includes('abertis') || td.includes('estaci') || td.includes('factura simplificada')) correctCat = 'peaje';
-        else if (td.includes('parking') || td.includes('aparcamiento') || td.includes('qr')) correctCat = 'parking';
-        else if (td.includes('visa') || td.includes('pago') || td.includes('contactless') || td.includes('tpv') || td.includes('dat')) correctCat = 'datafono';
-        else if (td.includes('gasolina') || td.includes('carburante') || td.includes('carga') || td.includes('litros') || td.includes('kw')) correctCat = 'gasolina';
-        else if (td.includes('lavado') || td.includes('car wash')) correctCat = 'lavado';
-        showWrongTicket(parsed.tipo_detectado, correctCat);
+      if (parsed && parsed.categoria && parsed.categoria !== cat) {
+        var correctCat = parsed.categoria;
+        var tipoNombre = {gasolina:'ticket de gasolina/carga', peaje:'ticket de peaje/autopista', parking:'ticket de parking', datafono:'recibo de datáfono', lavado:'ticket de lavado', otros:'otro tipo de ticket'};
+        showWrongTicket(tipoNombre[correctCat] || correctCat, correctCat);
         return;
       }
 
       var importe = parsed ? (parseFloat(parsed.importe)||0) : extractAmount(text);
-      // Fallback for PLENERGY 3-total tickets
       if (cat === 'gasolina' && text.toLowerCase().includes('suminist')) {
         var m = text.match(/suminist[^\d]*(\d+[,.]\d+)/i);
         if (m) importe = parseFloat(m[1].replace(',','.'));
       }
-      var hora    = parsed && parsed.hora  ? parsed.hora  : null;
-      var fecha   = parsed && parsed.fecha ? parsed.fecha : null;
-      var nombre  = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
+      var hora   = parsed && parsed.hora   ? parsed.hora   : null;
+      var fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
+      var nombre = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
 
-      // Duplicate: same amount AND same hour
       var isDup = data.gastos[cat].some(function(t) {
         if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
-        if (!hora || !t.hora) return false; // no hour info = can't confirm dup
+        if (!hora || !t.hora) return false;
         return t.hora === hora;
       });
       if (isDup) { toast('⚠ Duplicado — mismo importe y hora ya registrados'); return; }
@@ -1361,7 +1344,7 @@ function onCatFile(input, cat) {
         toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
       }
 
-      gastosHashes[hash] = true;
+            gastosHashes[hash] = true;
       registerTicket(cat, importe, nombre, fecha, hora);
     }).catch(function() { proc.classList.remove('visible'); toast('❌ Error analizando ticket'); });
   };
