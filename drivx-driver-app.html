@@ -815,6 +815,20 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 <!-- ══════════════ TOAST ══════════════ -->
 
+
+<!-- ══ WRONG TICKET MODAL ══ -->
+<div id="wrong-ticket-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;align-items:center;justify-content:center;padding:24px">
+  <div style="background:#1a0a0a;border:2px solid var(--red);border-radius:20px;padding:28px 24px;width:100%;max-width:340px;text-align:center">
+    <div style="font-size:44px;margin-bottom:10px">❌</div>
+    <div style="font-size:17px;font-weight:900;color:var(--red);margin-bottom:10px">Ticket incorrecto</div>
+    <div id="wrong-ticket-detected" style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6"></div>
+    <div style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:12px;padding:12px;margin-bottom:20px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;font-weight:700">Súbelo en</div>
+      <div id="wrong-ticket-target" style="font-size:26px;font-weight:900;color:var(--cyan)"></div>
+    </div>
+    <button onclick="closeWrongTicketModal()" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit">Entendido</button>
+  </div>
+</div>
 <script>
 // ══════════════════════════════════════════════════════════
 //  DRIVX DRIVER APP — Clean build with AI from day 1
@@ -1297,48 +1311,48 @@ function onCatFile(input, cat) {
       toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
     }
 
-    // Category-specific verification prompts
-    var catDescriptions = {
-      gasolina: 'ticket de gasolina o recarga eléctrica de vehículo (palabras clave: gasolina, diesel, litros, precio/litro, PLENERGY, Repsol, BP, Cepsa, Total, carburante, kWh, carga eléctrica)',
-      peaje:    'ticket de peaje de autopista o autovía (palabras clave: autopista, peaje, estación, vía, cobrador, importe, IVA incluido, CESA, Abertis, AP-7)',
-      datafono: 'recibo de cobro con datáfono/TPV a un cliente (palabras clave: VISA, Mastercard, contactless, VENTA, TPV, comercio, autorización, banco, Payments, EUR grande en el centro)',
-      lavado:   'ticket de lavado de coche (palabras clave: lavado, autolavado, limpieza, car wash)',
-      otros:    'cualquier ticket o recibo de gasto de vehículo profesional'
+    var catDesc = {
+      gasolina: 'ticket de gasolina o recarga eléctrica (gasolina, diesel, litros, precio/litro, PLENERGY, Repsol, BP, kWh, carga eléctrica)',
+      peaje:    'ticket de peaje de autopista (autopista, peaje, estación, vía, cobrador, IVA incluido, CESA, Abertis)',
+      datafono: 'recibo de cobro con datáfono/TPV (VISA, Mastercard, contactless, VENTA, TPV, banco, Payments, EUR grande centrado)',
+      lavado:   'ticket de lavado de coche (lavado, autolavado, limpieza, car wash)',
+      otros:    'cualquier ticket de gasto de vehículo profesional'
     };
-
-    var desc = catDescriptions[cat] || catDescriptions.otros;
     var importeRule = cat === 'gasolina'
-      ? ' REGLA IMPORTE GASOLINA: si el ticket tiene TRES totales (Total cobrado, Total suministrado/suminist., Total devuelto), usa ÚNICAMENTE el valor de "Total suministrado" o "Total suminist." — ignora los otros dos. Si solo hay un total, usa ese.'
+      ? ' REGLA IMPORTE: si hay TRES totales (Total cobrado, Total suministrado/suminist., Total devuelto), usa EXCLUSIVAMENTE el de "Total suministrado". Si solo hay uno, usa ese.'
       : '';
-    var verifyPrompt = 'Analiza esta imagen. ¿Es un ' + desc + '? Responde SOLO con JSON sin markdown: {"es_correcto":true/false,"tipo_detectado":"descripcion breve de lo que es","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. es_correcto=true SOLO si coincide exactamente con la categoría pedida.' + importeRule;
+    var prompt = 'Analiza esta imagen. ¿Es un ' + (catDesc[cat]||catDesc.otros) + '? Responde SOLO con JSON sin markdown: {"es_correcto":true/false,"tipo_detectado":"breve descripción","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. es_correcto=true SOLO si coincide con la categoría pedida.' + importeRule;
 
-    analyzeImage(b64, mt, verifyPrompt).then(function(text) {
+    analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
-      var parsed = parseJSON(text);
+      var parsed  = parseJSON(text);
 
-      // Check if ticket matches category
       if (parsed && parsed.es_correcto === false) {
-        var tipoDetectado = parsed.tipo_detectado || 'otro tipo de ticket';
-        toast('❌ Ticket incorrecto — parece un ticket de ' + tipoDetectado + '. Súbelo en la categoría correcta.');
+        var td = (parsed.tipo_detectado || '').toLowerCase();
+        var correctCat = 'otros';
+        if (td.includes('peaje') || td.includes('autopista')) correctCat = 'peaje';
+        else if (td.includes('parking') || td.includes('aparcamiento') || td.includes('qr')) correctCat = 'parking';
+        else if (td.includes('visa') || td.includes('pago') || td.includes('contactless') || td.includes('tpv') || td.includes('dat')) correctCat = 'datafono';
+        else if (td.includes('gasolina') || td.includes('carburante') || td.includes('carga') || td.includes('litros') || td.includes('kw')) correctCat = 'gasolina';
+        else if (td.includes('lavado') || td.includes('car wash')) correctCat = 'lavado';
+        showWrongTicket(parsed.tipo_detectado, correctCat);
         return;
       }
 
       var importe = parsed ? (parseFloat(parsed.importe)||0) : extractAmount(text);
-
-      // Special rule for gasolina/carga: use "Total suministrado" if 3 totals
+      // Fallback for PLENERGY 3-total tickets
       if (cat === 'gasolina' && text.toLowerCase().includes('suminist')) {
-        var match = text.match(/suministr[ao][^\d]*(\d+[,\.]\d+)/i);
-        if (match) importe = parseFloat(match[1].replace(',','.'));
+        var m = text.match(/suminist[^\d]*(\d+[,.]\d+)/i);
+        if (m) importe = parseFloat(m[1].replace(',','.'));
       }
+      var hora    = parsed && parsed.hora  ? parsed.hora  : null;
+      var fecha   = parsed && parsed.fecha ? parsed.fecha : null;
+      var nombre  = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
 
-      var hora   = parsed && parsed.hora   ? parsed.hora   : null;
-      var fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
-      var nombre = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
-
-      // Duplicate check: same amount AND same hour
+      // Duplicate: same amount AND same hour
       var isDup = data.gastos[cat].some(function(t) {
         if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
-        if (!hora || !t.hora) return false;
+        if (!hora || !t.hora) return false; // no hour info = can't confirm dup
         return t.hora === hora;
       });
       if (isDup) { toast('⚠ Duplicado — mismo importe y hora ya registrados'); return; }
@@ -1353,8 +1367,6 @@ function onCatFile(input, cat) {
   };
   reader.readAsDataURL(file);
 }
-
-
 
 function registerTicket(cat, importe, nombre, fecha, hora) {
   gastosTotals[cat] = (gastosTotals[cat] || 0) + importe;
@@ -1448,13 +1460,12 @@ function onParkingFile(input) {
     setTimeout(function(){ document.getElementById('parking-amt').focus(); }, 100);
 
     // AI reads the ticket hora in background
-    var prompt = 'Analiza esta imagen. ¿Es un ticket de parking o aparcamiento (tiene QR, código de barras, fecha/hora de entrada/salida, referencia de plaza o zona)? Responde SOLO con JSON: {"es_parking":true/false,"hora":"HH:MM o null","fecha":"dd/mm o null","importe":NUMERO_O_NULL}. es_parking=true solo si es claramente un ticket de parking/aparcamiento.';
+    var prompt = 'Analiza esta imagen. ¿Es un ticket de parking o aparcamiento (QR, código de barras, fecha/hora, referencia de plaza)? Responde SOLO con JSON: {"es_parking":true/false,"hora":"HH:MM o null","fecha":"dd/mm o null","importe":NUMERO_O_NULL}. es_parking=true solo si es claramente parking.';
     analyzeImage(b64, mt, prompt).then(function(text) {
       var parsed = parseJSON(text);
       if (parsed && parsed.es_parking === false) {
-        toast('❌ No es un ticket de parking. Súbelo en la categoría correcta.');
-        parkingPending = {};
-        return;
+        showWrongTicket('otro tipo de ticket — no es parking', 'otros');
+        parkingPending = {}; return;
       }
       parkingPending.hora   = parsed && parsed.hora   ? parsed.hora   : null;
       parkingPending.fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
@@ -2242,6 +2253,39 @@ setTimeout(function() {
     Tesseract.createWorker('eng').then(function(w){ _ocrWorker = w; }).catch(function(){});
   }
 }, 3000);
+
+var _catIcons = {
+  gasolina: currentUser && currentUser.electrico ? '⚡ Carga' : '⛽ Gasolina',
+  peaje:    '🛣️ Peaje',
+  parking:  '🅿️ Parking',
+  datafono: '💳 Datáfono',
+  lavado:   '🚿 Lavado',
+  otros:    '🔧 Otros'
+};
+
+function showWrongTicket(tipoDetectado, correctCat) {
+  var isElec = currentUser && currentUser.electrico;
+  var icons = {
+    gasolina: isElec ? '⚡ Carga' : '⛽ Gasolina',
+    peaje: '🛣️ Peaje',
+    parking: '🅿️ Parking',
+    datafono: '💳 Datáfono',
+    lavado: '🚿 Lavado',
+    otros: '🔧 Otros'
+  };
+  var detEl = document.getElementById('wrong-ticket-detected');
+  var tgtEl = document.getElementById('wrong-ticket-target');
+  if (detEl) detEl.textContent = 'Parece un ticket de: ' + (tipoDetectado || 'otra categoría') + '. Este no corresponde aquí.';
+  if (tgtEl) tgtEl.textContent = icons[correctCat] || correctCat;
+  var modal = document.getElementById('wrong-ticket-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeWrongTicketModal() {
+  var modal = document.getElementById('wrong-ticket-modal');
+  if (modal) modal.style.display = 'none';
+}
+
 </script>
 <div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
 </body>
