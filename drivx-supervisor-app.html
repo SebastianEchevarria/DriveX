@@ -1851,30 +1851,38 @@ function confirmDelCita() {
   if (!key) return;
   var parts = key.split('|');
   var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3]||'';
+
+  // Delete from ALL conductor keys (match by matricula+tipo+fecha, hora optional)
   VEHICULOS.forEach(function(v) {
-    if (v.matricula !== mat) return;
     v.conductores.forEach(function(cid) {
       var k='drivx_citas_'+cid, citas=[];
       try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
+      var before = citas.length;
       citas=citas.filter(function(c){
-        return !( (c.matricula||'')===mat && (c.tipo||'')===tipo && (c.fecha||'')===fecha && (c.hora||'')===(hora) );
+        var sameHora = (c.hora||'')===(hora) || (hora==='' && !c.hora);
+        return !( (c.matricula||'')===mat && (c.tipo||'')===tipo && (c.fecha||'')===fecha );
       });
       localStorage.setItem(k,JSON.stringify(citas));
     });
   });
+
+  // Delete from global list
   var all=[];
   try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
   all=all.filter(function(c){
-    return !( (c.matricula||'')===mat && (c.tipo||'')===tipo && (c.fecha||'')===fecha && (c.hora||'')===(hora) );
+    return !( (c.matricula||'')===mat && (c.tipo||'')===tipo && (c.fecha||'')===fecha );
   });
   localStorage.setItem('drivx_citas',JSON.stringify(all));
-  toast('🗑 Cita eliminada');
-  renderNotifCitas(); renderVehiculosHome();
+
+  toast('\uD83D\uDDD1 Cita eliminada');
+  renderNotifCitas();
+  renderVehiculosHome();
   if(typeof renderITVAlerts==='function') renderITVAlerts();
   renderCalendar();
   if(savedDay) setTimeout(function(){selectCalDay(savedDay);},100);
 }
 
+var _toastTimer = null;
 function toast(msg) {
   var el = document.getElementById('toast');
   el.textContent = msg;
