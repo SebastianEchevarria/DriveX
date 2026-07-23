@@ -1972,6 +1972,21 @@ function toast(msg) {
   _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
 
+
+// ══ AI CALL ══
+function callAI(base64, mediaType, prompt) {
+  var isVercel = window.location.hostname !== 'localhost' && !window.location.protocol.startsWith('file');
+  var endpoint = isVercel ? '/api/ai' : null;
+  if (!endpoint) {
+    return Promise.reject('No API endpoint available');
+  }
+  return fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base64: base64, mediaType: mediaType, prompt: prompt })
+  }).then(function(r){ return r.json(); }).then(function(d){ return d.text || ''; });
+}
+
 function scanCitaImage(input) {
   if (!input.files[0]) return;
   var file = input.files[0];
@@ -1982,7 +1997,7 @@ function scanCitaImage(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result.split(',')[1];
-    var prompt = 'Analiza esta imagen de una cita. Extrae en JSON sin markdown: {"tipo":"ITV|Taller|Revision general|Cambio aceite|Frenos|Neumaticos|Bateria|Climatizacion|Suspension|Otro","fecha":"YYYY-MM-DD","hora":"HH:MM o null","lugar":"taller o direccion o null","nota":"info adicional o null"}. Nulos si no encuentras el dato.';
+    var prompt = 'Eres un extractor de datos de citas de vehiculos. Analiza esta imagen (puede ser confirmacion de ITV, email de taller, SMS, captura de pantalla). Extrae SOLO en JSON sin markdown ni texto extra: {"tipo":"ITV","fecha":"YYYY-MM-DD","hora":"HH:MM","lugar":"nombre estacion y direccion completa","nota":"tipo inspeccion u otra info relevante"}. REGLAS: fecha en formato YYYY-MM-DD obligatorio. hora en HH:MM. lugar = nombre del taller/estacion + direccion si aparece. Si no encuentras un dato pon null. Responde UNICAMENTE el JSON.'
     callAI(b64, file.type||'image/jpeg', prompt).then(function(text) {
       try {
         var clean = text.replace(/```[a-z]*/g,'').replace(/```/g,'').trim();
