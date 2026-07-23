@@ -303,80 +303,85 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   <div class="scroll">
     <div class="header">
       <div><div class="header-title">Alertas</div><div class="header-sub">ITV y citas programadas</div></div>
-      <button class="btn-sm btn-cyan" onclick="document.getElementById('cita-modal').style.display='flex'">+ Cita</button>
     </div>
 
-    <!-- ITV Alerts — dynamic -->
-    <div class="sec-title">⚠ ITV — Vencidas y próximas</div>
+    <!-- ITV Alerts — generado dinámicamente -->
+    <div class="sec-title">🚨 ITV — Estado de vehículos</div>
     <div class="card" id="itv-alerts-list">
       <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Cargando...</div>
     </div>
 
     <!-- Citas programadas -->
-    <div class="sec-title">📅 Citas programadas</div>
-    <div class="card" id="notif-citas-list">
-      <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin citas</div>
+    <div class="sec-title">📅 Próximas citas</div>
+    <div class="card" id="notif-dynamic">
+      <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Sin citas programadas</div>
     </div>
-
-    <!-- Citas taller manual -->
-    <div class="sec-title">🔩 Añadir cita de taller</div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">
-      <div class="field">
-        <label>Matrícula</label>
-        <select id="taller-mat" class="form-input">
-          <option value="">Selecciona matrícula...</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Tipo de trabajo</label>
-        <select id="taller-tipo" class="form-input">
-          <option value="Revisión general">🔍 Revisión general</option>
-          <option value="Cambio aceite">🛢️ Cambio de aceite</option>
-          <option value="Frenos">🛑 Frenos</option>
-          <option value="Neumáticos">🏎️ Neumáticos</option>
-          <option value="Batería">⚡ Batería</option>
-          <option value="Climatización">❄️ Climatización</option>
-          <option value="Suspensión">🔧 Suspensión</option>
-          <option value="Otro taller">🔩 Otro</option>
-        </select>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="field">
-          <label>Fecha</label>
-          <input id="taller-fecha" type="date" class="form-input">
-        </div>
-        <div class="field">
-          <label>Hora</label>
-          <input id="taller-hora" type="time" class="form-input">
-        </div>
-      </div>
-      <div class="field">
-        <label>Taller / Dirección</label>
-        <input id="taller-lugar" type="text" class="form-input" placeholder="Nombre del taller o dirección">
-      </div>
-      <div class="field">
-        <label>Nota (opcional)</label>
-        <input id="taller-nota" type="text" class="form-input" placeholder="Ej: Llevar segunda llave">
-      </div>
-      <button class="btn-primary" onclick="guardarCitaTaller()" style="border-radius:12px">🔩 Crear cita de taller</button>
-    </div>
-
   </div>
 </div>
 
-<!-- ══ ITV DETAIL MODAL ══ -->
-<div id="itv-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:0;width:100%;max-width:380px;max-height:85vh;overflow-y:auto">
-    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface)">
-      <div id="itv-modal-title" style="font-size:16px;font-weight:800">ITV</div>
-      <button onclick="document.getElementById('itv-detail-modal').style.display='none'"
-        style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer">✕</button>
+<!-- ══ MATRÍCULA DETALLE MODAL ══ -->
+<div id="mat-alerta-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">
+    <!-- Header -->
+    <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);z-index:5">
+      <div id="alerta-modal-icon" style="width:40px;height:40px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:20px">🚗</div>
+      <div style="flex:1">
+        <div id="alerta-modal-plate" style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">—</div>
+        <div id="alerta-modal-model" style="font-size:12px;color:var(--text3)">—</div>
+      </div>
+      <button onclick="document.getElementById('mat-alerta-modal').style.display='none'"
+        style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;font-size:16px">✕</button>
     </div>
-    <div id="itv-modal-body" style="padding:16px"></div>
+    <div style="padding:16px">
+
+      <!-- ITV Status -->
+      <div id="alerta-itv-block" style="margin-bottom:14px"></div>
+
+      <!-- Citas de esta matrícula -->
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Citas programadas</div>
+      <div id="alerta-citas-block" style="margin-bottom:16px"></div>
+
+      <!-- Pedir cita ITV -->
+      <a href="https://www.itvcita.com/Welcome.do" target="_blank"
+        style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:12px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);color:var(--amber);font-size:14px;font-weight:800;text-decoration:none;margin-bottom:10px">
+        🔧 Pedir cita ITV online → itvcita.com
+      </a>
+
+      <!-- Pedir cita taller -->
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:4px">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px">🔩 Nueva cita de taller</div>
+        <div class="field">
+          <label>Tipo de trabajo</label>
+          <select id="am-tipo" class="form-input">
+            <option value="Revisión general">🔍 Revisión general</option>
+            <option value="Cambio aceite">🛢️ Cambio de aceite</option>
+            <option value="Frenos">🛑 Frenos</option>
+            <option value="Neumáticos">🏎️ Neumáticos</option>
+            <option value="Batería">⚡ Batería</option>
+            <option value="Climatización">❄️ Climatización</option>
+            <option value="Suspensión">🔧 Suspensión</option>
+            <option value="Otro taller">🔩 Otro</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field"><label>Fecha</label><input id="am-fecha" type="date" class="form-input"></div>
+          <div class="field"><label>Hora</label><input id="am-hora" type="time" class="form-input"></div>
+        </div>
+        <div class="field">
+          <label>Taller / Dirección</label>
+          <input id="am-lugar" type="text" class="form-input" placeholder="Nombre del taller o dirección">
+        </div>
+        <div class="field">
+          <label>Nota (opcional)</label>
+          <input id="am-nota" type="text" class="form-input" placeholder="Ej: Llevar segunda llave">
+        </div>
+        <button onclick="guardarCitaTallerModal()" class="btn-primary" style="border-radius:12px;font-size:14px">✓ Crear cita de taller</button>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- ══ NAVBAR ══ -->
+<!-- ══ NAVBAR ══ --><!-- ══ NAVBAR ══ -->
 <nav id="navbar">
   <button class="nav-btn active" id="nav-home"       onclick="showScreen('home')"><span>🏠</span><small>Inicio</small></button>
 
@@ -806,6 +811,7 @@ function startSync() {
   renderNotifCitas();
   renderVehiculosHome();
   renderITVAlerts();
+  renderITVAlerts();
   initTallerSelect();
   setInterval(function(){
     syncFromDrivers();
@@ -1176,6 +1182,169 @@ function guardarCitaTaller() {
   renderNotifCitas();
   renderITVAlerts();
   renderVehiculosHome();
+}
+
+
+// ══ ITV ALERTS ══
+function renderITVAlerts() {
+  var list = document.getElementById('itv-alerts-list');
+  if (!list) return;
+  var now = new Date();
+  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+
+  var sorted = VEHICULOS
+    .filter(function(v){ return v.matricula !== '0000 TST'; })
+    .map(function(v){ return {v:v, days:dU(v.docs.itv.fecha)}; })
+    .sort(function(a,b){ return a.days - b.days; });
+
+  var withIssue = sorted.filter(function(x){ return x.days <= 90; });
+  var allOk     = sorted.filter(function(x){ return x.days > 90; });
+
+  var h = '';
+
+  if (!withIssue.length) {
+    h = '<div style="padding:14px 16px;color:var(--green);font-size:13px;font-weight:700">✓ Todas las ITV en regla</div>';
+  } else {
+    withIssue.forEach(function(x) {
+      var v=x.v, d=x.days;
+      var color = d<0 ? 'var(--red)' : d<=30 ? 'var(--red)' : 'var(--amber)';
+      var dot   = d<0 ? 'var(--red)' : d<=30 ? 'var(--red)' : 'var(--amber)';
+      var lbl   = d<0 ? '🚨 Vencida hace '+Math.abs(d)+' días' : d===0 ? '🚨 Vence hoy' : '⚠ Vence en '+d+' días';
+      h += '<div class="notif-item">'
+        + '<div class="notif-dot" style="background:'+dot+'"></div>'
+        + '<div style="flex:1">'
+          + '<div class="notif-title" style="color:'+color+'">'+lbl+'</div>'
+          + '<div class="notif-sub">'+v.modelo+' · '+v.matricula+' · '+v.ciudad+'</div>'
+          + '<div class="notif-time">ITV: '+fD(v.docs.itv.fecha)+' · '+v.ccaa+'</div>'
+        + '</div>'
+        + '<button class="btn-sm btn-ghost alerta-ver-btn" data-mat="'+v.matricula+'" style="margin-left:auto;flex-shrink:0">Ver</button>'
+        + '</div>';
+    });
+  }
+
+  // Show OK ones collapsed
+  if (allOk.length) {
+    h += '<div style="padding:10px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)">\u2713 ' + allOk.length + ' veh\u00edculo' + (allOk.length>1?'s':'') + ' m\u00e1s con ITV en regla</div>';
+  }
+
+  list.innerHTML = h;
+  list.querySelectorAll('.alerta-ver-btn').forEach(function(btn){
+    btn.onclick = function(){ abrirAlertaMat(btn.getAttribute('data-mat')); };
+  });
+}
+
+var _alertaMatActual = null;
+
+function abrirAlertaMat(matricula) {
+  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  _alertaMatActual = v;
+
+  var now = new Date();
+  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '-'; }
+
+  document.getElementById('alerta-modal-plate').textContent = v.matricula;
+  document.getElementById('alerta-modal-model').textContent = v.modelo + ' · ' + v.ciudad;
+  document.getElementById('alerta-modal-icon').textContent  = v.icon;
+
+  // ITV block
+  var itvDays = dU(v.docs.itv.fecha);
+  var itvColor = itvDays < 0 ? 'var(--red)' : itvDays <= 30 ? 'var(--red)' : itvDays <= 90 ? 'var(--amber)' : 'var(--green)';
+  var itvLbl   = itvDays < 0 ? '🚨 ITV VENCIDA hace '+Math.abs(itvDays)+' días'
+               : itvDays <= 30 ? '⚠ ITV vence en '+itvDays+' días'
+               : itvDays <= 90 ? '⏰ ITV vence en '+itvDays+' días'
+               : '✓ ITV en regla · '+itvDays+' días restantes';
+  document.getElementById('alerta-itv-block').innerHTML =
+    '<div style="background:rgba(0,0,0,.2);border:1px solid '+itvColor+';border-radius:10px;padding:12px 14px">'
+    + '<div style="font-size:14px;font-weight:800;color:'+itvColor+'">'+itvLbl+'</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:4px">Fecha ITV: '+new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div>'
+    + '</div>';
+
+  // Citas block
+  var citas = [];
+  v.conductores.forEach(function(cid){
+    try{ JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c){ citas.push(c); }); }catch(e){}
+  });
+  // Deduplicate by id
+  var seen = {};
+  citas = citas.filter(function(c){ if(seen[c.id])return false; seen[c.id]=true; return true; });
+  citas.sort(function(a,b){ return new Date(a.fecha)-new Date(b.fecha); });
+
+  var citasH = '';
+  var futureCitas = citas.filter(function(c){ return dU(c.fecha) >= 0; });
+  var pastCitas   = citas.filter(function(c){ return dU(c.fecha) < 0; });
+
+  if (!futureCitas.length && !pastCitas.length) {
+    citasH = '<div style="padding:8px 0;font-size:12px;color:var(--text3)">Sin citas programadas</div>';
+  } else {
+    futureCitas.forEach(function(c){
+      var d = dU(c.fecha);
+      var icons = {'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Otro taller':'🔩','Otro':'📌'};
+      citasH += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">'
+        + '<span style="font-size:18px">'+(icons[c.tipo]||'📅')+'</span>'
+        + '<div style="flex:1">'
+          + '<div style="font-size:13px;font-weight:700">'+c.tipo+'</div>'
+          + '<div style="font-size:11px;color:var(--text3)">'+fD(c.fecha)+(c.hora?' · '+c.hora:'')+(c.lugar?' · '+c.lugar:'')+'</div>'
+          + (d<=7 ? '<div style="font-size:10px;color:var(--red);font-weight:700">En '+d+' días</div>'
+           : d<=30 ? '<div style="font-size:10px;color:var(--amber)">En '+d+' días</div>' : '')
+        + '</div>'
+        + '<button class="btn-sm btn-ghost" style="flex-shrink:0;font-size:11px" onclick="borrarCitaAlerta('+c.id+')">✕</button>'
+        + '</div>';
+    });
+  }
+  document.getElementById('alerta-citas-block').innerHTML = citasH || '<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin citas próximas</div>';
+
+  // Reset taller form
+  document.getElementById('am-fecha').value = '';
+  document.getElementById('am-hora').value  = '';
+  document.getElementById('am-lugar').value = '';
+  document.getElementById('am-nota').value  = '';
+
+  document.getElementById('mat-alerta-modal').style.display = 'flex';
+}
+
+function borrarCitaAlerta(id) {
+  deleteCita(id);
+  if (_alertaMatActual) abrirAlertaMat(_alertaMatActual.matricula);
+}
+
+function guardarCitaTallerModal() {
+  if (!_alertaMatActual) return;
+  var v = _alertaMatActual;
+  var tipo  = document.getElementById('am-tipo').value;
+  var fecha = document.getElementById('am-fecha').value;
+  var hora  = document.getElementById('am-hora').value;
+  var lugar = document.getElementById('am-lugar').value.trim();
+  var nota  = document.getElementById('am-nota').value.trim();
+
+  if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+
+  v.conductores.forEach(function(cid) {
+    var key = 'drivx_citas_' + cid;
+    var citas = [];
+    try { citas = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){}
+    citas.push({ id: Date.now() + Math.random(), cid:cid, matricula:v.matricula, tipo:tipo, fecha:fecha, hora:hora, lugar:lugar, nota:nota, ts:Date.now() });
+    localStorage.setItem(key, JSON.stringify(citas));
+  });
+
+  // Global list
+  var all = [];
+  try { all = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
+  all.push({ id: Date.now()+Math.random(), matricula:v.matricula, tipo:tipo, fecha:fecha, hora:hora, lugar:lugar, nota:nota, ts:Date.now() });
+  localStorage.setItem('drivx_citas', JSON.stringify(all));
+
+  document.getElementById('am-fecha').value = '';
+  document.getElementById('am-hora').value  = '';
+  document.getElementById('am-lugar').value = '';
+  document.getElementById('am-nota').value  = '';
+
+  toast('✅ Cita creada · ' + v.matricula + ' · ' + tipo);
+  renderNotifCitas();
+  renderITVAlerts();
+  renderVehiculosHome();
+  abrirAlertaMat(v.matricula); // refresh modal
 }
 
 // ══ TOAST ══
