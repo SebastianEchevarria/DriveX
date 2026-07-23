@@ -14,8 +14,8 @@
   --border:   #1c2d42;
   --border2:  #243347;
   --text:     #e8edf5;
-  --text2:    #8fa3bc;
-  --text3:    #4a6080;
+  --text2:    #c8d8e8;
+  --text3:    #9ab0c8;
   --green:    #00e676;
   --cyan:     #00d4ff;
   --amber:    #ffb300;
@@ -1012,14 +1012,21 @@ function isMobile() {
 }
 
 function updateGastosInputs() {
-  var isTest = currentUser && currentUser.cid === 'test';
-  var mobile = isMobile();
+  var isTest  = currentUser && currentUser.cid === 'test';
+  var mobile  = isMobile();
+  var isElec  = currentUser && currentUser.electrico === true;
+
+  // For 100% electric: rename gasolina -> Carga with ⚡ icon
+  var catIcon = document.querySelector('#cat-gasolina .cat-icon');
+  var catName = document.querySelector('#cat-gasolina .cat-name');
+  if (catIcon) catIcon.textContent = isElec ? '⚡' : '⛽';
+  if (catName) catName.textContent = isElec ? 'Carga' : 'Gasolina';
+
   var ids = ['input-gasolina','input-peaje','input-parking','input-lavado','input-datafono','input-otros','km-camera-input'];
   ids.forEach(function(id) {
     var inp = document.getElementById(id);
     if (!inp) return;
     inp.accept = 'image/*';
-    // capture only on mobile AND not test user
     if (mobile && !isTest) {
       inp.setAttribute('capture', 'environment');
     } else {
