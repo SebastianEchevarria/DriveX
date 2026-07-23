@@ -1029,17 +1029,13 @@ function updateGastosInputs() {
 }
 
 function updateNavState() {
-  var unlocked = data.fichado || !!data.horaEntrada;
-  var gastosBtn  = document.getElementById('nav-gastos');
-  var billingBtn = document.getElementById('nav-billing');
-  if (gastosBtn) {
-    gastosBtn.style.opacity = unlocked ? '1' : '0.4';
-    gastosBtn.style.color   = unlocked ? 'var(--text)' : 'var(--text3)';
-  }
-  if (billingBtn) {
-    billingBtn.style.opacity = unlocked ? '1' : '0.4';
-    billingBtn.style.color   = unlocked ? 'var(--text)' : 'var(--text3)';
-  }
+  var unlocked = !!(data && (data.fichado || data.horaEntrada));
+  ['nav-gastos','nav-billing'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.style.opacity = unlocked ? '1' : '0.4';
+    btn.style.color   = unlocked ? 'var(--text)' : 'var(--text3)';
+  });
 }
 
 // ── NAVIGATION ──
@@ -2049,6 +2045,7 @@ function saveAdminKey() {
 var _toastTimer = null;
 function toast(msg, color) {
   var el = document.getElementById('toast');
+  if (!el) return;
   el.textContent = msg;
   el.style.background = color || '#1a2d42';
   el.classList.add('show');
@@ -2204,5 +2201,6 @@ setTimeout(function() {
   }
 }, 3000);
 </script>
+<div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
 </body>
 </html>
