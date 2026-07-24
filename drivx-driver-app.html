@@ -231,21 +231,21 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
   z-index: 500;
   display: none;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px 8px 10px;
-  background: rgba(255,107,107,.12);
-  border: 1.5px solid rgba(255,107,107,.4);
+  padding: 9px 18px;
+  background: rgba(255,107,107,.22);
+  border: 2px solid rgba(255,107,107,.7);
   border-radius: 20px;
   color: #ff6b6b;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 900;
   cursor: pointer;
   font-family: 'Inter', sans-serif;
+  letter-spacing: .3px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: background .2s, border-color .2s;
+  transition: background .2s;
 }
-.logout-fab:active { background: rgba(255,107,107,.25); }
+.logout-fab:active { background: rgba(255,107,107,.4); }
 .logout-fab.visible { display: flex; }
 </style>
 </head>
@@ -286,7 +286,15 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
       <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
-      <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:10px;padding:14px;border-radius:12px;border:2px solid rgba(0,212,255,.4);background:rgba(0,212,255,.06);color:var(--cyan);font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;align-items:center;justify-content:center;gap:10px">☝️ Entrar con huella</button>
+      <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:14px;padding:0;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif">
+        <div style="width:100%;padding:16px;border-radius:16px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.12),rgba(0,212,255,.04));display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 20px rgba(0,212,255,.15)">
+          <span style="font-size:28px;line-height:1">☝️</span>
+          <div style="text-align:left">
+            <div style="font-size:15px;font-weight:900;color:var(--cyan)">Entrar con huella</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:1px">Acceso rápido biométrico</div>
+          </div>
+        </div>
+      </button>
       <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none"><button onclick="clearBiometric()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button></div>
     <div class="login-divider"><span>¿Primera vez?</span></div>
     <button class="btn-secondary" onclick="openInvite()">Activar cuenta con código</button>
@@ -303,7 +311,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <div class="header-title" id="home-name">—</div>
         <div class="header-sub" id="home-meta">—</div>
       </div>
-      <div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div>
+      <div style="display:flex;align-items:center;gap:8px"><div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div><button onclick="doLogout()" style="padding:7px 14px;border-radius:16px;border:1.5px solid rgba(255,107,107,.6);background:rgba(255,107,107,.1);color:#ff6b6b;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap">Salir</button></div>
     </div>
 
     <!-- KM panel -->
@@ -1018,8 +1026,8 @@ function doLogin() {
   var u = USERS[email];
   if (!u || u.pass !== pass) { err.style.display='block'; return; }
   err.style.display='none';
-  offerBiometricRegister(email, pass);
-  loginAs(u);
+  var _hasStored = (function(){var s=null;try{s=JSON.parse(localStorage.getItem("drivx_webauthn_cred_driver")||"null");}catch(e){}return !!(s&&s.email);})();
+  if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 10000); } else { loginAs(u); }
 }
 
 function openInvite() { document.getElementById('invite-modal').classList.add('open'); }
@@ -1033,7 +1041,6 @@ function doInvite() {
 
 function loginAs(u) {
   currentUser = u;
-  var fab=document.getElementById('logout-fab');if(fab)fab.classList.add('visible');
   localStorage.setItem('drivx_current_user', u.email || u.cid);
   document.getElementById('home-name').textContent = u.nombre;
   document.getElementById('home-meta').textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
@@ -2320,62 +2327,72 @@ function closeWrongTicketModal() {
 var WEBAUTHN_KEY = 'drivx_webauthn_cred_driver';
 function webauthnSupported(){ return !!(window.PublicKeyCredential && navigator.credentials); }
 async function registerBiometric(email,pass){
-  if(!webauthnSupported()){toast('Tu navegador no soporta huella digital');return;}
-  try{
-    var ch=new Uint8Array(32); crypto.getRandomValues(ch);
-    var cr=await navigator.credentials.create({publicKey:{
-      challenge:ch, rp:{name:'DRIVX',id:location.hostname},
-      user:{id:new TextEncoder().encode(email),name:email,displayName:email},
-      pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
-      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
-      timeout:60000,attestation:'none'
-    }});
-    localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({credId:Array.from(new Uint8Array(cr.rawId)),email:email,pass:pass,ts:Date.now()}));
-    toast('✅ Huella registrada');showBiometricBtn();
-  }catch(e){if(e.name!=='NotAllowedError')toast('⚠ No se pudo registrar la huella');}
+  // Save credentials first, then try WebAuthn
+  localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({email:email,pass:pass,ts:Date.now()}));
+  if(webauthnSupported()){
+    try{
+      var ch=new Uint8Array(32); crypto.getRandomValues(ch);
+      var cr=await navigator.credentials.create({publicKey:{
+        challenge:ch, rp:{name:'DRIVX',id:location.hostname},
+        user:{id:new TextEncoder().encode(email),name:email,displayName:email},
+        pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+        timeout:60000,attestation:'none'
+      }});
+      localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({credId:Array.from(new Uint8Array(cr.rawId)),email:email,pass:pass,ts:Date.now()}));
+    }catch(e){}
+  }
+  toast('\u2705 Acceso r\u00E1pido activado');showBiometricBtn();
 }
 async function loginWithBiometric(){
-  if(!webauthnSupported())return;
   var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
-  if(!s)return;
-  try{
-    var ch=new Uint8Array(32); crypto.getRandomValues(ch);
-    await navigator.credentials.get({publicKey:{challenge:ch,rpId:location.hostname,allowCredentials:[{id:new Uint8Array(s.credId),type:'public-key'}],userVerification:'required',timeout:60000}});
-    document.getElementById('login-email').value=s.email;
-    document.getElementById('login-pass').value=s.pass;
-    doLogin();
-  }catch(e){if(e.name!=='NotAllowedError')toast('❌ Autenticación fallida');}
+  if(!s||!s.email||!s.pass)return;
+  if(webauthnSupported()&&s.credId){
+    try{
+      var ch=new Uint8Array(32); crypto.getRandomValues(ch);
+      await navigator.credentials.get({publicKey:{challenge:ch,rpId:location.hostname,allowCredentials:[{id:new Uint8Array(s.credId),type:'public-key'}],userVerification:'required',timeout:60000}});
+    }catch(e){if(e.name==='NotAllowedError')return;}
+  } else if(webauthnSupported()){
+    try{
+      var ch2=new Uint8Array(32); crypto.getRandomValues(ch2);
+      await navigator.credentials.get({publicKey:{challenge:ch2,rpId:location.hostname,userVerification:'required',timeout:60000}});
+    }catch(e){if(e.name==='NotAllowedError')return;}
+  }
+  document.getElementById('login-email').value=s.email;
+  document.getElementById('login-pass').value=s.pass;
+  doLogin();
 }
 function showBiometricBtn(){
   var btn=document.getElementById('biometric-btn');
   var clr=document.getElementById('biometric-clear');
   var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
-  var show=!!(s&&webauthnSupported());
+  var show=!!(s&&s.email&&s.pass);
   if(btn)btn.style.display=show?'flex':'none';
   if(clr)clr.style.display=show?'block':'none';
 }
-function clearBiometric(){localStorage.removeItem(WEBAUTHN_KEY);showBiometricBtn();toast('🗑 Huella eliminada');}
+function clearBiometric(){localStorage.removeItem(WEBAUTHN_KEY);showBiometricBtn();toast('\uD83D\uDDD1 Acceso r\u00E1pido eliminado');}
 function offerBiometricRegister(email,pass){
-  if(!webauthnSupported())return;
   var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
   if(s&&s.email===email)return;
   var modal=document.getElementById('biometric-offer-modal');
   var yesBtn=document.getElementById('biometric-offer-yes');
   if(!modal||!yesBtn)return;
   yesBtn.onclick=function(){modal.style.display='none';registerBiometric(email,pass);};
+  var skipBtn=document.getElementById('biometric-skip-btn');
+  if(skipBtn) skipBtn.onclick=function(){modal.style.display='none';loginAs(window._pendingUser);};
   modal.style.display='flex';
 }
 function doLogout(){document.getElementById('logout-modal').style.display='flex';}
 function confirmLogout(){
   document.getElementById('logout-modal').style.display='none';
   document.getElementById('navbar').classList.remove('visible');
-  var fab=document.getElementById('logout-fab');if(fab)fab.classList.remove('visible');
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.getElementById('screen-login').classList.add('active');
   localStorage.removeItem('drivx_current_user');
   currentUser=null;
   document.getElementById('login-email').value='';
   document.getElementById('login-pass').value='';
+  showBiometricBtn();
 }
 </script>
 <div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
@@ -2387,7 +2404,7 @@ function confirmLogout(){
     <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital?</div>
     <button id="biometric-offer-yes" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">☝️ Sí, usar huella</button>
-    <button onclick="document.getElementById('biometric-offer-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Ahora no</button>
+    <button id="biometric-skip-btn" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Ahora no</button>
   </div>
 </div>
 <!-- LOGOUT MODAL -->
@@ -2401,10 +2418,5 @@ function confirmLogout(){
   </div>
 </div>
 
-<!-- LOGOUT FAB -->
-<button id="logout-fab" class="logout-fab" onclick="doLogout()">
-  <span style="font-size:16px">🚪</span>
-  <span>Salir</span>
-</button>
 </body>
 </html>
