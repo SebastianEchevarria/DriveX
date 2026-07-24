@@ -1261,22 +1261,11 @@ function renderPolizaArea(v) {
       '</div>';
   } else {
     el.innerHTML =
-      '<button onclick="triggerPolizaInput()" ' +
-        'style="width:100%;padding:12px;border-radius:12px;border:1px dashed rgba(0,212,255,.35);background:rgba(0,212,255,.04);color:var(--cyan);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">' +
+      '<label ' +
+        'style="width:100%;padding:12px;border-radius:12px;border:1px dashed rgba(0,212,255,.35);background:rgba(0,212,255,.04);color:var(--cyan);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden">' +
         '📎 Adjuntar póliza de seguro (PDF)' +
-      '</button>';
-  }
-}
-
-function triggerPolizaInput() {
-  var inp = document.getElementById('poliza-input');
-  if (inp) { inp.value=''; inp.click(); }
-  else {
-    var i = document.createElement('input');
-    i.type='file'; i.accept='application/pdf';
-    i.onchange = function(){ uploadPoliza(this); };
-    document.body.appendChild(i);
-    i.click();
+        '<input type="file" accept="application/pdf" style="position:absolute;width:1px;height:1px;opacity:0" onchange="uploadPoliza(this)">' +
+      '</label>';
   }
 }
 
@@ -2574,7 +2563,6 @@ function offerBiometricRegister(email,pass){
     </div>
   </div>
 </div>
-<input type="file" id="poliza-input" accept="application/pdf" style="position:absolute;left:-9999px;opacity:0" onchange="uploadPoliza(this)">
 
 <!-- LOGOUT MODAL -->
 <div id="logout-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px">
