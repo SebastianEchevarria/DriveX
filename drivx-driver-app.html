@@ -223,6 +223,30 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .section-title { font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1.5px; margin:20px 0 12px; }
 #screen-chatbot { overflow:hidden; position:relative; }
 #ayuda-menu, #ayuda-detail, #ayuda-chat { height:100%; }
+
+.logout-fab {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 10px;
+  background: rgba(255,107,107,.12);
+  border: 1.5px solid rgba(255,107,107,.4);
+  border-radius: 20px;
+  color: #ff6b6b;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background .2s, border-color .2s;
+}
+.logout-fab:active { background: rgba(255,107,107,.25); }
+.logout-fab.visible { display: flex; }
 </style>
 </head>
 <body>
@@ -774,7 +798,6 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
   <button class="nav-btn" id="nav-gastos" onclick="showScreen('gastos')"><span>🧾</span><small>Gastos</small></button>
   <button class="nav-btn" id="nav-billing" onclick="showScreen('billing')"><span>💰</span><small>Facturación</small></button>
   <button class="nav-btn" id="nav-chatbot" onclick="showScreen('chatbot')"><span>💬</span><small>Ayuda</small></button>
-  <button class="nav-btn" onclick="doLogout()" style="color:#ff6b6b"><span>🚪</span><small>Salir</small></button>
 </nav>
 
 <!-- ══════════════ FICHAR ALERT ══════════════ -->
@@ -1010,6 +1033,7 @@ function doInvite() {
 
 function loginAs(u) {
   currentUser = u;
+  var fab=document.getElementById('logout-fab');if(fab)fab.classList.add('visible');
   localStorage.setItem('drivx_current_user', u.email || u.cid);
   document.getElementById('home-name').textContent = u.nombre;
   document.getElementById('home-meta').textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
@@ -2345,6 +2369,7 @@ function doLogout(){document.getElementById('logout-modal').style.display='flex'
 function confirmLogout(){
   document.getElementById('logout-modal').style.display='none';
   document.getElementById('navbar').classList.remove('visible');
+  var fab=document.getElementById('logout-fab');if(fab)fab.classList.remove('visible');
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.getElementById('screen-login').classList.add('active');
   localStorage.removeItem('drivx_current_user');
@@ -2375,5 +2400,11 @@ function confirmLogout(){
     <button onclick="document.getElementById('logout-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Cancelar</button>
   </div>
 </div>
+
+<!-- LOGOUT FAB -->
+<button id="logout-fab" class="logout-fab" onclick="doLogout()">
+  <span style="font-size:16px">🚪</span>
+  <span>Salir</span>
+</button>
 </body>
 </html>
