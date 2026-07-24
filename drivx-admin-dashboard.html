@@ -336,7 +336,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     </div>
   </div>
 </div>
-<input type="file" id="vd-file-input" accept="application/pdf,image/*" style="position:absolute;left:-9999px;opacity:0">
 
 <script>
 // ══ DATOS COMPARTIDOS (misma fuente que la App Supervisor) ══
@@ -714,10 +713,19 @@ function uploadToCloudinary(file) {
 
 function triggerUploadDoc(docType) {
   if (!currentUser || currentUser.role !== 'admin') return;
-  var input = document.getElementById('vd-file-input');
-  input.value = '';
+  if (!_vdCurrentMat) return;
+
+  // Creamos el input dinámicamente en el momento del clic (más fiable en Safari
+  // que reutilizar uno oculto fuera de la pantalla).
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/pdf,image/*';
+  input.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;overflow:hidden';
+  document.body.appendChild(input);
+
   input.onchange = function() {
     var file = input.files[0];
+    document.body.removeChild(input);
     if (!file || !_vdCurrentMat) return;
     if (file.size > 15 * 1024 * 1024) { alert('El archivo es demasiado grande (máx. 15MB).'); return; }
 
