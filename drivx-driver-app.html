@@ -995,7 +995,7 @@ function doLogin() {
   if (!u || u.pass !== pass) { err.style.display='block'; return; }
   err.style.display='none';
   offerBiometricRegister(email, pass);
-  loginAs(u);
+  setTimeout(function(){ loginAs(u); }, 50);
 }
 
 function openInvite() { document.getElementById('invite-modal').classList.add('open'); }
@@ -2374,7 +2374,7 @@ function offerBiometricRegister(email, pass) {
 <div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
 
 <!-- BIOMETRIC OFFER MODAL -->
-<div id="biometric-offer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;align-items:center;justify-content:center;padding:24px">
+<div id="biometric-offer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
     <div style="font-size:52px;margin-bottom:12px">☝️</div>
     <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
