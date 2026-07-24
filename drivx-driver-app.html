@@ -732,11 +732,23 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span style="color:var(--text3)">›</span>
       </button>
 
-      <button class="ayuda-btn" onclick="openTema('tesla')">
-        <span class="ayuda-icon">⚡</span>
-        <div class="ayuda-info"><div class="ayuda-title">Carga del Tesla</div><div class="ayuda-sub">Normas de carga y batería</div></div>
-        <span style="color:var(--text3)">›</span>
-      </button>
+      <!-- TESLA SECTION -->
+      <div style="background:rgba(255,179,0,.06);border:2px solid rgba(255,179,0,.3);border-radius:14px;overflow:hidden">
+        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,179,0,.15)">
+          <span style="font-size:22px">⚡</span>
+          <div>
+            <div style="font-size:14px;font-weight:900;color:#ffb300">Tesla</div>
+            <div style="font-size:11px;color:var(--text2)">Guías específicas para vehículos Tesla</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0">
+          <button class="ayuda-btn" onclick="openTema('tesla')" style="border:none;border-radius:0;border-bottom:1px solid rgba(255,179,0,.1);background:transparent">
+            <span class="ayuda-icon" style="font-size:18px">🔋</span>
+            <div class="ayuda-info"><div class="ayuda-title">Carga del Tesla</div><div class="ayuda-sub">Normas de carga y batería</div></div>
+            <span style="color:var(--text3)">›</span>
+          </button>
+        </div>
+      </div>
 
       <button class="ayuda-btn" onclick="openTema('limpieza')">
         <span class="ayuda-icon">🚗</span>
@@ -744,11 +756,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span style="color:var(--text3)">›</span>
       </button>
 
-      <button class="ayuda-btn" onclick="openTema('pinchazo')">
-        <span class="ayuda-icon">🔧</span>
-        <div class="ayuda-info"><div class="ayuda-title">Kit repara pinchazos</div><div class="ayuda-sub">Material obligatorio en el vehículo</div></div>
-        <span style="color:var(--text3)">›</span>
-      </button>
+
 
       <button class="ayuda-btn" onclick="openTema('grua')">
         <span class="ayuda-icon">🚨</span>
@@ -1702,7 +1710,7 @@ var TEMAS = {
       '<b style="color:var(--red)">⚠️ Si te expulsan de Bolt, tu puesto de trabajo está en peligro.</b>'
   },
   tesla: {
-    titulo: '⚡ Carga del Tesla',
+    titulo: '🔋 Carga del Tesla',
     contenido: '<b>Regla de oro:</b> carga cuando esté por debajo del <b>20%</b> y hasta el <b>80-90%</b>.<br><br>' +
       '<b style="color:var(--red)">🚫 PROHIBIDO cargar en tramos intermedios</b><br>' +
       'Cargar a medias daña las baterías. Carga completa siempre.<br><br>' +
@@ -1731,19 +1739,6 @@ var TEMAS = {
       '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px;margin-top:4px">' +
       '🚫 <b>PROHIBIDO</b> recoger a compañeros en su casa si están muy lejos del punto de recogida inicial.</div>'
   },
-  pinchazo: {
-    titulo: '🔧 Kit Repara Pinchazos',
-    contenido: '<b>OBLIGATORIO</b> llevar siempre este kit en el vehículo Tesla.<br>Con él, el coche nunca para más de 15 minutos.<br><br>' +
-      '<b>Kit completo (3 elementos):</b><br><br>' +
-      '<b>1. Gato + llave IMAYCC</b><br>' +
-      '📦 Disponible en Amazon · Compacto y fácil de guardar<br><br>' +
-      '<b>2. Kit tapones reparapinchazos LIBRATON</b><br>' +
-      '📦 Disponible en Amazon · Rápido y efectivo<br><br>' +
-      '<b>3. Spray reparapinchazos Norauto 600ml</b><br>' +
-      '📦 Disponible en Amazon y Norauto · 100% seguro<br><br>' +
-      '<div style="background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:12px;margin-top:4px">' +
-      '✅ Ventajas: no llamas a la grúa, no esperas horas, no pierdes el domingo ni una noche entera de trabajo.</div>'
-  },
   grua: {
     titulo: '🚨 Cómo Pedir una Grúa',
     contenido: 'En caso de avería, sigue estos pasos:<br><br>' +
@@ -1763,23 +1758,17 @@ var TEMAS = {
       '📹 <b>SUPERVISIÓN:</b> Envía siempre el vídeo del incidente a @JUANMAVTCINFINITY. Él dirá dónde depositar el vehículo.</div>'
   },
   turnos: {
-    titulo: '📷 Control de Turnos',
-    contenido: '<b style="color:var(--red)">🚨 NO FOTO = NO TRABAJO</b><br><br>' +
-      'Es <b>TOTALMENTE OBLIGATORIO</b> enviar una foto de los km al empezar Y al terminar el turno. Todos los días.<br><br>' +
-      '<b>¿Cuándo enviar?</b><br>' +
-      '• 📷 <b>Al EMPEZAR</b> el turno: foto km<br>' +
-      '• 📷 <b>Al TERMINAR</b> el turno: foto km<br>' +
-      '• Enviar al <b>grupo de trabajo</b> de WhatsApp<br><br>' +
+    titulo: '📱 Control de Turnos',
+    contenido: '<b style="color:var(--red)">🚨 ES TOTALMENTE OBLIGATORIO FICHAR EN LA APP</b><br><br>' +
+      'Es <b>TOTALMENTE OBLIGATORIO FICHAR ENTRADA</b> en la app con la foto de los KM al empezar y <b>FICHAR SALIDA</b> al terminar el turno.<br><br>' +
       '<b>¿Cómo ver los km en el Tesla?</b><br>' +
-      '1. Pulsa el icono del <b>coche</b> en la esquina inferior izquierda<br>' +
-      '2. Pulsa <b>"Trayectos"</b> en el menú del vehículo<br>' +
-      '3. Ahí verás los km actuales en <b>"Odómetro"</b><br><br>' +
-      '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px;margin-top:4px">' +
-      '⚠️ El incumplimiento puede conllevar:<br>' +
-      '• Suspensión de trabajo<br>' +
-      '• Sanción disciplinaria<br>' +
-      '• Retirada del puesto de trabajo</div>'
-  }
+      '1. Pulsa el icono del <b>coche</b> (esquina inferior izquierda)<br>' +
+      '2. Pulsa <b>"Trayectos"</b><br>' +
+      '3. Busca <b>"Odómetro"</b><br><br>' +
+      '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px">' +
+      '🚨 <b>NO FICHAR = NO TRABAJO</b><br>Incumplimiento: suspensión, sanción o retirada del puesto.</div>'
+  },
+
 };
 
 function openTema(tema) {
@@ -1953,10 +1942,7 @@ function localChatbot(q) {
   // PINCHAZO / AVERÍA / GRÚA
   if (/pinchazo|pincha|rueda|averia|avería|grua|grúa|accidente|rompio|roto|revent/.test(ql)) {
     return '🔧 <b>Tienes un pinchazo o avería — sigue estos pasos:</b><br><br>' +
-      '<b>1. ¿Tienes el kit de repara pinchazos?</b><br>' +
-      '• Kit tapones LIBRATON + Spray Norauto 600ml<br>' +
-      '• Con él lo arreglas en menos de 15 minutos tú solo<br><br>' +
-      '<b>2. Si no puedes arreglarlo — pide grúa:</b><br>' +
+      '<b>Si tienes una avería — pide grúa:</b><br>' +
       '• Llama a <b>@JUANMAVTCINFINITY</b> (Juan) — él tiene la póliza del seguro<br>' +
       '• Juan te dará el teléfono de asistencia en carretera<br>' +
       '• Llama y da: matrícula, tu nombre, lugar exacto, motivo<br><br>' +
@@ -2016,15 +2002,15 @@ function localChatbot(q) {
   }
 
   // KM / FOTO / TURNO / ODÓMETRO
-  if (/km|kilom|foto|turno|odometr|odómetr|empeza|termina|inicio|final|control/.test(ql)) {
-    return '📷 <b>Control de turnos — foto km OBLIGATORIA:</b><br><br>' +
-      '• Foto al <b>EMPEZAR</b> el turno ← enviar al grupo<br>' +
-      '• Foto al <b>TERMINAR</b> el turno ← enviar al grupo<br><br>' +
+  if (/km|kilom|foto|turno|odometr|odómetr|empeza|termina|inicio|final|control|fichar/.test(ql)) {
+    return '📱 <b>Control de turnos — FICHAR obligatorio:</b><br><br>' +
+      '• Es <b>TOTALMENTE OBLIGATORIO FICHAR ENTRADA</b> en la app con la foto de los KM al empezar<br>' +
+      '• Y <b>FICHAR SALIDA</b> al terminar el turno<br><br>' +
       '<b>¿Cómo ver los km en el Tesla?</b><br>' +
       '1. Pulsa el icono del <b>coche</b> (esquina inferior izquierda)<br>' +
       '2. Pulsa <b>"Trayectos"</b><br>' +
       '3. Busca <b>"Odómetro"</b><br><br>' +
-      '<b style="color:#ff4757">🚨 NO FOTO = NO TRABAJO</b><br>' +
+      '<b style="color:#ff4757">🚨 NO FICHAR = NO TRABAJO</b><br>' +
       'Incumplimiento: suspensión, sanción o retirada del puesto.';
   }
 
@@ -2041,15 +2027,7 @@ function localChatbot(q) {
       '• <b>Nunca</b> discusiones entre compañeros por la limpieza.';
   }
 
-  // KIT / PINCHAZOS / MATERIAL / HERRAMIENTA
-  if (/kit|material|herramienta|libraton|norauto|gato|llave|spray/.test(ql)) {
-    return '🔧 <b>Kit repara pinchazos (OBLIGATORIO en el vehículo):</b><br><br>' +
-      '1. <b>Gato + llave IMAYCC</b> → Amazon<br>' +
-      '2. <b>Kit tapones LIBRATON</b> → Amazon<br>' +
-      '3. <b>Spray Norauto 600ml</b> → Amazon / Norauto<br><br>' +
-      '✅ Con este kit, el coche nunca para más de 15 minutos por un pinchazo.<br>' +
-      '✅ No necesitas grúa, no pierdes trabajo.';
-  }
+
 
   // ANDREA / JUAN / CONTACTO
   if (/andrea|juan|contacto|jefe|empresa|quien|quién/.test(ql)) {
