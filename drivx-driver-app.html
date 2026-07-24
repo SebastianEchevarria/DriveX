@@ -1013,8 +1013,8 @@ function doLogin() {
   var u = USERS[email];
   if (!u || u.pass !== pass) { err.style.display='block'; return; }
   err.style.display='none';
-  offerBiometricRegister(email, pass);
   loginAs(u);
+  setTimeout(function(){ offerBiometricRegister(email, pass); }, 400);
 }
 
 function openInvite() { document.getElementById('invite-modal').classList.add('open'); }
