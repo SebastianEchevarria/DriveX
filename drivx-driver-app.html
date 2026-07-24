@@ -780,6 +780,12 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span style="color:var(--text3)">›</span>
       </button>
 
+      <button class="ayuda-btn" onclick="openTema('pinchazos')">
+        <span class="ayuda-icon">🛞</span>
+        <div class="ayuda-info"><div class="ayuda-title">Protocolo de pinchazos de neumáticos</div><div class="ayuda-sub">Qué hacer y cómo reclamar el gasto</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
       <button class="ayuda-btn" onclick="openTema('siniestros')">
         <span class="ayuda-icon">📋</span>
         <div class="ayuda-info"><div class="ayuda-title">Qué hacer en un siniestro</div><div class="ayuda-sub">Parte amistoso y datos obligatorios</div></div>
@@ -1848,6 +1854,39 @@ var TEMAS = {
       '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px">' +
       '🚨 <b>NO FICHAR = NO TRABAJO</b><br>Incumplimiento: suspensión, sanción o retirada del puesto.</div>'
   },
+  pinchazos: {
+    titulo: '🛞 Protocolo ante Pinchazo de Neumático',
+    contenido: '<b>Conductores VTC — Vehículos Tesla</b><br><br>' +
+
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-bottom:10px">' +
+      '<b>1️⃣ Si el pinchazo es leve:</b><br>' +
+      '1. Dirígete al vulcanizado o taller de neumáticos más cercano<br>' +
+      '2. Realiza la reparación del pinchazo<br><br>' +
+      '💶 <b>Coste habitual:</b> entre 10€ y 15€ aproximadamente</div>' +
+
+      '<div style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:10px;padding:12px;margin-bottom:10px">' +
+      '<b>2️⃣ Intenta siempre usar el kit de reparación:</b><br>' +
+      'Todos los vehículos deben llevar:<br>' +
+      '✔ Kit de reparación de pinchazos<br>' +
+      '✔ Compresor<br>' +
+      '✔ Sellador<br><br>' +
+      '🎥 El uso de este kit está explicado en vídeos que te puede enviar <b>@juanmavtcinfinity</b>. Es fácil y sencillo.</div>' +
+
+      '<b>🧭 Procedimiento:</b><br>' +
+      '• El conductor paga la reparación en el momento<br>' +
+      '• Debe subir el ticket o factura al grupo de la empresa<br>' +
+      '• El importe se descontará en la liquidación semanal y se reembolsará<br><br>' +
+
+      '<b>📢 Comunicación:</b><br>' +
+      'Ante cualquier incidencia:<br>' +
+      '✔ Informa en el grupo de la empresa<br>' +
+      '✔ Sigue las indicaciones de <b>@juanmavtcinfinity</b>, quien te indicará el taller o vulcanizado donde depositar el vehículo<br><br>' +
+
+      '<div style="background:rgba(52,209,134,.08);border:1px solid rgba(52,209,134,.3);border-radius:10px;padding:12px">' +
+      '✅ <b>Objetivo:</b> solucionar la incidencia rápidamente, con seguridad y con el menor tiempo posible fuera de servicio del vehículo.</div><br>' +
+      '<span style="font-size:12px;color:var(--text3)">🗺️ Hay un listado de vulcanizados colaboradores en Málaga — pregunta a @juanmavtcinfinity si necesitas la ubicación más cercana.</span><br><br>' +
+      '<span style="font-size:11px;color:var(--text3)">Empresa colaboradora — VTC Infinity</span>'
+  },
   siniestros: {
     titulo: '📋 Qué Hacer en un Siniestro',
     contenido: '<b>Cuando tengáis un siniestro, es imprescindible hacer un parte amistoso y recoger bien los datos del otro vehículo.</b><br><br>' +
@@ -2172,7 +2211,8 @@ var SEARCH_KEYWORDS = {
   tesla_tarjeta:       'tarjeta llave bloqueo bloqueado bloquea cerrado encerrado fuera acceso movil digital quede tesla',
   tesla_lavado:        'lavado lavar lavo lavas laves tunel arrastre rodar libre centinela carwash tren tesla',
   limpieza:  'limpieza limpiar limpio sucio aspirar aspirado waylet cristales interior repsol',
-  grua:      'grua pinchazo pinchado rueda reventon reventada averia accidente choque remolque seguro poliza',
+  grua:      'grua reventon reventada accidente choque remolque seguro poliza avería',
+  pinchazos: 'pinchazo pinchado neumatico rueda vulcanizado taller kit compresor sellador reparacion ticket factura juanma',
   turnos:    'turno turnos fichar fichaje entrada salida kilometros km foto odometro control horario',
   siniestros: 'siniestro accidente choque colision parte amistoso datos contrario firmado seguro',
   contactos:  'contacto contactos telefono numero soporte mecanico administrativo malaga valencia castilla mancha juanma andrea raquel maria lina walter jonathan zona region ciudad llamar'
