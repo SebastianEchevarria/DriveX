@@ -341,15 +341,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
       </div>
     </div>
 
-    <!-- Póliza de seguro -->
-    <div id="poliza-card" style="display:none;background:var(--surface);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirPoliza()">
-      <span style="font-size:28px">📄</span>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:800;color:var(--text)">Póliza de seguro</div>
-        <div id="poliza-nombre" style="font-size:11px;color:var(--text3);margin-top:2px">—</div>
-      </div>
-      <span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver PDF →</span>
-    </div>
+    <!-- Documentación del vehículo (subida por Administración/Supervisor) -->
+    <div id="doc-vehiculo-area" style="margin-bottom:14px"></div>
 
     <!-- Próxima cita -->
     <div id="proxima-cita-card" style="display:none;background:var(--surface);border:1px solid rgba(0,212,255,0.35);border-radius:18px;padding:16px 18px;margin-bottom:14px">
@@ -2351,33 +2344,52 @@ function toast(msg, color) {
   _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
 
-// ── PÓLIZA (lee lo que sube el supervisor) ──
+// ── DOCUMENTACIÓN DEL VEHÍCULO (lee lo que sube Administración/Supervisor) ──
+var VEHICULO_DOC_TYPES = [
+  { key:'seguro',  label:'Seguro del vehículo (póliza)', icon:'🛡️', storageKey:'drivx_poliza_' },
+  { key:'permiso', label:'Permiso de circulación',        icon:'🪪', storageKey:'drivx_doc_permiso_' },
+  { key:'ficha',   label:'Ficha técnica',                 icon:'📋', storageKey:'drivx_doc_ficha_' },
+  { key:'itv',     label:'Informe de ITV',                icon:'🔧', storageKey:'drivx_doc_itv_' }
+];
 function loadPoliza() {
   if (!currentUser) return;
-  var key = 'drivx_poliza_' + currentUser.matricula.replace(/\s/g,'_');
-  var poliza = null;
-  try { poliza = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
-
-  var card = document.getElementById('poliza-card');
-  if (!card) return;
-
-  if (poliza) {
-    card.style.display = 'flex';
-    var nombreEl = document.getElementById('poliza-nombre');
-    if (nombreEl) nombreEl.textContent = poliza.nombre + ' · ' + poliza.fecha;
-  } else {
-    card.style.display = 'none';
-  }
+  var area = document.getElementById('doc-vehiculo-area');
+  if (!area) return;
+  var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  var html = '';
+  VEHICULO_DOC_TYPES.forEach(function(dt) {
+    var key = dt.storageKey + matSlug;
+    var doc = null;
+    try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    if (!doc) return; // en la app del conductor solo mostramos lo que ya está subido
+    if (doc.uploading) {
+      html += '<div style="background:var(--surface);border:1px solid rgba(255,179,0,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">' +
+        '<span style="font-size:24px">⏳</span>' +
+        '<div style="flex:1"><div style="font-size:13px;font-weight:800;color:var(--amber)">' + dt.label + ' — subiendo…</div></div>' +
+      '</div>';
+      return;
+    }
+    if (!doc.url) return;
+    html += '<div style="background:var(--surface);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
+      '<span style="font-size:24px">' + dt.icon + '</span>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:13px;font-weight:800;color:var(--text)">' + dt.label + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + doc.nombre + ' · ' + doc.fecha + '</div>' +
+      '</div>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver →</span>' +
+    '</div>';
+  });
+  area.innerHTML = html;
 }
 
-function abrirPoliza() {
+function abrirDocVehiculo(docType) {
   if (!currentUser) return;
-  var key = 'drivx_poliza_' + currentUser.matricula.replace(/\s/g,'_');
-  var poliza = null;
-  try { poliza = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
-  if (!poliza) return;
-  var win = window.open('','_blank');
-  win.document.write('<html><head><title>'+poliza.nombre+'</title></head><body style="margin:0;height:100vh"><embed src="'+poliza.base64+'" type="application/pdf" width="100%" height="100%"></body></html>');
+  var dt = VEHICULO_DOC_TYPES.find(function(d){ return d.key === docType; });
+  var key = dt.storageKey + currentUser.matricula.replace(/\s/g,'_');
+  var doc = null;
+  try { doc = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
+  if (!doc || !doc.url) return;
+  window.open(doc.url, '_blank');
 }
 
 // ── CITAS (lee lo que escribe la supervisor app) ──

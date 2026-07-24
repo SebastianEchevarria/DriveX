@@ -672,19 +672,44 @@ function renderVehicleDocs() {
     html += '<div style="width:36px;height:36px;border-radius:9px;background:rgba(0,212,255,.08);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + dt.icon + '</div>';
     html += '<div style="flex:1;min-width:0">';
     html += '<div style="font-size:13px;font-weight:700">' + dt.label + '</div>';
-    html += doc
+    html += doc && doc.uploading
+      ? '<div style="font-size:11px;color:var(--amber)">⏳ Subiendo…</div>'
+      : doc
       ? '<div style="font-size:11px;color:var(--green)">✓ Subido ' + doc.fecha + ' · ' + Math.round((doc.size||0)/1024) + ' KB</div>'
       : '<div style="font-size:11px;color:var(--text3)">No adjuntado</div>';
     html += '</div>';
     html += '<div style="display:flex;gap:6px;flex-shrink:0">';
-    if (doc) html += '<button class="edit-btn" onclick="viewVehicleDoc(\'' + dt.key + '\')">Ver</button>';
-    if (isAdmin) {
+    if (doc && doc.url) html += '<button class="edit-btn" onclick="viewVehicleDoc(\'' + dt.key + '\')">Ver</button>';
+    if (isAdmin && !(doc && doc.uploading)) {
       html += '<button class="edit-btn" onclick="triggerUploadDoc(\'' + dt.key + '\')">' + (doc ? 'Reemplazar' : 'Subir') + '</button>';
       if (doc) html += '<button class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3)" onclick="deleteVehicleDoc(\'' + dt.key + '\')">🗑</button>';
     }
     html += '</div></div>';
   });
   document.getElementById('vd-docs').innerHTML = html;
+}
+
+// ══ CLOUDINARY (almacenamiento compartido de documentos) ══
+var CLOUDINARY_CLOUD = 'zipoxtg7';
+var CLOUDINARY_PRESET = 'drivx_uploads';
+function uploadToCloudinary(file) {
+  return new Promise(function(resolve, reject) {
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_PRESET);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/auto/upload');
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { reject(new Error('Respuesta inválida de Cloudinary')); }
+      } else {
+        reject(new Error('Error al subir el archivo (' + xhr.status + ')'));
+      }
+    };
+    xhr.onerror = function() { reject(new Error('Error de red al subir el archivo')); };
+    xhr.send(fd);
+  });
 }
 
 function triggerUploadDoc(docType) {
@@ -694,20 +719,32 @@ function triggerUploadDoc(docType) {
   input.onchange = function() {
     var file = input.files[0];
     if (!file || !_vdCurrentMat) return;
-    if (file.size > 8 * 1024 * 1024) { alert('El archivo es demasiado grande (máx. 8MB).'); return; }
-    var reader = new FileReader();
-    reader.onload = function() {
-      var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
-      var key = dt.storageKey + matSlug(_vdCurrentMat);
-      var doc = { nombre: file.name, fecha: new Date().toLocaleDateString('es-ES'), size: file.size, base64: reader.result };
-      try {
-        localStorage.setItem(key, JSON.stringify(doc));
-        renderVehicleDocs();
-      } catch(e) {
-        alert('No se pudo guardar el archivo (puede que sea demasiado grande para el almacenamiento local).');
-      }
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 15 * 1024 * 1024) { alert('El archivo es demasiado grande (máx. 15MB).'); return; }
+
+    var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
+    var key = dt.storageKey + matSlug(_vdCurrentMat);
+
+    // Mostrar estado "subiendo..." mientras se envía a Cloudinary
+    var doc_uploading = { nombre: file.name, fecha: 'Subiendo…', size: file.size, url: null, uploading: true };
+    localStorage.setItem(key, JSON.stringify(doc_uploading));
+    renderVehicleDocs();
+
+    uploadToCloudinary(file).then(function(res) {
+      var doc = {
+        nombre: file.name,
+        fecha: new Date().toLocaleDateString('es-ES'),
+        size: file.size,
+        url: res.secure_url,
+        resourceType: res.resource_type,
+        format: res.format
+      };
+      localStorage.setItem(key, JSON.stringify(doc));
+      renderVehicleDocs();
+    }).catch(function(err) {
+      localStorage.removeItem(key);
+      renderVehicleDocs();
+      alert('No se pudo subir el archivo: ' + err.message);
+    });
   };
   input.click();
 }
@@ -718,14 +755,8 @@ function viewVehicleDoc(docType) {
   var key = dt.storageKey + matSlug(_vdCurrentMat);
   var doc = null;
   try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
-  if (!doc) return;
-  var win = window.open('');
-  if (!win) { alert('Habilita las ventanas emergentes para ver el documento.'); return; }
-  if (doc.base64.indexOf('application/pdf') !== -1) {
-    win.document.write('<html><head><title>' + doc.nombre + '</title></head><body style="margin:0;height:100vh"><embed src="' + doc.base64 + '" type="application/pdf" width="100%" height="100%"></body></html>');
-  } else {
-    win.document.write('<html><head><title>' + doc.nombre + '</title></head><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh"><img src="' + doc.base64 + '" style="max-width:100%;max-height:100%"></body></html>');
-  }
+  if (!doc || !doc.url) return;
+  window.open(doc.url, '_blank');
 }
 
 function deleteVehicleDoc(docType) {

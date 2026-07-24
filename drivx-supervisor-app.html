@@ -252,6 +252,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
       <div class="sec-title">Póliza de seguro</div>
       <div id="mat-poliza-area" style="margin-bottom:16px"></div>
 
+      <!-- Documentos adjuntados desde el Panel de Administración -->
+      <div class="sec-title">Documentación del vehículo (Administración)</div>
+      <div id="mat-admindocs-area" style="margin-bottom:16px"></div>
+
       <!-- Conductores en esta matrícula -->
       <div class="sec-title">Conductores asignados</div>
       <div id="mat-conductores" class="card" style="margin-bottom:16px"></div>
@@ -776,6 +780,7 @@ function openMatModal(matricula) {
   renderMatCitas(v);
   // Póliza
   renderPolizaArea(v);
+  renderAdminDocsArea(v);
 
   document.getElementById('mat-modal').style.display='flex';
 }
@@ -1207,6 +1212,29 @@ function guardarCitaTallerMat() {
   renderMatCitas(v);
 }
 
+// ══ CLOUDINARY (almacenamiento compartido de documentos) ══
+var CLOUDINARY_CLOUD = 'zipoxtg7';
+var CLOUDINARY_PRESET = 'drivx_uploads';
+function uploadToCloudinary(file) {
+  return new Promise(function(resolve, reject) {
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_PRESET);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/auto/upload');
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { reject(new Error('Respuesta inválida de Cloudinary')); }
+      } else {
+        reject(new Error('Error al subir el archivo (' + xhr.status + ')'));
+      }
+    };
+    xhr.onerror = function() { reject(new Error('Error de red al subir el archivo')); };
+    xhr.send(fd);
+  });
+}
+
 // ══ PÓLIZA PDF ══
 function renderPolizaArea(v) {
   var key = 'drivx_poliza_' + v.matricula.replace(/\s/g,'_');
@@ -1214,7 +1242,13 @@ function renderPolizaArea(v) {
   try { poliza = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
   var el = document.getElementById('mat-poliza-area');
   if (!el) return;
-  if (poliza) {
+  if (poliza && poliza.uploading) {
+    el.innerHTML =
+      '<div style="background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.2);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px">' +
+        '<span style="font-size:24px">⏳</span>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--amber)">Subiendo póliza…</div>' +
+      '</div>';
+  } else if (poliza) {
     el.innerHTML =
       '<div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px">' +
         '<span style="font-size:24px">📄</span>' +
@@ -1250,25 +1284,29 @@ function uploadPoliza(input) {
   if (!input.files[0] || !_currentMat) return;
   var file = input.files[0];
   input.value = '';
-  if (file.size > 5*1024*1024) { toast('⚠ El PDF no puede superar 5 MB'); return; }
+  if (file.size > 15*1024*1024) { toast('⚠ El archivo no puede superar 15 MB'); return; }
+
+  var key = 'drivx_poliza_' + _currentMat.matricula.replace(/\s/g,'_');
+  localStorage.setItem(key, JSON.stringify({ uploading:true }));
+  renderPolizaArea(_currentMat);
   toast('⏳ Subiendo póliza...');
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var key = 'drivx_poliza_' + _currentMat.matricula.replace(/\s/g,'_');
+
+  uploadToCloudinary(file).then(function(res) {
     var poliza = {
       nombre: file.name, size: file.size,
       fecha: new Date().toLocaleDateString('es-ES'),
-      base64: e.target.result,
+      url: res.secure_url,
       matricula: _currentMat.matricula, ts: Date.now()
     };
-    try {
-      localStorage.setItem(key, JSON.stringify(poliza));
-      renderPolizaArea(_currentMat);
-      renderVehiculosHome();
-      toast('✅ Póliza subida · ' + _currentMat.matricula);
-    } catch(err) { toast('❌ PDF demasiado grande para almacenamiento local'); }
-  };
-  reader.readAsDataURL(file);
+    localStorage.setItem(key, JSON.stringify(poliza));
+    renderPolizaArea(_currentMat);
+    renderVehiculosHome();
+    toast('✅ Póliza subida · ' + _currentMat.matricula);
+  }).catch(function(err) {
+    localStorage.removeItem(key);
+    renderPolizaArea(_currentMat);
+    toast('❌ No se pudo subir la póliza');
+  });
 }
 
 function verPoliza() {
@@ -1276,9 +1314,8 @@ function verPoliza() {
   var key = 'drivx_poliza_' + _currentMat.matricula.replace(/\s/g,'_');
   var poliza = null;
   try { poliza = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
-  if (!poliza) return;
-  var win = window.open('','_blank');
-  win.document.write('<html><head><title>'+poliza.nombre+'</title></head><body style="margin:0;height:100vh"><embed src="'+poliza.base64+'" type="application/pdf" width="100%" height="100%"></html>');
+  if (!poliza || !poliza.url) return;
+  window.open(poliza.url, '_blank');
 }
 
 function deletePoliza() {
@@ -1287,6 +1324,46 @@ function deletePoliza() {
   renderPolizaArea(_currentMat);
   renderVehiculosHome();
   toast('🗑 Póliza eliminada');
+}
+
+// ══ DOCUMENTOS ADJUNTADOS DESDE EL PANEL DE ADMINISTRACIÓN ══
+// El supervisor solo puede ABRIRLOS aquí; se suben y gestionan desde el Panel Admin.
+var ADMIN_DOC_TYPES = [
+  { key:'permiso', label:'Permiso de circulación', icon:'🪪', storageKey:'drivx_doc_permiso_' },
+  { key:'ficha',   label:'Ficha técnica',           icon:'📋', storageKey:'drivx_doc_ficha_' },
+  { key:'itv',     label:'Informe de ITV',          icon:'🔧', storageKey:'drivx_doc_itv_' }
+];
+function renderAdminDocsArea(v) {
+  var el = document.getElementById('mat-admindocs-area');
+  if (!el) return;
+  var html = '';
+  ADMIN_DOC_TYPES.forEach(function(dt) {
+    var key = dt.storageKey + v.matricula.replace(/\s/g,'_');
+    var doc = null;
+    try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="font-size:18px">' + dt.icon + '</span>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:13px;font-weight:700">' + dt.label + '</div>' +
+        (doc && doc.uploading
+          ? '<div style="font-size:11px;color:var(--amber)">⏳ Subiendo…</div>'
+          : doc
+          ? '<div style="font-size:11px;color:var(--text3)">Subido el ' + doc.fecha + ' · ' + Math.round((doc.size||0)/1024) + ' KB</div>'
+          : '<div style="font-size:11px;color:var(--text3)">No adjuntado por administración</div>') +
+      '</div>' +
+      (doc && doc.url ? '<button onclick="verAdminDoc(\'' + dt.key + '\')" class="btn-sm btn-cyan">Ver</button>' : '') +
+      '</div>';
+  });
+  el.innerHTML = html;
+}
+function verAdminDoc(docType) {
+  if (!_currentMat) return;
+  var dt = ADMIN_DOC_TYPES.find(function(d){ return d.key === docType; });
+  var key = dt.storageKey + _currentMat.matricula.replace(/\s/g,'_');
+  var doc = null;
+  try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+  if (!doc || !doc.url) return;
+  window.open(doc.url, '_blank');
 }
 
 function guardarCita() {
