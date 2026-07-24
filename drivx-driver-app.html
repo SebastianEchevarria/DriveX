@@ -732,19 +732,35 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span style="color:var(--text3)">›</span>
       </button>
 
-      <!-- TESLA SECTION -->
-      <div style="background:rgba(255,179,0,.06);border:2px solid rgba(255,179,0,.3);border-radius:14px;overflow:hidden">
-        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,179,0,.15)">
+      <!-- TESLA SECTION (plegable) -->
+      <div style="background:rgba(255,179,0,.06);border:2px solid rgba(255,179,0,.3);border-radius:14px;overflow:hidden;flex-shrink:0">
+        <div id="tesla-submenu-header" onclick="toggleTeslaSubmenu()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0">
           <span style="font-size:22px">⚡</span>
-          <div>
+          <div style="flex:1">
             <div style="font-size:14px;font-weight:900;color:#ffb300">Tesla</div>
             <div style="font-size:11px;color:var(--text2)">Guías específicas para vehículos Tesla</div>
           </div>
+          <span id="tesla-chevron" style="color:#ffb300;font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:0">
+        <div id="tesla-submenu-items" style="display:none;flex-direction:column;gap:0;border-top:1px solid rgba(255,179,0,.15);flex-shrink:0">
           <button class="ayuda-btn" onclick="openTema('tesla')" style="border:none;border-radius:0;border-bottom:1px solid rgba(255,179,0,.1);background:transparent">
             <span class="ayuda-icon" style="font-size:18px">🔋</span>
             <div class="ayuda-info"><div class="ayuda-title">Carga del Tesla</div><div class="ayuda-sub">Normas de carga y batería</div></div>
+            <span style="color:var(--text3)">›</span>
+          </button>
+          <button class="ayuda-btn" onclick="openTema('tesla_superchargers')" style="border:none;border-radius:0;border-bottom:1px solid rgba(255,179,0,.1);background:transparent">
+            <span class="ayuda-icon" style="font-size:18px">🗺️</span>
+            <div class="ayuda-info"><div class="ayuda-title">Buscar Superchargers</div><div class="ayuda-sub">Cómo encontrarlos en el navegador del coche</div></div>
+            <span style="color:var(--text3)">›</span>
+          </button>
+          <button class="ayuda-btn" onclick="openTema('tesla_tarjeta')" style="border:none;border-radius:0;border-bottom:1px solid rgba(255,179,0,.1);background:transparent">
+            <span class="ayuda-icon" style="font-size:18px">🔑</span>
+            <div class="ayuda-info"><div class="ayuda-title">Tarjeta y bloqueo automático</div><div class="ayuda-sub">Evita quedarte sin acceso al coche</div></div>
+            <span style="color:var(--text3)">›</span>
+          </button>
+          <button class="ayuda-btn" onclick="openTema('tesla_lavado')" style="border:none;border-radius:0;background:transparent">
+            <span class="ayuda-icon" style="font-size:18px">🚿</span>
+            <div class="ayuda-info"><div class="ayuda-title">Protocolo de lavado</div><div class="ayuda-sub">Modo lavado, túneles y recomendaciones</div></div>
             <span style="color:var(--text3)">›</span>
           </button>
         </div>
@@ -1712,16 +1728,62 @@ var TEMAS = {
   tesla: {
     titulo: '🔋 Carga del Tesla',
     contenido: '<b>Regla de oro:</b> carga cuando esté por debajo del <b>20%</b> y hasta el <b>80-90%</b>.<br><br>' +
-      '<b style="color:var(--red)">🚫 PROHIBIDO cargar en tramos intermedios</b><br>' +
-      'Cargar a medias daña las baterías. Carga completa siempre.<br><br>' +
+      '<b style="color:var(--amber)">⚠️ Evita cargar en tramos intermedios</b><br>' +
+      'Cargar a medias desgasta la batería con el tiempo. Es mejor completar la carga siempre.<br><br>' +
       '<b>⚡ Carga más rápida y barata:</b><br>' +
       '1. Busca <b>"Supercargador Tesla"</b> en el GPS del coche<br>' +
       '2. Esto precondiciona la batería antes de llegar<br>' +
       '3. Verás el mensaje: <i>"La batería se está preparando para la carga"</i> — es normal<br><br>' +
       '<b>🗺️ Usa el navegador</b> para saber con cuánta carga llegarás al destino.<br><br>' +
       '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-top:4px">' +
-      '⚠️ <b>IMPORTANTE:</b> Si el coche sigue conectado tras finalizar la carga al 80-90%, pueden cobrar hasta <b>0,50€/minuto</b> extra.<br><br>' +
-      '👉 Retira el coche del cargador en cuanto termine la carga.</div>'
+      '💡 <b>Ten en cuenta:</b> algunos puntos de carga aplican una tasa de congestión (hasta 0,50€/minuto) si el coche sigue enchufado tras completar la carga.<br><br>' +
+      '👉 Por eso conviene retirar el coche del cargador en cuanto termine la carga.</div>'
+  },
+  tesla_superchargers: {
+    titulo: '🗺️ Buscar Superchargers',
+    contenido: 'Sigue estos pasos para encontrar los Superchargers cercanos usando la pantalla de navegación de tu Tesla:<br><br>' +
+      '<b>1. Pulsa el icono del rayo</b><br>' +
+      'Está en la esquina superior derecha del navegador.<br><br>' +
+      '<b>2. Explora el mapa</b><br>' +
+      'Aparecerán pines rojos que indican los Superchargers cercanos.<br><br>' +
+      '<b>3. Consulta la información en tiempo real</b><br>' +
+      'Toca cualquier pin para ver puestos disponibles, potencia y distancia.<br><br>' +
+      '<b>4. Pulsa "IR" para navegar</b><br>' +
+      'El Tesla te guiará hasta el Supercharger y precondicionará la batería automáticamente.<br><br>' +
+      '<b>5. Precondicionamiento automático</b><br>' +
+      'El Tesla te indicará con fiabilidad con cuánta batería llegarás al destino.'
+  },
+  tesla_tarjeta: {
+    titulo: '🔑 Tarjeta y bloqueo automático',
+    contenido: '<b>Consejo de seguridad:</b> en los Tesla, si dejas la tarjeta o el móvil-llave dentro del coche, cierras la puerta y te alejas, el vehículo puede bloquearse automáticamente.<br><br>' +
+      '<b>Cómo puede ocurrir:</b><br>' +
+      '1. La tarjeta queda dentro del coche<br>' +
+      '2. Cierras la puerta<br>' +
+      '3. Te alejas un poco del vehículo<br>' +
+      '4. El coche se cierra automáticamente<br><br>' +
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '💡 <b>Recomendación:</b> lleva siempre la tarjeta o el móvil-llave contigo al salir del coche. Nunca los dejes dentro antes de cerrar y alejarte.<br><br>' +
+      'Así evitas quedarte sin acceso al vehículo.</div>'
+  },
+  tesla_lavado: {
+    titulo: '🚿 Protocolo de Lavado (Model 3 / Model Y)',
+    contenido: 'Uso recomendado para todos los conductores al lavar el vehículo.<br><br>' +
+      '<b>Antes de entrar al túnel:</b><br>' +
+      '• Detén completamente el vehículo<br>' +
+      '• Ve a Pantalla → Controles → Servicio → <b>Modo Lavado coche</b><br>' +
+      '• Esto cierra las ventanas, bloquea la carga y desactiva el limpiaparabrisas y el modo centinela<br><br>' +
+      '<b>En túneles de lavado con arrastre:</b><br>' +
+      '1. Pisa el freno<br>' +
+      '2. Pulsa <b>"Activar rodar libre"</b> en la pantalla<br>' +
+      '3. Suelta el freno = punto muerto<br><br>' +
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px">' +
+      '⚠️ Durante el arrastre: no frenes, no toques el volante, no acelerés y no abras las puertas.</div><br>' +
+      '<b>Recomendaciones adicionales:</b><br>' +
+      '• Pliega los espejos<br>' +
+      '• Comprueba que las puertas estén bien cerradas<br>' +
+      '• Evita túneles agresivos cuando sea posible<br>' +
+      '• Prioriza el lavado suave o a mano<br><br>' +
+      'El objetivo es mantener el vehículo en estado impecable — usar bien el modo lavado ayuda a que el coche no sufra daños.'
   },
   limpieza: {
     titulo: '🚗 Limpieza y Uso del Vehículo',
@@ -1771,6 +1833,14 @@ var TEMAS = {
 
 };
 
+function toggleTeslaSubmenu() {
+  const items = document.getElementById('tesla-submenu-items');
+  const chev  = document.getElementById('tesla-chevron');
+  const isOpen = items.style.display !== 'none';
+  items.style.display = isOpen ? 'none' : 'flex';
+  chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 function openTema(tema) {
   if (tema === 'chat') {
     document.getElementById('ayuda-menu').style.display   = 'none';
@@ -1812,12 +1882,29 @@ function closeTema() {
 
 '## CARGA DEL TESLA (normas)\n' +
 '- Cargar SIEMPRE cuando el coche esté por debajo del 20% y hasta el 80-90%.\n' +
-'- PROHIBIDO cargar en tramos intermedios (cargarlo a medias): se dañan las baterías.\n' +
+'- Evitar cargar en tramos intermedios (cargarlo a medias): con el tiempo desgasta la batería. Mejor completar la carga siempre.\n' +
 '- Para carga más rápida y barata: buscar "Supercargador Tesla" en el GPS para precondicionar la batería antes de llegar.\n' +
 '- Aparecerá el mensaje "La batería se está preparando para la carga" — es normal.\n' +
 '- Usa el navegador para saber con cuánta carga llegarás al destino.\n' +
-'- IMPORTANTE: si el coche se queda conectado tras finalizar la carga al 80-90%, pueden cobrar hasta 0,50€/minuto extra. Retira el coche del cargador en cuanto termine.\n' +
+'- Ten en cuenta: si el coche se queda conectado tras finalizar la carga al 80-90%, algunos puntos de carga aplican una tasa de congestión (hasta 0,50€/minuto). Conviene retirar el coche del cargador en cuanto termine.\n' +
 '- Cargadores disponibles: Supercargadores Tesla (aparecen en el GPS del propio Tesla).\n\n' +
+
+'## BUSCAR SUPERCHARGERS EN EL NAVEGADOR\n' +
+'1. Pulsa el icono del rayo en la esquina superior derecha del navegador del coche.\n' +
+'2. Explora el mapa: aparecerán pines rojos con los Superchargers cercanos.\n' +
+'3. Toca cualquier pin para ver puestos disponibles, potencia y distancia.\n' +
+'4. Pulsa "IR" para navegar — el Tesla precondicionará la batería automáticamente.\n' +
+'5. El Tesla indicará con cuánta batería llegarás al destino.\n\n' +
+
+'## TARJETA Y BLOQUEO AUTOMÁTICO DEL TESLA\n' +
+'- Consejo de seguridad: si dejas la tarjeta o el móvil-llave dentro del coche, cierras la puerta y te alejas, el vehículo puede bloquearse automáticamente y quedarte sin acceso.\n' +
+'- Recomendación: lleva siempre la tarjeta o el móvil-llave contigo al salir del coche, nunca los dejes dentro.\n\n' +
+
+'## PROTOCOLO DE LAVADO (Model 3 / Model Y)\n' +
+'- Antes de entrar al túnel: detén el coche y activa Pantalla → Controles → Servicio → Modo Lavado coche (cierra ventanas, bloquea carga, desactiva limpiaparabrisas y modo centinela).\n' +
+'- En túneles con arrastre: pisa el freno, pulsa "Activar rodar libre" en pantalla, y suelta el freno (punto muerto).\n' +
+'- Durante el arrastre: no frenar, no tocar el volante, no acelerar, no abrir puertas.\n' +
+'- Recomendaciones: plegar espejos, comprobar puertas cerradas, evitar túneles agresivos, priorizar lavado suave o a mano.\n\n' +
 
 '## LIMPIEZA Y USO DEL VEHÍCULO\n' +
 '- Los conductores deben organizarse para que el coche esté SIEMPRE limpio y aspirado las 24 horas.\n' +
@@ -1964,18 +2051,35 @@ function localChatbot(q) {
       '📹 Envía siempre el vídeo del incidente a @JUANMAVTCINFINITY.';
   }
 
+  // TARJETA / LLAVE / BLOQUEO AUTOMÁTICO
+  if (/tarjeta|llave|bloque|cierra sol|me quedé fuera|me quede fuera/.test(ql)) {
+    return '🔑 <b>Tarjeta y bloqueo automático:</b><br><br>' +
+      'Si dejas la tarjeta o el móvil-llave dentro del coche, cierras la puerta y te alejas, el Tesla puede bloquearse automáticamente.<br><br>' +
+      '💡 <b>Recomendación:</b> lleva siempre la tarjeta o el móvil-llave contigo al salir del coche, nunca los dejes dentro.';
+  }
+
+  // LAVADO / TÚNEL DE LAVADO
+  if (/lavad|tunel|túnel|rodar libre|centinela/.test(ql)) {
+    return '🚿 <b>Protocolo de lavado (Model 3 / Model Y):</b><br><br>' +
+      '1. Antes del túnel: Pantalla → Controles → Servicio → <b>Modo Lavado coche</b><br>' +
+      '2. Con arrastre: pisa el freno, pulsa <b>"Activar rodar libre"</b>, suelta el freno<br>' +
+      '3. Durante el lavado: no frenes, no toques el volante, no acelerés, no abras puertas<br><br>' +
+      '💡 Pliega espejos, comprueba puertas cerradas y prioriza el lavado suave o a mano.';
+  }
+
   // TESLA / CARGA / BATERÍA / SUPERCARGADOR
   if (/tesla|carg|bater|superc|enchufe|electricidad|kw|autonomia|autonomía/.test(ql)) {
     return '⚡ <b>Normas de carga del Tesla:</b><br><br>' +
       '• Carga cuando esté <b>por debajo del 20%</b><br>' +
       '• Carga hasta el <b>80-90%</b> — nunca al 100%<br>' +
-      '• <b style="color:#ff4757">PROHIBIDO</b> cargar a medias (daña la batería)<br><br>' +
+      '• Evita cargar a medias (desgasta la batería con el tiempo)<br><br>' +
       '<b>¿Cómo cargar más rápido?</b><br>' +
       '1. Busca <b>"Supercargador Tesla"</b> en el GPS del coche<br>' +
       '2. El coche precondiciona la batería solo<br>' +
       '3. Verás: <i>"La batería se está preparando para la carga"</i><br><br>' +
-      '<b style="color:#ffb300">⚠️ Muy importante:</b> Retira el coche en cuanto termine la carga.<br>' +
-      'Si lo dejas enchufado al 80-90% cobran <b>0,50€/minuto</b> extra.';
+      '<b style="color:#ffb300">💡 Recomendación:</b> retira el coche en cuanto termine la carga.<br>' +
+      'Algunos puntos de carga aplican una tasa de congestión (hasta 0,50€/minuto) si se queda enchufado al 80-90%.<br><br>' +
+      '¿Quieres saber cómo encontrar Superchargers, sobre la tarjeta y el bloqueo automático, o sobre el protocolo de lavado?';
   }
 
   // VIAJE PRIVADO / FOMENTO / HOJA DE RUTA
