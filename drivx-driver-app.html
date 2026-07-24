@@ -279,11 +279,11 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     <div id="login-error" class="login-error">Email o contraseña incorrectos</div>
     <div class="field">
       <label>Email</label>
-      <input id="login-email" type="email" placeholder="tu@drivx.es" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+      <input id="login-email" type="email" autocomplete="off" placeholder="tu@drivx.es" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <div class="field">
       <label>Contraseña</label>
-      <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <input id="login-pass" type="password" autocomplete="new-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
       <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:14px;padding:0;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif">
@@ -307,12 +307,9 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 <div id="screen-home" class="screen">
   <div class="scroll">
     <div class="header">
-      <div>
-        <div class="header-title" id="home-name">—</div>
-        <div class="header-sub" id="home-meta">—</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px"><div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div><button onclick="doLogout()" style="padding:7px 14px;border-radius:16px;border:1.5px solid rgba(255,107,107,.6);background:rgba(255,107,107,.1);color:#ff6b6b;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap">Salir</button></div>
+      <div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div>
     </div>
+    <button onclick="doLogout()" style="position:fixed;top:14px;right:14px;z-index:400;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
 
     <!-- KM panel -->
     <div class="km-panel" id="km-panel">
@@ -1042,8 +1039,8 @@ function doInvite() {
 function loginAs(u) {
   currentUser = u;
   localStorage.setItem('drivx_current_user', u.email || u.cid);
-  document.getElementById('home-name').textContent = u.nombre;
-  document.getElementById('home-meta').textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
+  var hn = document.getElementById('home-name'); if(hn) hn.textContent = u.nombre;
+  var hm = document.getElementById('home-meta'); if(hm) hm.textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
   // Fill conductor card
   document.getElementById('conductor-inicial').textContent  = u.nombre.charAt(0).toUpperCase();
   document.getElementById('conductor-nombre').textContent   = u.nombre;
@@ -2392,6 +2389,7 @@ function confirmLogout(){
   currentUser=null;
   document.getElementById('login-email').value='';
   document.getElementById('login-pass').value='';
+  setTimeout(function(){document.getElementById('login-email').value='';document.getElementById('login-pass').value='';},100);
   showBiometricBtn();
 }
 </script>
