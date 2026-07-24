@@ -1040,13 +1040,31 @@ function renderHomeProximas() {
         +'</div>';
     }
     // Delete button
-    html += '<button class="home-del-btn" data-mat="'+(c.matricula||'')+'" data-tipo="'+(c.tipo||'')+'" data-fecha="'+(c.fecha||'')+'" data-hora="'+(c.hora||'')+'"'
-      +' style="width:100%;margin-top:12px;padding:10px;border-radius:10px;border:2px solid rgba(255,71,87,.4);background:rgba(255,71,87,.08);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">'
-      +'🗑 Eliminar cita</button>';
+    html += '<div style="display:flex;gap:8px;margin-top:12px">'
+      + '<button class="home-edit-btn" data-mat="'+encodeURIComponent(c.matricula||'')+'" data-tipo="'+encodeURIComponent(c.tipo||'')+'" data-fecha="'+(c.fecha||'')+'" data-hora="'+(c.hora||'')+'"'
+        + ' style="flex:1;padding:10px;border-radius:10px;border:2px solid rgba(0,212,255,.4);background:rgba(0,212,255,.08);color:var(--cyan);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">'
+        + '✏️ Editar'
+      + '</button>'
+      + '<button class="home-del-btn" data-mat="'+(c.matricula||'')+'" data-tipo="'+(c.tipo||'')+'" data-fecha="'+(c.fecha||'')+'" data-hora="'+(c.hora||'')+'"'
+        + ' style="flex:1;padding:10px;border-radius:10px;border:2px solid rgba(255,71,87,.4);background:rgba(255,71,87,.08);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">'
+        + '🗑 Eliminar'
+      + '</button>'
+      + '</div>';
     html += '</div></div>'; // detail + item
   });
 
   el.innerHTML = html;
+  el.querySelectorAll('.home-edit-btn').forEach(function(btn){
+    btn.onclick = function(e){
+      e.stopPropagation();
+      var mat   = decodeURIComponent(btn.getAttribute('data-mat'));
+      var tipo  = decodeURIComponent(btn.getAttribute('data-tipo'));
+      var fecha = btn.getAttribute('data-fecha');
+      var hora  = btn.getAttribute('data-hora')||'';
+      var key   = mat+'|'+tipo+'|'+fecha+'|'+hora;
+      editCitaFromCal(key);
+    };
+  });
   el.querySelectorAll('.home-del-btn').forEach(function(btn){
     btn.onclick = function(e){
       e.stopPropagation();
