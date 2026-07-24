@@ -2195,28 +2195,45 @@ function initLugarAutocomplete() {
 }
 
 function fetchPlaces(query, sugEl, inp) {
-  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=' + encodeURIComponent(query);
+  // Search with countrycodes=es for Spain, include POIs
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=6&addressdetails=1&countrycodes=es&q=' + encodeURIComponent(query);
   fetch(url, { headers: { 'Accept-Language': 'es', 'User-Agent': 'DRIVXApp/1.0' } })
     .then(function(r){ return r.json(); })
     .then(function(results) {
-      if (!results.length) { sugEl.style.display = 'none'; return; }
+      if (!results.length) {
+        // Retry without country filter
+        var url2 = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=' + encodeURIComponent(query);
+        return fetch(url2, { headers: { 'Accept-Language': 'es', 'User-Agent': 'DRIVXApp/1.0' } }).then(function(r){ return r.json(); });
+      }
+      return results;
+    })
+    .then(function(results) {
+      if (!results || !results.length) { sugEl.style.display = 'none'; return; }
       var html = '';
       results.forEach(function(r) {
-        var name = r.display_name;
-        // Shorten: take first 2 parts
-        var parts = name.split(',');
-        var short = parts.slice(0,3).join(',').trim();
-        html += '<div class="place-suggestion" data-full="' + name.replace(/"/g,'&quot;') + '" data-short="' + short.replace(/"/g,'&quot;') + '"'
+        var parts = r.display_name.split(',');
+        // Build smart short name
+        var mainName = parts[0].trim();
+        var addr = r.address || {};
+        var road = addr.road || addr.pedestrian || '';
+        var number = addr.house_number || '';
+        var city = addr.city || addr.town || addr.village || addr.municipality || '';
+        var province = addr.province || addr.county || '';
+
+        var addrLine = [road + (number?' '+number:''), city, province].filter(Boolean).join(', ');
+        var fullAddr = mainName + (addrLine ? ', ' + addrLine : '');
+
+        html += '<div class="place-suggestion" data-full="' + fullAddr.replace(/"/g,'&quot;') + '"'
           + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);line-height:1.4">'
-          + '<div style="font-weight:700">' + parts[0].trim() + '</div>'
-          + '<div style="color:var(--text2);font-size:11px">' + parts.slice(1,3).join(',').trim() + '</div>'
+          + '<div style="font-weight:700;color:var(--text)">' + mainName + '</div>'
+          + (addrLine ? '<div style="color:var(--text2);font-size:11px;margin-top:2px">📍 ' + addrLine + '</div>' : '')
           + '</div>';
       });
       sugEl.innerHTML = html;
       sugEl.style.display = 'block';
       sugEl.querySelectorAll('.place-suggestion').forEach(function(div) {
         div.onmousedown = function() {
-          inp.value = div.getAttribute('data-short');
+          inp.value = div.getAttribute('data-full');
           sugEl.style.display = 'none';
         };
         div.onmouseover = function() { div.style.background = 'rgba(0,212,255,.08)'; };
