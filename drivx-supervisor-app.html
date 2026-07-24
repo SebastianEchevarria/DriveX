@@ -186,8 +186,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
   <div class="login-tag">Supervisor App</div>
   <div class="login-card">
     <div id="login-error" class="login-error">Email o contraseña incorrectos</div>
-    <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="ana@drivx.es" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <div class="field"><label>Contraseña</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="field"><label>Email</label><input id="login-email" type="email" autocomplete="off" placeholder="ana@drivx.es" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="field"><label>Contraseña</label><input id="login-pass" type="password" autocomplete="new-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
       <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:14px;padding:0;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif">
         <div style="width:100%;padding:16px;border-radius:16px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.12),rgba(0,212,255,.04));display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 20px rgba(0,212,255,.15)">
@@ -2370,6 +2370,8 @@ function confirmLogout(){
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.getElementById('screen-login').classList.add('active');
   localStorage.removeItem('drivx_supervisor_session');
+  var ef=document.getElementById('login-email');if(ef)ef.value='';
+  var pf=document.getElementById('login-pass');if(pf)pf.value='';
   showBiometricBtn();
 }
 function offerBiometricRegister(email,pass){
