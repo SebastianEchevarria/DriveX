@@ -607,17 +607,37 @@ function renderFlota() {
   });
 }
 
+// ══ FIREBASE (base de datos compartida real, entre cualquier dispositivo) ══
+var FIREBASE_URL = 'https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app';
+function fbGetVehicleDocs(matSlug) {
+  return fetch(FIREBASE_URL + '/documentos/' + matSlug + '.json')
+    .then(function(r){ return r.json(); })
+    .then(function(data){ return data || {}; });
+}
+function fbSetDoc(matSlug, docKey, data) {
+  return fetch(FIREBASE_URL + '/documentos/' + matSlug + '/' + docKey + '.json', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+}
+function fbDeleteDoc(matSlug, docKey) {
+  return fetch(FIREBASE_URL + '/documentos/' + matSlug + '/' + docKey + '.json', { method: 'DELETE' });
+}
+
 // ══ FICHA DE VEHÍCULO — CONDUCTORES + DOCUMENTACIÓN ══
-// Los documentos se guardan con las MISMAS claves que usan las apps de Conductor
-// y Supervisor, por lo que lo que se suba aquí se puede abrir también allí.
+// Los documentos se guardan en Firebase con las MISMAS claves que usan las apps de
+// Conductor y Supervisor, por lo que lo que se suba aquí se puede abrir también allí,
+// desde cualquier dispositivo.
 var DOC_TYPES = [
-  { key:'seguro',  label:'Seguro del vehículo (póliza)', icon:'🛡️', storageKey:'drivx_poliza_' },
-  { key:'permiso', label:'Permiso de circulación',        icon:'🪪', storageKey:'drivx_doc_permiso_' },
-  { key:'ficha',   label:'Ficha técnica',                 icon:'📋', storageKey:'drivx_doc_ficha_' },
-  { key:'itv',     label:'Informe de ITV',                icon:'🔧', storageKey:'drivx_doc_itv_' }
+  { key:'seguro',  label:'Seguro del vehículo (póliza)', icon:'🛡️' },
+  { key:'permiso', label:'Permiso de circulación',        icon:'🪪' },
+  { key:'ficha',   label:'Ficha técnica',                 icon:'📋' },
+  { key:'itv',     label:'Informe de ITV',                icon:'🔧' }
 ];
 function matSlug(mat){ return mat.replace(/\s/g,'_'); }
 var _vdCurrentMat = null;
+var _vdDocsCache = {};
 
 function openVehicleDetail(matricula) {
   var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
@@ -661,12 +681,23 @@ function closeVehicleDetail() {
 
 function renderVehicleDocs() {
   if (!_vdCurrentMat) return;
+  var mySlug = matSlug(_vdCurrentMat);
+  document.getElementById('vd-docs').innerHTML = '<div style="font-size:12px;color:var(--text3);padding:10px 0">Cargando documentos…</div>';
+
+  fbGetVehicleDocs(mySlug).then(function(docs){
+    if (matSlug(_vdCurrentMat || '') !== mySlug) return; // el modal cambió de vehículo mientras cargaba
+    _vdDocsCache = docs;
+    paintVehicleDocs();
+  }).catch(function(){
+    document.getElementById('vd-docs').innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudieron cargar los documentos. Revisa tu conexión.</div>';
+  });
+}
+
+function paintVehicleDocs() {
   var isAdmin = currentUser && currentUser.role === 'admin';
   var html = '';
   DOC_TYPES.forEach(function(dt){
-    var key = dt.storageKey + matSlug(_vdCurrentMat);
-    var doc = null;
-    try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    var doc = _vdDocsCache[dt.key] || null;
     html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">';
     html += '<div style="width:36px;height:36px;border-radius:9px;background:rgba(0,212,255,.08);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + dt.icon + '</div>';
     html += '<div style="flex:1;min-width:0">';
@@ -689,7 +720,7 @@ function renderVehicleDocs() {
   document.getElementById('vd-docs').innerHTML = html;
 }
 
-// ══ CLOUDINARY (almacenamiento compartido de documentos) ══
+// ══ CLOUDINARY (almacenamiento compartido de los archivos) ══
 var CLOUDINARY_CLOUD = 'zipoxtg7';
 var CLOUDINARY_PRESET = 'drivx_uploads';
 function uploadToCloudinary(file) {
@@ -719,13 +750,11 @@ function handleDocFileSelected(inputEl, docType) {
   if (!file || !_vdCurrentMat) return;
   if (file.size > 15 * 1024 * 1024) { alert('El archivo es demasiado grande (máx. 15MB).'); return; }
 
-  var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
-  var key = dt.storageKey + matSlug(_vdCurrentMat);
+  var mySlug = matSlug(_vdCurrentMat);
 
   // Mostrar estado "subiendo..." mientras se envía a Cloudinary
-  var doc_uploading = { nombre: file.name, fecha: 'Subiendo…', size: file.size, url: null, uploading: true };
-  localStorage.setItem(key, JSON.stringify(doc_uploading));
-  renderVehicleDocs();
+  _vdDocsCache[docType] = { nombre: file.name, fecha: 'Subiendo…', size: file.size, url: null, uploading: true };
+  paintVehicleDocs();
 
   uploadToCloudinary(file).then(function(res) {
     var doc = {
@@ -736,21 +765,19 @@ function handleDocFileSelected(inputEl, docType) {
       resourceType: res.resource_type,
       format: res.format
     };
-    localStorage.setItem(key, JSON.stringify(doc));
-    renderVehicleDocs();
+    return fbSetDoc(mySlug, docType, doc).then(function(){
+      _vdDocsCache[docType] = doc;
+      paintVehicleDocs();
+    });
   }).catch(function(err) {
-    localStorage.removeItem(key);
-    renderVehicleDocs();
+    delete _vdDocsCache[docType];
+    paintVehicleDocs();
     alert('No se pudo subir el archivo: ' + err.message);
   });
 }
 
 function viewVehicleDoc(docType) {
-  if (!_vdCurrentMat) return;
-  var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
-  var key = dt.storageKey + matSlug(_vdCurrentMat);
-  var doc = null;
-  try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+  var doc = _vdDocsCache[docType];
   if (!doc || !doc.url) return;
   window.open(doc.url, '_blank');
 }
@@ -758,10 +785,11 @@ function viewVehicleDoc(docType) {
 function deleteVehicleDoc(docType) {
   if (!_vdCurrentMat || !currentUser || currentUser.role !== 'admin') return;
   if (!confirm('¿Eliminar este documento?')) return;
-  var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
-  var key = dt.storageKey + matSlug(_vdCurrentMat);
-  localStorage.removeItem(key);
-  renderVehicleDocs();
+  var mySlug = matSlug(_vdCurrentMat);
+  fbDeleteDoc(mySlug, docType).then(function(){
+    delete _vdDocsCache[docType];
+    paintVehicleDocs();
+  });
 }
 
 // ══ SESIÓN PERSISTENTE ══

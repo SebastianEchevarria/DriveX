@@ -2345,49 +2345,56 @@ function toast(msg, color) {
 }
 
 // ── DOCUMENTACIÓN DEL VEHÍCULO (lee lo que sube Administración/Supervisor) ──
+var FIREBASE_URL = 'https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app';
+function fbGetVehicleDocs(matSlug) {
+  return fetch(FIREBASE_URL + '/documentos/' + matSlug + '.json')
+    .then(function(r){ return r.json(); })
+    .then(function(data){ return data || {}; });
+}
+
 var VEHICULO_DOC_TYPES = [
-  { key:'seguro',  label:'Seguro del vehículo (póliza)', icon:'🛡️', storageKey:'drivx_poliza_' },
-  { key:'permiso', label:'Permiso de circulación',        icon:'🪪', storageKey:'drivx_doc_permiso_' },
-  { key:'ficha',   label:'Ficha técnica',                 icon:'📋', storageKey:'drivx_doc_ficha_' },
-  { key:'itv',     label:'Informe de ITV',                icon:'🔧', storageKey:'drivx_doc_itv_' }
+  { key:'seguro',  label:'Seguro del vehículo (póliza)', icon:'🛡️' },
+  { key:'permiso', label:'Permiso de circulación',        icon:'🪪' },
+  { key:'ficha',   label:'Ficha técnica',                 icon:'📋' },
+  { key:'itv',     label:'Informe de ITV',                icon:'🔧' }
 ];
+var _vehiculoDocsCache = {};
+
 function loadPoliza() {
   if (!currentUser) return;
   var area = document.getElementById('doc-vehiculo-area');
   if (!area) return;
   var matSlug = currentUser.matricula.replace(/\s/g,'_');
-  var html = '';
-  VEHICULO_DOC_TYPES.forEach(function(dt) {
-    var key = dt.storageKey + matSlug;
-    var doc = null;
-    try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
-    if (!doc) return; // en la app del conductor solo mostramos lo que ya está subido
-    if (doc.uploading) {
-      html += '<div style="background:var(--surface);border:1px solid rgba(255,179,0,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">' +
-        '<span style="font-size:24px">⏳</span>' +
-        '<div style="flex:1"><div style="font-size:13px;font-weight:800;color:var(--amber)">' + dt.label + ' — subiendo…</div></div>' +
+
+  fbGetVehicleDocs(matSlug).then(function(docs) {
+    _vehiculoDocsCache = docs;
+    var html = '';
+    VEHICULO_DOC_TYPES.forEach(function(dt) {
+      var doc = docs[dt.key];
+      if (!doc) return; // en la app del conductor solo mostramos lo que ya está subido
+      if (doc.uploading) {
+        html += '<div style="background:var(--surface);border:1px solid rgba(255,179,0,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">' +
+          '<span style="font-size:24px">⏳</span>' +
+          '<div style="flex:1"><div style="font-size:13px;font-weight:800;color:var(--amber)">' + dt.label + ' — subiendo…</div></div>' +
+        '</div>';
+        return;
+      }
+      if (!doc.url) return;
+      html += '<div style="background:var(--surface);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
+        '<span style="font-size:24px">' + dt.icon + '</span>' +
+        '<div style="flex:1">' +
+          '<div style="font-size:13px;font-weight:800;color:var(--text)">' + dt.label + '</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + doc.nombre + ' · ' + doc.fecha + '</div>' +
+        '</div>' +
+        '<span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver →</span>' +
       '</div>';
-      return;
-    }
-    if (!doc.url) return;
-    html += '<div style="background:var(--surface);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
-      '<span style="font-size:24px">' + dt.icon + '</span>' +
-      '<div style="flex:1">' +
-        '<div style="font-size:13px;font-weight:800;color:var(--text)">' + dt.label + '</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + doc.nombre + ' · ' + doc.fecha + '</div>' +
-      '</div>' +
-      '<span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver →</span>' +
-    '</div>';
-  });
-  area.innerHTML = html;
+    });
+    area.innerHTML = html;
+  }).catch(function(){ /* sin conexión: no tocamos lo que ya hubiera en pantalla */ });
 }
 
 function abrirDocVehiculo(docType) {
-  if (!currentUser) return;
-  var dt = VEHICULO_DOC_TYPES.find(function(d){ return d.key === docType; });
-  var key = dt.storageKey + currentUser.matricula.replace(/\s/g,'_');
-  var doc = null;
-  try { doc = JSON.parse(localStorage.getItem(key)||'null'); } catch(e){}
+  var doc = _vehiculoDocsCache[docType];
   if (!doc || !doc.url) return;
   window.open(doc.url, '_blank');
 }
