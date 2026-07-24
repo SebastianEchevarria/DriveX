@@ -295,7 +295,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
           </div>
         </div>
       </button>
-      <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none"><button onclick="clearBiometric()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button></div>
+      <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none"><button onclick="document.getElementById('clear-biometric-modal').style.display='flex'" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button></div>
     <div class="login-divider"><span>¿Primera vez?</span></div>
     <button class="btn-secondary" onclick="openInvite()">Activar cuenta con código</button>
   </div>
@@ -2418,5 +2418,16 @@ function confirmLogout(){
   </div>
 </div>
 
+
+<!-- CLEAR BIOMETRIC MODAL -->
+<div id="clear-biometric-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(255,107,107,.3);border-radius:24px;padding:28px 24px;width:100%;max-width:300px;text-align:center">
+    <div style="font-size:40px;margin-bottom:10px">🗑️</div>
+    <div style="font-size:17px;font-weight:900;color:var(--text);margin-bottom:8px">¿Eliminar huella?</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.6">Tendrás que volver a registrarla la próxima vez que quieras usar el acceso rápido.</div>
+    <button onclick="clearBiometric();document.getElementById('clear-biometric-modal').style.display='none'" style="width:100%;padding:13px;border-radius:12px;border:none;background:#ff6b6b;color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">Sí, eliminar</button>
+    <button onclick="document.getElementById('clear-biometric-modal').style.display='none'" style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:inherit">Cancelar</button>
+  </div>
+</div>
 </body>
 </html>
