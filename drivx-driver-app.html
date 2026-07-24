@@ -709,7 +709,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <div style="font-size:11px;color:var(--text3)">Normas y procedimientos VTC Infinity</div>
       </div>
     </div>
-    <div id="ayuda-list" style="flex:1;overflow-y:auto;padding:16px 24px 100px 16px;display:flex;flex-direction:column;gap:10px">
+    <div id="ayuda-list" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 24px 140px 16px;display:flex;flex-direction:column;gap:10px">
 
       <!-- Chat IA — arriba siempre visible -->
       <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,0.4);background:rgba(0,212,255,0.07);margin-bottom:4px">
@@ -1148,7 +1148,7 @@ function showScreen(id) {
   document.getElementById('screen-'+id).classList.add('active');
   var nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
-  if (id === 'chatbot') setTimeout(updateAyudaScrollbar, 60);
+  if (id === 'chatbot') { setTimeout(updateAyudaScrollbar, 60); setTimeout(updateAyudaScrollbar, 300); }
 }
 
 function showMore() { showScreen('chatbot'); }
@@ -1937,7 +1937,16 @@ function updateAyudaScrollbar() {
   if (!_ayudaScrollbarBound) {
     _ayudaScrollbarBound = true;
     list.addEventListener('scroll', updateAyudaScrollbar);
-    window.addEventListener('resize', function(){ setTimeout(updateAyudaScrollbar, 50); });
+    window.addEventListener('resize', function(){ setTimeout(updateAyudaScrollbar, 60); });
+    window.addEventListener('load', function(){ setTimeout(updateAyudaScrollbar, 150); });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function(){ setTimeout(updateAyudaScrollbar, 60); });
+    }
+    // Recalcula si el contenido cambia de tamaño (p.ej. al abrir/cerrar el submenú Tesla)
+    if (window.MutationObserver) {
+      var mo = new MutationObserver(function(){ setTimeout(updateAyudaScrollbar, 60); });
+      mo.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    }
 
     // Arrastrar el thumb directamente (mouse y táctil)
     var dragging = false, dragStartY = 0, dragStartScroll = 0;
