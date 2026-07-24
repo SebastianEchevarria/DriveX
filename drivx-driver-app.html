@@ -774,6 +774,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
   <button class="nav-btn" id="nav-gastos" onclick="showScreen('gastos')"><span>🧾</span><small>Gastos</small></button>
   <button class="nav-btn" id="nav-billing" onclick="showScreen('billing')"><span>💰</span><small>Facturación</small></button>
   <button class="nav-btn" id="nav-chatbot" onclick="showScreen('chatbot')"><span>💬</span><small>Ayuda</small></button>
+  <button class="nav-btn" onclick="doLogout()" style="color:#ff6b6b"><span>🚪</span><small>Salir</small></button>
 </nav>
 
 <!-- ══════════════ FICHAR ALERT ══════════════ -->
@@ -995,7 +996,7 @@ function doLogin() {
   if (!u || u.pass !== pass) { err.style.display='block'; return; }
   err.style.display='none';
   offerBiometricRegister(email, pass);
-  setTimeout(function(){ loginAs(u); }, 50);
+  loginAs(u);
 }
 
 function openInvite() { document.getElementById('invite-modal').classList.add('open'); }
@@ -2293,82 +2294,63 @@ function closeWrongTicketModal() {
 
 // ══ WEBAUTHN BIOMETRIC LOGIN ══
 var WEBAUTHN_KEY = 'drivx_webauthn_cred_driver';
-
-function webauthnSupported() {
-  return !!(window.PublicKeyCredential && navigator.credentials);
+function webauthnSupported(){ return !!(window.PublicKeyCredential && navigator.credentials); }
+async function registerBiometric(email,pass){
+  if(!webauthnSupported()){toast('Tu navegador no soporta huella digital');return;}
+  try{
+    var ch=new Uint8Array(32); crypto.getRandomValues(ch);
+    var cr=await navigator.credentials.create({publicKey:{
+      challenge:ch, rp:{name:'DRIVX',id:location.hostname},
+      user:{id:new TextEncoder().encode(email),name:email,displayName:email},
+      pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
+      authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+      timeout:60000,attestation:'none'
+    }});
+    localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({credId:Array.from(new Uint8Array(cr.rawId)),email:email,pass:pass,ts:Date.now()}));
+    toast('✅ Huella registrada');showBiometricBtn();
+  }catch(e){if(e.name!=='NotAllowedError')toast('⚠ No se pudo registrar la huella');}
 }
-
-async function registerBiometric(email, pass) {
-  if (!webauthnSupported()) { toast('Tu navegador no soporta huella digital'); return; }
-  try {
-    var challenge = new Uint8Array(32);
-    crypto.getRandomValues(challenge);
-    var cred = await navigator.credentials.create({
-      publicKey: {
-        challenge: challenge,
-        rp: { name: 'DRIVX', id: location.hostname },
-        user: { id: new TextEncoder().encode(email), name: email, displayName: email },
-        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
-        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
-        timeout: 60000, attestation: 'none'
-      }
-    });
-    localStorage.setItem(WEBAUTHN_KEY, JSON.stringify({
-      credId: Array.from(new Uint8Array(cred.rawId)), email: email, pass: pass, ts: Date.now()
-    }));
-    toast('✅ Huella registrada · Próxima vez usa el botón de huella');
-    showBiometricBtn();
-  } catch(e) { if (e.name !== 'NotAllowedError') toast('⚠ No se pudo registrar la huella'); }
-}
-
-async function loginWithBiometric() {
-  if (!webauthnSupported()) return;
-  var stored = null;
-  try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
-  if (!stored) return;
-  try {
-    var challenge = new Uint8Array(32);
-    crypto.getRandomValues(challenge);
-    await navigator.credentials.get({
-      publicKey: {
-        challenge: challenge,
-        rpId: location.hostname,
-        allowCredentials: [{ id: new Uint8Array(stored.credId), type: 'public-key' }],
-        userVerification: 'required', timeout: 60000
-      }
-    });
-    document.getElementById('login-email').value = stored.email;
-    document.getElementById('login-pass').value  = stored.pass;
+async function loginWithBiometric(){
+  if(!webauthnSupported())return;
+  var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
+  if(!s)return;
+  try{
+    var ch=new Uint8Array(32); crypto.getRandomValues(ch);
+    await navigator.credentials.get({publicKey:{challenge:ch,rpId:location.hostname,allowCredentials:[{id:new Uint8Array(s.credId),type:'public-key'}],userVerification:'required',timeout:60000}});
+    document.getElementById('login-email').value=s.email;
+    document.getElementById('login-pass').value=s.pass;
     doLogin();
-  } catch(e) { if (e.name !== 'NotAllowedError') toast('❌ Autenticación fallida'); }
+  }catch(e){if(e.name!=='NotAllowedError')toast('❌ Autenticación fallida');}
 }
-
-function showBiometricBtn() {
-  var btn  = document.getElementById('biometric-btn');
-  var clrW = document.getElementById('biometric-clear');
-  var stored = null;
-  try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
-  var show = !!(stored && webauthnSupported());
-  if (btn)  btn.style.display  = show ? 'flex' : 'none';
-  if (clrW) clrW.style.display = show ? 'block' : 'none';
+function showBiometricBtn(){
+  var btn=document.getElementById('biometric-btn');
+  var clr=document.getElementById('biometric-clear');
+  var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
+  var show=!!(s&&webauthnSupported());
+  if(btn)btn.style.display=show?'flex':'none';
+  if(clr)clr.style.display=show?'block':'none';
 }
-
-function clearBiometric() {
-  localStorage.removeItem(WEBAUTHN_KEY);
-  showBiometricBtn();
-  toast('🗑 Huella eliminada');
+function clearBiometric(){localStorage.removeItem(WEBAUTHN_KEY);showBiometricBtn();toast('🗑 Huella eliminada');}
+function offerBiometricRegister(email,pass){
+  if(!webauthnSupported())return;
+  var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
+  if(s&&s.email===email)return;
+  var modal=document.getElementById('biometric-offer-modal');
+  var yesBtn=document.getElementById('biometric-offer-yes');
+  if(!modal||!yesBtn)return;
+  yesBtn.onclick=function(){modal.style.display='none';registerBiometric(email,pass);};
+  modal.style.display='flex';
 }
-
-function offerBiometricRegister(email, pass) {
-  if (!webauthnSupported()) return;
-  var stored = null;
-  try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
-  if (stored && stored.email === email) return;
-  var modal = document.getElementById('biometric-offer-modal');
-  var yesBtn = document.getElementById('biometric-offer-yes');
-  if (!modal || !yesBtn) return;
-  yesBtn.onclick = function() { modal.style.display='none'; registerBiometric(email, pass); };
-  modal.style.display = 'flex';
+function doLogout(){document.getElementById('logout-modal').style.display='flex';}
+function confirmLogout(){
+  document.getElementById('logout-modal').style.display='none';
+  document.getElementById('navbar').classList.remove('visible');
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('screen-login').classList.add('active');
+  localStorage.removeItem('drivx_current_user');
+  currentUser=null;
+  document.getElementById('login-email').value='';
+  document.getElementById('login-pass').value='';
 }
 </script>
 <div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
@@ -2378,9 +2360,19 @@ function offerBiometricRegister(email, pass) {
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
     <div style="font-size:52px;margin-bottom:12px">☝️</div>
     <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital para entrar más rápido?</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital?</div>
     <button id="biometric-offer-yes" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">☝️ Sí, usar huella</button>
     <button onclick="document.getElementById('biometric-offer-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Ahora no</button>
+  </div>
+</div>
+<!-- LOGOUT MODAL -->
+<div id="logout-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(255,107,107,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:300px;text-align:center">
+    <div style="font-size:44px;margin-bottom:12px">🚪</div>
+    <div style="font-size:18px;font-weight:900;color:var(--text);margin-bottom:8px">Cerrar sesión</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Seguro que quieres salir?</div>
+    <button onclick="confirmLogout()" style="width:100%;padding:14px;border-radius:12px;border:none;background:#ff6b6b;color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">Sí, cerrar sesión</button>
+    <button onclick="document.getElementById('logout-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Cancelar</button>
   </div>
 </div>
 </body>
