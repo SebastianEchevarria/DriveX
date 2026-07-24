@@ -273,9 +273,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
       <button onclick="openCitaForMat()" class="btn-primary" style="border-radius:14px;font-size:14px;margin-bottom:10px">
         📅 Registrar cita ITV en la app
       </button>
-      <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:9px;border-radius:12px;background:rgba(0,212,255,.06);border:1px dashed rgba(0,212,255,.3);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:8px">
+      <label style="display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;border-radius:14px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,.5);color:var(--cyan);font-size:14px;font-weight:900;cursor:pointer;margin-bottom:8px;box-shadow:0 4px 16px rgba(0,212,255,.15)">
         <input type="file" accept="image/*" style="display:none" onchange="scanAndOpenCita(this, _currentMat)">
-        📸 Escanear confirmación con IA
+        <span style="font-size:20px">📸</span>
+        Escanear cita con IA
       </label>
 
       <!-- Nueva cita de taller -->
@@ -2392,15 +2393,16 @@ function offerBiometricRegister(email,pass){
   <div class="modal-sheet">
     <div style="font-size:16px;font-weight:800;margin-bottom:8px">📅 Nueva Cita</div>
     <!-- Scan image -->
-    <div style="background:rgba(0,212,255,.06);border:1px dashed rgba(0,212,255,.35);border-radius:12px;padding:12px;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">📸 Escanear cita con IA</div>
-      <label for="cita-scan-input" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;background:rgba(0,212,255,.08);border-radius:8px;color:var(--text)">
-        <input type="file" id="cita-scan-input" accept="image/*" style="display:none" onchange="scanCitaImage(this)">
-        <span style="font-size:18px">🖼️</span>
-        <span style="font-size:12px;font-weight:600" id="cita-scan-label">Subir captura de pantalla</span>
-      </label>
-      <div id="cita-scan-status" style="font-size:11px;color:var(--text3);margin-top:6px;display:none"></div>
-    </div>
+    <!-- Scan image -->
+    <label for="cita-scan-input" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border-radius:14px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,.5);color:var(--cyan);font-size:14px;font-weight:900;cursor:pointer;margin-bottom:14px;box-shadow:0 4px 16px rgba(0,212,255,.15)">
+      <input type="file" id="cita-scan-input" accept="image/*" style="display:none" onchange="scanCitaImage(this)">
+      <span style="font-size:22px">📸</span>
+      <div style="text-align:left">
+        <div>Escanear cita con IA</div>
+        <div id="cita-scan-label" style="font-size:11px;font-weight:600;color:var(--text2);margin-top:2px">Sube una captura de pantalla</div>
+      </div>
+    </label>
+    <div id="cita-scan-status" style="font-size:11px;color:var(--text3);margin-top:-10px;margin-bottom:10px;display:none;text-align:center"></div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:14px">El conductor recibirá la notificación en su app</div>
     <div class="field">
       <label>Conductor / Matrícula</label>
