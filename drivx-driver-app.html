@@ -2292,10 +2292,10 @@ function closeWrongTicketModal() {
 
 
 // ══ WEBAUTHN BIOMETRIC LOGIN ══
-var WEBAUTHN_KEY = 'drivx_webauthn_cred';
+var WEBAUTHN_KEY = 'drivx_webauthn_cred_driver';
 
 function webauthnSupported() {
-  return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
+  return !!(window.PublicKeyCredential && navigator.credentials);
 }
 
 async function registerBiometric(email, pass) {

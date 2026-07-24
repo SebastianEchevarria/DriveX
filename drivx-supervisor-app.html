@@ -484,6 +484,21 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
 
 <div id="toast"></div>
 
+
+<!-- ══ BIOMETRIC REGISTER MODAL ══ -->
+<div id="biometric-offer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
+    <div style="font-size:52px;margin-bottom:12px">☝️</div>
+    <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital para entrar más rápido la próxima vez?</div>
+    <button id="biometric-offer-yes" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">
+      ☝️ Sí, usar huella
+    </button>
+    <button onclick="document.getElementById('biometric-offer-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+      Ahora no
+    </button>
+  </div>
+</div>
 <script>
 // ══ VEHÍCULOS DATA ══
 var VEHICULOS = [
@@ -2270,7 +2285,7 @@ function fetchPlaces(query, sugEl, inp) {
 
 
 // ══ WEBAUTHN BIOMETRIC LOGIN ══
-var WEBAUTHN_KEY = 'drivx_webauthn_cred';
+var WEBAUTHN_KEY = 'drivx_webauthn_cred_supervisor';
 
 function webauthnSupported() {
   return window.PublicKeyCredential && navigator.credentials;
@@ -2362,17 +2377,15 @@ function offerBiometricRegister(email, pass) {
   if (!webauthnSupported()) return;
   var stored = null;
   try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
-  if (stored && stored.email === email) return; // already registered
-  // Show offer toast with action
-  var toastEl = document.getElementById('toast');
-  if (!toastEl) return;
-  toastEl.innerHTML = '\uD83D\uDC4B \u00BFGuardar acceso con huella? <button onclick="registerBiometric(\''+email+'\',\''+pass+'\');this.parentElement.classList.remove(\'show\')" style="margin-left:8px;padding:3px 10px;border-radius:8px;border:none;background:var(--cyan);color:#000;font-size:12px;font-weight:800;cursor:pointer">S\u00ED</button>';
-  toastEl.classList.add('show');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function(){
-    toastEl.classList.remove('show');
-    setTimeout(function(){ if(toastEl) toastEl.innerHTML=''; }, 300);
-  }, 8000);
+  if (stored && stored.email === email) return;
+  var modal = document.getElementById('biometric-offer-modal');
+  var yesBtn = document.getElementById('biometric-offer-yes');
+  if (!modal || !yesBtn) return;
+  yesBtn.onclick = function() {
+    modal.style.display = 'none';
+    registerBiometric(email, pass);
+  };
+  modal.style.display = 'flex';
 }
 
 </script>
