@@ -1070,7 +1070,7 @@ function doLogin() {
   var u = USERS[email];
   if (!u || u.pass !== pass) { err.style.display='block'; return; }
   err.style.display='none';
-  var _hasStored = (function(){var s=null;try{s=JSON.parse(localStorage.getItem("drivx_webauthn_cred_driver")||"null");}catch(e){}return !!(s&&s.email);})();
+  var _hasStored = (function(){var s=null;try{s=JSON.parse(localStorage.getItem("drivx_webauthn_cred_driver")||"null");}catch(e){}return !!(s&&s.email&&s.registered===true);})();
   if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 10000); } else { loginAs(u); }
 }
 
@@ -2551,7 +2551,7 @@ var WEBAUTHN_KEY = 'drivx_webauthn_cred_driver';
 function webauthnSupported(){ return !!(window.PublicKeyCredential && navigator.credentials); }
 async function registerBiometric(email,pass){
   // Save credentials first, then try WebAuthn
-  localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({email:email,pass:pass,ts:Date.now()}));
+  localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({email:email,pass:pass,registered:true,ts:Date.now()}));
   if(webauthnSupported()){
     try{
       var ch=new Uint8Array(32); crypto.getRandomValues(ch);
@@ -2562,14 +2562,14 @@ async function registerBiometric(email,pass){
         authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
         timeout:60000,attestation:'none'
       }});
-      localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({credId:Array.from(new Uint8Array(cr.rawId)),email:email,pass:pass,ts:Date.now()}));
+      localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({credId:Array.from(new Uint8Array(cr.rawId)),email:email,pass:pass,registered:true,ts:Date.now()}));
     }catch(e){}
   }
   toast('\u2705 Acceso r\u00E1pido activado');showBiometricBtn();
 }
 async function loginWithBiometric(){
   var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
-  if(!s||!s.email||!s.pass)return;
+  if(!s||!s.email||!s.pass||s.registered!==true)return;
   if(webauthnSupported()&&s.credId){
     try{
       var ch=new Uint8Array(32); crypto.getRandomValues(ch);
@@ -2589,14 +2589,14 @@ function showBiometricBtn(){
   var btn=document.getElementById('biometric-btn');
   var clr=document.getElementById('biometric-clear');
   var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
-  var show=!!(s&&s.email&&s.pass);
+  var show=!!(s&&s.email&&s.pass&&s.registered===true);
   if(btn)btn.style.display=show?'flex':'none';
   if(clr)clr.style.display=show?'block':'none';
 }
 function clearBiometric(){localStorage.removeItem(WEBAUTHN_KEY);showBiometricBtn();toast('\uD83D\uDDD1 Acceso r\u00E1pido eliminado');}
 function offerBiometricRegister(email,pass){
   var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
-  if(s&&s.email===email)return;
+  if(s&&s.email===email&&s.registered===true)return;
   var modal=document.getElementById('biometric-offer-modal');
   var yesBtn=document.getElementById('biometric-offer-yes');
   if(!modal||!yesBtn)return;
