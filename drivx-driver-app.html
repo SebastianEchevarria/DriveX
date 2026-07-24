@@ -262,12 +262,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
       <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
-      <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:10px;padding:14px;border-radius:12px;border:2px solid rgba(0,212,255,.4);background:rgba(0,212,255,.06);color:var(--cyan);font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;align-items:center;justify-content:center;gap:10px">
-        <span style="font-size:22px">\uD83D\uDC41\uFE0F</span> Entrar con huella
-      </button>
-      <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none">
-        <button onclick="clearBiometric()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button>
-      </div>
+      <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:10px;padding:14px;border-radius:12px;border:2px solid rgba(0,212,255,.4);background:rgba(0,212,255,.06);color:var(--cyan);font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;align-items:center;justify-content:center;gap:10px">☝️ Entrar con huella</button>
+      <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none"><button onclick="clearBiometric()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button></div>
     <div class="login-divider"><span>¿Primera vez?</span></div>
     <button class="btn-secondary" onclick="openInvite()">Activar cuenta con código</button>
   </div>
@@ -837,22 +833,6 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
       <div id="wrong-ticket-target" style="font-size:26px;font-weight:900;color:var(--cyan)"></div>
     </div>
     <button onclick="closeWrongTicketModal()" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit">Entendido</button>
-  </div>
-</div>
-
-<!-- ══ BIOMETRIC REGISTER MODAL ══ -->
-
-<div id="biometric-offer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;align-items:center;justify-content:center;padding:24px">
-  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
-    <div style="font-size:52px;margin-bottom:12px">☝️</div>
-    <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital para entrar más rápido la próxima vez?</div>
-    <button id="biometric-offer-yes" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">
-      ☝️ Sí, usar huella
-    </button>
-    <button onclick="document.getElementById('biometric-offer-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
-      Ahora no
-    </button>
   </div>
 </div>
 <script>
@@ -2315,7 +2295,7 @@ function closeWrongTicketModal() {
 var WEBAUTHN_KEY = 'drivx_webauthn_cred';
 
 function webauthnSupported() {
-  return window.PublicKeyCredential && navigator.credentials;
+  return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
 }
 
 async function registerBiometric(email, pass) {
@@ -2323,33 +2303,22 @@ async function registerBiometric(email, pass) {
   try {
     var challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
-    var userId = new TextEncoder().encode(email);
-
     var cred = await navigator.credentials.create({
       publicKey: {
         challenge: challenge,
         rp: { name: 'DRIVX', id: location.hostname },
-        user: { id: userId, name: email, displayName: email },
+        user: { id: new TextEncoder().encode(email), name: email, displayName: email },
         pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
         authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
-        timeout: 60000,
-        attestation: 'none'
+        timeout: 60000, attestation: 'none'
       }
     });
-
-    // Store credential id and user info
-    var stored = {
-      credId: Array.from(new Uint8Array(cred.rawId)),
-      email: email,
-      pass: pass,
-      ts: Date.now()
-    };
-    localStorage.setItem(WEBAUTHN_KEY, JSON.stringify(stored));
-    toast('\u2705 Huella registrada · Pr\u00F3xima vez usa el bot\u00F3n de huella');
+    localStorage.setItem(WEBAUTHN_KEY, JSON.stringify({
+      credId: Array.from(new Uint8Array(cred.rawId)), email: email, pass: pass, ts: Date.now()
+    }));
+    toast('✅ Huella registrada · Próxima vez usa el botón de huella');
     showBiometricBtn();
-  } catch(e) {
-    if (e.name !== 'NotAllowedError') toast('\u26A0 No se pudo registrar la huella');
-  }
+  } catch(e) { if (e.name !== 'NotAllowedError') toast('⚠ No se pudo registrar la huella'); }
 }
 
 async function loginWithBiometric() {
@@ -2357,30 +2326,21 @@ async function loginWithBiometric() {
   var stored = null;
   try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
   if (!stored) return;
-
   try {
     var challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
-
-    var assertion = await navigator.credentials.get({
+    await navigator.credentials.get({
       publicKey: {
         challenge: challenge,
         rpId: location.hostname,
         allowCredentials: [{ id: new Uint8Array(stored.credId), type: 'public-key' }],
-        userVerification: 'required',
-        timeout: 60000
+        userVerification: 'required', timeout: 60000
       }
     });
-
-    // Biometric verified — log in with stored credentials
-    var emailEl = document.getElementById('login-email');
-    var passEl  = document.getElementById('login-pass');
-    if (emailEl) emailEl.value = stored.email;
-    if (passEl)  passEl.value  = stored.pass;
+    document.getElementById('login-email').value = stored.email;
+    document.getElementById('login-pass').value  = stored.pass;
     doLogin();
-  } catch(e) {
-    if (e.name !== 'NotAllowedError') toast('\u274C Autenticaci\u00F3n fallida');
-  }
+  } catch(e) { if (e.name !== 'NotAllowedError') toast('❌ Autenticación fallida'); }
 }
 
 function showBiometricBtn() {
@@ -2396,10 +2356,9 @@ function showBiometricBtn() {
 function clearBiometric() {
   localStorage.removeItem(WEBAUTHN_KEY);
   showBiometricBtn();
-  toast('\uD83D\uDDD1 Huella eliminada');
+  toast('🗑 Huella eliminada');
 }
 
-// Show register option after successful login
 function offerBiometricRegister(email, pass) {
   if (!webauthnSupported()) return;
   var stored = null;
@@ -2408,16 +2367,21 @@ function offerBiometricRegister(email, pass) {
   var modal = document.getElementById('biometric-offer-modal');
   var yesBtn = document.getElementById('biometric-offer-yes');
   if (!modal || !yesBtn) return;
-  yesBtn.onclick = function() {
-    modal.style.display = 'none';
-    registerBiometric(email, pass);
-  };
+  yesBtn.onclick = function() { modal.style.display='none'; registerBiometric(email, pass); };
   modal.style.display = 'flex';
 }
-
 </script>
 <div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
 
-
+<!-- BIOMETRIC OFFER MODAL -->
+<div id="biometric-offer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
+    <div style="font-size:52px;margin-bottom:12px">☝️</div>
+    <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital para entrar más rápido?</div>
+    <button id="biometric-offer-yes" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">☝️ Sí, usar huella</button>
+    <button onclick="document.getElementById('biometric-offer-modal').style.display='none'" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Ahora no</button>
+  </div>
+</div>
 </body>
 </html>
