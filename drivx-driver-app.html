@@ -355,6 +355,10 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         </div>
       </div>
       <div id="cita-nota-txt" style="font-size:11px;color:var(--text3);margin-top:8px;display:none"></div>
+      <!-- Maps button -->
+      <a id="cita-maps-btn" style="display:none;margin-top:10px;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:12px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:13px;font-weight:800;text-decoration:none;cursor:pointer">
+        🗺️ IR · Abrir en Google Maps
+      </a>
     </div>
 
     <!-- Fichar button -->
@@ -2157,6 +2161,20 @@ function loadProximaCita() {
   document.getElementById('cita-tipo-txt').textContent = cita.tipo;
   document.getElementById('cita-lugar-txt').textContent = cita.lugar || 'Sin dirección';
   document.getElementById('cita-fecha-txt').textContent = citaDate.toLocaleDateString('es-ES', {weekday:'short',day:'2-digit',month:'short'}) + (cita.hora ? ' · ' + cita.hora : '');
+
+  // Maps button
+  var mapsBtn = document.getElementById('cita-maps-btn');
+  if (mapsBtn) {
+    if (cita.lugar) {
+      mapsBtn.style.display = 'flex';
+      mapsBtn.onclick = function() {
+        var q = encodeURIComponent(cita.lugar);
+        window.open('https://www.google.com/maps/search/?api=1&query=' + q, '_blank');
+      };
+    } else {
+      mapsBtn.style.display = 'none';
+    }
+  }
 
   var notaEl = document.getElementById('cita-nota-txt');
   if (cita.nota) { notaEl.textContent = '📝 ' + cita.nota; notaEl.style.display = 'block'; }
