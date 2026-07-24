@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIVX · Panel Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #070b12; --surface:#0d1420; --surface2:#111b2b;
+  --border:  #1c2d42; --border2:#243347;
+  --text:    #e8edf5; --text2:#c8d8e8; --text3:#9ab0c8;
+  --green:   #00e676; --cyan:#00d4ff; --amber:#ffb300;
+  --red:     #ff4757; --purple:#7c5cfc; --mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── LOGIN ── */
+#screen-login{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 20% 20%,rgba(0,212,255,.06),transparent 60%),radial-gradient(circle at 80% 80%,rgba(124,92,252,.06),transparent 60%),var(--bg)}
+.login-box{position:relative;z-index:1;width:100%;max-width:380px}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.login-logo .mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000}
+.login-logo .name{font-size:20px;font-weight:900;letter-spacing:.5px}
+.login-tag{font-size:11px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:36px;margin-top:4px}
+.role-toggle{display:flex;gap:8px;margin-bottom:20px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:4px}
+.role-btn{flex:1;padding:10px;border:none;border-radius:9px;background:transparent;color:var(--text3);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:.15s}
+.role-btn.active{background:var(--cyan);color:#000}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:13px 14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none}
+.field input:focus{border-color:var(--cyan)}
+.btn-primary{width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:6px}
+.login-error{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:14px;display:none}
+.login-hint{margin-top:20px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6}
+
+/* ── SHELL ── */
+#shell{display:none;height:100vh;overflow:hidden}
+#sidebar{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0}
+.sb-logo{display:flex;align-items:center;padding:4px 16px 8px}
+.sb-logo .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#000}
+.sb-logo .txt{font-size:15px;font-weight:900}
+.sb-logo .sub{font-size:10px;color:var(--text3);letter-spacing:1px}
+.sb-section{font-size:10px;font-weight:800;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:8px 20px;margin-top:10px}
+.sb-item{display:flex;align-items:center;gap:12px;padding:11px 20px;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;border-left:3px solid transparent}
+.sb-item:hover{background:var(--surface2)}
+.sb-item.active{background:rgba(0,212,255,.08);color:var(--cyan);border-left-color:var(--cyan)}
+.sb-item.disabled{color:var(--text3);cursor:default;opacity:.5}
+.sb-item.disabled:hover{background:none}
+.sb-item .ic{font-size:17px;width:20px;text-align:center}
+.sb-soon{margin-left:auto;font-size:8px;font-weight:800;letter-spacing:.5px;color:var(--text3);background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:2px 5px}
+.sb-foot{margin-top:auto;padding:14px 20px 0;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:10px;padding-top:14px}
+.sb-user .av{width:32px;height:32px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.sb-user .nm{font-size:12px;font-weight:700}
+.sb-user .rl{font-size:10px;color:var(--cyan)}
+.sb-logout{margin-top:10px;width:100%;padding:9px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+
+#main-wrap{flex:1;display:flex;flex-direction:column;min-width:0}
+#topbar{height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--border);background:rgba(13,20,32,.6);backdrop-filter:blur(10px)}
+.tb-title{font-size:17px;font-weight:800}
+.tb-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.sync-pill{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--green);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:20px;padding:6px 12px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+
+#content{flex:1;overflow-y:auto;padding:28px}
+.dash-screen{display:none}
+.dash-screen.active{display:block}
+
+/* ── STAT CARDS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px}
+.stat-card .lbl{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px}
+.stat-card .val{font-size:28px;font-weight:900;font-family:var(--mono)}
+.stat-card .foot{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* ── FLOTA ── */
+.ccaa-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
+.veh-card{background:var(--surface2);border-radius:18px;padding:16px 18px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.veh-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.veh-icon{width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.veh-plate{font-size:17px;font-weight:900;font-family:var(--mono);color:var(--cyan)}
+.veh-model{font-size:12px;color:var(--text3)}
+.cond-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+.cond-row:last-child{border-bottom:none}
+.edit-btn{background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.edit-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.manager-lock{font-size:10px;color:var(--text3);font-style:italic}
+.veh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0 16px}
+
+@media (max-width:860px){
+  #sidebar{position:fixed;left:-240px;top:0;height:100%;z-index:200;transition:left .2s}
+  #sidebar.open{left:0}
+  #content{padding:18px}
+  .veh-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div id="screen-login">
+  <!-- Fondo: mapa de navegación estilo Google Maps con ruta trazada, muy tenue + viñeta oscura para que el login se lea perfecto -->
+  <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0">
+    <svg width="100%" height="100%" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1400 900" style="position:absolute;inset:0;opacity:.5">
+      <defs>
+        <linearGradient id="mapBg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0a1526"/>
+          <stop offset="100%" stop-color="#0d1f35"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="1400" height="900" fill="url(#mapBg)"/>
+
+      <!-- manzanas de ciudad (bloques tipo mapa) -->
+      <g fill="#0f2038">
+        <rect x="60" y="70" width="180" height="130"/>
+        <rect x="290" y="60" width="140" height="110"/>
+        <rect x="70" y="240" width="150" height="160"/>
+        <rect x="270" y="230" width="120" height="90"/>
+        <rect x="430" y="620" width="160" height="140"/>
+        <rect x="620" y="640" width="130" height="110"/>
+        <rect x="980" y="90" width="150" height="120"/>
+        <rect x="1160" y="70" width="170" height="150"/>
+        <rect x="1000" y="260" width="130" height="100"/>
+        <rect x="1180" y="600" width="160" height="150"/>
+        <rect x="960" y="630" width="130" height="120"/>
+        <rect x="80" y="600" width="140" height="120"/>
+      </g>
+
+      <!-- rejilla de calles -->
+      <g stroke="#1c3a5c" stroke-width="3">
+        <line x1="0" y1="60" x2="1400" y2="60"/>
+        <line x1="0" y1="215" x2="1400" y2="215"/>
+        <line x1="0" y1="410" x2="1400" y2="410"/>
+        <line x1="0" y1="595" x2="1400" y2="595"/>
+        <line x1="0" y1="775" x2="1400" y2="775"/>
+        <line x1="250" y1="0" x2="250" y2="900"/>
+        <line x1="450" y1="0" x2="450" y2="900"/>
+        <line x1="700" y1="0" x2="700" y2="900"/>
+        <line x1="960" y1="0" x2="960" y2="900"/>
+        <line x1="1150" y1="0" x2="1150" y2="900"/>
+      </g>
+      <g stroke="#152c47" stroke-width="1.5">
+        <line x1="0" y1="140" x2="1400" y2="140"/>
+        <line x1="0" y1="310" x2="1400" y2="310"/>
+        <line x1="0" y1="500" x2="1400" y2="500"/>
+        <line x1="0" y1="690" x2="1400" y2="690"/>
+        <line x1="130" y1="0" x2="130" y2="900"/>
+        <line x1="360" y1="0" x2="360" y2="900"/>
+        <line x1="560" y1="0" x2="560" y2="900"/>
+        <line x1="830" y1="0" x2="830" y2="900"/>
+        <line x1="1070" y1="0" x2="1070" y2="900"/>
+        <line x1="1260" y1="0" x2="1260" y2="900"/>
+      </g>
+
+      <!-- halo de la ruta (glow) -->
+      <path d="M130,775 C250,775 250,595 450,595 C620,595 620,410 700,410 C820,410 830,215 960,215 C1080,215 1100,140 1260,140"
+            fill="none" stroke="#00d4ff" stroke-width="16" opacity=".18" stroke-linecap="round"/>
+      <!-- ruta principal (estilo Google Maps: línea azul gruesa) -->
+      <path d="M130,775 C250,775 250,595 450,595 C620,595 620,410 700,410 C820,410 830,215 960,215 C1080,215 1100,140 1260,140"
+            fill="none" stroke="#2a8fff" stroke-width="7" stroke-linecap="round"/>
+      <!-- línea central discontinua blanca, como el sentido de circulación -->
+      <path d="M130,775 C250,775 250,595 450,595 C620,595 620,410 700,410 C820,410 830,215 960,215 C1080,215 1100,140 1260,140"
+            fill="none" stroke="#e8f4ff" stroke-width="1.4" stroke-dasharray="10,10" opacity=".7"/>
+
+      <!-- punto de origen: ubicación actual (pulsante) -->
+      <circle cx="130" cy="775" r="20" fill="#2a8fff" opacity=".18"/>
+      <circle cx="130" cy="775" r="10" fill="#0a1526" stroke="#2a8fff" stroke-width="3"/>
+      <circle cx="130" cy="775" r="4" fill="#2a8fff"/>
+
+      <!-- pin de destino (estilo Google Maps) -->
+      <g>
+        <path d="M1260,90 C1284,90 1300,108 1300,131 C1300,158 1260,196 1260,196 C1260,196 1220,158 1220,131 C1220,108 1236,90 1260,90 Z" fill="#ff4757"/>
+        <circle cx="1260" cy="130" r="14" fill="#0a1526"/>
+      </g>
+
+      <!-- coche circulando por la ruta -->
+      <g transform="translate(700,410)">
+        <circle r="13" fill="#0a1526" stroke="#00d4ff" stroke-width="2.5"/>
+        <text x="0" y="5" text-anchor="middle" font-size="15">🚗</text>
+      </g>
+    </svg>
+    <!-- Viñeta oscura: garantiza contraste perfecto para el formulario -->
+    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(5,10,18,.95) 0%,rgba(5,10,18,.88) 30%,rgba(5,10,18,.55) 60%,rgba(5,10,18,.22) 100%)"></div>
+  </div>
+  <div class="login-box">
+    <div style="display:flex;justify-content:center">
+      
+      <svg width="300" height="87" viewBox="0 0 220 64" style="margin-bottom:6px">
+        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+        <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+        <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
+        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+        <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
+        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+        <circle cx="33" cy="16" r="2.2" fill="#020810"/>
+        <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
+        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+      </svg>
+    </div>
+    <div class="login-tag" style="text-align:center">Panel de administración</div>
+
+    <div class="role-toggle">
+      <button class="role-btn active" id="role-admin" onclick="setRole('admin')">👑 Administrador</button>
+      <button class="role-btn" id="role-manager" onclick="setRole('manager')">📊 Manager</button>
+    </div>
+
+    <div class="login-error" id="login-error">Credenciales incorrectas.</div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="tucorreo@vtcinfinity.com">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Entrar</button>
+
+    <div class="login-hint">Acceso exclusivo para Administración y Managers.<br>Conductores y supervisores no tienen acceso a este panel.</div>
+  </div>
+</div>
+
+<!-- ══════════════ SHELL ══════════════ -->
+<div id="shell">
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <svg width="150" height="34" viewBox="0 0 220 64">
+        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+        <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+        <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
+        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+        <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
+        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+        <circle cx="33" cy="16" r="2.2" fill="#020810"/>
+        <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
+        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+      </svg>
+    </div>
+    <div style="padding:0 20px 16px;margin-top:-8px;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:1px">PANEL ADMIN</div>
+    </div>
+
+    <div class="sb-section">General</div>
+    <button class="sb-item active" id="nav-inicio" onclick="showDashScreen('inicio')"><span class="ic">🏠</span> Inicio</button>
+
+    <div class="sb-section">Operaciones</div>
+    <button class="sb-item" id="nav-flota" onclick="showDashScreen('flota')"><span class="ic">🚗</span> Flota</button>
+    <button class="sb-item disabled"><span class="ic">📅</span> Citas y revisiones <span class="sb-soon">PRÓXIMAMENTE</span></button>
+    <button class="sb-item disabled"><span class="ic">👥</span> Conductores <span class="sb-soon">PRÓXIMAMENTE</span></button>
+
+    <div class="sb-section">Negocio</div>
+    <button class="sb-item disabled"><span class="ic">💰</span> Facturación <span class="sb-soon">PRÓXIMAMENTE</span></button>
+    <button class="sb-item disabled"><span class="ic">📈</span> Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
+
+    <div class="sb-section">Sistema</div>
+    <button class="sb-item disabled"><span class="ic">⚙️</span> Configuración <span class="sb-soon">PRÓXIMAMENTE</span></button>
+
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="av" id="sb-avatar">👑</div>
+        <div><div class="nm" id="sb-name">Admin</div><div class="rl" id="sb-role">Administrador</div></div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <div id="main-wrap">
+    <header id="topbar">
+      <div>
+        <div class="tb-title" id="tb-title">Inicio</div>
+        <div class="tb-sub" id="tb-sub">Resumen general</div>
+      </div>
+      <div class="sync-pill"><span class="sync-dot"></span> Conectado a App Conductor y App Supervisor</div>
+    </header>
+
+    <div id="content">
+
+      <!-- ── INICIO ── -->
+      <div class="dash-screen active" id="dash-inicio">
+        <div class="stat-grid" id="inicio-stats"></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px">
+          <div style="font-size:14px;font-weight:800;margin-bottom:10px">👋 Bienvenido al Panel de Administración</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.7">
+            Este panel está conectado a la <b>App Conductor</b> y a la <b>App Supervisor</b>. Todo lo que se registre allí — citas, revisiones, documentación de vehículos, fichajes — se refleja aquí automáticamente.<br><br>
+            Como <b id="inicio-role-note">administrador</b> puedes ver y editar toda la información. Iremos añadiendo más secciones progresivamente (Citas, Conductores, Facturación, Informes...).
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FLOTA ── -->
+      <div class="dash-screen" id="dash-flota">
+        <div id="flota-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: FICHA DE VEHÍCULO ══════════════ -->
+<div id="vehicle-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div class="veh-icon" id="vd-icon" style="width:48px;height:48px;font-size:24px">🚗</div>
+      <div style="flex:1">
+        <div style="font-size:19px;font-weight:900;font-family:var(--mono);color:var(--cyan)" id="vd-plate">—</div>
+        <div style="font-size:12px;color:var(--text3)" id="vd-model">—</div>
+      </div>
+      <button onclick="closeVehicleDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="padding:20px 22px">
+      <div class="sb-section" style="padding:0 0 10px">Estado ITV</div>
+      <div id="vd-itv" style="font-size:13px;font-weight:700;margin-bottom:22px">—</div>
+
+      <div class="sb-section" style="padding:0 0 10px">Conductores y turnos</div>
+      <div id="vd-conductores" style="margin-bottom:22px"></div>
+
+      <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo</div>
+      <div id="vd-docs"></div>
+    </div>
+  </div>
+</div>
+<input type="file" id="vd-file-input" accept="application/pdf,image/*" style="position:absolute;left:-9999px;opacity:0">
+
+<script>
+// ══ DATOS COMPARTIDOS (misma fuente que la App Supervisor) ══
+var VEHICULOS = [
+  { matricula: '1234 ABC', modelo: 'Tesla Model 3', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '⚡',
+    docs: { itv: { fecha:'2026-08-10', ok:true }, seguro: { fecha:'15/03/2025', ok:true }, vtc: { ok:true } },
+    conductores: ['ahmed','carlos','rafael'] },
+  { matricula: '9012 GHI', modelo: 'BMW 5 Series', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '🚗',
+    docs: { itv: { fecha:'2024-11-15', ok:false }, seguro: { fecha:'28/02/2025', ok:true }, vtc: { ok:true } },
+    conductores: ['paco','lucia','omar'] },
+  { matricula: '5678 DEF', modelo: 'Mercedes EQS', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '⚡',
+    docs: { itv: { fecha:'2026-09-15', ok:true }, seguro: { fecha:'01/06/2025', ok:true }, vtc: { ok:true } },
+    conductores: ['maria','david','fatima'] },
+  { matricula: '3456 JKL', modelo: 'Toyota Prius', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
+    docs: { itv: { fecha:'2024-12-15', ok:false, warn:true }, seguro: { fecha:'20/04/2025', ok:true }, vtc: { ok:true } },
+    conductores: ['sonia','miguel','elena'] },
+  { matricula: '7890 MNO', modelo: 'Skoda Octavia', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
+    docs: { itv: { fecha:'2027-03-10', ok:true }, seguro: { fecha:'15/09/2025', ok:true }, vtc: { ok:true } },
+    conductores: ['ivan','nadia','jorge'] },
+  { matricula: '0000 TST', modelo: 'Vehículo Test', ciudad: 'Test', ccaa: 'Andalucía', icon: '🔧',
+    docs: { itv: { fecha:'2026-01-01', ok:true }, seguro: { fecha:'01/01/2026', ok:true }, vtc: { ok:true } },
+    conductores: ['test'] },
+  { matricula: '2345 CLM', modelo: 'Tesla Model Y', ciudad: 'Albacete', ccaa: 'Castilla-La Mancha', icon: '⚡',
+    docs: { itv: { fecha:'2026-07-28', ok:true }, seguro: { fecha:'2025-12-01', ok:true }, vtc: { ok:true } },
+    conductores: ['andres','beatriz','cristian'] },
+  { matricula: '6789 CLM', modelo: 'Toyota Camry', ciudad: 'Cuenca', ccaa: 'Castilla-La Mancha', icon: '🚗',
+    docs: { itv: { fecha:'2024-10-20', ok:false }, seguro: { fecha:'2025-06-15', ok:true }, vtc: { ok:true } },
+    conductores: ['diana','ernesto','felix'] },
+  { matricula: '1122 CLM', modelo: 'Tesla Model 3', ciudad: 'Toledo', ccaa: 'Castilla-La Mancha', icon: '⚡',
+    docs: { itv: { fecha:'2026-10-30', ok:true }, seguro: { fecha:'2025-11-20', ok:true }, vtc: { ok:true } },
+    conductores: ['gloria','hector','irene'] },
+  { matricula: '3344 CLM', modelo: 'Volkswagen Passat', ciudad: 'Ciudad Real', ccaa: 'Castilla-La Mancha', icon: '🚗',
+    docs: { itv: { fecha:'2026-12-05', ok:true }, seguro: { fecha:'2026-02-10', ok:true }, vtc: { ok:true } },
+    conductores: ['javier','karen','luis'] }
+];
+
+var CONDUCTORES = [
+  { cid:'ahmed',    nombre:'Ahmed Karimi',    matricula:'1234 ABC', turno:'06:00–14:00' },
+  { cid:'carlos',   nombre:'Carlos Vega',     matricula:'1234 ABC', turno:'14:00–22:00' },
+  { cid:'rafael',   nombre:'Rafael Ortiz',    matricula:'1234 ABC', turno:'22:00–06:00' },
+  { cid:'paco',     nombre:'Paco Ruiz',       matricula:'9012 GHI', turno:'06:00–14:00' },
+  { cid:'lucia',    nombre:'Lucía Fernández', matricula:'9012 GHI', turno:'14:00–22:00' },
+  { cid:'omar',     nombre:'Omar Hassan',     matricula:'9012 GHI', turno:'22:00–06:00' },
+  { cid:'maria',    nombre:'María López',     matricula:'5678 DEF', turno:'06:00–14:00' },
+  { cid:'david',    nombre:'David Serrano',   matricula:'5678 DEF', turno:'14:00–22:00' },
+  { cid:'fatima',   nombre:'Fátima Benali',   matricula:'5678 DEF', turno:'22:00–06:00' },
+  { cid:'sonia',    nombre:'Sonia Martín',    matricula:'3456 JKL', turno:'14:00–22:00' },
+  { cid:'miguel',   nombre:'Miguel Ángel',    matricula:'3456 JKL', turno:'06:00–14:00' },
+  { cid:'elena',    nombre:'Elena Castro',    matricula:'3456 JKL', turno:'22:00–06:00' },
+  { cid:'ivan',     nombre:'Iván Torres',     matricula:'7890 MNO', turno:'22:00–06:00' },
+  { cid:'nadia',    nombre:'Nadia Popescu',   matricula:'7890 MNO', turno:'06:00–14:00' },
+  { cid:'jorge',    nombre:'Jorge Molina',    matricula:'7890 MNO', turno:'14:00–22:00' },
+  { cid:'test',     nombre:'Test User',       matricula:'0000 TST', turno:'06:00–14:00' },
+  { cid:'andres',   nombre:'Andrés Molina',   matricula:'2345 CLM', turno:'06:00–14:00' },
+  { cid:'beatriz',  nombre:'Beatriz Ramos',   matricula:'2345 CLM', turno:'14:00–22:00' },
+  { cid:'cristian', nombre:'Cristian Núñez',  matricula:'2345 CLM', turno:'22:00–06:00' },
+  { cid:'diana',    nombre:'Diana Herrero',   matricula:'6789 CLM', turno:'06:00–14:00' },
+  { cid:'ernesto',  nombre:'Ernesto Sanz',    matricula:'6789 CLM', turno:'14:00–22:00' },
+  { cid:'felix',    nombre:'Félix Carrasco',  matricula:'6789 CLM', turno:'22:00–06:00' },
+  { cid:'gloria',   nombre:'Gloria Prieto',   matricula:'1122 CLM', turno:'06:00–14:00' },
+  { cid:'hector',   nombre:'Héctor Ibáñez',   matricula:'1122 CLM', turno:'14:00–22:00' },
+  { cid:'irene',    nombre:'Irene Blanco',    matricula:'1122 CLM', turno:'22:00–06:00' },
+  { cid:'javier',   nombre:'Javier Cano',     matricula:'3344 CLM', turno:'06:00–14:00' },
+  { cid:'karen',    nombre:'Karen Flores',    matricula:'3344 CLM', turno:'14:00–22:00' },
+  { cid:'luis',     nombre:'Luis Méndez',     matricula:'3344 CLM', turno:'22:00–06:00' }
+];
+
+// Usuarios de acceso al panel (solo admin y manager)
+var USERS_DASH = {
+  'admin@vtcinfinity.com':   { pass:'admin123',   nombre:'Admin VTC',   role:'admin' },
+  'manager@vtcinfinity.com': { pass:'manager123', nombre:'Manager VTC', role:'manager' }
+};
+
+var currentRole = 'admin'; // rol seleccionado en el toggle de login
+var currentUser = null;
+
+function setRole(r) {
+  currentRole = r;
+  document.getElementById('role-admin').classList.toggle('active', r === 'admin');
+  document.getElementById('role-manager').classList.toggle('active', r === 'manager');
+}
+
+function doLogin() {
+  var email = (document.getElementById('login-email').value || '').trim().toLowerCase();
+  var pass  = document.getElementById('login-pass').value || '';
+  var err   = document.getElementById('login-error');
+
+  // Usuario tester — mismo acceso rápido que en las apps de conductor y supervisor
+  if (email === '1111' && pass === '1111') {
+    err.style.display = 'none';
+    currentUser = { nombre: 'Test User', role: currentRole };
+    localStorage.setItem('drivx_admin_user', '1111');
+    enterShell();
+    return;
+  }
+
+  var u = USERS_DASH[email];
+  if (!u || u.pass !== pass || u.role !== currentRole) {
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  currentUser = u;
+  localStorage.setItem('drivx_admin_user', email);
+  enterShell();
+}
+
+function doLogout() {
+  currentUser = null;
+  localStorage.removeItem('drivx_admin_user');
+  document.getElementById('shell').style.display = 'none';
+  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+function enterShell() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('shell').style.display = 'flex';
+
+  var isAdmin = currentUser.role === 'admin';
+  document.getElementById('sb-avatar').textContent = isAdmin ? '👑' : '📊';
+  document.getElementById('sb-name').textContent = currentUser.nombre;
+  document.getElementById('sb-role').textContent = isAdmin ? 'Administrador' : 'Manager (solo lectura)';
+  document.getElementById('inicio-role-note').textContent = isAdmin ? 'administrador' : 'manager';
+
+  renderInicioStats();
+  renderFlota();
+}
+
+// ══ NAVEGACIÓN ══
+function showDashScreen(id) {
+  document.querySelectorAll('.dash-screen').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.sb-item').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('dash-' + id).classList.add('active');
+  var nb = document.getElementById('nav-' + id);
+  if (nb) nb.classList.add('active');
+
+  var titles = {
+    inicio: ['Inicio', 'Resumen general'],
+    flota:  ['Flota', 'Vehículos por comunidad autónoma']
+  };
+  document.getElementById('tb-title').textContent = titles[id][0];
+  document.getElementById('tb-sub').textContent = titles[id][1];
+}
+
+// ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
+function renderInicioStats() {
+  var now = new Date();
+  function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+
+  var totalVeh = VEHICULOS.length;
+  var totalCond = CONDUCTORES.length;
+  var urgentes = VEHICULOS.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
+  var ccaas = {}; VEHICULOS.forEach(function(v){ ccaas[v.ccaa] = (ccaas[v.ccaa]||0) + 1; });
+
+  var html = '';
+  html += statCard('Vehículos en flota', totalVeh, Object.keys(ccaas).length + ' comunidades autónomas');
+  html += statCard('Conductores activos', totalCond, 'Repartidos en toda la flota');
+  html += statCard('ITV urgente / vencida', urgentes, urgentes > 0 ? '⚠ Requiere atención' : '✓ Todo en orden', urgentes > 0 ? 'var(--red)' : 'var(--green)');
+  html += statCard('Comunidades autónomas', Object.keys(ccaas).length, Object.keys(ccaas).join(' · '));
+
+  document.getElementById('inicio-stats').innerHTML = html;
+}
+function statCard(lbl, val, foot, color) {
+  return '<div class="stat-card"><div class="lbl">' + lbl + '</div>' +
+    '<div class="val" style="' + (color ? 'color:' + color : '') + '">' + val + '</div>' +
+    '<div class="foot">' + foot + '</div></div>';
+}
+
+// ══ FLOTA — agrupado por CCAA (mismo diseño que la App Supervisor) ══
+function renderFlota() {
+  var container = document.getElementById('flota-list');
+  if (!container) return;
+
+  var now = new Date();
+  function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+
+  var ccaaOrder = ['Andalucía', 'Comunidad Valenciana', 'Castilla-La Mancha'];
+  var groups = {};
+  VEHICULOS.forEach(function(v){
+    var cc = v.ccaa || 'Otras';
+    if (!groups[cc]) groups[cc] = [];
+    groups[cc].push(v);
+  });
+  Object.keys(groups).forEach(function(cc){
+    groups[cc].sort(function(a,b){ return dU(a.docs.itv.fecha) - dU(b.docs.itv.fecha); });
+  });
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+  });
+
+  var ccaaIcons  = { 'Andalucía':'🌞', 'Comunidad Valenciana':'🍊', 'Castilla-La Mancha':'🌾' };
+  var ccBg       = { 'Andalucía':'#1f1500', 'Comunidad Valenciana':'#1a0f1f', 'Castilla-La Mancha':'#0a1a0f' };
+  var ccBorder   = { 'Andalucía':'#7a4a00', 'Comunidad Valenciana':'#5a1a7a', 'Castilla-La Mancha':'#1a5a2a' };
+  var ccGroupBg  = { 'Andalucía':'rgba(122,74,0,.05)', 'Comunidad Valenciana':'rgba(90,26,122,.05)', 'Castilla-La Mancha':'rgba(26,90,42,.05)' };
+  var isAdmin = currentUser && currentUser.role === 'admin';
+
+  var html = '';
+  ccaas.forEach(function(cc){
+    var vl = groups[cc];
+    if (!vl || !vl.length) return;
+    var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var urg = vl.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
+
+    html += '<div class="ccaa-header" style="background:' + (ccBg[cc]||'#0d1f35') + ';border-color:' + (ccBorder[cc]||'#2a4a6e') + '" id="btn_' + gid + '">';
+    html += '<span style="font-size:22px">' + (ccaaIcons[cc]||'📍') + '</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">' + cc + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">' + vl.length + ' vehículo' + (vl.length > 1 ? 's' : '') + '</div></div>';
+    html += urg > 0
+      ? '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">' + urg + ' ⚠</span>'
+      : '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
+    html += '<span id="chv_' + gid + '" style="color:var(--text3);font-size:18px;margin-left:8px">⌄</span>';
+    html += '</div>';
+
+    html += '<div id="' + gid + '" style="display:block;background:' + (ccGroupBg[cc]||'transparent') + ';border-radius:12px;padding:8px 0 2px;margin-bottom:14px">';
+    html += '<div class="veh-grid">';
+
+    vl.forEach(function(v){
+      var id = dU(v.docs.itv.fecha);
+      var bc = (id < 0 || id <= 30) ? 'rgba(255,71,87,.4)' : id <= 90 ? 'rgba(255,179,0,.35)' : 'var(--border)';
+      var itvTxt = id < 0 ? '🚨 ITV VENCIDA' : id <= 30 ? '⚠ ITV en ' + id + ' días' : id <= 90 ? '⏰ ITV en ' + id + ' días' : '✓ ITV ' + fD(v.docs.itv.fecha);
+      var itvColor = (id < 0 || id <= 30) ? 'var(--red)' : id <= 90 ? 'var(--amber)' : 'var(--text3)';
+
+      var condRows = '';
+      v.conductores.forEach(function(cid){
+        var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+        if (!c) return;
+        var fichado = false;
+        try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_' + cid) || '{}').fichado); } catch (e) {}
+        condRows += '<div class="cond-row">' +
+          '<div><span style="font-weight:700">' + c.nombre + '</span>' +
+          '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>' +
+          '<span style="font-size:11px;font-weight:700;color:' + (fichado ? 'var(--green)' : 'var(--text3)') + '">' + (fichado ? '● Activo' : '○ Inactivo') + '</span>' +
+          '</div>';
+      });
+
+      html += '<div class="veh-card" style="border:2px solid ' + bc + ';cursor:pointer" onclick="openVehicleDetail(\'' + v.matricula + '\')">';
+      html += '<div class="veh-top">';
+      html += '<div class="veh-icon">' + v.icon + '</div>';
+      html += '<div style="flex:1"><div class="veh-plate">' + v.matricula + '</div>';
+      html += '<div class="veh-model">' + v.modelo + ' · ' + v.ciudad + '</div></div>';
+      html += isAdmin
+        ? '<span class="edit-btn">Ver ficha ›</span>'
+        : '<span class="manager-lock">🔒 solo lectura</span>';
+      html += '</div>';
+      html += '<div style="font-size:12px;font-weight:700;color:' + itvColor + ';margin-bottom:8px">' + itvTxt + '</div>';
+      html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
+      html += '</div>';
+    });
+
+    html += '</div></div>';
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin vehículos</div>';
+
+  ccaas.forEach(function(cc){
+    var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var btn = document.getElementById('btn_' + gid);
+    if (btn) btn.onclick = function(e){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_' + gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
+}
+
+// ══ FICHA DE VEHÍCULO — CONDUCTORES + DOCUMENTACIÓN ══
+// Los documentos se guardan con las MISMAS claves que usan las apps de Conductor
+// y Supervisor, por lo que lo que se suba aquí se puede abrir también allí.
+var DOC_TYPES = [
+  { key:'seguro',  label:'Seguro del vehículo (póliza)', icon:'🛡️', storageKey:'drivx_poliza_' },
+  { key:'permiso', label:'Permiso de circulación',        icon:'🪪', storageKey:'drivx_doc_permiso_' },
+  { key:'ficha',   label:'Ficha técnica',                 icon:'📋', storageKey:'drivx_doc_ficha_' },
+  { key:'itv',     label:'Informe de ITV',                icon:'🔧', storageKey:'drivx_doc_itv_' }
+];
+function matSlug(mat){ return mat.replace(/\s/g,'_'); }
+var _vdCurrentMat = null;
+
+function openVehicleDetail(matricula) {
+  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  _vdCurrentMat = matricula;
+
+  document.getElementById('vd-icon').textContent = v.icon;
+  document.getElementById('vd-plate').textContent = v.matricula;
+  document.getElementById('vd-model').textContent = v.modelo + ' · ' + v.ciudad + ' · ' + v.ccaa;
+
+  var now = new Date();
+  var d = v.docs.itv.fecha ? Math.round((new Date(v.docs.itv.fecha) - now) / 86400000) : 9999;
+  var fD = function(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; };
+  var itvTxt = d<0 ? '🚨 ITV VENCIDA' : d<=30 ? '⚠ ITV en '+d+' días' : d<=90 ? '⏰ ITV en '+d+' días' : '✓ ITV '+fD(v.docs.itv.fecha);
+  var itvColor = (d<0||d<=30) ? 'var(--red)' : d<=90 ? 'var(--amber)' : 'var(--text3)';
+  var itvEl = document.getElementById('vd-itv');
+  itvEl.textContent = itvTxt;
+  itvEl.style.color = itvColor;
+
+  var condHtml = '';
+  v.conductores.forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (!c) return;
+    var fichado = false;
+    try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_' + cid) || '{}').fichado); } catch(e){}
+    condHtml += '<div class="cond-row" style="padding:9px 0">' +
+      '<div><span style="font-weight:700">' + c.nombre + '</span>' +
+      '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>' +
+      '<span style="font-size:11px;font-weight:700;color:' + (fichado?'var(--green)':'var(--text3)') + '">' + (fichado?'● Activo':'○ Inactivo') + '</span></div>';
+  });
+  document.getElementById('vd-conductores').innerHTML = condHtml || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
+
+  renderVehicleDocs();
+  document.getElementById('vehicle-detail-modal').style.display = 'flex';
+}
+
+function closeVehicleDetail() {
+  document.getElementById('vehicle-detail-modal').style.display = 'none';
+  _vdCurrentMat = null;
+}
+
+function renderVehicleDocs() {
+  if (!_vdCurrentMat) return;
+  var isAdmin = currentUser && currentUser.role === 'admin';
+  var html = '';
+  DOC_TYPES.forEach(function(dt){
+    var key = dt.storageKey + matSlug(_vdCurrentMat);
+    var doc = null;
+    try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">';
+    html += '<div style="width:36px;height:36px;border-radius:9px;background:rgba(0,212,255,.08);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + dt.icon + '</div>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:13px;font-weight:700">' + dt.label + '</div>';
+    html += doc
+      ? '<div style="font-size:11px;color:var(--green)">✓ Subido ' + doc.fecha + ' · ' + Math.round((doc.size||0)/1024) + ' KB</div>'
+      : '<div style="font-size:11px;color:var(--text3)">No adjuntado</div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:6px;flex-shrink:0">';
+    if (doc) html += '<button class="edit-btn" onclick="viewVehicleDoc(\'' + dt.key + '\')">Ver</button>';
+    if (isAdmin) {
+      html += '<button class="edit-btn" onclick="triggerUploadDoc(\'' + dt.key + '\')">' + (doc ? 'Reemplazar' : 'Subir') + '</button>';
+      if (doc) html += '<button class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3)" onclick="deleteVehicleDoc(\'' + dt.key + '\')">🗑</button>';
+    }
+    html += '</div></div>';
+  });
+  document.getElementById('vd-docs').innerHTML = html;
+}
+
+function triggerUploadDoc(docType) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var input = document.getElementById('vd-file-input');
+  input.value = '';
+  input.onchange = function() {
+    var file = input.files[0];
+    if (!file || !_vdCurrentMat) return;
+    if (file.size > 8 * 1024 * 1024) { alert('El archivo es demasiado grande (máx. 8MB).'); return; }
+    var reader = new FileReader();
+    reader.onload = function() {
+      var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
+      var key = dt.storageKey + matSlug(_vdCurrentMat);
+      var doc = { nombre: file.name, fecha: new Date().toLocaleDateString('es-ES'), size: file.size, base64: reader.result };
+      try {
+        localStorage.setItem(key, JSON.stringify(doc));
+        renderVehicleDocs();
+      } catch(e) {
+        alert('No se pudo guardar el archivo (puede que sea demasiado grande para el almacenamiento local).');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function viewVehicleDoc(docType) {
+  if (!_vdCurrentMat) return;
+  var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
+  var key = dt.storageKey + matSlug(_vdCurrentMat);
+  var doc = null;
+  try { doc = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+  if (!doc) return;
+  var win = window.open('');
+  if (!win) { alert('Habilita las ventanas emergentes para ver el documento.'); return; }
+  if (doc.base64.indexOf('application/pdf') !== -1) {
+    win.document.write('<html><head><title>' + doc.nombre + '</title></head><body style="margin:0;height:100vh"><embed src="' + doc.base64 + '" type="application/pdf" width="100%" height="100%"></body></html>');
+  } else {
+    win.document.write('<html><head><title>' + doc.nombre + '</title></head><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh"><img src="' + doc.base64 + '" style="max-width:100%;max-height:100%"></body></html>');
+  }
+}
+
+function deleteVehicleDoc(docType) {
+  if (!_vdCurrentMat || !currentUser || currentUser.role !== 'admin') return;
+  if (!confirm('¿Eliminar este documento?')) return;
+  var dt = DOC_TYPES.find(function(d){ return d.key === docType; });
+  var key = dt.storageKey + matSlug(_vdCurrentMat);
+  localStorage.removeItem(key);
+  renderVehicleDocs();
+}
+
+// ══ SESIÓN PERSISTENTE ══
+(function(){
+  var savedEmail = localStorage.getItem('drivx_admin_user');
+  if (savedEmail === '1111') {
+    currentUser = { nombre: 'Test User', role: 'admin' };
+    enterShell();
+  } else if (savedEmail && USERS_DASH[savedEmail]) {
+    currentUser = USERS_DASH[savedEmail];
+    enterShell();
+  }
+})();
+</script>
+</body>
+</html>
