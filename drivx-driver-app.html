@@ -262,6 +262,12 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
       <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
+      <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:10px;padding:14px;border-radius:12px;border:2px solid rgba(0,212,255,.4);background:rgba(0,212,255,.06);color:var(--cyan);font-size:15px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;align-items:center;justify-content:center;gap:10px">
+        <span style="font-size:22px">\uD83D\uDC41\uFE0F</span> Entrar con huella
+      </button>
+      <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none">
+        <button onclick="clearBiometric()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button>
+      </div>
     <div class="login-divider"><span>¿Primera vez?</span></div>
     <button class="btn-secondary" onclick="openInvite()">Activar cuenta con código</button>
   </div>
@@ -2285,6 +2291,113 @@ function showWrongTicket(tipoDetectado, correctCat) {
 function closeWrongTicketModal() {
   var modal = document.getElementById('wrong-ticket-modal');
   if (modal) modal.style.display = 'none';
+}
+
+
+// ══ WEBAUTHN BIOMETRIC LOGIN ══
+var WEBAUTHN_KEY = 'drivx_webauthn_cred';
+
+function webauthnSupported() {
+  return window.PublicKeyCredential && navigator.credentials;
+}
+
+async function registerBiometric(email, pass) {
+  if (!webauthnSupported()) { toast('Tu navegador no soporta huella digital'); return; }
+  try {
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    var userId = new TextEncoder().encode(email);
+
+    var cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: challenge,
+        rp: { name: 'DRIVX', id: location.hostname },
+        user: { id: userId, name: email, displayName: email },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    });
+
+    // Store credential id and user info
+    var stored = {
+      credId: Array.from(new Uint8Array(cred.rawId)),
+      email: email,
+      pass: pass,
+      ts: Date.now()
+    };
+    localStorage.setItem(WEBAUTHN_KEY, JSON.stringify(stored));
+    toast('\u2705 Huella registrada · Pr\u00F3xima vez usa el bot\u00F3n de huella');
+    showBiometricBtn();
+  } catch(e) {
+    if (e.name !== 'NotAllowedError') toast('\u26A0 No se pudo registrar la huella');
+  }
+}
+
+async function loginWithBiometric() {
+  if (!webauthnSupported()) return;
+  var stored = null;
+  try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
+  if (!stored) return;
+
+  try {
+    var challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    var assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: challenge,
+        rpId: location.hostname,
+        allowCredentials: [{ id: new Uint8Array(stored.credId), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+
+    // Biometric verified — log in with stored credentials
+    var emailEl = document.getElementById('login-email');
+    var passEl  = document.getElementById('login-pass');
+    if (emailEl) emailEl.value = stored.email;
+    if (passEl)  passEl.value  = stored.pass;
+    doLogin();
+  } catch(e) {
+    if (e.name !== 'NotAllowedError') toast('\u274C Autenticaci\u00F3n fallida');
+  }
+}
+
+function showBiometricBtn() {
+  var btn  = document.getElementById('biometric-btn');
+  var clrW = document.getElementById('biometric-clear');
+  var stored = null;
+  try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
+  var show = !!(stored && webauthnSupported());
+  if (btn)  btn.style.display  = show ? 'flex' : 'none';
+  if (clrW) clrW.style.display = show ? 'block' : 'none';
+}
+
+function clearBiometric() {
+  localStorage.removeItem(WEBAUTHN_KEY);
+  showBiometricBtn();
+  toast('\uD83D\uDDD1 Huella eliminada');
+}
+
+// Show register option after successful login
+function offerBiometricRegister(email, pass) {
+  if (!webauthnSupported()) return;
+  var stored = null;
+  try { stored = JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null'); } catch(e){}
+  if (stored && stored.email === email) return; // already registered
+  // Show offer toast with action
+  var toastEl = document.getElementById('toast');
+  if (!toastEl) return;
+  toastEl.innerHTML = '\uD83D\uDC4B \u00BFGuardar acceso con huella? <button onclick="registerBiometric(\''+email+'\',\''+pass+'\');this.parentElement.classList.remove(\'show\')" style="margin-left:8px;padding:3px 10px;border-radius:8px;border:none;background:var(--cyan);color:#000;font-size:12px;font-weight:800;cursor:pointer">S\u00ED</button>';
+  toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){
+    toastEl.classList.remove('show');
+    setTimeout(function(){ if(toastEl) toastEl.innerHTML=''; }, 300);
+  }, 8000);
 }
 
 </script>
