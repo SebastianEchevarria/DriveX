@@ -701,7 +701,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 <div id="screen-chatbot" class="screen">
 
   <!-- MENU VIEW -->
-  <div id="ayuda-menu" style="display:flex;flex-direction:column;height:100%">
+  <div id="ayuda-menu" style="display:flex;flex-direction:column;height:100%;position:relative">
     <div style="padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,212,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">📚</div>
       <div>
@@ -709,7 +709,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <div style="font-size:11px;color:var(--text3)">Normas y procedimientos VTC Infinity</div>
       </div>
     </div>
-    <div style="flex:1;overflow-y:auto;padding:16px 16px 100px;display:flex;flex-direction:column;gap:10px">
+    <div id="ayuda-list" style="flex:1;overflow-y:auto;padding:16px 24px 100px 16px;display:flex;flex-direction:column;gap:10px">
 
       <!-- Chat IA — arriba siempre visible -->
       <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,0.4);background:rgba(0,212,255,0.07);margin-bottom:4px">
@@ -780,12 +780,29 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span style="color:var(--text3)">›</span>
       </button>
 
+      <button class="ayuda-btn" onclick="openTema('siniestros')">
+        <span class="ayuda-icon">📋</span>
+        <div class="ayuda-info"><div class="ayuda-title">Qué hacer en un siniestro</div><div class="ayuda-sub">Parte amistoso y datos obligatorios</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
+      <button class="ayuda-btn" onclick="openTema('contactos')">
+        <span class="ayuda-icon">📞</span>
+        <div class="ayuda-info"><div class="ayuda-title">Contactos y soporte por zona</div><div class="ayuda-sub">A quién llamar según tu ciudad</div></div>
+        <span style="color:var(--text3)">›</span>
+      </button>
+
       <button class="ayuda-btn" onclick="openTema('turnos')">
         <span class="ayuda-icon">📷</span>
         <div class="ayuda-info"><div class="ayuda-title">Control de turnos</div><div class="ayuda-sub">Foto km obligatoria inicio y fin</div></div>
         <span style="color:var(--text3)">›</span>
       </button>
 
+    </div>
+
+    <!-- Barra de scroll vertical personalizada (visible y arrastrable) -->
+    <div id="ayuda-scrollbar-track" style="position:absolute;right:3px;width:5px;border-radius:4px;background:rgba(255,255,255,.06);z-index:20;display:none">
+      <div id="ayuda-scrollbar-thumb" style="position:absolute;left:0;right:0;border-radius:4px;background:var(--cyan);opacity:.75;touch-action:none"></div>
     </div>
   </div>
 
@@ -1131,6 +1148,7 @@ function showScreen(id) {
   document.getElementById('screen-'+id).classList.add('active');
   var nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
+  if (id === 'chatbot') setTimeout(updateAyudaScrollbar, 60);
 }
 
 function showMore() { showScreen('chatbot'); }
@@ -1830,6 +1848,55 @@ var TEMAS = {
       '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px">' +
       '🚨 <b>NO FICHAR = NO TRABAJO</b><br>Incumplimiento: suspensión, sanción o retirada del puesto.</div>'
   },
+  siniestros: {
+    titulo: '📋 Qué Hacer en un Siniestro',
+    contenido: '<b>Cuando tengáis un siniestro, es imprescindible hacer un parte amistoso y recoger bien los datos del otro vehículo.</b><br><br>' +
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-top:4px">' +
+      '⚠️ Un parte mal hecho o sin los datos correctos puede dejar el siniestro sin cobertura, así que es muy importante hacerlo bien siempre.</div><br>' +
+      '<b>📝 Datos que debes obtener siempre (del vehículo contrario):</b><br>' +
+      '1. Nombre del conductor del vehículo contrario<br>' +
+      '2. Matrícula del coche contrario<br>' +
+      '3. Compañía de seguros del vehículo contrario<br>' +
+      '4. Hora del siniestro<br>' +
+      '5. Vía o calle en la que ha ocurrido<br>' +
+      '6. Matrícula, marca, color y modelo del coche contrario<br>' +
+      '7. Fotos del accidente y de los daños en los dos coches<br>' +
+      '8. Breve explicación por escrito de lo que ha ocurrido<br><br>' +
+      '<b>📄 Parte amistoso — normas:</b><br>' +
+      '• El parte siempre tiene que estar <b>firmado</b> por las dos personas — si no está firmado, es como si no se hubiera hecho<br>' +
+      '• Hay que hacer <b>dos partes</b>: uno para la otra persona y otro para vosotros<br>' +
+      '• Si no tenéis parte en papel, pedid a la otra persona los mismos datos de la lista de arriba<br><br>' +
+      '<div style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:10px;padding:12px">' +
+      '✅ <b>Recuerda:</b> un parte bien hecho protege tanto al conductor como a la empresa. Cumplir con estos pasos evita problemas más adelante con el seguro.</div>'
+  },
+  contactos: {
+    titulo: '📞 Contactos y Soporte por Zona',
+    contenido: '<b>Soporte 24 horas a nivel nacional para todos los conductores.</b><br><br>' +
+
+      '<div style="background:rgba(52,209,134,.08);border:1px solid rgba(52,209,134,.3);border-radius:10px;padding:12px;margin-bottom:10px">' +
+      '<b>🟢 Andalucía — Málaga</b><br><br>' +
+      '🔧 <b>Soporte mecánico:</b><br>Juanma — 623 369 632<br>' +
+      '<span style="font-size:12px;color:var(--text3)">De 19:00 a 07:00h solo emergencias, grúas, accidentes o urgencias inevitables</span><br><br>' +
+      '📋 <b>Soporte administrativo</b> (facturación, nóminas, pagos, efectivo y documentos de Uber, Bolt y Cabify) — de 09:00 a 18:00h:<br>' +
+      'Andrea — 622 732 192<br>Raquel — 654 405 262</div>' +
+
+      '<div style="background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:10px;padding:12px;margin-bottom:10px">' +
+      '<b>🟠 Comunidad Valenciana</b><br><br>' +
+      '🔧 <b>Soporte mecánico:</b><br>Juanma — 623 369 632<br>Walter — 625 029 645<br>' +
+      '<span style="font-size:12px;color:var(--text3)">De 19:00 a 07:00h solo emergencias, grúas, accidentes o urgencias inevitables</span><br><br>' +
+      '📋 <b>Soporte administrativo</b> — de 09:00 a 18:00h:<br>' +
+      'María — 622 91 47 01<br>Lina — 674 47 93 18</div>' +
+
+      '<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:12px;margin-bottom:10px">' +
+      '<b>🔴 Castilla-La Mancha</b><br><br>' +
+      '🔧 <b>Soporte mecánico:</b><br>Juanma — 623 369 632<br>Jonathan — 665 20 07<br>Walter — 625 029 645<br>' +
+      '<span style="font-size:12px;color:var(--text3)">De 19:00 a 07:00h solo emergencias, grúas, accidentes o urgencias inevitables</span><br><br>' +
+      '📋 <b>Soporte administrativo</b> — de 09:00 a 18:00h:<br>' +
+      'Andrea — 622 732 192</div>' +
+
+      '<div style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:10px;padding:12px">' +
+      '💡 <b>Truco:</b> en cada grupo de cada vehículo, si pulsáis la letra <b>@</b> se desplegará la lista de todos los integrantes de soporte. Podéis pulsar el nombre de la persona que necesitéis para dirigiros directamente a ella.</div>'
+  },
 
 };
 
@@ -1839,6 +1906,66 @@ function toggleTeslaSubmenu() {
   const isOpen = items.style.display !== 'none';
   items.style.display = isOpen ? 'none' : 'flex';
   chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  setTimeout(updateAyudaScrollbar, 50);
+}
+
+// ── BARRA DE SCROLL VERTICAL DEL CENTRO DE AYUDA ──
+var _ayudaScrollbarBound = false;
+function updateAyudaScrollbar() {
+  var list  = document.getElementById('ayuda-list');
+  var menu  = document.getElementById('ayuda-menu');
+  var track = document.getElementById('ayuda-scrollbar-track');
+  var thumb = document.getElementById('ayuda-scrollbar-thumb');
+  if (!list || !menu || !track || !thumb) return;
+
+  var listRect = list.getBoundingClientRect();
+  var menuRect = menu.getBoundingClientRect();
+  track.style.top    = (listRect.top - menuRect.top) + 'px';
+  track.style.height = listRect.height + 'px';
+
+  var scrollable = list.scrollHeight > list.clientHeight + 2;
+  if (!scrollable) { track.style.display = 'none'; return; }
+  track.style.display = 'block';
+
+  var trackHeight = listRect.height;
+  var thumbHeight = Math.max(32, trackHeight * (list.clientHeight / list.scrollHeight));
+  var maxThumbTop = trackHeight - thumbHeight;
+  var scrollRatio = list.scrollTop / (list.scrollHeight - list.clientHeight);
+  thumb.style.height = thumbHeight + 'px';
+  thumb.style.top    = (maxThumbTop * scrollRatio) + 'px';
+
+  if (!_ayudaScrollbarBound) {
+    _ayudaScrollbarBound = true;
+    list.addEventListener('scroll', updateAyudaScrollbar);
+    window.addEventListener('resize', function(){ setTimeout(updateAyudaScrollbar, 50); });
+
+    // Arrastrar el thumb directamente (mouse y táctil)
+    var dragging = false, dragStartY = 0, dragStartScroll = 0;
+    function onDown(clientY) {
+      dragging = true;
+      dragStartY = clientY;
+      dragStartScroll = list.scrollTop;
+    }
+    function onMove(clientY) {
+      if (!dragging) return;
+      var trTrack = document.getElementById('ayuda-scrollbar-track');
+      var trThumb = document.getElementById('ayuda-scrollbar-thumb');
+      var trackDist = trTrack.clientHeight - trThumb.clientHeight;
+      if (trackDist <= 0) return;
+      var scrollableDist = list.scrollHeight - list.clientHeight;
+      var deltaY = clientY - dragStartY;
+      list.scrollTop = dragStartScroll + deltaY * (scrollableDist / trackDist);
+    }
+    function onUp() { dragging = false; }
+
+    thumb.addEventListener('mousedown', function(e){ onDown(e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', function(e){ onMove(e.clientY); });
+    window.addEventListener('mouseup', onUp);
+
+    thumb.addEventListener('touchstart', function(e){ onDown(e.touches[0].clientY); }, { passive: true });
+    window.addEventListener('touchmove', function(e){ if (dragging) { onMove(e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+    window.addEventListener('touchend', onUp);
+  }
 }
 
 function openTema(tema) {
@@ -1861,6 +1988,7 @@ function closeTema() {
   document.getElementById('ayuda-detail').style.display = 'none';
   document.getElementById('ayuda-chat').style.display   = 'none';
   document.getElementById('ayuda-menu').style.display   = 'flex';
+  setTimeout(updateAyudaScrollbar, 60);
 }
 
 // ── CHATBOT IA ── 'Eres el asistente virtual de DRIVX, una empresa de conductores VTC llamada VTC INFINITY. Responde en español, de forma clara y concisa. Aquí tienes toda la información de la empresa:\n\n' +
@@ -1972,18 +2100,21 @@ function quickAsk(msg) {
   document.getElementById('chat-messages').appendChild(thinking);
   scrollChat();
 
-  // Call AI or local fallback
-  var isLocal = window.location.protocol === 'file:';
-  if (isLocal) {
+  // Sin API key configurada (caso normal) → búsqueda local instantánea sobre todo lo subido en Ayuda
+  var hasKey = !!getApiKey();
+  var onClaudeArtifact = window.location.hostname && window.location.hostname.includes('claude.ai');
+  if (!hasKey || onClaudeArtifact) {
     setTimeout(function() {
       var t = document.getElementById('chat-thinking');
       if (t) t.remove();
-      addMessage(localChatbot(msg), 'bot');
-      chatHistory.push({ role:'assistant', content: localChatbot(msg) });
-    }, 600);
+      var reply = localChatbot(msg);
+      addMessage(reply, 'bot');
+      chatHistory.push({ role:'assistant', content: reply });
+    }, 300);
     return;
   }
 
+  // Con API key real configurada → intenta la IA, y si falla, cae a la búsqueda local
   var fullPrompt = KNOWLEDGE_BASE + '\n\nHistorial:\n' +
     chatHistory.slice(-6).map(function(m){ return m.role+': '+m.content; }).join('\n') +
     '\n\nResponde a la última pregunta del usuario.';
@@ -1991,7 +2122,7 @@ function quickAsk(msg) {
   callAI(null, null, fullPrompt).then(function(reply) {
     var t = document.getElementById('chat-thinking');
     if (t) t.remove();
-    var clean = (reply || 'Lo siento, no pude procesar tu pregunta. Inténtalo de nuevo.').trim();
+    var clean = (reply || '').trim() || localChatbot(msg);
     addMessage(clean, 'bot');
     chatHistory.push({ role:'assistant', content: clean });
   }).catch(function() {
@@ -1999,6 +2130,7 @@ function quickAsk(msg) {
     if (t) t.remove();
     var localReply = localChatbot(msg);
     addMessage(localReply, 'bot');
+    chatHistory.push({ role:'assistant', content: localReply });
   });
 }
 
@@ -2019,148 +2151,121 @@ function scrollChat() {
   if (msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
-// Local fallback — smart keyword matching
-function localChatbot(q) {
-  var ql = q.toLowerCase()
+// ── BUSCADOR RÁPIDO SOBRE TODO EL CONTENIDO DE AYUDA ──
+// Indexa titulo+contenido de cada tema en TEMAS y responde con el más relevante.
+// SEARCH_KEYWORDS añade sinónimos/variantes que la gente usa al preguntar,
+// aunque no aparezcan literalmente en el texto mostrado en Ayuda.
+var SEARCH_KEYWORDS = {
+  privados:  'privado particular fomento hoja ruta sin app cliente directo multa despido',
+  bolt:      'bolt ratio aceptacion calidad cancelar ignorar expulsion multiapp viajes',
+  tesla:     'carga cargar cargando cargado bateria enchufar enchufado estacion punto congestion tasa minuto porcentaje',
+  tesla_superchargers: 'supercargador supercargadores cargador estacion buscar encontrar mapa navegador rayo gps tesla',
+  tesla_tarjeta:       'tarjeta llave bloqueo bloqueado bloquea cerrado encerrado fuera acceso movil digital quede tesla',
+  tesla_lavado:        'lavado lavar lavo lavas laves tunel arrastre rodar libre centinela carwash tren tesla',
+  limpieza:  'limpieza limpiar limpio sucio aspirar aspirado waylet cristales interior repsol',
+  grua:      'grua pinchazo pinchado rueda reventon reventada averia accidente choque remolque seguro poliza',
+  turnos:    'turno turnos fichar fichaje entrada salida kilometros km foto odometro control horario',
+  siniestros: 'siniestro accidente choque colision parte amistoso datos contrario firmado seguro',
+  contactos:  'contacto contactos telefono numero soporte mecanico administrativo malaga valencia castilla mancha juanma andrea raquel maria lina walter jonathan zona region ciudad llamar'
+};
+function normalizeTxt(s) {
+  return (s || '').toLowerCase()
     .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e')
     .replace(/[íìï]/g,'i').replace(/[óòö]/g,'o')
     .replace(/[úùü]/g,'u').replace(/ñ/g,'n');
+}
+function stripHtmlTxt(html) {
+  return (html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+}
+var STOPWORDS_AYUDA = ['que','como','cual','cuales','cuando','donde','porque','para','con','del','las','los','una','unos','unas','esta','esto','ese','esa','soy','estoy','tengo','puedo','hay','de','la','el','en','y','a','al','se','me','mi','tu','su','es','un','lo','por','sobre','sin','tener','hacer','quiero','quisiera','necesito','saber','me puedes','decir','dime','explica'];
+function tokenizeAyuda(s) {
+  return normalizeTxt(s).replace(/[^a-z0-9\s]/g,' ').split(/\s+/)
+    .filter(function(w){ return w.length >= 3 && STOPWORDS_AYUDA.indexOf(w) === -1; });
+}
+var _AYUDA_INDEX = null;
+function buildAyudaIndex() {
+  if (_AYUDA_INDEX) return _AYUDA_INDEX;
+  _AYUDA_INDEX = Object.keys(TEMAS).map(function(key) {
+    var t = TEMAS[key];
+    return {
+      key: key,
+      titulo: t.titulo,
+      plainTitulo:   normalizeTxt(stripHtmlTxt(t.titulo)),
+      plainKeywords: normalizeTxt(SEARCH_KEYWORDS[key] || ''),
+      plainBody:     normalizeTxt(stripHtmlTxt(t.contenido))
+    };
+  });
+  return _AYUDA_INDEX;
+}
+function searchAyuda(query) {
+  var idx = buildAyudaIndex();
+  var qTokens = tokenizeAyuda(query);
+  if (!qTokens.length) return [];
 
-  // PINCHAZO / AVERÍA / GRÚA
-  if (/pinchazo|pincha|rueda|averia|avería|grua|grúa|accidente|rompio|roto|revent/.test(ql)) {
-    return '🔧 <b>Tienes un pinchazo o avería — sigue estos pasos:</b><br><br>' +
-      '<b>Si tienes una avería — pide grúa:</b><br>' +
-      '• Llama a <b>@JUANMAVTCINFINITY</b> (Juan) — él tiene la póliza del seguro<br>' +
-      '• Juan te dará el teléfono de asistencia en carretera<br>' +
-      '• Llama y da: matrícula, tu nombre, lugar exacto, motivo<br><br>' +
-      '<b>3. Envía a Juan por WhatsApp:</b><br>' +
-      '• Fotos de la avería<br>' +
-      '• Vídeo del incidente<br>' +
-      '• Juan te dirá dónde depositar el vehículo<br><br>' +
-      '<div style="background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:10px;margin-top:4px">' +
-      '📞 Contacto urgente: <b>@JUANMAVTCINFINITY</b></div>';
-  }
+  // Peso por rareza: si un término aparece en muchos temas ("tesla") pesa menos
+  // que uno específico de un solo tema ("lavo", "pinchazo"...), para evitar
+  // que el término genérico gane siempre por casualidad de orden.
+  function countMatches(text, re) { var m = text.match(re); return m ? m.length : 0; }
+  var tokenWeight = {};
+  qTokens.forEach(function(tok) {
+    var re = new RegExp(tok.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+    var df = 0;
+    idx.forEach(function(item) {
+      if (countMatches(item.plainTitulo, re) || countMatches(item.plainKeywords, re) || countMatches(item.plainBody, re)) df++;
+    });
+    tokenWeight[tok] = df > 0 ? (idx.length / df) : 1;
+  });
 
-  // GRÚA (sin pinchazo)
-  if (/grua|grúa|remolque|asistencia|seguro/.test(ql)) {
-    return '🚨 <b>Cómo pedir la grúa:</b><br><br>' +
-      '1. Contacta con <b>@JUANMAVTCINFINITY</b> para obtener la póliza<br>' +
-      '2. Llama a la aseguradora con: matrícula, nombre, lugar y motivo<br>' +
-      '3. Envía fotos + vídeo a Juan por WhatsApp<br>' +
-      '4. Da tu número al operador para que la grúa te llame directamente<br><br>' +
-      '📹 Envía siempre el vídeo del incidente a @JUANMAVTCINFINITY.';
-  }
+  var scored = idx.map(function(item) {
+    var score = 0;
+    qTokens.forEach(function(tok) {
+      var re = new RegExp(tok.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+      var w = tokenWeight[tok];
+      score += countMatches(item.plainTitulo, re) * 5 * w;
+      score += countMatches(item.plainKeywords, re) * 3 * w;
+      score += countMatches(item.plainBody, re) * 1 * w;
+    });
+    return { item: item, score: score };
+  }).filter(function(r) { return r.score > 0; })
+    .sort(function(a, b) { return b.score - a.score; });
+  return scored;
+}
 
-  // TARJETA / LLAVE / BLOQUEO AUTOMÁTICO
-  if (/tarjeta|llave|bloque|cierra sol|me quedé fuera|me quede fuera/.test(ql)) {
-    return '🔑 <b>Tarjeta y bloqueo automático:</b><br><br>' +
-      'Si dejas la tarjeta o el móvil-llave dentro del coche, cierras la puerta y te alejas, el Tesla puede bloquearse automáticamente.<br><br>' +
-      '💡 <b>Recomendación:</b> lleva siempre la tarjeta o el móvil-llave contigo al salir del coche, nunca los dejes dentro.';
-  }
-
-  // LAVADO / TÚNEL DE LAVADO
-  if (/lavad|tunel|túnel|rodar libre|centinela/.test(ql)) {
-    return '🚿 <b>Protocolo de lavado (Model 3 / Model Y):</b><br><br>' +
-      '1. Antes del túnel: Pantalla → Controles → Servicio → <b>Modo Lavado coche</b><br>' +
-      '2. Con arrastre: pisa el freno, pulsa <b>"Activar rodar libre"</b>, suelta el freno<br>' +
-      '3. Durante el lavado: no frenes, no toques el volante, no acelerés, no abras puertas<br><br>' +
-      '💡 Pliega espejos, comprueba puertas cerradas y prioriza el lavado suave o a mano.';
-  }
-
-  // TESLA / CARGA / BATERÍA / SUPERCARGADOR
-  if (/tesla|carg|bater|superc|enchufe|electricidad|kw|autonomia|autonomía/.test(ql)) {
-    return '⚡ <b>Normas de carga del Tesla:</b><br><br>' +
-      '• Carga cuando esté <b>por debajo del 20%</b><br>' +
-      '• Carga hasta el <b>80-90%</b> — nunca al 100%<br>' +
-      '• Evita cargar a medias (desgasta la batería con el tiempo)<br><br>' +
-      '<b>¿Cómo cargar más rápido?</b><br>' +
-      '1. Busca <b>"Supercargador Tesla"</b> en el GPS del coche<br>' +
-      '2. El coche precondiciona la batería solo<br>' +
-      '3. Verás: <i>"La batería se está preparando para la carga"</i><br><br>' +
-      '<b style="color:#ffb300">💡 Recomendación:</b> retira el coche en cuanto termine la carga.<br>' +
-      'Algunos puntos de carga aplican una tasa de congestión (hasta 0,50€/minuto) si se queda enchufado al 80-90%.<br><br>' +
-      '¿Quieres saber cómo encontrar Superchargers, sobre la tarjeta y el bloqueo automático, o sobre el protocolo de lavado?';
-  }
-
-  // VIAJE PRIVADO / FOMENTO / HOJA DE RUTA
-  if (/privado|cuenta|fomento|hoja|ruta|particular|sin app/.test(ql)) {
-    return '🚫 <b>Viajes privados — normas:</b><br><br>' +
-      'Los viajes privados están <b style="color:#ff4757">PROHIBIDOS</b> sin Hoja de Ruta de Fomento.<br><br>' +
-      '<b>¿Cómo hacerlo legalmente?</b><br>' +
-      '1. Contacta con <b>ANDREA</b> antes del viaje<br>' +
-      '2. Ella te envía el enlace de Fomento<br>' +
-      '3. Descargas la Hoja de Ruta<br>' +
-      '4. Solo entonces puedes hacer el viaje<br><br>' +
-      '<b style="color:#ff4757">Sin hoja de ruta: multa + despido.</b>';
-  }
-
-  // BOLT / RATIO / ACEPTACIÓN / CANCELAR
-  if (/bolt|ratio|acepta|cancel|expulsa|metric|calidad|ignorar|ignorar/.test(ql)) {
-    return '🟢 <b>Normas Bolt:</b><br><br>' +
-      '• <b>NO ignorar viajes</b> — baja el ratio y perjudica a la empresa<br>' +
-      '• <b>NO cancelar</b> viajes ya aceptados<br><br>' +
-      '<b>Mínimos obligatorios:</b><br>' +
-      '• Tasa de aceptación: mínimo <b>60%</b> (si baja → expulsión)<br>' +
-      '• Calidad: mínimo <b>80%</b> (si baja → pierdes categorías)<br><br>' +
-      '<b>✅ Si vas a parar:</b> Baja la tasa en la app ANTES de parar para no acumular ignorados.';
-  }
-
-  // KM / FOTO / TURNO / ODÓMETRO
-  if (/km|kilom|foto|turno|odometr|odómetr|empeza|termina|inicio|final|control|fichar/.test(ql)) {
-    return '📱 <b>Control de turnos — FICHAR obligatorio:</b><br><br>' +
-      '• Es <b>TOTALMENTE OBLIGATORIO FICHAR ENTRADA</b> en la app con la foto de los KM al empezar<br>' +
-      '• Y <b>FICHAR SALIDA</b> al terminar el turno<br><br>' +
-      '<b>¿Cómo ver los km en el Tesla?</b><br>' +
-      '1. Pulsa el icono del <b>coche</b> (esquina inferior izquierda)<br>' +
-      '2. Pulsa <b>"Trayectos"</b><br>' +
-      '3. Busca <b>"Odómetro"</b><br><br>' +
-      '<b style="color:#ff4757">🚨 NO FICHAR = NO TRABAJO</b><br>' +
-      'Incumplimiento: suspensión, sanción o retirada del puesto.';
-  }
-
-  // LIMPIEZA / SUCIO / ASPIRAR / WAYLET
-  if (/limpi|sucio|aspira|waylet|cristal|lavar|lavado|mancha/.test(ql)) {
-    return '🚗 <b>Limpieza del vehículo:</b><br><br>' +
-      '<b>Turno mañana (día):</b><br>' +
-      '• Rulo de limpieza + aspirado con la Waylet de Repsol<br>' +
-      '• La empresa abona el importe al final del mes<br><br>' +
-      '<b>Turno noche:</b><br>' +
-      '• Aspirado o spray de agua — suficiente para mantenerlo limpio<br>' +
-      '• La empresa abona <b>1€/día</b> al final del mes<br><br>' +
-      '• Entregar siempre con batería cargada y el coche limpio<br>' +
-      '• <b>Nunca</b> discusiones entre compañeros por la limpieza.';
-  }
-
-
-
-  // ANDREA / JUAN / CONTACTO
-  if (/andrea|juan|contacto|jefe|empresa|quien|quién/.test(ql)) {
-    return '👥 <b>Contactos de la empresa:</b><br><br>' +
-      '• <b>@JUANMAVTCINFINITY (Juan)</b><br>' +
-      '  → Pólizas de seguro, averías, incidencias graves, grúa<br><br>' +
-      '• <b>ANDREA</b><br>' +
-      '  → Hojas de Ruta para viajes privados (Fomento)';
-  }
+// Local fallback — busca en todo lo subido en Ayuda (TEMAS) y responde rápido
+function localChatbot(q) {
+  var ql = normalizeTxt(q);
 
   // Saludo
-  if (/^(hola|buenas|buenos|hey|hi|hello|que tal)/.test(ql)) {
-    return '👋 ¡Hola! Soy el asistente de VTC Infinity. Puedo ayudarte con:<br><br>' +
-      '• 🚫 Viajes privados y hoja de ruta<br>' +
-      '• 🟢 Normas Bolt<br>' +
-      '• ⚡ Carga del Tesla<br>' +
-      '• 🚗 Limpieza del vehículo<br>' +
-      '• 🔧 Pinchazo o avería<br>' +
-      '• 📷 Control de turnos y foto km<br><br>' +
-      '¿En qué te puedo ayudar?';
+  if (/^(hola|buenas|buenos|hey|hi|hello|que tal)\b/.test(ql)) {
+    var lista = Object.keys(TEMAS).map(function(k){ return '• ' + TEMAS[k].titulo; }).join('<br>');
+    return '👋 ¡Hola! Soy el asistente de VTC Infinity. Puedo ayudarte con todo lo que hay en el Centro de Ayuda:<br><br>' +
+      lista + '<br><br>Pregúntame lo que necesites.';
   }
 
-  // Default
-  return '🤖 No tengo información específica sobre eso.<br><br>' +
-    'Para dudas urgentes contacta con:<br>' +
-    '• <b>@JUANMAVTCINFINITY</b> (Juan) — incidencias y averías<br>' +
-    '• <b>ANDREA</b> — hojas de ruta para viajes privados<br><br>' +
-    'O prueba preguntando de otra forma. Por ejemplo:<br>' +
-    '<i>"tengo un pinchazo"</i>, <i>"normas de Bolt"</i>, <i>"cómo cargo el Tesla"</i>';
+  // Contactos rápidos (no es un "tema" pero es info crítica y frecuente)
+  if (/^(quien es|quién es|contacto de|telefono de|teléfono de)?\s*(andrea|juan)\b/.test(ql) || /contacto|jefe de|responsable/.test(ql)) {
+    return '👥 <b>Contactos de la empresa:</b><br><br>' +
+      '• <b>@JUANMAVTCINFINITY (Juan)</b> → pólizas de seguro, averías, incidencias graves, grúa<br>' +
+      '• <b>ANDREA</b> → hojas de ruta para viajes privados (Fomento)';
+  }
+
+  // Búsqueda real sobre todo el contenido subido en Ayuda
+  var results = searchAyuda(q);
+  if (results.length && results[0].score >= 2) {
+    var best = results[0].item;
+    var html = '<b>' + best.titulo + '</b><br><br>' + TEMAS[best.key].contenido;
+    // Si hay otro tema con puntuación cercana, lo sugerimos también
+    if (results.length > 1 && results[1].score >= results[0].score * 0.55) {
+      html += '<br><br><span style="color:var(--text3);font-size:12px">💡 También puede interesarte: ' + results[1].item.titulo + '</span>';
+    }
+    return html;
+  }
+
+  // Sin coincidencias claras — mostramos los temas disponibles
+  var temasList = Object.keys(TEMAS).map(function(k){ return '• ' + TEMAS[k].titulo; }).join('<br>');
+  return '🤖 No encontré información exacta sobre eso en el Centro de Ayuda.<br><br>' +
+    '<b>Temas disponibles:</b><br>' + temasList + '<br><br>' +
+    'Para dudas urgentes contacta con <b>@JUANMAVTCINFINITY</b> (Juan) o <b>ANDREA</b>.';
 }
 
 // ── ADMIN ──
