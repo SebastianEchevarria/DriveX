@@ -342,7 +342,17 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     </div>
 
     <!-- Documentación del vehículo (subida por Administración/Supervisor) -->
-    <div id="doc-vehiculo-area" style="margin-bottom:14px"></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:14px;overflow:hidden">
+      <div id="doc-coche-header" onclick="toggleDocCoche()" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+        <span style="font-size:22px">📁</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800;color:var(--text)">DOCUMENTACIÓN COCHE</div>
+          <div id="doc-coche-sub" style="font-size:11px;color:var(--text3);margin-top:1px">Cargando…</div>
+        </div>
+        <span id="doc-coche-chevron" style="color:var(--text3);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
+      </div>
+      <div id="doc-vehiculo-area" style="display:none;padding:0 16px 14px;border-top:1px solid var(--border)"></div>
+    </div>
 
     <!-- Próxima cita -->
     <div id="proxima-cita-card" style="display:none;background:var(--surface);border:1px solid rgba(0,212,255,0.35);border-radius:18px;padding:16px 18px;margin-bottom:14px">
@@ -2360,6 +2370,14 @@ var VEHICULO_DOC_TYPES = [
 ];
 var _vehiculoDocsCache = {};
 
+function toggleDocCoche() {
+  var area = document.getElementById('doc-vehiculo-area');
+  var chev = document.getElementById('doc-coche-chevron');
+  var isOpen = area.style.display !== 'none';
+  area.style.display = isOpen ? 'none' : 'block';
+  chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 function loadPoliza() {
   if (!currentUser) return;
   var area = document.getElementById('doc-vehiculo-area');
@@ -2369,18 +2387,20 @@ function loadPoliza() {
   fbGetVehicleDocs(matSlug).then(function(docs) {
     _vehiculoDocsCache = docs;
     var html = '';
+    var count = 0;
     VEHICULO_DOC_TYPES.forEach(function(dt) {
       var doc = docs[dt.key];
       if (!doc) return; // en la app del conductor solo mostramos lo que ya está subido
       if (doc.uploading) {
-        html += '<div style="background:var(--surface);border:1px solid rgba(255,179,0,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">' +
+        html += '<div style="background:var(--surface2);border:1px solid rgba(255,179,0,.25);border-radius:16px;padding:14px 16px;margin-top:12px;display:flex;align-items:center;gap:12px">' +
           '<span style="font-size:24px">⏳</span>' +
           '<div style="flex:1"><div style="font-size:13px;font-weight:800;color:var(--amber)">' + dt.label + ' — subiendo…</div></div>' +
         '</div>';
         return;
       }
       if (!doc.url) return;
-      html += '<div style="background:var(--surface);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
+      count++;
+      html += '<div style="background:var(--surface2);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-top:12px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
         '<span style="font-size:24px">' + dt.icon + '</span>' +
         '<div style="flex:1">' +
           '<div style="font-size:13px;font-weight:800;color:var(--text)">' + dt.label + '</div>' +
@@ -2389,8 +2409,13 @@ function loadPoliza() {
         '<span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver →</span>' +
       '</div>';
     });
-    area.innerHTML = html;
-  }).catch(function(){ /* sin conexión: no tocamos lo que ya hubiera en pantalla */ });
+    area.innerHTML = html || '<div style="font-size:12px;color:var(--text3);padding:12px 0 2px">Todavía no hay documentos subidos.</div>';
+    var sub = document.getElementById('doc-coche-sub');
+    if (sub) sub.textContent = count > 0 ? count + ' documento' + (count>1?'s':'') + ' disponible' + (count>1?'s':'') : 'Sin documentos todavía';
+  }).catch(function(){
+    var sub = document.getElementById('doc-coche-sub');
+    if (sub) sub.textContent = 'No se pudo conectar';
+  });
 }
 
 function abrirDocVehiculo(docType) {
