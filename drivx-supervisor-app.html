@@ -1080,6 +1080,7 @@ function toggleCitaDetail(id) {
 
 function startSync() {
   syncFromDrivers();
+  setTimeout(initLugarAutocomplete, 500);
   renderNotifCitas();
   renderHomeProximas();
   renderVehiculosHome();
@@ -1397,7 +1398,7 @@ function renderITVAlerts() {
       if (sel && v.conductores.length) sel.value = v.conductores[0];
       var tipoSel = document.getElementById('cita-tipo');
       if (tipoSel) tipoSel.value = 'ITV';
-      document.getElementById('cita-modal').style.display = 'flex';
+      document.getElementById('cita-modal').style.display = 'flex'; setTimeout(initLugarAutocomplete, 100);
     };
   });
 }
@@ -2156,6 +2157,75 @@ function scanAndOpenCita(input, v) {
   input.value='';
 }
 
+
+// ══ PLACE AUTOCOMPLETE (Nominatim) ══
+var _lugarTimer = null;
+var _lugarActive = false;
+
+function initLugarAutocomplete() {
+  var inputs = ['cita-lugar', 'mat-taller-lugar', 'vm-lugar', 'am-lugar'];
+  inputs.forEach(function(id) {
+    var inp = document.getElementById(id);
+    if (!inp || inp._autoInit) return;
+    inp._autoInit = true;
+    var sugId = id + '-suggestions';
+    // Create suggestion box if not exists
+    if (!document.getElementById(sugId)) {
+      var sug = document.createElement('div');
+      sug.id = sugId;
+      sug.style.cssText = 'display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);margin-top:4px';
+      inp.parentElement.style.position = 'relative';
+      inp.parentElement.appendChild(sug);
+    }
+    inp.addEventListener('input', function() {
+      clearTimeout(_lugarTimer);
+      var val = inp.value.trim();
+      var sugEl = document.getElementById(sugId);
+      if (!sugEl) return;
+      if (val.length < 3) { sugEl.style.display = 'none'; return; }
+      _lugarTimer = setTimeout(function() { fetchPlaces(val, sugEl, inp); }, 400);
+    });
+    inp.addEventListener('blur', function() {
+      setTimeout(function() {
+        var sugEl = document.getElementById(sugId);
+        if (sugEl) sugEl.style.display = 'none';
+      }, 200);
+    });
+  });
+}
+
+function fetchPlaces(query, sugEl, inp) {
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=' + encodeURIComponent(query);
+  fetch(url, { headers: { 'Accept-Language': 'es', 'User-Agent': 'DRIVXApp/1.0' } })
+    .then(function(r){ return r.json(); })
+    .then(function(results) {
+      if (!results.length) { sugEl.style.display = 'none'; return; }
+      var html = '';
+      results.forEach(function(r) {
+        var name = r.display_name;
+        // Shorten: take first 2 parts
+        var parts = name.split(',');
+        var short = parts.slice(0,3).join(',').trim();
+        html += '<div class="place-suggestion" data-full="' + name.replace(/"/g,'&quot;') + '" data-short="' + short.replace(/"/g,'&quot;') + '"'
+          + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);line-height:1.4">'
+          + '<div style="font-weight:700">' + parts[0].trim() + '</div>'
+          + '<div style="color:var(--text2);font-size:11px">' + parts.slice(1,3).join(',').trim() + '</div>'
+          + '</div>';
+      });
+      sugEl.innerHTML = html;
+      sugEl.style.display = 'block';
+      sugEl.querySelectorAll('.place-suggestion').forEach(function(div) {
+        div.onmousedown = function() {
+          inp.value = div.getAttribute('data-short');
+          sugEl.style.display = 'none';
+        };
+        div.onmouseover = function() { div.style.background = 'rgba(0,212,255,.08)'; };
+        div.onmouseout  = function() { div.style.background = ''; };
+      });
+    })
+    .catch(function() { sugEl.style.display = 'none'; });
+}
+
 </script>
 
 <!-- ══ NUEVA CITA MODAL ══ -->
@@ -2251,7 +2321,10 @@ function scanAndOpenCita(input, v) {
     </div>
     <div class="field">
       <label>Dirección / Lugar</label>
-      <input id="cita-lugar" type="text" class="form-input" placeholder="Ej: ITV Málaga · Calle Principal 12">
+      <div style="position:relative">
+        <input id="cita-lugar" type="text" class="form-input" placeholder="Ej: Selwo Marina Benalmádena" autocomplete="off">
+        <div id="cita-lugar-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);margin-top:4px"></div>
+      </div>
     </div>
     <div class="field">
       <label>Nota (opcional)</label>
