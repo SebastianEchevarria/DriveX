@@ -496,7 +496,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     <!-- Breakdowns -->
     <div class="section-title">Detalle por categoría</div>
     <div id="gastos-empty" class="empty-state">📭 Sin tickets registrados hoy</div>
-    <div id="bd-gasolina" class="breakdown"><div class="breakdown-header" onclick="toggleBd('gasolina')"><div class="bh-left"><span>⛽</span><span>Gasolina</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-gasolina" style="color:var(--amber)">€ 0</span><span id="bd-chev-gasolina" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-gasolina"></div></div>
+    <div id="bd-gasolina" class="breakdown"><div class="breakdown-header" onclick="toggleBd('gasolina')"><div class="bh-left"><span id="bd-icon-gasolina">⛽</span><span id="bd-name-gasolina">Gasolina</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-gasolina" style="color:var(--amber)">€ 0</span><span id="bd-chev-gasolina" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-gasolina"></div></div>
     <div id="bd-peaje"    class="breakdown"><div class="breakdown-header" onclick="toggleBd('peaje')"><div class="bh-left"><span>🛣️</span><span>Peajes</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-peaje" style="color:var(--cyan)">€ 0</span><span id="bd-chev-peaje" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-peaje"></div></div>
     <div id="bd-parking"  class="breakdown"><div class="breakdown-header" onclick="toggleBd('parking')"><div class="bh-left"><span>🅿️</span><span>Parking</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-parking" style="color:var(--cyan)">€ 0</span><span id="bd-chev-parking" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-parking"></div></div>
     <div id="bd-lavado"   class="breakdown"><div class="breakdown-header" onclick="toggleBd('lavado')"><div class="bh-left"><span>🚿</span><span>Lavado</span></div><div class="bh-right"><span class="breakdown-total" id="bd-total-lavado" style="color:var(--purple)">€ 0</span><span id="bd-chev-lavado" style="color:var(--text3)">›</span></div></div><div class="breakdown-list" id="bd-list-lavado"></div></div>
@@ -1417,6 +1417,33 @@ function loginAs(u) {
   loadPoliza();
   setInterval(loadProximaCita, 30000);
   setInterval(loadPoliza, 30000);
+  updateFuelButton();
+}
+
+// Si el vehículo es 100% eléctrico (registrado desde el Panel Admin),
+// el botón de "Gasolina" en Gastos se convierte en "Carga".
+function updateFuelButton() {
+  if (!currentUser) return;
+  var slug = currentUser.matricula.replace(/\s/g,'_');
+  fetch(FIREBASE_URL + '/vehiculos_extra/' + slug + '.json').then(function(r){ return r.json(); }).then(function(v){
+    var btn = document.getElementById('cat-gasolina');
+    var bdIcon = document.getElementById('bd-icon-gasolina');
+    var bdName = document.getElementById('bd-name-gasolina');
+    if (!btn) return;
+    var icon = btn.querySelector('.cat-icon');
+    var name = btn.querySelector('.cat-name');
+    if (v && v.combustible === 'electrico') {
+      if (icon) icon.textContent = '⚡';
+      if (name) name.textContent = 'Carga';
+      if (bdIcon) bdIcon.textContent = '⚡';
+      if (bdName) bdName.textContent = 'Carga';
+    } else {
+      if (icon) icon.textContent = '⛽';
+      if (name) name.textContent = 'Gasolina';
+      if (bdIcon) bdIcon.textContent = '⛽';
+      if (bdName) bdName.textContent = 'Gasolina';
+    }
+  }).catch(function(){});
 }
 
 function isMobile() {

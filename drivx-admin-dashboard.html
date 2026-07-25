@@ -370,6 +370,74 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+<!-- ══════════════ MODAL: AGREGAR VEHÍCULO ══════════════ -->
+<div id="add-vehicle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="font-size:26px">🚗</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900">Agregar vehículo</div>
+        <div style="font-size:12px;color:var(--text3)">Nuevo vehículo para la flota</div>
+      </div>
+      <button onclick="closeAddVehicleModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="padding:20px 22px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Matrícula *</label>
+          <input id="av-matricula" type="text" placeholder="1234 ABC" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Año *</label>
+          <input id="av-anio" type="number" placeholder="2024" min="1990" max="2030" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Marca *</label>
+          <input id="av-marca" type="text" placeholder="Tesla" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Modelo *</label>
+          <input id="av-modelo" type="text" placeholder="Model 3" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Tipo de combustible *</label>
+        <select id="av-combustible" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+          <option value="electrico">⚡ 100% Eléctrico</option>
+          <option value="gasolina">⛽ Gasolina</option>
+          <option value="diesel">⛽ Diésel</option>
+        </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">Si es eléctrico, en Gastos del conductor aparecerá "Carga" en vez de "Gasolina"</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Ciudad</label>
+          <input id="av-ciudad" type="text" placeholder="Málaga" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma *</label>
+          <select id="av-ccaa" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+            <option value="Andalucía">Andalucía</option>
+            <option value="Comunidad Valenciana">Comunidad Valenciana</option>
+            <option value="Castilla-La Mancha">Castilla-La Mancha</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo (opcional ahora, puedes subirla después)</div>
+      <div id="av-docs-list" style="margin-bottom:20px"></div>
+
+      <button onclick="guardarNuevoVehiculo()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar vehículo</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══ DATOS COMPARTIDOS (misma fuente que la App Supervisor) ══
 var VEHICULOS = [
@@ -490,13 +558,22 @@ function showDashScreen(id) {
 
 // ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
 function renderInicioStats() {
+  fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    VEHICULOS_EXTRA = Object.keys(data).map(function(k){ return data[k]; });
+  }).catch(function(){}).then(function(){
+    paintInicioStats();
+  });
+}
+function paintInicioStats() {
   var now = new Date();
   function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
 
-  var totalVeh = VEHICULOS.length;
+  var allVeh = getAllVehiculos();
+  var totalVeh = allVeh.length;
   var totalCond = CONDUCTORES.length;
-  var urgentes = VEHICULOS.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
-  var ccaas = {}; VEHICULOS.forEach(function(v){ ccaas[v.ccaa] = (ccaas[v.ccaa]||0) + 1; });
+  var urgentes = allVeh.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
+  var ccaas = {}; allVeh.forEach(function(v){ ccaas[v.ccaa] = (ccaas[v.ccaa]||0) + 1; });
 
   var html = '';
   html += statCard('Vehículos en flota', totalVeh, Object.keys(ccaas).length + ' comunidades autónomas');
@@ -513,7 +590,25 @@ function statCard(lbl, val, foot, color) {
 }
 
 // ══ FLOTA — agrupado por CCAA (mismo diseño que la App Supervisor) ══
+var VEHICULOS_EXTRA = [];
+function getAllVehiculos() { return VEHICULOS.concat(VEHICULOS_EXTRA); }
+
 function renderFlota() {
+  var container = document.getElementById('flota-list');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando flota…</div>';
+
+  fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    VEHICULOS_EXTRA = Object.keys(data).map(function(k){ return data[k]; });
+    paintFlota();
+  }).catch(function(){
+    VEHICULOS_EXTRA = [];
+    paintFlota();
+  });
+}
+
+function paintFlota() {
   var container = document.getElementById('flota-list');
   if (!container) return;
 
@@ -522,8 +617,10 @@ function renderFlota() {
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
   var ccaaOrder = ['Andalucía', 'Comunidad Valenciana', 'Castilla-La Mancha'];
+  var allVehiculos = getAllVehiculos();
   var groups = {};
-  VEHICULOS.forEach(function(v){
+  ccaaOrder.forEach(function(cc){ groups[cc] = []; }); // asegura que las 3 CCAA existan aunque no tengan vehículos
+  allVehiculos.forEach(function(v){
     var cc = v.ccaa || 'Otras';
     if (!groups[cc]) groups[cc] = [];
     groups[cc].push(v);
@@ -544,8 +641,7 @@ function renderFlota() {
 
   var html = '';
   ccaas.forEach(function(cc){
-    var vl = groups[cc];
-    if (!vl || !vl.length) return;
+    var vl = groups[cc] || [];
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
     var urg = vl.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
 
@@ -596,6 +692,10 @@ function renderFlota() {
       html += '</div>';
     });
 
+    html += '<button onclick="openAddVehicleModal(\'' + cc + '\')" class="veh-card" style="border:2px dashed rgba(0,212,255,.4);background:rgba(0,212,255,.04);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;min-height:90px;color:var(--cyan);font-size:14px;font-weight:800;width:100%">' +
+      '➕ AGREGAR VEHÍCULO' +
+    '</button>';
+
     html += '</div></div>';
   });
 
@@ -603,7 +703,7 @@ function renderFlota() {
 
   // Cargar el estado de documentación de cada vehículo desde Firebase (asíncrono,
   // no bloquea el render inicial de las tarjetas)
-  VEHICULOS.forEach(function(v){ updateDocBadge(v.matricula); });
+  getAllVehiculos().forEach(function(v){ updateDocBadge(v.matricula); });
 
   ccaas.forEach(function(cc){
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
@@ -673,7 +773,7 @@ function updateDocBadge(matricula) {
 }
 
 function openVehicleDetail(matricula) {
-  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   _vdCurrentMat = matricula;
 
@@ -690,18 +790,7 @@ function openVehicleDetail(matricula) {
   itvEl.textContent = itvTxt;
   itvEl.style.color = itvColor;
 
-  var condHtml = '';
-  v.conductores.forEach(function(cid){
-    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
-    if (!c) return;
-    var fichado = false;
-    try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_' + cid) || '{}').fichado); } catch(e){}
-    condHtml += '<div class="cond-row" style="padding:9px 0">' +
-      '<div><span style="font-weight:700">' + c.nombre + '</span>' +
-      '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>' +
-      '<span style="font-size:11px;font-weight:700;color:' + (fichado?'var(--green)':'var(--text3)') + '">' + (fichado?'● Activo':'○ Inactivo') + '</span></div>';
-  });
-  document.getElementById('vd-conductores').innerHTML = condHtml || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
+  renderConductoresYTurnos(v);
 
   // Reset del formulario de invitación
   document.getElementById('vd-invite-form').style.display = 'none';
@@ -715,6 +804,112 @@ function openVehicleDetail(matricula) {
   renderConductoresInvitados(v);
   renderVehicleDocs();
   document.getElementById('vehicle-detail-modal').style.display = 'flex';
+}
+
+function renderConductoresYTurnos(v) {
+  var condHtml = '';
+  v.conductores.forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (!c) return;
+    var fichado = false;
+    try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_' + cid) || '{}').fichado); } catch(e){}
+    condHtml += '<div class="cond-row" style="padding:9px 0">' +
+      '<div><span style="font-weight:700">' + c.nombre + '</span>' +
+      '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>' +
+      '<span style="font-size:11px;font-weight:700;color:' + (fichado?'var(--green)':'var(--text3)') + '">' + (fichado?'● Activo':'○ Inactivo') + '</span></div>';
+  });
+  // Conductores registrados por invitación — aparecen aquí también, con su nombre completo y turno
+  Object.keys(_vdInvitadosCache).forEach(function(cid){
+    var r = _vdInvitadosCache[cid];
+    if (r.matricula !== v.matricula) return;
+    condHtml += '<div class="cond-row" style="padding:9px 0">' +
+      '<div><span style="font-weight:700">' + (r.nombre || 'Conductor') + '</span>' +
+      '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + r.turno + '</span></div>' +
+      '<span style="font-size:10px;font-weight:700;color:var(--cyan)">✉ invitado</span></div>';
+  });
+  document.getElementById('vd-conductores').innerHTML = condHtml || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
+}
+
+// ══ AGREGAR VEHÍCULO ══
+var _avPendingFiles = {};
+function openAddVehicleModal(ccaa) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  document.getElementById('av-matricula').value = '';
+  document.getElementById('av-marca').value = '';
+  document.getElementById('av-modelo').value = '';
+  document.getElementById('av-anio').value = '';
+  document.getElementById('av-ciudad').value = '';
+  document.getElementById('av-combustible').value = 'electrico';
+  document.getElementById('av-ccaa').value = ccaa || 'Andalucía';
+  _avPendingFiles = {};
+  renderAvDocsList();
+  document.getElementById('add-vehicle-modal').style.display = 'flex';
+}
+function closeAddVehicleModal() {
+  document.getElementById('add-vehicle-modal').style.display = 'none';
+}
+function renderAvDocsList() {
+  var html = '';
+  DOC_TYPES.forEach(function(dt){
+    var f = _avPendingFiles[dt.key];
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="width:34px;height:34px;border-radius:9px;background:rgba(0,212,255,.08);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">' + dt.icon + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:700">' + dt.label + '</div>' +
+        '<div style="font-size:11px;color:' + (f ? 'var(--green)' : 'var(--text3)') + '">' + (f ? '✓ ' + f.name : 'No adjuntado') + '</div>' +
+      '</div>' +
+      '<label class="edit-btn" style="display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden">' + (f ? 'Reemplazar' : 'Adjuntar') +
+        '<input type="file" accept="application/pdf,image/*" style="position:absolute;width:1px;height:1px;opacity:0" onchange="handleAvFileSelected(this,\'' + dt.key + '\')"></label>' +
+    '</div>';
+  });
+  document.getElementById('av-docs-list').innerHTML = html;
+}
+function handleAvFileSelected(inputEl, docType) {
+  var file = inputEl.files[0];
+  if (!file) return;
+  _avPendingFiles[docType] = file;
+  renderAvDocsList();
+}
+function guardarNuevoVehiculo() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var matricula = (document.getElementById('av-matricula').value || '').trim().toUpperCase();
+  var marca = (document.getElementById('av-marca').value || '').trim();
+  var modelo = (document.getElementById('av-modelo').value || '').trim();
+  var anio = (document.getElementById('av-anio').value || '').trim();
+  var combustible = document.getElementById('av-combustible').value;
+  var ciudad = (document.getElementById('av-ciudad').value || '').trim();
+  var ccaa = document.getElementById('av-ccaa').value;
+
+  if (!matricula || !marca || !modelo || !anio) { alert('Completa matrícula, marca, modelo y año.'); return; }
+  if (getAllVehiculos().some(function(v){ return v.matricula === matricula; })) { alert('Ya existe un vehículo con esa matrícula.'); return; }
+
+  var icon = combustible === 'electrico' ? '⚡' : '🚗';
+  var vehiculo = {
+    matricula: matricula, marca: marca, modelo: marca + ' ' + modelo, anio: anio,
+    combustible: combustible, ciudad: ciudad, ccaa: ccaa, icon: icon,
+    docs: { itv: { fecha: null, ok: false }, seguro: { fecha: null, ok: false }, vtc: { ok: false } },
+    conductores: []
+  };
+
+  var mySlug = matSlug(matricula);
+  fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(vehiculo)
+  }).then(function(){
+    // Subir los documentos que se hayan adjuntado (si hay alguno)
+    var docKeys = Object.keys(_avPendingFiles);
+    var uploads = docKeys.map(function(key){
+      return uploadToCloudinary(_avPendingFiles[key]).then(function(res){
+        var doc = { nombre: _avPendingFiles[key].name, fecha: new Date().toLocaleDateString('es-ES'), size: _avPendingFiles[key].size, url: res.secure_url };
+        return fbSetDoc(mySlug, key, doc);
+      });
+    });
+    return Promise.all(uploads);
+  }).then(function(){
+    closeAddVehicleModal();
+    renderFlota();
+  }).catch(function(){
+    alert('No se pudo guardar el vehículo. Revisa tu conexión.');
+  });
 }
 
 function closeVehicleDetail() {
@@ -739,7 +934,7 @@ function generateInviteCode() {
 }
 function enviarInvitacion() {
   if (!currentUser || currentUser.role !== 'admin') return;
-  var v = VEHICULOS.find(function(x){ return x.matricula === _vdCurrentMat; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === _vdCurrentMat; });
   if (!v) return;
 
   var email = (document.getElementById('vd-invite-email').value || '').trim().toLowerCase();
@@ -785,6 +980,7 @@ function renderConductoresInvitados(v) {
     Object.keys(all).forEach(function(cid){ if (all[cid] && all[cid].matricula === v.matricula) mios[cid] = all[cid]; });
     _vdInvitadosCache = mios;
     paintConductoresInvitados();
+    renderConductoresYTurnos(v);
   }).catch(function(){
     el.innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
   });
@@ -853,6 +1049,8 @@ function confirmDeleteConductor(cid) {
     ]).then(function(){
       delete _vdInvitadosCache[cid];
       paintConductoresInvitados();
+      var v = getAllVehiculos().find(function(x){ return x.matricula === _vdCurrentMat; });
+      if (v) renderConductoresYTurnos(v);
     }).catch(function(){ alert('No se pudo eliminar. Revisa tu conexión.'); });
     return;
   }
