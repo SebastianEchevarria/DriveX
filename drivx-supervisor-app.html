@@ -267,18 +267,18 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
         <div style="padding:14px 16px;color:var(--text3);font-size:13px;text-align:center">Sin citas programadas</div>
       </div>
 
-      <!-- PROGRAMAR CITAS — plegable -->
-      <div id="citas-section" style="background:rgba(0,212,255,.03);border:2px solid var(--border2);border-radius:14px;overflow:hidden;margin-bottom:16px">
-        <div id="citas-header" onclick="toggleCitasSection()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent">
-          <span style="font-size:20px">📅</span>
+      <!-- PROGRAMAR CITAS — plegable, bien visible -->
+      <div id="citas-section" style="background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.14));border:2px solid rgba(0,212,255,.55);border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 6px 24px rgba(0,212,255,.15)">
+        <div id="citas-header" onclick="toggleCitasSection()" style="padding:16px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 14px rgba(0,212,255,.4)">📅</div>
           <div style="flex:1">
-            <div style="font-size:13px;font-weight:800;color:var(--text)">Programar citas</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:1px">ITV online, registro manual, IA y taller</div>
+            <div style="font-size:15px;font-weight:900;color:#fff;letter-spacing:.3px">PROGRAMAR CITAS</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:1px">ITV online · manual · con IA · taller</div>
           </div>
-          <span id="citas-chevron" style="color:var(--text3);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
+          <span id="citas-chevron" style="color:var(--cyan);font-size:16px;transition:transform .2s ease;display:inline-block">▾</span>
         </div>
 
-        <div id="citas-content" style="display:none;padding:14px;border-top:1px solid var(--border2)">
+        <div id="citas-content" style="display:none;padding:14px;background:rgba(7,11,18,.5);border-top:1px solid rgba(0,212,255,.25)">
 
           <!-- Cita ITV Online -->
           <a href="https://www.itvcita.com/Welcome.do" target="_blank"
@@ -342,7 +342,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
   <div class="scroll">
     <div class="header">
       <div><div class="header-title">Vehículos</div><div class="header-sub">Documentación y estado</div></div>
-      <button class="btn-sm btn-cyan" onclick="document.getElementById('cita-modal').style.display='flex'">+ Cita</button>
+      <button class="btn-sm btn-cyan" onclick="resetCitaModalGeneral();document.getElementById('cita-modal').style.display='flex'">+ Cita</button>
     </div>
 
     <div class="veh-card">
@@ -828,13 +828,24 @@ function renderMatCitas(v) {
   if (citasEl) citasEl.innerHTML = html || '<div style="padding:14px 16px;color:var(--text3);font-size:13px;text-align:center">Sin citas programadas</div>';
 }
 
+var _citaFromMatricula = false;
+function resetCitaModalGeneral() {
+  _citaFromMatricula = false;
+  var cf = document.getElementById('cita-conductor-field');
+  var mf = document.getElementById('cita-matricula-field');
+  if (cf) cf.style.display = 'block';
+  if (mf) mf.style.display = 'none';
+}
+
 function openCitaForMat() {
+  _citaFromMatricula = true;
+  var cf = document.getElementById('cita-conductor-field');
+  var mf = document.getElementById('cita-matricula-field');
+  if (cf) cf.style.display = 'none';
+  if (mf) mf.style.display = 'block';
   if (_currentMat) {
-    // Pre-select the conductor of this vehicle in the cita modal
-    var sel = document.getElementById('cita-conductor');
-    if (sel && _currentMat.conductores.length) {
-      sel.value = _currentMat.conductores[0];
-    }
+    var disp = document.getElementById('cita-matricula-display');
+    if (disp) disp.textContent = _currentMat.matricula;
   }
   document.getElementById('mat-modal').style.display='none';
   document.getElementById('cita-modal').style.display='flex';
@@ -1339,7 +1350,6 @@ function verAdminDoc(docType) {
 }
 
 function guardarCita() {
-  var cid    = document.getElementById('cita-conductor').value;
   var tipo   = document.getElementById('cita-tipo').value;
   var fecha  = document.getElementById('cita-fecha').value;
   var hora   = document.getElementById('cita-hora').value;
@@ -1348,14 +1358,25 @@ function guardarCita() {
 
   if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
 
-  // Get conductor matricula
-  var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
-  var matricula = c ? c.matricula : '—';
-  var nombre    = c ? c.nombre    : cid;
+  var cidsToNotify = [];
+  var matricula, nombre;
+
+  if (_citaFromMatricula && _currentMat) {
+    // Modo "solo matrícula": la ven todos los conductores asignados a este vehículo
+    matricula = _currentMat.matricula;
+    nombre    = matricula;
+    cidsToNotify = _currentMat.conductores.slice();
+  } else {
+    var cid = document.getElementById('cita-conductor').value;
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    matricula = c ? c.matricula : '—';
+    nombre    = c ? c.nombre    : cid;
+    cidsToNotify = [cid];
+  }
 
   var cita = {
     id:        Date.now(),
-    cid:       cid,
+    cid:       cidsToNotify[0] || '',
     matricula: matricula,
     tipo:      tipo,
     fecha:     fecha,       // YYYY-MM-DD
@@ -1365,12 +1386,14 @@ function guardarCita() {
     ts:        Date.now()
   };
 
-  // Save to conductor-specific key (driver app reads this)
-  var key = 'drivx_citas_' + cid;
-  var existing = [];
-  try { existing = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){}
-  existing.push(cita);
-  localStorage.setItem(key, JSON.stringify(existing));
+  // Save to every conductor assigned (driver app reads su propia clave)
+  cidsToNotify.forEach(function(cid){
+    var key = 'drivx_citas_' + cid;
+    var existing = [];
+    try { existing = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){}
+    existing.push(cita);
+    localStorage.setItem(key, JSON.stringify(existing));
+  });
 
   // Also save to global citas list for dashboard
   var allKey = 'drivx_citas';
@@ -1380,6 +1403,7 @@ function guardarCita() {
   localStorage.setItem(allKey, JSON.stringify(allCitas));
 
   document.getElementById('cita-modal').style.display='none';
+  resetCitaModalGeneral();
 
   // Reset form
   document.getElementById('cita-fecha').value = '';
@@ -1387,7 +1411,7 @@ function guardarCita() {
   document.getElementById('cita-lugar').value = '';
   document.getElementById('cita-nota').value  = '';
 
-  toast('📅 Cita creada para ' + nombre + ' · ' + tipo);
+  toast('📅 Cita creada · ' + matricula + ' · ' + tipo);
   renderNotifCitas();
   renderHomeProximas();
   renderVehiculosHome();
@@ -1520,6 +1544,7 @@ function renderITVAlerts() {
       if (sel && v.conductores.length) sel.value = v.conductores[0];
       var tipoSel = document.getElementById('cita-tipo');
       if (tipoSel) tipoSel.value = 'ITV';
+      resetCitaModalGeneral();
       document.getElementById('cita-modal').style.display = 'flex'; setTimeout(initLugarAutocomplete, 100);
     };
   });
@@ -1584,6 +1609,7 @@ function openITVDetail(matricula) {
   if (citaBtn) citaBtn.onclick = function(){
     preSelectMat(_itvMat);
     document.getElementById('itv-detail-modal').style.display='none';
+    resetCitaModalGeneral();
     document.getElementById('cita-modal').style.display='flex';
   };
 }
@@ -1825,6 +1851,7 @@ function verMatAlerta(btn) {
     if (sel && v.conductores.length) sel.value = v.conductores[0];
     var tipoSel = document.getElementById('cita-tipo');
     if (tipoSel) tipoSel.value = 'ITV';
+    resetCitaModalGeneral();
     document.getElementById('cita-modal').style.display = 'flex';
   };
 
@@ -2261,6 +2288,7 @@ function scanAndOpenCita(input, v) {
         var data = JSON.parse(clean);
         // Open cita modal pre-filled
         document.getElementById('mat-modal').style.display='none';
+        resetCitaModalGeneral();
         document.getElementById('cita-modal').style.display='flex';
         if (data.tipo)  { var s=document.getElementById('cita-tipo');  if(s) s.value=data.tipo; }
         if (data.fecha) { var s=document.getElementById('cita-fecha'); if(s) s.value=data.fecha; }
@@ -2453,7 +2481,7 @@ function offerBiometricRegister(email,pass){
     </label>
     <div id="cita-scan-status" style="font-size:11px;color:var(--text3);margin-top:-10px;margin-bottom:10px;display:none;text-align:center"></div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:14px">El conductor recibirá la notificación en su app</div>
-    <div class="field">
+    <div id="cita-conductor-field" class="field">
       <label>Conductor / Matrícula</label>
       <select id="cita-conductor" class="form-input">
         <optgroup label="1234 ABC — Tesla Model 3">
@@ -2506,6 +2534,11 @@ function offerBiometricRegister(email,pass){
         </optgroup>
       </select>
     </div>
+    <div id="cita-matricula-field" class="field" style="display:none">
+      <label>Vehículo</label>
+      <div id="cita-matricula-display" style="background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;font-size:15px;font-weight:800;font-family:var(--mono);color:var(--cyan)">—</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">Verán esta cita todos los conductores asignados a este vehículo</div>
+    </div>
     <div class="field">
       <label>Tipo de cita</label>
       <select id="cita-tipo" class="form-input">
@@ -2542,7 +2575,7 @@ function offerBiometricRegister(email,pass){
     </div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button class="btn-primary" onclick="guardarCita()">📅 Crear cita</button>
-      <button onclick="document.getElementById('cita-modal').style.display='none'" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+      <button onclick="document.getElementById('cita-modal').style.display='none';resetCitaModalGeneral()" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
     </div>
   </div>
 </div>
