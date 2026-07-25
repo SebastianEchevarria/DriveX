@@ -244,13 +244,18 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
     </div>
 
     <div style="padding:16px">
-      <!-- Documentación -->
-      <div class="sec-title" style="margin-top:0">Documentación</div>
-      <div id="mat-docs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
-
-      <!-- Documentación del vehículo (se sube y gestiona desde el Panel Admin) -->
-      <div class="sec-title">Documentación del vehículo</div>
-      <div id="mat-admindocs-area" style="margin-bottom:16px"></div>
+      <!-- Documentación del vehículo (se sube y gestiona desde el Panel Admin) — plegable -->
+      <div id="docveh-section" style="background:rgba(0,212,255,.03);border:2px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px">
+        <div id="docveh-header" onclick="toggleDocVehSupervisor()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <span style="font-size:20px">📁</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:800;color:var(--text)">Documentación del vehículo</div>
+            <div id="docveh-sub" style="font-size:11px;color:var(--text3);margin-top:1px">Cargando…</div>
+          </div>
+          <span id="docveh-chevron" style="color:var(--text3);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
+        </div>
+        <div id="mat-admindocs-area" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)"></div>
+      </div>
 
       <!-- Conductores en esta matrícula -->
       <div class="sec-title">Conductores asignados</div>
@@ -736,14 +741,6 @@ function openMatModal(matricula) {
   document.getElementById('mat-plate').textContent = v.matricula;
   document.getElementById('mat-model').textContent  = v.modelo + ' · ' + v.ciudad;
   document.getElementById('mat-icon').textContent   = v.icon;
-
-  // Docs
-  var docsHTML = '';
-  var itvClass = v.docs.itv.ok && !v.docs.itv.warn ? 'doc-ok' : v.docs.itv.warn ? 'doc-warn' : 'doc-bad';
-  docsHTML += '<span class="doc-badge '+itvClass+'">ITV '+(v.docs.itv.ok && !v.docs.itv.warn?'✓':'⚠')+' '+v.docs.itv.fecha+'</span>';
-  docsHTML += '<span class="doc-badge '+(v.docs.seguro.ok?'doc-ok':'doc-bad')+'">Seguro '+(v.docs.seguro.ok?'✓':'⚠')+' '+v.docs.seguro.fecha+'</span>';
-  docsHTML += '<span class="doc-badge doc-ok">VTC ✓</span>';
-  document.getElementById('mat-docs').innerHTML = docsHTML;
 
   // Conductores
   var condHTML = '';
@@ -1272,6 +1269,13 @@ function renderAdminDocsArea(v) {
     el.innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
   });
 }
+function toggleDocVehSupervisor() {
+  var area = document.getElementById('mat-admindocs-area');
+  var chev = document.getElementById('docveh-chevron');
+  var isOpen = area.style.display !== 'none';
+  area.style.display = isOpen ? 'none' : 'block';
+  chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
 function paintAdminDocsArea() {
   var el = document.getElementById('mat-admindocs-area');
   if (!el) return;
@@ -1292,6 +1296,16 @@ function paintAdminDocsArea() {
       '</div>';
   });
   el.innerHTML = html;
+
+  // Borde verde si está todo completo, naranja si falta algo
+  var total = ADMIN_DOC_TYPES.length;
+  var have = ADMIN_DOC_TYPES.filter(function(dt){ return _matDocsCache[dt.key] && _matDocsCache[dt.key].url; }).length;
+  var section = document.getElementById('docveh-section');
+  var sub = document.getElementById('docveh-sub');
+  if (section) section.style.borderColor = (have === total) ? 'var(--green)' : 'var(--amber)';
+  if (sub) sub.innerHTML = (have === total)
+    ? '<span style="color:var(--green)">Documentación completa ✓</span>'
+    : '<span style="color:var(--amber)">' + have + '/' + total + ' documentos · faltan ' + (total - have) + '</span>';
 }
 function verAdminDoc(docType) {
   var doc = _matDocsCache[docType];
