@@ -30,7 +30,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 #app{height:100vh;display:flex;flex-direction:column}
 .screen{display:none;flex:1;flex-direction:column;overflow:hidden}
 .screen.active{display:flex}
-.scroll{flex:1;overflow-y:auto;padding:0 16px 100px}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 140px}
 .scroll::-webkit-scrollbar{display:none}
 
 /* NAV */
@@ -205,12 +205,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
 </div>
 
 <!-- ══ HOME ══ -->
-<div id="screen-home" class="screen">
+<div id="screen-home" class="screen" style="position:relative">
   <div class="sync-bar">
     <div class="sync-dot"></div>
     <span class="sync-text" id="sync-ts">Sincronizando...</span>
   </div>
-  <div class="scroll">
+  <div class="scroll" id="home-scroll">
     <div class="header">
       <div><div class="header-title">Mis Vehículos</div><div class="header-sub" id="home-sub">VTC Infinity</div></div>
       <button onclick="doLogout()" style="padding:7px 14px;border-radius:16px;border:1.5px solid rgba(255,107,107,.6);background:rgba(255,107,107,.1);color:#ff6b6b;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap">Salir</button>
@@ -226,6 +226,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
     <div class="sec-title">Flota · toca para ver detalle</div>
     <div id="vehiculos-home-list"></div>
 
+  </div>
+
+  <!-- Barra de scroll vertical personalizada (visible y arrastrable) -->
+  <div id="home-scrollbar-track" style="position:absolute;right:3px;width:5px;border-radius:4px;background:rgba(255,255,255,.06);z-index:20;display:none">
+    <div id="home-scrollbar-thumb" style="position:absolute;left:0;right:0;border-radius:4px;background:var(--cyan);opacity:.75;touch-action:none"></div>
   </div>
 </div>
 
@@ -920,6 +925,8 @@ function loginSuccess(isTester) {
   if (sub) sub.textContent = isTester ? 'Test Supervisor · pruebas' : 'Ana Martínez · hoy';
   // test conductor already in CONDUCTORES array
   startSync();
+  setTimeout(updateHomeScrollbar, 200);
+  setTimeout(updateHomeScrollbar, 800);
 }
 
 // ══ NAVIGATION ══
@@ -1904,6 +1911,70 @@ function showScreen(id) {
   if (nb) nb.classList.add('active');
   if (id === 'calendario') renderCalendar();
   if (id === 'notif') renderITVAlerts();
+  if (id === 'home') { setTimeout(updateHomeScrollbar, 60); setTimeout(updateHomeScrollbar, 300); }
+}
+
+// ── BARRA DE SCROLL VERTICAL DE LA PANTALLA DE INICIO ──
+var _homeScrollbarBound = false;
+function updateHomeScrollbar() {
+  var list  = document.getElementById('home-scroll');
+  var wrap  = document.getElementById('screen-home');
+  var track = document.getElementById('home-scrollbar-track');
+  var thumb = document.getElementById('home-scrollbar-thumb');
+  if (!list || !wrap || !track || !thumb) return;
+
+  var listRect = list.getBoundingClientRect();
+  var wrapRect = wrap.getBoundingClientRect();
+  track.style.top    = (listRect.top - wrapRect.top) + 'px';
+  track.style.height = listRect.height + 'px';
+
+  var scrollable = list.scrollHeight > list.clientHeight + 2;
+  if (!scrollable) { track.style.display = 'none'; return; }
+  track.style.display = 'block';
+
+  var trackHeight = listRect.height;
+  var thumbHeight = Math.max(32, trackHeight * (list.clientHeight / list.scrollHeight));
+  var maxThumbTop = trackHeight - thumbHeight;
+  var scrollRatio = list.scrollTop / (list.scrollHeight - list.clientHeight);
+  thumb.style.height = thumbHeight + 'px';
+  thumb.style.top    = (maxThumbTop * scrollRatio) + 'px';
+
+  if (!_homeScrollbarBound) {
+    _homeScrollbarBound = true;
+    list.addEventListener('scroll', updateHomeScrollbar);
+    window.addEventListener('resize', function(){ setTimeout(updateHomeScrollbar, 60); });
+    window.addEventListener('load', function(){ setTimeout(updateHomeScrollbar, 150); });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function(){ setTimeout(updateHomeScrollbar, 60); });
+    }
+    // Recalcula si el contenido cambia de tamaño (nuevas citas, flota desplegada, etc.)
+    if (window.MutationObserver) {
+      var mo = new MutationObserver(function(){ setTimeout(updateHomeScrollbar, 60); });
+      mo.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    }
+
+    var dragging = false, dragStartY = 0, dragStartScroll = 0;
+    function onDown(clientY) { dragging = true; dragStartY = clientY; dragStartScroll = list.scrollTop; }
+    function onMove(clientY) {
+      if (!dragging) return;
+      var trTrack = document.getElementById('home-scrollbar-track');
+      var trThumb = document.getElementById('home-scrollbar-thumb');
+      var trackDist = trTrack.clientHeight - trThumb.clientHeight;
+      if (trackDist <= 0) return;
+      var scrollableDist = list.scrollHeight - list.clientHeight;
+      var deltaY = clientY - dragStartY;
+      list.scrollTop = dragStartScroll + deltaY * (scrollableDist / trackDist);
+    }
+    function onUp() { dragging = false; }
+
+    thumb.addEventListener('mousedown', function(e){ onDown(e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', function(e){ onMove(e.clientY); });
+    window.addEventListener('mouseup', onUp);
+
+    thumb.addEventListener('touchstart', function(e){ onDown(e.touches[0].clientY); }, { passive: true });
+    window.addEventListener('touchmove', function(e){ if (dragging) { onMove(e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+    window.addEventListener('touchend', onUp);
+  }
 }
 
 function calPrev() { _calMonth--; if(_calMonth<0){_calMonth=11;_calYear--;} renderCalendar(); }
