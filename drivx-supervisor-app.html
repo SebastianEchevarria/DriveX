@@ -430,8 +430,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
 </div>
 
 <!-- ══ VER MATRÍCULA MODAL ══ -->
-<div id="ver-mat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:flex-end;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">
+<div id="ver-mat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto">
     <!-- Header -->
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);z-index:5">
       <span id="ver-mat-icon" style="font-size:28px">🚗</span>
@@ -1848,18 +1848,19 @@ function verMatAlerta(btn) {
     +'<div style="margin-bottom:16px">'+citasH+'</div>'
     // Buttons
     +'<a href="https://www.itvcita.com/Welcome.do" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:12px;background:rgba(255,179,0,.12);border:2px solid rgba(255,179,0,.5);color:var(--amber);font-size:14px;font-weight:800;text-decoration:none;margin-bottom:10px">🔧 Pedir cita ITV online →</a>'
-    +'<button id="ver-reg-cita-btn" style="width:100%;padding:13px;border-radius:12px;background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.4);color:var(--cyan);font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">📅 Registrar cita en el calendario</button>';
+    +'<label style="display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;border-radius:12px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,.5);color:var(--cyan);font-size:14px;font-weight:900;cursor:pointer;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,212,255,.15)">'
+      +'<input type="file" accept="image/*" style="display:none" onchange="scanAndOpenCitaFromAlerta(this, _verMatActual)">'
+      +'<span style="font-size:20px">📸</span> REGISTRAR CITA CON IA</label>'
+    +'<button id="ver-reg-cita-btn" style="width:100%;padding:13px;border-radius:12px;background:var(--surface2);border:2px solid var(--border2);color:var(--text2);font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">📅 REGISTRAR CITA MANUALMENTE</button>';
 
-  // Attach register button
+  // Attach register button — modo "solo matrícula", sin elegir conductor
   var regBtn = document.getElementById('ver-reg-cita-btn');
   if (regBtn) regBtn.onclick = function() {
     document.getElementById('ver-mat-modal').style.display = 'none';
-    var sel = document.getElementById('cita-conductor');
-    if (sel && v.conductores.length) sel.value = v.conductores[0];
+    _currentMat = v;
+    openCitaForMat();
     var tipoSel = document.getElementById('cita-tipo');
     if (tipoSel) tipoSel.value = 'ITV';
-    resetCitaModalGeneral();
-    document.getElementById('cita-modal').style.display = 'flex';
   };
 
   document.getElementById('ver-mat-modal').style.display = 'flex';
@@ -2344,6 +2345,33 @@ function scanCitaImage(input) {
   };
   reader.readAsDataURL(file);
   input.value = '';
+}
+
+function scanAndOpenCitaFromAlerta(input, v) {
+  if (!input.files[0] || !v) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var prompt = 'Eres un extractor de datos de citas de vehiculos. Analiza esta imagen. Extrae SOLO en JSON sin markdown: {"tipo":"ITV","fecha":"YYYY-MM-DD","hora":"HH:MM","lugar":"nombre estacion y direccion completa","nota":"info relevante"}. Responde UNICAMENTE el JSON.';
+    callAI(b64, file.type||'image/jpeg', prompt).then(function(text) {
+      try {
+        var clean = text.replace(/```[a-z]*/g,'').replace(/```/g,'').trim();
+        var data = JSON.parse(clean);
+        document.getElementById('ver-mat-modal').style.display='none';
+        _currentMat = v;
+        openCitaForMat();
+        if (data.tipo)  { var s=document.getElementById('cita-tipo');  if(s) s.value=data.tipo; }
+        if (data.fecha) { var s=document.getElementById('cita-fecha'); if(s) s.value=data.fecha; }
+        if (data.hora)  { var s=document.getElementById('cita-hora');  if(s) s.value=data.hora; }
+        if (data.lugar) { var s=document.getElementById('cita-lugar'); if(s) s.value=data.lugar; }
+        if (data.nota)  { var s=document.getElementById('cita-nota');  if(s) s.value=data.nota; }
+        toast('✅ Datos cargados · revisa y confirma');
+      } catch(ex) { toast('⚠ No se pudo leer la imagen'); }
+    }).catch(function(){ toast('❌ Error al analizar imagen'); });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
 }
 
 function scanAndOpenCita(input, v) {
