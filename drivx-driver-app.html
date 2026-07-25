@@ -1417,7 +1417,18 @@ function finalizeRegistro() {
     localStorage.setItem('drivx_dynamic_user_' + cid, JSON.stringify(u));
     document.getElementById('invite-modal').classList.remove('open');
     toast('✅ Cuenta activada');
-    loginAs(u);
+
+    // Primer acceso: ofrecer registrar huella, igual que en el login normal
+    window._pendingUser = u;
+    if (u.email) {
+      offerBiometricRegister(u.email, pass);
+      setTimeout(function(){
+        var m = document.getElementById('biometric-offer-modal');
+        if (m && m.style.display !== 'none') { m.style.display = 'none'; loginAs(u); }
+      }, 10000);
+    } else {
+      loginAs(u);
+    }
   }).catch(function(){
     toast('❌ No se pudo completar el registro. Revisa tu conexión e inténtalo de nuevo.');
   });
