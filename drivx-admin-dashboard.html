@@ -597,25 +597,7 @@ function renderFlota() {
 
   // Cargar el estado de documentación de cada vehículo desde Firebase (asíncrono,
   // no bloquea el render inicial de las tarjetas)
-  VEHICULOS.forEach(function(v){
-    var slug = matSlug(v.matricula);
-    fbGetVehicleDocs(slug).then(function(docs){
-      var el = document.getElementById('docbadge_' + slug);
-      if (!el) return;
-      var total = DOC_TYPES.length;
-      var have = DOC_TYPES.filter(function(dt){ return docs[dt.key] && docs[dt.key].url; }).length;
-      if (have === total) {
-        el.innerHTML = '<span style="color:var(--green)">📄 ' + have + '/' + total + ' documentos completos ✓</span>';
-      } else {
-        var missing = DOC_TYPES.filter(function(dt){ return !(docs[dt.key] && docs[dt.key].url); }).map(function(dt){ return dt.label; });
-        el.innerHTML = '<span style="color:var(--amber)">📄 ' + have + '/' + total + ' documentos</span> ' +
-          '<span style="color:var(--text3)">· Faltan: ' + missing.join(', ') + '</span>';
-      }
-    }).catch(function(){
-      var el = document.getElementById('docbadge_' + slug);
-      if (el) el.innerHTML = '<span style="color:var(--text3)">📄 Documentos: no disponible</span>';
-    });
-  });
+  VEHICULOS.forEach(function(v){ updateDocBadge(v.matricula); });
 
   ccaas.forEach(function(cc){
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
@@ -661,6 +643,28 @@ var DOC_TYPES = [
 function matSlug(mat){ return mat.replace(/\s/g,'_'); }
 var _vdCurrentMat = null;
 var _vdDocsCache = {};
+
+function updateDocBadge(matricula) {
+  var slug = matSlug(matricula);
+  var el = document.getElementById('docbadge_' + slug);
+  if (!el) return; // la tarjeta no está en pantalla ahora mismo (p.ej. estamos en Inicio)
+  fbGetVehicleDocs(slug).then(function(docs){
+    var el2 = document.getElementById('docbadge_' + slug);
+    if (!el2) return;
+    var total = DOC_TYPES.length;
+    var have = DOC_TYPES.filter(function(dt){ return docs[dt.key] && docs[dt.key].url; }).length;
+    if (have === total) {
+      el2.innerHTML = '<span style="color:var(--green)">📄 DOCUMENTACIÓN COMPLETA ✓</span>';
+    } else {
+      var missing = DOC_TYPES.filter(function(dt){ return !(docs[dt.key] && docs[dt.key].url); }).map(function(dt){ return dt.label; });
+      el2.innerHTML = '<span style="color:var(--amber)">📄 ' + have + '/' + total + ' documentos</span> ' +
+        '<span style="color:var(--text3)">· Faltan: ' + missing.join(', ') + '</span>';
+    }
+  }).catch(function(){
+    var el3 = document.getElementById('docbadge_' + slug);
+    if (el3) el3.innerHTML = '<span style="color:var(--text3)">📄 Documentos: no disponible</span>';
+  });
+}
 
 function openVehicleDetail(matricula) {
   var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
@@ -791,6 +795,7 @@ function handleDocFileSelected(inputEl, docType) {
     return fbSetDoc(mySlug, docType, doc).then(function(){
       _vdDocsCache[docType] = doc;
       paintVehicleDocs();
+      updateDocBadge(_vdCurrentMat);
     });
   }).catch(function(err) {
     delete _vdDocsCache[docType];
@@ -812,6 +817,7 @@ function deleteVehicleDoc(docType) {
   fbDeleteDoc(mySlug, docType).then(function(){
     delete _vdDocsCache[docType];
     paintVehicleDocs();
+    updateDocBadge(_vdCurrentMat);
   });
 }
 
