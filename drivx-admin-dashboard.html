@@ -584,7 +584,8 @@ function renderFlota() {
         ? '<span class="edit-btn">Ver ficha ›</span>'
         : '<span class="manager-lock">🔒 solo lectura</span>';
       html += '</div>';
-      html += '<div style="font-size:12px;font-weight:700;color:' + itvColor + ';margin-bottom:8px">' + itvTxt + '</div>';
+      html += '<div style="font-size:12px;font-weight:700;color:' + itvColor + ';margin-bottom:6px">' + itvTxt + '</div>';
+      html += '<div id="docbadge_' + matSlug(v.matricula) + '" style="font-size:11px;color:var(--text3);margin-bottom:8px">📄 Cargando documentos…</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
       html += '</div>';
     });
@@ -593,6 +594,28 @@ function renderFlota() {
   });
 
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin vehículos</div>';
+
+  // Cargar el estado de documentación de cada vehículo desde Firebase (asíncrono,
+  // no bloquea el render inicial de las tarjetas)
+  VEHICULOS.forEach(function(v){
+    var slug = matSlug(v.matricula);
+    fbGetVehicleDocs(slug).then(function(docs){
+      var el = document.getElementById('docbadge_' + slug);
+      if (!el) return;
+      var total = DOC_TYPES.length;
+      var have = DOC_TYPES.filter(function(dt){ return docs[dt.key] && docs[dt.key].url; }).length;
+      if (have === total) {
+        el.innerHTML = '<span style="color:var(--green)">📄 ' + have + '/' + total + ' documentos completos ✓</span>';
+      } else {
+        var missing = DOC_TYPES.filter(function(dt){ return !(docs[dt.key] && docs[dt.key].url); }).map(function(dt){ return dt.label; });
+        el.innerHTML = '<span style="color:var(--amber)">📄 ' + have + '/' + total + ' documentos</span> ' +
+          '<span style="color:var(--text3)">· Faltan: ' + missing.join(', ') + '</span>';
+      }
+    }).catch(function(){
+      var el = document.getElementById('docbadge_' + slug);
+      if (el) el.innerHTML = '<span style="color:var(--text3)">📄 Documentos: no disponible</span>';
+    });
+  });
 
   ccaas.forEach(function(cc){
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
