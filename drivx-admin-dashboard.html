@@ -329,7 +329,40 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <div id="vd-itv" style="font-size:13px;font-weight:700;margin-bottom:22px">—</div>
 
       <div class="sb-section" style="padding:0 0 10px">Conductores y turnos</div>
-      <div id="vd-conductores" style="margin-bottom:22px"></div>
+      <div id="vd-conductores" style="margin-bottom:14px"></div>
+
+      <button id="vd-invite-btn" onclick="toggleInviteForm()" style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(124,92,252,.15));border:2px solid rgba(0,212,255,.45);color:var(--cyan);font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px">
+        ➕ INVITAR NUEVO CONDUCTOR
+      </button>
+
+      <div id="vd-invite-form" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-bottom:22px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Matrícula</div>
+        <div id="vd-invite-mat" style="font-family:var(--mono);color:var(--cyan);font-weight:800;margin-bottom:14px">—</div>
+
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Email del conductor</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">El conductor debe facilitarte su email antes de crear la invitación</div>
+        <input id="vd-invite-email" type="email" placeholder="conductor@email.com" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Horario que realizará</div>
+        <select id="vd-invite-turno" onchange="toggleInviteTurnoManual()" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:8px;font-family:inherit">
+          <option value="06:00–14:00">🌅 06:00–14:00 (mañana)</option>
+          <option value="14:00–22:00">🌇 14:00–22:00 (tarde)</option>
+          <option value="22:00–06:00">🌙 22:00–06:00 (noche)</option>
+          <option value="manual">✏️ Introducir manualmente…</option>
+        </select>
+        <input id="vd-invite-turno-manual" type="text" placeholder="Ej: 08:00–16:00" style="display:none;width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+
+        <button onclick="enviarInvitacion()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">📨 ENVIAR INVITACIÓN</button>
+
+        <div id="vd-invite-result" style="display:none;margin-top:14px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código generado — compártelo con el conductor</div>
+          <div id="vd-invite-code" style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--green);letter-spacing:1px">—</div>
+          <button onclick="copyInviteCode()" style="margin-top:10px;padding:7px 16px;border-radius:8px;border:1px solid rgba(0,230,118,.4);background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">📋 Copiar código</button>
+        </div>
+      </div>
+
+      <div class="sb-section" style="padding:0 0 10px">Conductores registrados por invitación</div>
+      <div id="vd-conductores-invitados" style="margin-bottom:22px"><div style="font-size:12px;color:var(--text3)">Cargando…</div></div>
 
       <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo</div>
       <div id="vd-docs"></div>
@@ -697,6 +730,16 @@ function openVehicleDetail(matricula) {
   });
   document.getElementById('vd-conductores').innerHTML = condHtml || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
 
+  // Reset del formulario de invitación
+  document.getElementById('vd-invite-form').style.display = 'none';
+  document.getElementById('vd-invite-mat').textContent = v.matricula;
+  document.getElementById('vd-invite-email').value = '';
+  document.getElementById('vd-invite-turno').value = '06:00–14:00';
+  document.getElementById('vd-invite-turno-manual').style.display = 'none';
+  document.getElementById('vd-invite-turno-manual').value = '';
+  document.getElementById('vd-invite-result').style.display = 'none';
+
+  renderConductoresInvitados(v);
   renderVehicleDocs();
   document.getElementById('vehicle-detail-modal').style.display = 'flex';
 }
@@ -704,6 +747,134 @@ function openVehicleDetail(matricula) {
 function closeVehicleDetail() {
   document.getElementById('vehicle-detail-modal').style.display = 'none';
   _vdCurrentMat = null;
+}
+
+// ══ INVITAR NUEVO CONDUCTOR ══
+function toggleInviteForm() {
+  var f = document.getElementById('vd-invite-form');
+  f.style.display = (f.style.display === 'none') ? 'block' : 'none';
+}
+function toggleInviteTurnoManual() {
+  var sel = document.getElementById('vd-invite-turno').value;
+  document.getElementById('vd-invite-turno-manual').style.display = (sel === 'manual') ? 'block' : 'none';
+}
+function generateInviteCode() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = 'DRVX-';
+  for (var i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+function enviarInvitacion() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var v = VEHICULOS.find(function(x){ return x.matricula === _vdCurrentMat; });
+  if (!v) return;
+
+  var email = (document.getElementById('vd-invite-email').value || '').trim().toLowerCase();
+  if (!email || email.indexOf('@') === -1) { alert('Introduce un email válido del conductor.'); return; }
+
+  var turnoSel = document.getElementById('vd-invite-turno').value;
+  var turno = turnoSel === 'manual' ? (document.getElementById('vd-invite-turno-manual').value || '').trim() : turnoSel;
+  if (!turno) { alert('Indica el horario del conductor.'); return; }
+
+  var code = generateInviteCode();
+  var invite = {
+    matricula: v.matricula, turno: turno, email: email,
+    modelo: v.modelo, ciudad: v.ciudad, ccaa: v.ccaa, icon: v.icon,
+    usado: false, creadoTs: Date.now()
+  };
+
+  fetch(FIREBASE_URL + '/invites/' + code + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(invite)
+  }).then(function(){
+    document.getElementById('vd-invite-code').textContent = code;
+    document.getElementById('vd-invite-result').style.display = 'block';
+  }).catch(function(){
+    alert('No se pudo crear la invitación. Revisa tu conexión.');
+  });
+}
+function copyInviteCode() {
+  var code = document.getElementById('vd-invite-code').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  var btn = event.target;
+  var old = btn.textContent;
+  btn.textContent = '✓ Copiado';
+  setTimeout(function(){ btn.textContent = old; }, 1500);
+}
+
+// ══ CONDUCTORES REGISTRADOS POR INVITACIÓN ══
+var _vdInvitadosCache = {};
+function renderConductoresInvitados(v) {
+  var el = document.getElementById('vd-conductores-invitados');
+  el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Cargando…</div>';
+  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var mios = {};
+    Object.keys(all).forEach(function(cid){ if (all[cid] && all[cid].matricula === v.matricula) mios[cid] = all[cid]; });
+    _vdInvitadosCache = mios;
+    paintConductoresInvitados();
+  }).catch(function(){
+    el.innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
+  });
+}
+function paintConductoresInvitados() {
+  var el = document.getElementById('vd-conductores-invitados');
+  var isAdmin = currentUser && currentUser.role === 'admin';
+  var cids = Object.keys(_vdInvitadosCache);
+  if (!cids.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Todavía no hay conductores registrados por invitación en este vehículo.</div>'; return; }
+
+  var docLabels = { carnetFrenteUrl:'🪪 Carnet (frontal)', carnetDorsoUrl:'🪪 Carnet (dorso)', dniFrenteUrl:'🆔 DNI (frontal)', dniDorsoUrl:'🆔 DNI (dorso)' };
+  var html = '';
+  cids.forEach(function(cid){
+    var r = _vdInvitadosCache[cid];
+    var aptoTxt = r.apto
+      ? '<span style="color:var(--green);font-weight:800">✅ Documentación apta</span>'
+      : '<span style="color:var(--red);font-weight:800">⚠ Requiere revisión</span>';
+
+    var docsHtml = Object.keys(docLabels).map(function(k){
+      if (!r[k]) return '';
+      return '<a href="' + r[k] + '" target="_blank" style="display:inline-block;margin:3px 6px 3px 0;padding:5px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--border2);color:var(--cyan);font-size:11px;font-weight:700;text-decoration:none">' + docLabels[k] + ' ↓</a>';
+    }).join('');
+
+    html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
+        '<div><div style="font-size:14px;font-weight:800">' + (r.nombre||'Conductor') + '</div>' +
+        '<div style="font-size:11px;color:var(--text3)">' + r.turno + ' · registrado ' + r.fechaRegistro + '</div></div>' +
+        aptoTxt +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📱 ' + (r.telefono||'—') + (r.email ? ' · ✉️ ' + r.email : '') + '</div>' +
+      '<div style="margin-bottom:10px">' + docsHtml + '</div>' +
+      '<button id="del-cond-' + cid + '" onclick="confirmDeleteConductor(\'' + cid + '\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3)">🗑 Eliminar conductor</button>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+function confirmDeleteConductor(cid) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById('del-cond-' + cid);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    // Segunda pulsación: eliminar de verdad
+    var code = _vdInvitadosCache[cid] && _vdInvitadosCache[cid].code;
+    Promise.all([
+      fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', { method:'DELETE' }),
+      code ? fetch(FIREBASE_URL + '/invites/' + code + '.json', { method:'DELETE' }) : Promise.resolve()
+    ]).then(function(){
+      delete _vdInvitadosCache[cid];
+      paintConductoresInvitados();
+    }).catch(function(){ alert('No se pudo eliminar. Revisa tu conexión.'); });
+    return;
+  }
+  // Primera pulsación: pedir confirmación
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Pulsa otra vez para confirmar';
+  btn.style.background = 'rgba(255,71,87,.15)';
+  setTimeout(function(){
+    if (btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar conductor';
+      btn.style.background = 'transparent';
+    }
+  }, 5000);
 }
 
 function renderVehicleDocs() {

@@ -670,17 +670,96 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 <!-- ══════════════ INVITE MODAL ══════════════ -->
 <div id="invite-modal">
-  <div class="parking-sheet">
-    <div style="font-size:16px;font-weight:800;margin-bottom:4px">Activar cuenta</div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:20px">Introduce tu código de invitación</div>
-    <div class="field">
-      <label>Código</label>
-      <input id="invite-code" type="text" placeholder="DRVX-XXXX" style="font-family:var(--mono);font-size:18px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')doInvite()">
+  <div class="parking-sheet" style="max-height:88vh;overflow-y:auto;max-width:400px">
+
+    <!-- Paso 0: código -->
+    <div id="inv-step-code">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">Activar cuenta</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:20px">Introduce el código de invitación que te ha enviado tu empresa</div>
+      <div class="field">
+        <label>Código</label>
+        <input id="invite-code" type="text" placeholder="DRVX-XXXX" style="font-family:var(--mono);font-size:18px;text-align:center;text-transform:uppercase" onkeydown="if(event.key==='Enter')verifyInviteCode()">
+      </div>
+      <div id="inv-code-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" onclick="verifyInviteCode()">Verificar código</button>
+        <button onclick="closeInviteModal()" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+      </div>
     </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn-primary" onclick="doInvite()">Activar</button>
-      <button onclick="document.getElementById('invite-modal').classList.remove('open')" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+
+    <!-- Paso 1: teléfono -->
+    <div id="inv-step-phone" style="display:none">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">📱 Tu número de teléfono</div>
+      <div id="inv-vehiculo-info" style="font-size:13px;color:var(--cyan);font-family:var(--mono);margin-bottom:6px">—</div>
+      <div id="inv-email-info" style="font-size:12px;color:var(--text3);margin-bottom:16px">—</div>
+      <div class="field">
+        <label>Teléfono</label>
+        <input id="inv-telefono" type="tel" placeholder="600 123 456" style="font-size:16px">
+      </div>
+      <button class="btn-primary" onclick="goRegStep('inv-step-carnet')" style="width:100%">Continuar →</button>
     </div>
+
+    <!-- Paso 2: carnet de conducir -->
+    <div id="inv-step-carnet" style="display:none">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">🪪 Carnet de conducir</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Haz una foto o sube ambas caras</div>
+
+      <label style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:2px dashed var(--border2);cursor:pointer;margin-bottom:10px;background:var(--surface2)">
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleRegPhoto(this,'carnetFrente')">
+        <span id="reg-thumb-carnetFrente" style="font-size:26px">📷</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Cara frontal</div>
+          <div id="reg-status-carnetFrente" style="font-size:11px;color:var(--text3)">Toca para hacer foto</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:2px dashed var(--border2);cursor:pointer;margin-bottom:16px;background:var(--surface2)">
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleRegPhoto(this,'carnetDorso')">
+        <span id="reg-thumb-carnetDorso" style="font-size:26px">📷</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Cara trasera</div>
+          <div id="reg-status-carnetDorso" style="font-size:11px;color:var(--text3)">Toca para hacer foto</div>
+        </div>
+      </label>
+      <button class="btn-primary" onclick="goRegStep('inv-step-dni')" style="width:100%">Continuar →</button>
+    </div>
+
+    <!-- Paso 3: DNI -->
+    <div id="inv-step-dni" style="display:none">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">🆔 Documento de identidad</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Haz una foto o sube ambas caras</div>
+
+      <label style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:2px dashed var(--border2);cursor:pointer;margin-bottom:10px;background:var(--surface2)">
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleRegPhoto(this,'dniFrente')">
+        <span id="reg-thumb-dniFrente" style="font-size:26px">📷</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Cara frontal</div>
+          <div id="reg-status-dniFrente" style="font-size:11px;color:var(--text3)">Toca para hacer foto</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:2px dashed var(--border2);cursor:pointer;margin-bottom:16px;background:var(--surface2)">
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleRegPhoto(this,'dniDorso')">
+        <span id="reg-thumb-dniDorso" style="font-size:26px">📷</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">Cara trasera</div>
+          <div id="reg-status-dniDorso" style="font-size:11px;color:var(--text3)">Toca para hacer foto</div>
+        </div>
+      </label>
+      <button class="btn-primary" onclick="startRegVerification()" style="width:100%">Verificar documentos →</button>
+    </div>
+
+    <!-- Paso 4: verificando -->
+    <div id="inv-step-verifying" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:40px;margin-bottom:12px">🤖</div>
+      <div style="font-size:15px;font-weight:800;margin-bottom:6px">Verificando documentos con IA...</div>
+      <div id="inv-verifying-status" style="font-size:12px;color:var(--text3)">Analizando carnet de conducir…</div>
+    </div>
+
+    <!-- Paso 5: resultado -->
+    <div id="inv-step-result" style="display:none">
+      <div id="inv-result-box" style="border-radius:14px;padding:16px;margin-bottom:16px"></div>
+      <button class="btn-primary" onclick="finalizeRegistro()" style="width:100%">✓ Finalizar activación</button>
+    </div>
+
   </div>
 </div>
 
@@ -1071,19 +1150,231 @@ function doLogin() {
   var pass  = document.getElementById('login-pass').value||'';
   var err   = document.getElementById('login-error');
   var u = USERS[email];
-  if (!u || u.pass !== pass) { err.style.display='block'; return; }
-  err.style.display='none';
-  var _hasStored = (function(){var s=null;try{s=JSON.parse(localStorage.getItem("drivx_webauthn_cred_driver")||"null");}catch(e){}return !!(s&&s.email&&s.registered===true);})();
-  if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 10000); } else { loginAs(u); }
+  if (u) {
+    if (u.pass !== pass) { err.style.display='block'; return; }
+    err.style.display='none';
+    var _hasStored = (function(){var s=null;try{s=JSON.parse(localStorage.getItem("drivx_webauthn_cred_driver")||"null");}catch(e){}return !!(s&&s.email&&s.registered===true);})();
+    if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 10000); } else { loginAs(u); }
+    return;
+  }
+  // ¿Es un conductor activado por invitación? (código de invitación + teléfono)
+  var code = email.toUpperCase();
+  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var match = null;
+    Object.keys(all).forEach(function(k){ if (all[k] && all[k].code === code && all[k].telefono === pass) match = all[k]; });
+    if (!match) { err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    var du = {
+      email: null, cid: match.cid, nombre: match.nombre,
+      matricula: match.matricula, modelo: match.modelo, ciudad: match.ciudad,
+      turno: match.turno, invite: match.code, telefono: match.telefono
+    };
+    loginAs(du);
+  }).catch(function(){ err.style.display = 'block'; });
 }
 
-function openInvite() { document.getElementById('invite-modal').classList.add('open'); }
-function doInvite() {
-  var code = (document.getElementById('invite-code').value||'').trim().toUpperCase();
-  var u = INVITE_MAP[code];
-  if (!u) { toast('❌ Código incorrecto'); return; }
+// ══ CLOUDINARY (subida de documentos) ══
+var CLOUDINARY_CLOUD = 'zipoxtg7';
+var CLOUDINARY_PRESET = 'drivx_uploads';
+function uploadToCloudinary(file) {
+  return new Promise(function(resolve, reject) {
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_PRESET);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/auto/upload');
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); } catch(e){ reject(new Error('Respuesta inválida')); }
+      } else reject(new Error('Error al subir (' + xhr.status + ')'));
+    };
+    xhr.onerror = function(){ reject(new Error('Error de red')); };
+    xhr.send(fd);
+  });
+}
+
+// ══ ACTIVACIÓN POR INVITACIÓN — asistente de varios pasos ══
+var _inviteData = null;   // { matricula, turno, ccaa, modelo, ciudad, icon, code }
+var _regPhotos = {};      // { carnetFrente: {file,base64,url}, ... }
+
+function openInvite() {
+  document.getElementById('invite-modal').classList.add('open');
+  goRegStep('inv-step-code');
+  document.getElementById('invite-code').value = '';
+  document.getElementById('inv-code-error').style.display = 'none';
+  _inviteData = null;
+  _regPhotos = {};
+}
+function closeInviteModal() {
   document.getElementById('invite-modal').classList.remove('open');
-  loginAs(u);
+}
+function goRegStep(stepId) {
+  ['inv-step-code','inv-step-phone','inv-step-carnet','inv-step-dni','inv-step-verifying','inv-step-result'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = (id === stepId) ? 'block' : 'none';
+  });
+}
+
+function verifyInviteCode() {
+  var code = (document.getElementById('invite-code').value||'').trim().toUpperCase();
+  var errEl = document.getElementById('inv-code-error');
+  errEl.style.display = 'none';
+  if (!code) return;
+
+  // Primero comprobamos si es un usuario ya existente (flujo antiguo de cuentas fijas)
+  var existingUser = INVITE_MAP[code];
+  if (existingUser) {
+    document.getElementById('invite-modal').classList.remove('open');
+    loginAs(existingUser);
+    return;
+  }
+
+  // Si no, comprobamos si es una invitación nueva creada desde el Panel Admin
+  fetch(FIREBASE_URL + '/invites/' + code + '.json').then(function(r){ return r.json(); }).then(function(inv){
+    if (!inv) { errEl.textContent = '❌ Código no válido'; errEl.style.display = 'block'; return; }
+    if (inv.usado) { errEl.textContent = '⚠ Este código ya ha sido utilizado'; errEl.style.display = 'block'; return; }
+    _inviteData = inv;
+    _inviteData.code = code;
+    document.getElementById('inv-vehiculo-info').textContent = inv.matricula + ' · ' + (inv.modelo||'') + ' · ' + inv.turno;
+    document.getElementById('inv-email-info').textContent = inv.email ? ('Invitación enviada a: ' + inv.email) : '';
+    goRegStep('inv-step-phone');
+  }).catch(function(){
+    errEl.textContent = '⚠ No se pudo comprobar el código. Revisa tu conexión.';
+    errEl.style.display = 'block';
+  });
+}
+
+function handleRegPhoto(inputEl, slot) {
+  var file = inputEl.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _regPhotos[slot] = { file: file, base64: e.target.result.split(',')[1], dataUrl: e.target.result };
+    var thumb = document.getElementById('reg-thumb-' + slot);
+    var status = document.getElementById('reg-status-' + slot);
+    if (thumb) thumb.innerHTML = '<img src="' + e.target.result + '" style="width:36px;height:36px;border-radius:8px;object-fit:cover">';
+    if (status) { status.textContent = '✓ Foto tomada — toca para repetir'; status.style.color = 'var(--green)'; }
+  };
+  reader.readAsDataURL(file);
+}
+
+function startRegVerification() {
+  var required = ['carnetFrente','carnetDorso','dniFrente','dniDorso'];
+  var missing = required.filter(function(k){ return !_regPhotos[k]; });
+  if (missing.length) { toast('⚠ Faltan fotos por hacer'); return; }
+
+  goRegStep('inv-step-verifying');
+  var statusEl = document.getElementById('inv-verifying-status');
+
+  var promptCarnet = 'Analiza esta imagen de un carnet de conducir español (cara frontal). Devuelve SOLO JSON sin markdown ni texto adicional: {"nombre":"nombre y apellidos completos si son visibles, o null","fechaCaducidad":"YYYY-MM-DD si es visible, o null","vencido":true o false,"legible":true o false}. Si hoy es posterior a la fecha de caducidad, vencido debe ser true.';
+  var promptDni    = 'Analiza esta imagen de un DNI/NIE español (cara frontal). Devuelve SOLO JSON sin markdown ni texto adicional: {"nombre":"nombre y apellidos completos si son visibles, o null","fechaCaducidad":"YYYY-MM-DD si es visible, o null","vencido":true o false,"legible":true o false}. Si hoy es posterior a la fecha de caducidad, vencido debe ser true.';
+
+  var aiCarnet = null, aiDni = null;
+
+  statusEl.textContent = 'Analizando carnet de conducir…';
+  analyzeImage(_regPhotos.carnetFrente.base64, _regPhotos.carnetFrente.file.type, promptCarnet)
+    .then(function(text){ aiCarnet = parseJSON(text) || { legible:false, vencido:false, nombre:null }; })
+    .catch(function(){ aiCarnet = { legible:false, vencido:false, nombre:null }; })
+    .then(function(){
+      statusEl.textContent = 'Analizando DNI…';
+      return analyzeImage(_regPhotos.dniFrente.base64, _regPhotos.dniFrente.file.type, promptDni);
+    })
+    .then(function(text){ aiDni = parseJSON(text) || { legible:false, vencido:false, nombre:null }; })
+    .catch(function(){ aiDni = { legible:false, vencido:false, nombre:null }; })
+    .then(function(){
+      statusEl.textContent = 'Subiendo documentos…';
+      var uploads = required.map(function(k){ return uploadToCloudinary(_regPhotos[k].file); });
+      return Promise.all(uploads);
+    })
+    .then(function(results){
+      required.forEach(function(k, i){ _regPhotos[k].url = results[i].secure_url; });
+      showRegResult(aiCarnet, aiDni);
+    })
+    .catch(function(err){
+      toast('❌ Error al subir los documentos: ' + err.message);
+      goRegStep('inv-step-dni');
+    });
+}
+
+function showRegResult(aiCarnet, aiDni) {
+  _inviteData.aiCarnet = aiCarnet;
+  _inviteData.aiDni = aiDni;
+  _inviteData.nombreDetectado = (aiDni && aiDni.nombre) || (aiCarnet && aiCarnet.nombre) || null;
+
+  var apto = !(aiCarnet.vencido) && !(aiDni.vencido);
+  var box = document.getElementById('inv-result-box');
+  var lines = '';
+  lines += '<div style="font-size:13px;margin-bottom:8px"><b>🪪 Carnet de conducir:</b> ' +
+    (!aiCarnet.legible ? '<span style="color:var(--amber)">no se pudo leer con certeza</span>' :
+     aiCarnet.vencido ? '<span style="color:var(--red)">VENCIDO' + (aiCarnet.fechaCaducidad ? ' (' + aiCarnet.fechaCaducidad + ')' : '') + '</span>' :
+     '<span style="color:var(--green)">vigente' + (aiCarnet.fechaCaducidad ? ' hasta ' + aiCarnet.fechaCaducidad : '') + '</span>') + '</div>';
+  lines += '<div style="font-size:13px;margin-bottom:0"><b>🆔 DNI:</b> ' +
+    (!aiDni.legible ? '<span style="color:var(--amber)">no se pudo leer con certeza</span>' :
+     aiDni.vencido ? '<span style="color:var(--red)">VENCIDO' + (aiDni.fechaCaducidad ? ' (' + aiDni.fechaCaducidad + ')' : '') + '</span>' :
+     '<span style="color:var(--green)">vigente' + (aiDni.fechaCaducidad ? ' hasta ' + aiDni.fechaCaducidad : '') + '</span>') + '</div>';
+
+  if (apto) {
+    box.style.background = 'rgba(0,230,118,.08)';
+    box.style.border = '1px solid rgba(0,230,118,.3)';
+    box.innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--green);margin-bottom:10px">✅ Documentación apta</div>' + lines;
+  } else {
+    box.style.background = 'rgba(255,71,87,.08)';
+    box.style.border = '1px solid rgba(255,71,87,.3)';
+    box.innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--red);margin-bottom:10px">⚠ Revisión necesaria</div>' + lines +
+      '<div style="font-size:11px;color:var(--text3);margin-top:10px">Puedes finalizar igualmente — quedará marcado para que administración lo revise.</div>';
+  }
+  goRegStep('inv-step-result');
+}
+
+function finalizeRegistro() {
+  var telefono = (document.getElementById('inv-telefono').value||'').trim();
+  var inv = _inviteData;
+  var cid = 'inv_' + inv.code.replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+  var nombre = inv.nombreDetectado || 'Conductor nuevo';
+
+  var registro = {
+    telefono: telefono,
+    email: inv.email || null,
+    matricula: inv.matricula,
+    turno: inv.turno,
+    modelo: inv.modelo || '',
+    ciudad: inv.ciudad || '',
+    ccaa: inv.ccaa || '',
+    nombre: nombre,
+    carnetFrenteUrl: _regPhotos.carnetFrente.url,
+    carnetDorsoUrl:  _regPhotos.carnetDorso.url,
+    dniFrenteUrl:    _regPhotos.dniFrente.url,
+    dniDorsoUrl:     _regPhotos.dniDorso.url,
+    aiCarnet: inv.aiCarnet,
+    aiDni: inv.aiDni,
+    apto: !(inv.aiCarnet.vencido) && !(inv.aiDni.vencido),
+    fechaRegistro: new Date().toLocaleDateString('es-ES'),
+    ts: Date.now(),
+    code: inv.code,
+    cid: cid
+  };
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(registro)
+    }),
+    fetch(FIREBASE_URL + '/invites/' + inv.code + '/usado.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: 'true'
+    })
+  ]).then(function(){
+    var u = {
+      email: inv.email || null, cid: cid, nombre: nombre,
+      matricula: inv.matricula, modelo: inv.modelo, ciudad: inv.ciudad,
+      turno: inv.turno, invite: inv.code, telefono: telefono
+    };
+    localStorage.setItem('drivx_dynamic_user_' + cid, JSON.stringify(u));
+    document.getElementById('invite-modal').classList.remove('open');
+    toast('✅ Cuenta activada');
+    loginAs(u);
+  }).catch(function(){
+    toast('❌ No se pudo completar el registro. Revisa tu conexión e inténtalo de nuevo.');
+  });
 }
 
 function loginAs(u) {
