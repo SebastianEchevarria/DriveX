@@ -689,14 +689,23 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
     <!-- Paso 1: teléfono -->
     <div id="inv-step-phone" style="display:none">
-      <div style="font-size:16px;font-weight:800;margin-bottom:4px">📱 Tu número de teléfono</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">📱 Tus datos de acceso</div>
       <div id="inv-vehiculo-info" style="font-size:13px;color:var(--cyan);font-family:var(--mono);margin-bottom:6px">—</div>
       <div id="inv-email-info" style="font-size:12px;color:var(--text3);margin-bottom:16px">—</div>
       <div class="field">
         <label>Teléfono</label>
-        <input id="inv-telefono" type="tel" placeholder="600 123 456" style="font-size:16px">
+        <input id="inv-telefono" type="tel" placeholder="600 123 456" style="font-size:16px" oninput="checkRegPasswordMatch()">
       </div>
-      <button class="btn-primary" onclick="goRegStep('inv-step-carnet')" style="width:100%">Continuar →</button>
+      <div class="field">
+        <label>Crea una contraseña</label>
+        <input id="inv-pass1" type="password" placeholder="Mínimo 4 caracteres" style="font-size:16px" oninput="checkRegPasswordMatch()">
+      </div>
+      <div class="field">
+        <label>Repite la contraseña</label>
+        <input id="inv-pass2" type="password" placeholder="Vuelve a escribirla" style="font-size:16px" oninput="checkRegPasswordMatch()">
+      </div>
+      <div id="inv-pass-status" style="font-size:12px;margin-bottom:14px;min-height:16px"></div>
+      <button id="inv-phone-continue" class="btn-primary" onclick="goToCarnetStep()" style="width:100%;opacity:.4" disabled>Continuar →</button>
     </div>
 
     <!-- Paso 2: carnet de conducir -->
@@ -1157,16 +1166,15 @@ function doLogin() {
     if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 10000); } else { loginAs(u); }
     return;
   }
-  // ¿Es un conductor activado por invitación? (código de invitación + teléfono)
-  var code = email.toUpperCase();
+  // ¿Es un conductor activado por invitación? (email + contraseña creada al registrarse)
   fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
     all = all || {};
     var match = null;
-    Object.keys(all).forEach(function(k){ if (all[k] && all[k].code === code && all[k].telefono === pass) match = all[k]; });
+    Object.keys(all).forEach(function(k){ if (all[k] && all[k].email === email && all[k].pass === pass) match = all[k]; });
     if (!match) { err.style.display = 'block'; return; }
     err.style.display = 'none';
     var du = {
-      email: null, cid: match.cid, nombre: match.nombre,
+      email: match.email, cid: match.cid, nombre: match.nombre,
       matricula: match.matricula, modelo: match.modelo, ciudad: match.ciudad,
       turno: match.turno, invite: match.code, telefono: match.telefono
     };
@@ -1214,6 +1222,42 @@ function goRegStep(stepId) {
     var el = document.getElementById(id);
     if (el) el.style.display = (id === stepId) ? 'block' : 'none';
   });
+}
+
+function checkRegPasswordMatch() {
+  var tel   = (document.getElementById('inv-telefono').value || '').trim();
+  var p1    = document.getElementById('inv-pass1').value || '';
+  var p2    = document.getElementById('inv-pass2').value || '';
+  var status = document.getElementById('inv-pass-status');
+  var btn    = document.getElementById('inv-phone-continue');
+
+  var ok = false;
+  if (!p1 && !p2) {
+    status.textContent = '';
+  } else if (p1.length > 0 && p1.length < 4) {
+    status.textContent = '⚠ La contraseña debe tener al menos 4 caracteres';
+    status.style.color = 'var(--amber)';
+  } else if (p2.length > 0 && p1 !== p2) {
+    status.textContent = '✗ Las contraseñas no coinciden';
+    status.style.color = 'var(--red)';
+  } else if (p1.length >= 4 && p1 === p2) {
+    status.textContent = '✓ Las contraseñas coinciden';
+    status.style.color = 'var(--green)';
+    ok = true;
+  }
+
+  var allOk = tel.length >= 6 && ok;
+  btn.disabled = !allOk;
+  btn.style.opacity = allOk ? '1' : '.4';
+}
+
+function goToCarnetStep() {
+  var tel = (document.getElementById('inv-telefono').value || '').trim();
+  var p1  = document.getElementById('inv-pass1').value || '';
+  var p2  = document.getElementById('inv-pass2').value || '';
+  if (tel.length < 6) { toast('⚠ Introduce un teléfono válido'); return; }
+  if (p1.length < 4 || p1 !== p2) { toast('⚠ Revisa la contraseña'); return; }
+  goRegStep('inv-step-carnet');
 }
 
 function verifyInviteCode() {
@@ -1329,12 +1373,14 @@ function showRegResult(aiCarnet, aiDni) {
 
 function finalizeRegistro() {
   var telefono = (document.getElementById('inv-telefono').value||'').trim();
+  var pass     = document.getElementById('inv-pass1').value || '';
   var inv = _inviteData;
   var cid = 'inv_' + inv.code.replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
   var nombre = inv.nombreDetectado || 'Conductor nuevo';
 
   var registro = {
     telefono: telefono,
+    pass: pass,
     email: inv.email || null,
     matricula: inv.matricula,
     turno: inv.turno,

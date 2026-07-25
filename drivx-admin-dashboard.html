@@ -818,35 +818,54 @@ function renderConductoresInvitados(v) {
 }
 function paintConductoresInvitados() {
   var el = document.getElementById('vd-conductores-invitados');
-  var isAdmin = currentUser && currentUser.role === 'admin';
   var cids = Object.keys(_vdInvitadosCache);
   if (!cids.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Todavía no hay conductores registrados por invitación en este vehículo.</div>'; return; }
 
-  var docLabels = { carnetFrenteUrl:'🪪 Carnet (frontal)', carnetDorsoUrl:'🪪 Carnet (dorso)', dniFrenteUrl:'🆔 DNI (frontal)', dniDorsoUrl:'🆔 DNI (dorso)' };
   var html = '';
   cids.forEach(function(cid){
     var r = _vdInvitadosCache[cid];
-    var aptoTxt = r.apto
-      ? '<span style="color:var(--green);font-weight:800">✅ Documentación apta</span>'
-      : '<span style="color:var(--red);font-weight:800">⚠ Requiere revisión</span>';
+    var borderColor = r.apto ? 'rgba(0,230,118,.35)' : 'rgba(255,71,87,.35)';
+    var aptoDot = r.apto
+      ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Apto</span>'
+      : '<span style="font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:3px 8px">⚠ Revisar</span>';
 
-    var docsHtml = Object.keys(docLabels).map(function(k){
-      if (!r[k]) return '';
-      return '<a href="' + r[k] + '" target="_blank" style="display:inline-block;margin:3px 6px 3px 0;padding:5px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--border2);color:var(--cyan);font-size:11px;font-weight:700;text-decoration:none">' + docLabels[k] + ' ↓</a>';
-    }).join('');
+    function docThumb(url, label) {
+      if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
+      return '<a href="' + url + '" target="_blank" style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
+        '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
+        '<span style="font-size:10px;color:var(--text3)">' + label + '</span></a>';
+    }
 
-    html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
-        '<div><div style="font-size:14px;font-weight:800">' + (r.nombre||'Conductor') + '</div>' +
-        '<div style="font-size:11px;color:var(--text3)">' + r.turno + ' · registrado ' + r.fechaRegistro + '</div></div>' +
-        aptoTxt +
-      '</div>' +
-      '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📱 ' + (r.telefono||'—') + (r.email ? ' · ✉️ ' + r.email : '') + '</div>' +
-      '<div style="margin-bottom:10px">' + docsHtml + '</div>' +
-      '<button id="del-cond-' + cid + '" onclick="confirmDeleteConductor(\'' + cid + '\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3)">🗑 Eliminar conductor</button>' +
-    '</div>';
+    html += '<div style="border:2px solid ' + borderColor + ';border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
+    html += '<div onclick="toggleConductorInvitado(\'' + cid + '\')" style="padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">' + (r.nombre || 'Conductor') + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + r.turno + '</div></div>';
+    html += aptoDot;
+    html += '<span id="condchev_' + cid + '" style="color:var(--text3);font-size:14px;margin-left:6px;transition:transform .2s">▾</span>';
+    html += '</div>';
+
+    html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
+    html += '<div style="padding-top:12px;font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <b>Email:</b> ' + (r.email || '—') + '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">🕐 <b>Turno:</b> ' + r.turno + '</div>';
+
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
+    html += '<div style="margin-bottom:12px">' + docThumb(r.dniFrenteUrl, 'Frontal') + docThumb(r.dniDorsoUrl, 'Dorso') + '</div>';
+
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🪪 Carnet de conducir</div>';
+    html += '<div style="margin-bottom:14px">' + docThumb(r.carnetFrenteUrl, 'Frontal') + docThumb(r.carnetDorsoUrl, 'Dorso') + '</div>';
+
+    html += '<button id="del-cond-' + cid + '" onclick="confirmDeleteConductor(\'' + cid + '\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3);width:100%;text-align:center">🗑 Eliminar conductor</button>';
+    html += '</div></div>';
   });
   el.innerHTML = html;
+}
+function toggleConductorInvitado(cid) {
+  var body = document.getElementById('condbody_' + cid);
+  var chev = document.getElementById('condchev_' + cid);
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 function confirmDeleteConductor(cid) {
   if (!currentUser || currentUser.role !== 'admin') return;
