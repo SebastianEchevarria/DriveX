@@ -1009,44 +1009,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 // ── USERS ──
 var USERS = {
-  // 1234 ABC — Tesla Model 3 — Málaga
-  'ahmed@drivx.es':   { pass:'Ahmed2024',   cid:'ahmed',   nombre:'Ahmed Karimi',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-A8K2' },
-  'carlos@drivx.es':  { pass:'Carlos2024',  cid:'carlos',  nombre:'Carlos Vega',     matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'14:00–22:00', invite:'DRVX-C1V4' },
-  'rafael@drivx.es':  { pass:'Rafael2024',  cid:'rafael',  nombre:'Rafael Ortiz',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'22:00–06:00', invite:'DRVX-R5O8' },
-  // 9012 GHI — BMW 5 Series — Málaga
-  'paco@drivx.es':    { pass:'Paco2024',    cid:'paco',    nombre:'Paco Ruiz',       matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'06:00–14:00', invite:'DRVX-P3R7' },
-  'lucia@drivx.es':   { pass:'Lucia2024',   cid:'lucia',   nombre:'Lucía Fernández', matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'14:00–22:00', invite:'DRVX-L2F9' },
-  'omar@drivx.es':    { pass:'Omar2024',    cid:'omar',    nombre:'Omar Hassan',     matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'22:00–06:00', invite:'DRVX-O7H3' },
-  // 5678 DEF — Mercedes EQS — Valencia
-  'maria@drivx.es':   { pass:'Maria2024',   cid:'maria',   nombre:'María López',     matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-M5L1' },
-  'david@drivx.es':   { pass:'David2024',   cid:'david',   nombre:'David Serrano',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-D4S6' },
-  'fatima@drivx.es':  { pass:'Fatima2024',  cid:'fatima',  nombre:'Fátima Benali',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-F8B2' },
-  // 3456 JKL — Toyota Prius — Valencia
-  'miguel@drivx.es':  { pass:'Miguel2024',  cid:'miguel',  nombre:'Miguel Ángel',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-M3A7' },
-  'sonia@drivx.es':   { pass:'Sonia2024',   cid:'sonia',   nombre:'Sonia Martín',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-S9T4' },
-  'elena@drivx.es':   { pass:'Elena2024',   cid:'elena',   nombre:'Elena Castro',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-E1C5' },
-  // 7890 MNO — Skoda Octavia — Valencia
-  'nadia@drivx.es':   { pass:'Nadia2024',   cid:'nadia',   nombre:'Nadia Popescu',   matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'06:00–14:00', invite:'DRVX-N6P0' },
-  'jorge@drivx.es':   { pass:'Jorge2024',   cid:'jorge',   nombre:'Jorge Molina',    matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'14:00–22:00', invite:'DRVX-J4M1' },
-  'ivan@drivx.es':    { pass:'Ivan2024',    cid:'ivan',    nombre:'Iván Torres',     matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'22:00–06:00', invite:'DRVX-I2V6' },
-  // TEST
-  '1111':             { pass:'1111',         cid:'test',    nombre:'Test User',       matricula:'0000 TST', modelo:'Vehículo Test',  ciudad:'Test',     turno:'06:00–14:00', invite:'DRVX-TEST' },
-  // 2345 CLM — Tesla Model Y — Albacete
-  'andres@drivx.es':  { pass:'Andres2024',   cid:'andres',  nombre:'Andrés Molina',   matricula:'2345 CLM', modelo:'Tesla Model Y',       ciudad:'Albacete',    turno:'06:00–14:00', invite:'DRVX-A1M5' },
-  'beatriz@drivx.es': { pass:'Beatriz2024',  cid:'beatriz', nombre:'Beatriz Ramos',   matricula:'2345 CLM', modelo:'Tesla Model Y',       ciudad:'Albacete',    turno:'14:00–22:00', invite:'DRVX-B2R6' },
-  'cristian@drivx.es':{ pass:'Cristian2024', cid:'cristian',nombre:'Cristian Núñez',  matricula:'2345 CLM', modelo:'Tesla Model Y',       ciudad:'Albacete',    turno:'22:00–06:00', invite:'DRVX-C3N7' },
-  // 6789 CLM — Toyota Camry — Cuenca
-  'diana@drivx.es':   { pass:'Diana2024',    cid:'diana',   nombre:'Diana Herrero',   matricula:'6789 CLM', modelo:'Toyota Camry',        ciudad:'Cuenca',      turno:'06:00–14:00', invite:'DRVX-D4H8' },
-  'ernesto@drivx.es': { pass:'Ernesto2024',  cid:'ernesto', nombre:'Ernesto Sanz',    matricula:'6789 CLM', modelo:'Toyota Camry',        ciudad:'Cuenca',      turno:'14:00–22:00', invite:'DRVX-E5S9' },
-  'felix@drivx.es':   { pass:'Felix2024',    cid:'felix',   nombre:'Félix Carrasco',  matricula:'6789 CLM', modelo:'Toyota Camry',        ciudad:'Cuenca',      turno:'22:00–06:00', invite:'DRVX-F6C0' },
-  // 1122 CLM — Tesla Model 3 — Toledo
-  'gloria@drivx.es':  { pass:'Gloria2024',   cid:'gloria',  nombre:'Gloria Prieto',   matricula:'1122 CLM', modelo:'Tesla Model 3',       ciudad:'Toledo',      turno:'06:00–14:00', invite:'DRVX-G7P1' },
-  'hector@drivx.es':  { pass:'Hector2024',   cid:'hector',  nombre:'Héctor Ibáñez',   matricula:'1122 CLM', modelo:'Tesla Model 3',       ciudad:'Toledo',      turno:'14:00–22:00', invite:'DRVX-H8I2' },
-  'irene@drivx.es':   { pass:'Irene2024',    cid:'irene',   nombre:'Irene Blanco',    matricula:'1122 CLM', modelo:'Tesla Model 3',       ciudad:'Toledo',      turno:'22:00–06:00', invite:'DRVX-I9B3' },
-  // 3344 CLM — VW Passat — Ciudad Real
-  'javier@drivx.es':  { pass:'Javier2024',   cid:'javier',  nombre:'Javier Cano',     matricula:'3344 CLM', modelo:'Volkswagen Passat',   ciudad:'Ciudad Real', turno:'06:00–14:00', invite:'DRVX-J0C4' },
-  'karen@drivx.es':   { pass:'Karen2024',    cid:'karen',   nombre:'Karen Flores',    matricula:'3344 CLM', modelo:'Volkswagen Passat',   ciudad:'Ciudad Real', turno:'14:00–22:00', invite:'DRVX-K1F5' },
-  'luis@drivx.es':    { pass:'Luis2024',     cid:'luis',    nombre:'Luis Méndez',     matricula:'3344 CLM', modelo:'Volkswagen Passat',   ciudad:'Ciudad Real', turno:'22:00–06:00', invite:'DRVX-L2M6' },
+  // TEST — usuario de pruebas. Los conductores reales se añadirán por invitación desde el Panel Admin.
+  '1111': { pass:'1111', cid:'test', nombre:'Test User', matricula:'0000 TST', modelo:'Vehículo Test', ciudad:'Test', turno:'06:00–14:00', invite:'DRVX-TEST' },
 };
 var INVITE_MAP = {};
 Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
