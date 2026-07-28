@@ -571,12 +571,29 @@ function showDashScreen(id) {
 }
 
 // ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
+// Normaliza un vehículo de Firebase por si le faltan campos (evita que un
+// registro incompleto rompa el render en cualquier pantalla que lo use).
+function normalizeVehiculoExtra(v, key) {
+  v = v || {};
+  return {
+    matricula: v.matricula || key, marca: v.marca || '', modelo: v.modelo || (v.marca || 'Vehículo'),
+    anio: v.anio || '', combustible: v.combustible || 'gasolina',
+    ciudad: v.ciudad || '', ccaa: v.ccaa || 'Andalucía', icon: v.icon || '🚗',
+    docs: {
+      itv:    (v.docs && v.docs.itv)    || { fecha: null, ok: false },
+      seguro: (v.docs && v.docs.seguro) || { fecha: null, ok: false },
+      vtc:    (v.docs && v.docs.vtc)    || { ok: false }
+    },
+    conductores: v.conductores || []
+  };
+}
+
 function renderInicioStats() {
   fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).then(function(data){
     data = data || {};
-    VEHICULOS_EXTRA = Object.keys(data).map(function(k){ return data[k]; });
+    VEHICULOS_EXTRA = Object.keys(data).map(function(k){ return normalizeVehiculoExtra(data[k], k); });
   }).catch(function(){}).then(function(){
-    paintInicioStats();
+    try { paintInicioStats(); } catch(err) { console.error('paintInicioStats error:', err); }
   });
 }
 function paintInicioStats() {
@@ -621,9 +638,17 @@ function renderFlota() {
   ]).then(function(results){
     var extra = results[0] || {};
     var ocultos = results[1] || {};
-    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return extra[k]; });
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
     VEHICULOS_OCULTOS = ocultos;
-    paintFlota();
+    try {
+      paintFlota();
+    } catch (err) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar la flota: ' + err.message + '<br><br>' +
+        '<button onclick="renderFlota()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+    }
+  }).catch(function(err){
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo conectar con la base de datos.<br><br>' +
+      '<button onclick="renderFlota()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
   });
 }
 
