@@ -361,8 +361,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         </div>
       </div>
 
-      <div class="sb-section" style="padding:0 0 10px">Conductores registrados por invitación</div>
-      <div id="vd-conductores-invitados" style="margin-bottom:22px"><div style="font-size:12px;color:var(--text3)">Cargando…</div></div>
+      <div id="docscond-section" style="background:rgba(0,212,255,.03);border:2px solid var(--border2);border-radius:14px;overflow:hidden;margin-bottom:16px">
+        <div id="docscond-header" onclick="toggleDocsConductores()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <span style="font-size:20px">📁</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:800;color:var(--text)">Documentación conductores</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:1px">DNI y carnet de conducir de cada conductor invitado</div>
+          </div>
+          <span id="docscond-chevron" style="color:var(--text3);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
+        </div>
+        <div id="vd-conductores-invitados" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border2)"><div style="font-size:12px;color:var(--text3);padding-top:12px">Cargando…</div></div>
+      </div>
 
       <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo</div>
       <div id="vd-docs"></div>
@@ -806,6 +815,19 @@ function openVehicleDetail(matricula) {
   document.getElementById('vehicle-detail-modal').style.display = 'flex';
 }
 
+function toggleDocsConductores() {
+  var body = document.getElementById('vd-conductores-invitados');
+  var chev = document.getElementById('docscond-chevron');
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+// Convierte una URL de Cloudinary en un enlace de descarga forzada (en vez de solo previsualizar)
+function cloudinaryDownloadUrl(url) {
+  if (!url) return url;
+  return url.replace('/upload/', '/upload/fl_attachment/');
+}
+
 function renderConductoresYTurnos(v) {
   var condHtml = '';
   v.conductores.forEach(function(cid){
@@ -1000,9 +1022,9 @@ function paintConductoresInvitados() {
 
     function docThumb(url, label) {
       if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
-      return '<a href="' + url + '" target="_blank" style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
+      return '<a href="' + cloudinaryDownloadUrl(url) + '" download style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
         '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
-        '<span style="font-size:10px;color:var(--text3)">' + label + '</span></a>';
+        '<span style="font-size:10px;color:var(--cyan)">⬇ ' + label + '</span></a>';
     }
 
     html += '<div style="border:2px solid ' + borderColor + ';border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
