@@ -649,6 +649,9 @@ function paintFlota() {
   var isAdmin = currentUser && currentUser.role === 'admin';
 
   var html = '';
+  html += '<button onclick="openAddVehicleModal()" style="width:100%;padding:14px;border-radius:14px;border:2px dashed rgba(0,212,255,.4);background:rgba(0,212,255,.04);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--cyan);font-size:14px;font-weight:800;font-family:inherit;margin-bottom:16px">' +
+    '➕ AGREGAR VEHÍCULO' +
+  '</button>';
   ccaas.forEach(function(cc){
     var vl = groups[cc] || [];
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
@@ -700,10 +703,6 @@ function paintFlota() {
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
       html += '</div>';
     });
-
-    html += '<button onclick="openAddVehicleModal(\'' + cc + '\')" class="veh-card" style="border:2px dashed rgba(0,212,255,.4);background:rgba(0,212,255,.04);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;min-height:90px;color:var(--cyan);font-size:14px;font-weight:800;width:100%">' +
-      '➕ AGREGAR VEHÍCULO' +
-    '</button>';
 
     html += '</div></div>';
   });
