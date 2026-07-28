@@ -1188,6 +1188,15 @@ function paintConductoresInvitados() {
     html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
     html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">🕐 <b>Turno:</b> ' + r.turno + '</div>';
 
+    html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
+      '<span style="font-size:20px">🏦</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cuenta bancaria</div>' +
+        '<div id="cuenta-' + cid + '" style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (r.cuentaBancaria || 'No proporcionada') + '</div>' +
+      '</div>' +
+      (r.cuentaBancaria ? '<button onclick="copiarCuenta(\'' + cid + '\',event)" class="edit-btn" style="flex-shrink:0">📋 Copiar</button>' : '') +
+    '</div>';
+
     html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
     html += '<div style="margin-bottom:12px">' + docThumb(r.dniFrenteUrl, 'Frontal') + docThumb(r.dniDorsoUrl, 'Dorso') + '</div>';
 
@@ -1199,6 +1208,19 @@ function paintConductoresInvitados() {
   });
   el.innerHTML = html;
 }
+function copiarCuenta(cid, evt) {
+  var el = document.getElementById('cuenta-' + cid);
+  if (!el) return;
+  var text = el.textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(text);
+  var btn = evt ? evt.target : null;
+  if (btn) {
+    var old = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(function(){ btn.textContent = old; }, 1500);
+  }
+}
+
 function toggleConductorInvitado(cid) {
   var body = document.getElementById('condbody_' + cid);
   var chev = document.getElementById('condchev_' + cid);

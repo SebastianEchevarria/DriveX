@@ -753,10 +753,21 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
           <div id="reg-status-dniDorso" style="font-size:11px;color:var(--text3)">Toca para hacer foto</div>
         </div>
       </label>
+      <button class="btn-primary" onclick="goToBancoStep()" style="width:100%">Continuar →</button>
+    </div>
+
+    <!-- Paso 4: cuenta bancaria -->
+    <div id="inv-step-banco" style="display:none">
+      <div style="font-size:16px;font-weight:800;margin-bottom:4px">🏦 Cuenta bancaria</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Para recibir tus pagos. Pega tu número de cuenta o IBAN.</div>
+      <div class="field">
+        <label>IBAN / Número de cuenta</label>
+        <input id="inv-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="font-size:15px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
+      </div>
       <button class="btn-primary" onclick="startRegVerification()" style="width:100%">Verificar documentos →</button>
     </div>
 
-    <!-- Paso 4: verificando -->
+    <!-- Paso 5: verificando -->
     <div id="inv-step-verifying" style="display:none;text-align:center;padding:20px 0">
       <div style="font-size:40px;margin-bottom:12px">🤖</div>
       <div style="font-size:15px;font-weight:800;margin-bottom:6px">Verificando documentos con IA...</div>
@@ -1182,7 +1193,7 @@ function closeInviteModal() {
   document.getElementById('invite-modal').classList.remove('open');
 }
 function goRegStep(stepId) {
-  ['inv-step-code','inv-step-phone','inv-step-carnet','inv-step-dni','inv-step-verifying','inv-step-result'].forEach(function(id){
+  ['inv-step-code','inv-step-phone','inv-step-carnet','inv-step-dni','inv-step-banco','inv-step-verifying','inv-step-result'].forEach(function(id){
     var el = document.getElementById(id);
     if (el) el.style.display = (id === stepId) ? 'block' : 'none';
   });
@@ -1267,10 +1278,21 @@ function handleRegPhoto(inputEl, slot) {
   reader.readAsDataURL(file);
 }
 
+function goToBancoStep() {
+  var required = ['dniFrente','dniDorso'];
+  var missing = required.filter(function(k){ return !_regPhotos[k]; });
+  if (missing.length) { toast('⚠ Faltan fotos por hacer'); return; }
+  goRegStep('inv-step-banco');
+}
+
 function startRegVerification() {
   var required = ['carnetFrente','carnetDorso','dniFrente','dniDorso'];
   var missing = required.filter(function(k){ return !_regPhotos[k]; });
   if (missing.length) { toast('⚠ Faltan fotos por hacer'); return; }
+
+  var cuenta = (document.getElementById('inv-cuenta').value || '').trim();
+  if (cuenta.replace(/\s/g,'').length < 10) { toast('⚠ Introduce una cuenta bancaria válida'); return; }
+  _inviteData.cuentaBancaria = cuenta;
 
   goRegStep('inv-step-verifying');
   var statusEl = document.getElementById('inv-verifying-status');
@@ -1301,7 +1323,7 @@ function startRegVerification() {
     })
     .catch(function(err){
       toast('❌ Error al subir los documentos: ' + err.message);
-      goRegStep('inv-step-dni');
+      goRegStep('inv-step-banco');
     });
 }
 
@@ -1346,6 +1368,7 @@ function finalizeRegistro() {
     telefono: telefono,
     pass: pass,
     email: inv.email || null,
+    cuentaBancaria: inv.cuentaBancaria || '',
     matricula: inv.matricula,
     turno: inv.turno,
     modelo: inv.modelo || '',
