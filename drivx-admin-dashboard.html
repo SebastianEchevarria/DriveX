@@ -1032,6 +1032,9 @@ function paintGastos() {
         conductoresList.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('') +
         '</select></div>';
       html += '<button onclick="limpiarFiltrosMatricula(\''+mgid+'\')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;cursor:pointer">✕ Limpiar filtros</button>';
+      html += '<label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer">' +
+        '<input type="checkbox" id="selall_'+mgid+'" onchange="toggleSeleccionarTodos(\''+mgid+'\',this.checked)" style="width:15px;height:15px;accent-color:var(--cyan)">' +
+        '<span style="font-size:11px;color:var(--text2);font-weight:700">Seleccionar todos</span></label>';
       html += '<div style="flex:1"></div>';
       html += '<button id="delsel_'+mgid+'" onclick="eliminarSeleccionados(\''+mgid+'\',\''+m.matSlug+'\')" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,71,87,.35);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:800;cursor:pointer;display:none">🗑 Eliminar seleccionados (<span id="delselcount_'+mgid+'">0</span>)</button>';
       html += '</div>';
@@ -1183,15 +1186,32 @@ function limpiarFiltrosMatricula(mgid) {
   document.getElementById('fcond_' + mgid).value = '';
   filtrarTicketsMatricula(mgid);
 }
+function toggleSeleccionarTodos(mgid, checked) {
+  var rows = document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"]');
+  rows.forEach(function(row) {
+    if (row.style.display === 'none') return; // respeta el filtro activo: no selecciona lo que no ves
+    var chk = row.querySelector('.ticket-check');
+    if (chk) chk.checked = checked;
+  });
+  onTicketCheckChange(mgid);
+}
 function onTicketCheckChange(mgid) {
-  var checked = document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"] .ticket-check:checked');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"]'));
+  var visibleRows = rows.filter(function(r){ return r.style.display !== 'none'; });
+  var checkedRows = visibleRows.filter(function(r){ var c = r.querySelector('.ticket-check'); return c && c.checked; });
+
   var btn = document.getElementById('delsel_' + mgid);
   var countEl = document.getElementById('delselcount_' + mgid);
-  if (countEl) countEl.textContent = checked.length;
+  if (countEl) countEl.textContent = checkedRows.length;
   if (btn) {
-    btn.style.display = checked.length ? 'inline-flex' : 'none';
+    btn.style.display = checkedRows.length ? 'inline-flex' : 'none';
     btn.removeAttribute('data-confirm');
     btn.style.background = 'rgba(255,71,87,.08)';
+  }
+  var selAll = document.getElementById('selall_' + mgid);
+  if (selAll) {
+    selAll.checked = visibleRows.length > 0 && checkedRows.length === visibleRows.length;
+    selAll.indeterminate = checkedRows.length > 0 && checkedRows.length < visibleRows.length;
   }
 }
 function eliminarSeleccionados(mgid, mSlug) {
