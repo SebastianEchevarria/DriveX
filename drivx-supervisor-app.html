@@ -719,7 +719,7 @@ function paintVehiculosHome() {
     // CCAA header button
     var ccBg = {'Andalucía':'#1f1500','Comunidad Valenciana':'#1a0f1f','Castilla-La Mancha':'#0a1a0f'};
     var ccBorder = {'Andalucía':'#7a4a00','Comunidad Valenciana':'#5a1a7a','Castilla-La Mancha':'#1a5a2a'};
-    html += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:'+(ccBg[cc]||'#0d1f35')+';border:2px solid '+(ccBorder[cc]||'#2a4a6e')+';border-radius:14px;margin-bottom:8px;cursor:pointer" id="btn_'+gid+'">';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:'+(ccBg[cc]||'#0d1f35')+';border:2px solid '+(ccBorder[cc]||'#2a4a6e')+';border-radius:14px;margin-bottom:8px;cursor:pointer;flex-wrap:wrap" id="btn_'+gid+'">';
     html += '<span style="font-size:22px">' + ccIcon + '</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">' + cc + '</div>';
     html += '<div style="font-size:11px;color:var(--text3)">' + vl.length + ' vehículo' + (vl.length>1?'s':'') + '</div></div>';
@@ -728,14 +728,19 @@ function paintVehiculosHome() {
     } else {
       html += '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
     }
-    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:8px">›</span>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">›</span>';
+    html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:10px" onclick="event.stopPropagation()">' +
+      '<input type="text" id="searchinput_'+gid+'" placeholder="Buscar matrícula en '+cc+'…" oninput="filterCcaaVehicles(\''+cc+'\',\''+gid+'\',this.value)" ' +
+      'style="width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15);color:var(--text);padding:9px 12px;border-radius:10px;font-size:13px;font-family:var(--mono);box-sizing:border-box">' +
+    '</div>';
     html += '</div>';
 
     // Vehicles container (hidden by default)
     var ccGroupBg = {'Andalucía':'rgba(122,74,0,.06)','Comunidad Valenciana':'rgba(90,26,122,.06)','Castilla-La Mancha':'rgba(26,90,42,.06)'};
     html += '<div id="' + gid + '" style="display:none;background:'+(ccGroupBg[cc]||'transparent')+';border-radius:12px;padding:4px 0;margin-bottom:8px">';
 
-    vl.forEach(function(v) {
+    vl.forEach(function(v, vIdx) {
       var id = dU(v.docs.itv.fecha);
       var bc = (id<0||id<=30) ? 'rgba(255,71,87,.4)' : id<=90 ? 'rgba(255,179,0,.35)' : 'var(--border)';
       var itvTxt = id<0 ? '🚨 ITV VENCIDA' : id<=30 ? '⚠ ITV en '+id+' días' : id<=90 ? '⏰ ITV en '+id+' días' : '✓ ITV '+fD(v.docs.itv.fecha);
@@ -765,7 +770,7 @@ function paintVehiculosHome() {
       });
 
       var mid = 'm' + v.matricula.replace(/[^a-zA-Z0-9]/g,'');
-      html += '<div id="'+mid+'" style="background:#0d1f35;border:2px solid '+bc+';border-radius:18px;padding:16px 18px;margin-bottom:16px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.6)">';
+      html += '<div id="'+mid+'" data-matricula="'+v.matricula.replace(/\s/g,'').toUpperCase()+'" data-order="'+vIdx+'" style="background:#0d1f35;border:2px solid '+bc+';border-radius:18px;padding:16px 18px;margin-bottom:16px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.6)">';
       html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
       html += '<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>';
       html += '<div style="flex:1"><div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>';
@@ -817,6 +822,37 @@ function paintVehiculosHome() {
   });
 }
 
+
+function toggleCcaaSearch(gid) {
+  var box = document.getElementById('searchbox_' + gid);
+  if (!box) return;
+  var open = box.style.display !== 'none';
+  box.style.display = open ? 'none' : 'block';
+  if (!open) {
+    setTimeout(function(){
+      var input = document.getElementById('searchinput_' + gid);
+      if (input) input.focus();
+    }, 50);
+  }
+}
+function filterCcaaVehicles(cc, gid, term) {
+  term = (term || '').trim().toUpperCase().replace(/\s/g, '');
+  var container = document.getElementById(gid);
+  if (!container) return;
+  var cards = Array.prototype.slice.call(container.children).filter(function(c){ return c.hasAttribute('data-matricula'); });
+  cards.sort(function(a, b) {
+    var order = parseInt(a.getAttribute('data-order') || '0', 10) - parseInt(b.getAttribute('data-order') || '0', 10);
+    if (!term) return order;
+    var am = (a.getAttribute('data-matricula') || '').indexOf(term) !== -1 ? 0 : 1;
+    var bm = (b.getAttribute('data-matricula') || '').indexOf(term) !== -1 ? 0 : 1;
+    return am !== bm ? am - bm : order;
+  });
+  cards.forEach(function(c){ container.appendChild(c); });
+  cards.forEach(function(c){
+    var match = term && c.getAttribute('data-matricula').indexOf(term) !== -1;
+    c.style.boxShadow = match ? '0 0 0 2px var(--cyan)' : '0 4px 20px rgba(0,0,0,.6)';
+  });
+}
 
 function openMatModal(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
