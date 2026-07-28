@@ -560,27 +560,27 @@ var VEHICULOS = [
   {
     matricula: '1234 ABC', modelo: 'Tesla Model 3', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '⚡',
     docs: { itv: { fecha:'2026-08-10', ok:true }, seguro: { fecha:'15/03/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['ahmed','carlos','rafael']
+    conductores: []
   },
   {
     matricula: '9012 GHI', modelo: 'BMW 5 Series', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '🚗',
     docs: { itv: { fecha:'2024-11-15', ok:false }, seguro: { fecha:'28/02/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['paco','lucia','omar']
+    conductores: []
   },
   {
     matricula: '5678 DEF', modelo: 'Mercedes EQS', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '⚡',
     docs: { itv: { fecha:'2026-09-15', ok:true }, seguro: { fecha:'01/06/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['maria','david','fatima']
+    conductores: []
   },
   {
     matricula: '3456 JKL', modelo: 'Toyota Prius', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
     docs: { itv: { fecha:'2024-12-15', ok:false, warn:true }, seguro: { fecha:'20/04/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['sonia','miguel','elena']
+    conductores: []
   },
   {
     matricula: '7890 MNO', modelo: 'Skoda Octavia', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
     docs: { itv: { fecha:'2027-03-10', ok:true }, seguro: { fecha:'15/09/2025', ok:true }, vtc: { ok:true } },
-    conductores: ['ivan','nadia','jorge']
+    conductores: []
   },
   {
     matricula: '0000 TST', modelo: 'Vehículo Test', ciudad: 'Test', ccaa: 'Andalucía', icon: '🔧',
@@ -590,22 +590,22 @@ var VEHICULOS = [
   {
     matricula: '2345 CLM', modelo: 'Tesla Model Y', ciudad: 'Albacete', ccaa: 'Castilla-La Mancha', icon: '⚡',
     docs: { itv: { fecha:'2026-07-28', ok:true }, seguro: { fecha:'2025-12-01', ok:true }, vtc: { ok:true } },
-    conductores: ['andres','beatriz','cristian']
+    conductores: []
   },
   {
     matricula: '6789 CLM', modelo: 'Toyota Camry', ciudad: 'Cuenca', ccaa: 'Castilla-La Mancha', icon: '🚗',
     docs: { itv: { fecha:'2024-10-20', ok:false }, seguro: { fecha:'2025-06-15', ok:true }, vtc: { ok:true } },
-    conductores: ['diana','ernesto','felix']
+    conductores: []
   },
   {
     matricula: '1122 CLM', modelo: 'Tesla Model 3', ciudad: 'Toledo', ccaa: 'Castilla-La Mancha', icon: '⚡',
     docs: { itv: { fecha:'2026-10-30', ok:true }, seguro: { fecha:'2025-11-20', ok:true }, vtc: { ok:true } },
-    conductores: ['gloria','hector','irene']
+    conductores: []
   },
   {
     matricula: '3344 CLM', modelo: 'Volkswagen Passat', ciudad: 'Ciudad Real', ccaa: 'Castilla-La Mancha', icon: '🚗',
     docs: { itv: { fecha:'2026-12-05', ok:true }, seguro: { fecha:'2026-02-10', ok:true }, vtc: { ok:true } },
-    conductores: ['javier','karen','luis']
+    conductores: []
   }
 ];
 
@@ -621,7 +621,57 @@ function toggleCCAA(id) {
   if (chev) chev.textContent = open ? '›' : '⌄';
 }
 
+var VEHICULOS_EXTRA = [];
+var VEHICULOS_OCULTOS = {};
+function matSlugV(mat) { return mat.replace(/\s/g,'_'); }
+function getAllVehiculos() {
+  return VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlugV(v.matricula)]; });
+}
+function normalizeVehiculoExtra(v, key) {
+  v = v || {};
+  return {
+    matricula: v.matricula || key, marca: v.marca || '', modelo: v.modelo || (v.marca || 'Vehículo'),
+    anio: v.anio || '', combustible: v.combustible || 'gasolina',
+    ciudad: v.ciudad || '', ccaa: v.ccaa || 'Andalucía', icon: v.icon || '🚗',
+    docs: {
+      itv:    (v.docs && v.docs.itv)    || { fecha: null, ok: false },
+      seguro: (v.docs && v.docs.seguro) || { fecha: null, ok: false },
+      vtc:    (v.docs && v.docs.vtc)    || { ok: false }
+    },
+    conductores: v.conductores || []
+  };
+}
+
 function renderVehiculosHome() {
+  var container = document.getElementById('vehiculos-home-list');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando flota…</div>';
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var extra = results[0] || {};
+    var ocultos = results[1] || {};
+    var invitados = results[2] || {};
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
+    VEHICULOS_OCULTOS = ocultos;
+    _conductoresInvitadosGlobal = invitados;
+    try {
+      paintVehiculosHome();
+    } catch (err) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar la flota: ' + err.message + '<br><br>' +
+        '<button onclick="renderVehiculosHome()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+    }
+  }).catch(function(){
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo conectar con la base de datos.<br><br>' +
+      '<button onclick="renderVehiculosHome()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+  });
+}
+
+var _conductoresInvitadosGlobal = {};
+function paintVehiculosHome() {
   var container = document.getElementById('vehiculos-home-list');
   if (!container) return;
 
@@ -631,8 +681,9 @@ function renderVehiculosHome() {
 
   // Group vehicles by CCAA
   var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+  var allVehiculos = getAllVehiculos();
   var groups = {};
-  VEHICULOS.forEach(function(v) {
+  allVehiculos.forEach(function(v) {
     var cc = v.ccaa || 'Otras';
     if (!groups[cc]) groups[cc] = [];
     groups[cc].push(v);
@@ -683,7 +734,7 @@ function renderVehiculosHome() {
       var itvTxt = id<0 ? '🚨 ITV VENCIDA' : id<=30 ? '⚠ ITV en '+id+' días' : id<=90 ? '⏰ ITV en '+id+' días' : '✓ ITV '+fD(v.docs.itv.fecha);
       var itvColor = (id<0||id<=30) ? 'var(--red)' : id<=90 ? 'var(--amber)' : 'var(--text3)';
 
-      // Conductores rows
+      // Conductores rows (fijos + invitados — solo nombre y turno, nunca documentos)
       var condRows = '';
       v.conductores.forEach(function(cid) {
         var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
@@ -694,6 +745,15 @@ function renderVehiculosHome() {
           + '<div><span style="font-size:13px;font-weight:700;color:var(--text)">' + c.nombre + '</span>'
           + '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>'
           + '<span style="font-size:11px;font-weight:700;color:'+(fichado?'var(--green)':'var(--text3)')+';">'+(fichado?'● Activo':'○ Inactivo')+'</span>'
+          + '</div>';
+      });
+      Object.keys(_conductoresInvitadosGlobal).forEach(function(cid) {
+        var r = _conductoresInvitadosGlobal[cid];
+        if (!r || r.matricula !== v.matricula) return;
+        condRows += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">'
+          + '<div><span style="font-size:13px;font-weight:700;color:var(--text)">' + (r.nombre || 'Conductor') + '</span>'
+          + '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + r.turno + '</span></div>'
+          + '<span style="font-size:10px;font-weight:700;color:var(--cyan)">✉ invitado</span>'
           + '</div>';
       });
 
@@ -745,14 +805,14 @@ function renderVehiculosHome() {
   container.querySelectorAll('[id^="m"]').forEach(function(el) {
     if (el.id.length < 3) return;
     var raw = el.id.slice(1);
-    var mat = VEHICULOS.find(function(v){ return v.matricula.replace(/[^a-zA-Z0-9]/g,'') === raw; });
+    var mat = getAllVehiculos().find(function(v){ return v.matricula.replace(/[^a-zA-Z0-9]/g,'') === raw; });
     if (mat) el.onclick = function(e) { e.stopPropagation(); openMatModal(mat.matricula); };
   });
 }
 
 
 function openMatModal(matricula) {
-  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   _currentMat = v;
 
@@ -783,6 +843,19 @@ function openMatModal(matricula) {
         '<span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>' +
         (fichado?'Online':'Offline') +
       '</span>' +
+    '</div>';
+  });
+  // Conductores registrados por invitación — solo nombre y horario, nunca documentos
+  Object.keys(_conductoresInvitadosGlobal).forEach(function(cid) {
+    var r = _conductoresInvitadosGlobal[cid];
+    if (!r || r.matricula !== v.matricula) return;
+    condHTML += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">' +
+      '<div style="width:36px;height:36px;border-radius:10px;background:rgba(0,212,255,.15);color:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900">'+(r.nombre||'C').charAt(0)+'</div>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:13px;font-weight:700">'+(r.nombre||'Conductor')+'</div>' +
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+r.turno+'</div>' +
+      '</div>' +
+      '<span style="font-size:10px;font-weight:800;color:var(--cyan);background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);border-radius:10px;padding:3px 8px">✉ invitado</span>' +
     '</div>';
   });
   document.getElementById('mat-conductores').innerHTML = condHTML || '<div style="padding:14px 16px;color:var(--text3);font-size:13px">Sin conductores asignados</div>';
@@ -853,44 +926,8 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 var CONDUCTORES = [
-  // 1234 ABC — Tesla Model 3 — Málaga
-  { cid:'ahmed',   nombre:'Ahmed Karimi',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'06:00–14:00', color:'#00d4ff' },
-  { cid:'carlos',  nombre:'Carlos Vega',     matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'14:00–22:00', color:'#00d4ff' },
-  { cid:'rafael',  nombre:'Rafael Ortiz',    matricula:'1234 ABC', modelo:'Tesla Model 3',  ciudad:'Málaga',   turno:'22:00–06:00', color:'#00d4ff' },
-  // 9012 GHI — BMW 5 Series — Málaga
-  { cid:'paco',    nombre:'Paco Ruiz',       matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'06:00–14:00', color:'#ffb300' },
-  { cid:'lucia',   nombre:'Lucía Fernández', matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'14:00–22:00', color:'#ffb300' },
-  { cid:'omar',    nombre:'Omar Hassan',     matricula:'9012 GHI', modelo:'BMW 5 Series',   ciudad:'Málaga',   turno:'22:00–06:00', color:'#ffb300' },
-  // 5678 DEF — Mercedes EQS — Valencia
-  { cid:'maria',   nombre:'María López',     matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'06:00–14:00', color:'#7c5cfc' },
-  { cid:'david',   nombre:'David Serrano',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'14:00–22:00', color:'#7c5cfc' },
-  { cid:'fatima',  nombre:'Fátima Benali',   matricula:'5678 DEF', modelo:'Mercedes EQS',   ciudad:'Valencia', turno:'22:00–06:00', color:'#7c5cfc' },
-  // 3456 JKL — Toyota Prius — Valencia
-  { cid:'sonia',   nombre:'Sonia Martín',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'14:00–22:00', color:'#00e676' },
-  { cid:'miguel',  nombre:'Miguel Ángel',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'06:00–14:00', color:'#00e676' },
-  { cid:'elena',   nombre:'Elena Castro',    matricula:'3456 JKL', modelo:'Toyota Prius',   ciudad:'Valencia', turno:'22:00–06:00', color:'#00e676' },
-  // 7890 MNO — Skoda Octavia — Valencia
-  { cid:'ivan',    nombre:'Iván Torres',     matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'22:00–06:00', color:'#ff4757' },
-  { cid:'nadia',   nombre:'Nadia Popescu',   matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'06:00–14:00', color:'#ff4757' },
-  { cid:'jorge',   nombre:'Jorge Molina',    matricula:'7890 MNO', modelo:'Skoda Octavia',  ciudad:'Valencia', turno:'14:00–22:00', color:'#ff4757' },
-  // 0000 TST — Test
-  { cid:'test',    nombre:'Test User',       matricula:'0000 TST', modelo:'Vehículo Test',  ciudad:'Test',     turno:'06:00–14:00', color:'#00d4ff' },
-  // 2345 CLM — Tesla Model Y — Albacete
-  { cid:'andres',   nombre:'Andrés Molina',   matricula:'2345 CLM', modelo:'Tesla Model Y',     ciudad:'Albacete',    turno:'06:00–14:00', color:'#00d4ff' },
-  { cid:'beatriz',  nombre:'Beatriz Ramos',   matricula:'2345 CLM', modelo:'Tesla Model Y',     ciudad:'Albacete',    turno:'14:00–22:00', color:'#00d4ff' },
-  { cid:'cristian', nombre:'Cristian Núñez',  matricula:'2345 CLM', modelo:'Tesla Model Y',     ciudad:'Albacete',    turno:'22:00–06:00', color:'#00d4ff' },
-  // 6789 CLM — Toyota Camry — Cuenca
-  { cid:'diana',    nombre:'Diana Herrero',   matricula:'6789 CLM', modelo:'Toyota Camry',      ciudad:'Cuenca',      turno:'06:00–14:00', color:'#ff4757' },
-  { cid:'ernesto',  nombre:'Ernesto Sanz',    matricula:'6789 CLM', modelo:'Toyota Camry',      ciudad:'Cuenca',      turno:'14:00–22:00', color:'#ff4757' },
-  { cid:'felix',    nombre:'Félix Carrasco',  matricula:'6789 CLM', modelo:'Toyota Camry',      ciudad:'Cuenca',      turno:'22:00–06:00', color:'#ff4757' },
-  // 1122 CLM — Tesla Model 3 — Toledo
-  { cid:'gloria',   nombre:'Gloria Prieto',   matricula:'1122 CLM', modelo:'Tesla Model 3',     ciudad:'Toledo',      turno:'06:00–14:00', color:'#7c5cfc' },
-  { cid:'hector',   nombre:'Héctor Ibáñez',   matricula:'1122 CLM', modelo:'Tesla Model 3',     ciudad:'Toledo',      turno:'14:00–22:00', color:'#7c5cfc' },
-  { cid:'irene',    nombre:'Irene Blanco',    matricula:'1122 CLM', modelo:'Tesla Model 3',     ciudad:'Toledo',      turno:'22:00–06:00', color:'#7c5cfc' },
-  // 3344 CLM — VW Passat — Ciudad Real
-  { cid:'javier',   nombre:'Javier Cano',     matricula:'3344 CLM', modelo:'Volkswagen Passat', ciudad:'Ciudad Real', turno:'06:00–14:00', color:'#ffb300' },
-  { cid:'karen',    nombre:'Karen Flores',    matricula:'3344 CLM', modelo:'Volkswagen Passat', ciudad:'Ciudad Real', turno:'14:00–22:00', color:'#ffb300' },
-  { cid:'luis',     nombre:'Luis Méndez',     matricula:'3344 CLM', modelo:'Volkswagen Passat', ciudad:'Ciudad Real', turno:'22:00–06:00', color:'#ffb300' }
+  // 0000 TST — Test — los conductores reales se añadirán por invitación desde el Panel Admin
+  { cid:'test', nombre:'Test User', matricula:'0000 TST', modelo:'Vehículo Test', ciudad:'Test', turno:'06:00–14:00', color:'#00d4ff' }
 ];
 
 var supervisorData = { ts: Date.now() };
