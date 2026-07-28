@@ -1000,16 +1000,42 @@ function paintGastos() {
         if (cat) { Object.keys(cat).forEach(function(tid){ mTotal += (cat[tid].importe||0); mCount++; }); }
       });
 
-      html += '<div style="margin:0 16px 12px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface2)">';
-      html += '<div onclick="toggleMatGastos(\''+mgid+'\')" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;flex-wrap:wrap">';
-      html += '<span style="font-size:18px">📁</span>';
-      html += '<div style="flex:1"><div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">'+m.matricula+'</div>';
-      html += '<div style="font-size:11px;color:var(--text3)">'+m.modelo+' · '+mCount+' tickets · € '+mTotal.toFixed(2)+'</div></div>';
-      html += '<button onclick="event.stopPropagation();descargarTodoMatricula(\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn">⬇ DESCARGAR TODO</button>';
-      html += '<span id="chvm_'+mgid+'" style="color:var(--text3);font-size:14px;margin-left:6px;transition:transform .2s">▾</span>';
+      html += '<div style="margin:0 16px 14px;border:2px solid rgba(0,212,255,.4);border-radius:16px;overflow:hidden;background:linear-gradient(135deg,rgba(0,212,255,.1),rgba(124,92,252,.08));box-shadow:0 4px 18px rgba(0,212,255,.12)">';
+      html += '<div onclick="toggleMatGastos(\''+mgid+'\')" style="padding:16px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;flex-wrap:wrap">';
+      html += '<div style="width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,212,255,.35)">📁</div>';
+      html += '<div style="flex:1"><div style="font-size:16px;font-weight:900;font-family:var(--mono);color:#fff;letter-spacing:.3px">'+m.matricula+'</div>';
+      html += '<div style="font-size:11px;color:var(--text2)">'+m.modelo+' · '+mCount+' tickets · <b style="color:var(--green)">€ '+mTotal.toFixed(2)+'</b></div></div>';
+      html += '<button onclick="event.stopPropagation();descargarTodoMatricula(\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn" style="font-weight:800">⬇ DESCARGAR TODO</button>';
+      html += '<button id="delall_'+mgid+'" onclick="event.stopPropagation();confirmEliminarTodoGastos(\''+mgid+'\',\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);font-weight:800">🗑 ELIMINAR TODO</button>';
+      html += '<span id="chvm_'+mgid+'" style="color:var(--cyan);font-size:15px;margin-left:4px;transition:transform .2s">▾</span>';
       html += '</div>';
 
-      html += '<div id="'+mgid+'" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
+      html += '<div id="'+mgid+'" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(0,212,255,.2);background:rgba(7,11,18,.4)">';
+
+      // Recopilamos los conductores presentes en esta matrícula para el filtro
+      var conductoresSet = {};
+      CATEGORIAS_GASTOS.forEach(function(catDef){
+        var cat = m.categorias[catDef.key];
+        if (!cat) return;
+        Object.keys(cat).forEach(function(tid){ if (cat[tid].conductor) conductoresSet[cat[tid].conductor] = true; });
+      });
+      var conductoresList = Object.keys(conductoresSet).sort();
+
+      html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;padding:12px 0;border-bottom:1px solid var(--border)">';
+      html += '<div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Desde</label>' +
+        '<input type="date" id="fdesde_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit"></div>';
+      html += '<div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Hasta</label>' +
+        '<input type="date" id="fhasta_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit"></div>';
+      html += '<div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Conductor</label>' +
+        '<select id="fcond_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit">' +
+        '<option value="">Todos</option>' +
+        conductoresList.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('') +
+        '</select></div>';
+      html += '<button onclick="limpiarFiltrosMatricula(\''+mgid+'\')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;cursor:pointer">✕ Limpiar filtros</button>';
+      html += '<div style="flex:1"></div>';
+      html += '<button id="delsel_'+mgid+'" onclick="eliminarSeleccionados(\''+mgid+'\',\''+m.matSlug+'\')" style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,71,87,.35);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:800;cursor:pointer;display:none">🗑 Eliminar seleccionados (<span id="delselcount_'+mgid+'">0</span>)</button>';
+      html += '</div>';
+
       var anyCat = false;
       CATEGORIAS_GASTOS.forEach(function(catDef){
         var catData = m.categorias[catDef.key];
@@ -1019,7 +1045,8 @@ function paintGastos() {
         html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">'+catDef.icon+' '+catDef.label+' ('+tids.length+')</div>';
         tids.forEach(function(tid){
           var t = catData[tid];
-          html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">';
+          html += '<div class="ticket-row" data-mgid="'+mgid+'" data-ts="'+(t.ts||0)+'" data-conductor="'+(t.conductor||'')+'" data-cat="'+catDef.key+'" data-tid="'+tid+'" data-url="'+(t.url||'')+'" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">';
+          html += '<input type="checkbox" class="ticket-check" onchange="onTicketCheckChange(\''+mgid+'\')" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--red)">';
           if (t.url) {
             html += '<img src="'+t.url+'" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0" onclick="window.open(\''+t.url+'\',\'_blank\')">';
           } else {
@@ -1057,6 +1084,153 @@ function paintGastos() {
       if (chev) chev.textContent = open ? '›' : '⌄';
     };
   });
+}
+
+function confirmEliminarTodoGastos(mgid, mSlug, matricula) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById('delall_' + mgid);
+  if (!btn) return;
+
+  if (btn.getAttribute('data-confirm') === '1') {
+    // Segunda pulsación: eliminar de verdad
+    btn.disabled = true;
+    btn.textContent = 'Eliminando…';
+    eliminarTodoGastosMatricula(mSlug).then(function(){
+      renderGastos();
+    }).catch(function(err){
+      alert('No se pudo eliminar todo: ' + err.message);
+      btn.disabled = false;
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 ELIMINAR TODO';
+      btn.style.background = '';
+    });
+    return;
+  }
+  // Primera pulsación: pedir confirmación
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Confirmar: se borrará todo';
+  btn.style.background = 'rgba(255,71,87,.25)';
+  setTimeout(function(){
+    if (btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 ELIMINAR TODO';
+      btn.style.background = '';
+    }
+  }, 5000);
+}
+
+// Extrae el public_id de Cloudinary a partir de la URL, necesario para poder borrarlo
+function extractCloudinaryPublicId(url) {
+  var m = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+(?:\?.*)?$/);
+  return m ? m[1] : null;
+}
+
+function eliminarTodoGastosMatricula(mSlug) {
+  var catData = _gastosDataCache[mSlug] || {};
+  var urls = [];
+  CATEGORIAS_GASTOS.forEach(function(catDef){
+    var cat = catData[catDef.key];
+    if (!cat) return;
+    Object.keys(cat).forEach(function(tid){
+      if (cat[tid].url) urls.push(cat[tid].url);
+    });
+  });
+  var publicIds = urls.map(extractCloudinaryPublicId).filter(Boolean);
+
+  // 1) Borrar los archivos de Cloudinary a través de nuestro endpoint seguro
+  var cloudinaryDelete = publicIds.length
+    ? fetch('/api/cloudinary-delete', {
+        method: 'POST', headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ publicIds: publicIds })
+      }).catch(function(){ /* si el endpoint aún no existe, seguimos con Firebase igualmente */ })
+    : Promise.resolve();
+
+  // 2) Borrar el registro completo de Firebase
+  return cloudinaryDelete.then(function(){
+    return fetch(FIREBASE_URL + '/gastos/' + mSlug + '.json', { method: 'DELETE' }).then(fbCheck);
+  });
+}
+
+// ══ FILTROS (fecha + conductor) Y SELECCIÓN PARA BORRAR SOLO ALGUNOS TICKETS ══
+function filtrarTicketsMatricula(mgid) {
+  var desde = document.getElementById('fdesde_' + mgid).value; // YYYY-MM-DD o ''
+  var hasta = document.getElementById('fhasta_' + mgid).value;
+  var conductor = document.getElementById('fcond_' + mgid).value;
+
+  var desdeTs = desde ? new Date(desde + 'T00:00:00').getTime() : null;
+  var hastaTs = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
+
+  var rows = document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"]');
+  rows.forEach(function(row) {
+    var ts = parseInt(row.getAttribute('data-ts') || '0', 10);
+    var rowCond = row.getAttribute('data-conductor') || '';
+    var visible = true;
+    if (desdeTs && ts && ts < desdeTs) visible = false;
+    if (hastaTs && ts && ts > hastaTs) visible = false;
+    if (conductor && rowCond !== conductor) visible = false;
+    row.style.display = visible ? 'flex' : 'none';
+    // Si se oculta una fila, deseleccionamos su casilla para no borrar algo que no ves
+    if (!visible) {
+      var chk = row.querySelector('.ticket-check');
+      if (chk) chk.checked = false;
+    }
+  });
+  onTicketCheckChange(mgid);
+}
+function limpiarFiltrosMatricula(mgid) {
+  document.getElementById('fdesde_' + mgid).value = '';
+  document.getElementById('fhasta_' + mgid).value = '';
+  document.getElementById('fcond_' + mgid).value = '';
+  filtrarTicketsMatricula(mgid);
+}
+function onTicketCheckChange(mgid) {
+  var checked = document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"] .ticket-check:checked');
+  var btn = document.getElementById('delsel_' + mgid);
+  var countEl = document.getElementById('delselcount_' + mgid);
+  if (countEl) countEl.textContent = checked.length;
+  if (btn) {
+    btn.style.display = checked.length ? 'inline-flex' : 'none';
+    btn.removeAttribute('data-confirm');
+    btn.style.background = 'rgba(255,71,87,.08)';
+  }
+}
+function eliminarSeleccionados(mgid, mSlug) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById('delsel_' + mgid);
+  var checked = Array.prototype.slice.call(document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"] .ticket-check:checked'));
+  if (!checked.length) return;
+
+  if (btn.getAttribute('data-confirm') === '1') {
+    btn.disabled = true;
+    btn.textContent = 'Eliminando…';
+    var refs = checked.map(function(chk) {
+      var row = chk.closest('.ticket-row');
+      return { cat: row.getAttribute('data-cat'), tid: row.getAttribute('data-tid'), url: row.getAttribute('data-url') };
+    });
+    var publicIds = refs.map(function(r){ return r.url ? extractCloudinaryPublicId(r.url) : null; }).filter(Boolean);
+
+    var cloudinaryDelete = publicIds.length
+      ? fetch('/api/cloudinary-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ publicIds: publicIds }) }).catch(function(){})
+      : Promise.resolve();
+
+    cloudinaryDelete.then(function(){
+      return Promise.all(refs.map(function(r){
+        return fetch(FIREBASE_URL + '/gastos/' + mSlug + '/' + r.cat + '/' + r.tid + '.json', { method:'DELETE' }).then(fbCheck);
+      }));
+    }).then(function(){
+      renderGastos();
+    }).catch(function(err){
+      alert('No se pudo eliminar: ' + err.message);
+      renderGastos();
+    });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.innerHTML = '⚠ Confirmar borrado de ' + checked.length + ' ticket' + (checked.length>1?'s':'');
+  btn.style.background = 'rgba(255,71,87,.3)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') { onTicketCheckChange(mgid); }
+  }, 5000);
 }
 
 function toggleMatGastos(mgid) {
