@@ -642,10 +642,16 @@ function normalizeVehiculoExtra(v, key) {
   };
 }
 
+var _flotaLoadedOnce = false;
 function renderVehiculosHome() {
   var container = document.getElementById('vehiculos-home-list');
   if (!container) return;
-  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando flota…</div>';
+  // Solo mostramos "Cargando…" la primera vez; en los refrescos automáticos
+  // (cada 6s) dejamos el contenido actual visible mientras llega el nuevo,
+  // para no perder qué comunidad autónoma tenías desplegada.
+  if (!_flotaLoadedOnce) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando flota…</div>';
+  }
 
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
@@ -658,6 +664,7 @@ function renderVehiculosHome() {
     VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
     VEHICULOS_OCULTOS = ocultos;
     _conductoresInvitadosGlobal = invitados;
+    _flotaLoadedOnce = true;
     try {
       paintVehiculosHome();
     } catch (err) {
