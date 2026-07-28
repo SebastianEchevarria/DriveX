@@ -692,20 +692,25 @@ function paintFlota() {
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
     var urg = vl.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
 
-    html += '<div class="ccaa-header" style="background:' + (ccBg[cc]||'#0d1f35') + ';border-color:' + (ccBorder[cc]||'#2a4a6e') + '" id="btn_' + gid + '">';
+    html += '<div class="ccaa-header" style="background:' + (ccBg[cc]||'#0d1f35') + ';border-color:' + (ccBorder[cc]||'#2a4a6e') + ';flex-wrap:wrap" id="btn_' + gid + '">';
     html += '<span style="font-size:22px">' + (ccaaIcons[cc]||'📍') + '</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">' + cc + '</div>';
     html += '<div style="font-size:11px;color:var(--text3)">' + vl.length + ' vehículo' + (vl.length > 1 ? 's' : '') + '</div></div>';
     html += urg > 0
       ? '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">' + urg + ' ⚠</span>'
       : '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
-    html += '<span id="chv_' + gid + '" style="color:var(--text3);font-size:18px;margin-left:8px">⌄</span>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\'' + gid + '\')" title="Buscar matrícula" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text2);width:30px;height:30px;border-radius:9px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0">🔍</button>';
+    html += '<span id="chv_' + gid + '" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
+    html += '<div id="searchbox_' + gid + '" style="display:none;flex-basis:100%;margin-top:10px" onclick="event.stopPropagation()">' +
+      '<input type="text" id="searchinput_' + gid + '" placeholder="Buscar matrícula en ' + cc + '…" oninput="filterCcaaVehicles(\'' + cc + '\',\'' + gid + '\',this.value)" ' +
+      'style="width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15);color:var(--text);padding:9px 12px;border-radius:10px;font-size:13px;font-family:var(--mono);box-sizing:border-box">' +
+    '</div>';
     html += '</div>';
 
     html += '<div id="' + gid + '" style="display:block;background:' + (ccGroupBg[cc]||'transparent') + ';border-radius:12px;padding:8px 0 2px;margin-bottom:14px">';
     html += '<div class="veh-grid">';
 
-    vl.forEach(function(v){
+    vl.forEach(function(v, vIdx){
       var id = dU(v.docs.itv.fecha);
       var bc = (id < 0 || id <= 30) ? 'rgba(255,71,87,.4)' : id <= 90 ? 'rgba(255,179,0,.35)' : 'var(--border)';
       var itvTxt = id < 0 ? '🚨 ITV VENCIDA' : id <= 30 ? '⚠ ITV en ' + id + ' días' : id <= 90 ? '⏰ ITV en ' + id + ' días' : '✓ ITV ' + fD(v.docs.itv.fecha);
@@ -724,7 +729,7 @@ function paintFlota() {
           '</div>';
       });
 
-      html += '<div class="veh-card" style="border:2px solid ' + bc + ';cursor:pointer" onclick="openVehicleDetail(\'' + v.matricula + '\')">';
+      html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" data-order="' + vIdx + '" style="border:2px solid ' + bc + ';cursor:pointer" onclick="openVehicleDetail(\'' + v.matricula + '\')">';
       html += '<div class="veh-top">';
       html += '<div class="veh-icon">' + v.icon + '</div>';
       html += '<div style="flex:1"><div class="veh-plate">' + v.matricula + '</div>';
@@ -821,6 +826,39 @@ function updateDocBadge(matricula) {
   }).catch(function(){
     var el3 = document.getElementById('docbadge_' + slug);
     if (el3) el3.innerHTML = '<span style="color:var(--text3)">📄 Documentos: no disponible</span>';
+  });
+}
+
+function toggleCcaaSearch(gid) {
+  var box = document.getElementById('searchbox_' + gid);
+  if (!box) return;
+  var open = box.style.display !== 'none';
+  box.style.display = open ? 'none' : 'block';
+  if (!open) {
+    setTimeout(function(){
+      var input = document.getElementById('searchinput_' + gid);
+      if (input) input.focus();
+    }, 50);
+  }
+}
+function filterCcaaVehicles(cc, gid, term) {
+  term = (term || '').trim().toUpperCase().replace(/\s/g, '');
+  var grid = document.querySelector('#' + gid + ' .veh-grid');
+  if (!grid) return;
+  var cards = Array.prototype.slice.call(grid.children);
+  cards.sort(function(a, b) {
+    var order = parseInt(a.getAttribute('data-order') || '0', 10) - parseInt(b.getAttribute('data-order') || '0', 10);
+    if (!term) return order;
+    var am = (a.getAttribute('data-matricula') || '').indexOf(term) !== -1 ? 0 : 1;
+    var bm = (b.getAttribute('data-matricula') || '').indexOf(term) !== -1 ? 0 : 1;
+    return am !== bm ? am - bm : order;
+  });
+  cards.forEach(function(c){ grid.appendChild(c); });
+
+  // Si hay coincidencia, resalta un poco la tarjeta encontrada
+  cards.forEach(function(c){
+    var match = term && c.getAttribute('data-matricula').indexOf(term) !== -1;
+    c.style.boxShadow = match ? '0 0 0 2px var(--cyan)' : '';
   });
 }
 
