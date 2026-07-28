@@ -375,6 +375,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
       <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo</div>
       <div id="vd-docs"></div>
+
+      <div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--border)">
+        <div class="sb-section" style="padding:0 0 10px;color:var(--red)">Zona de peligro</div>
+        <button id="vd-delete-btn" onclick="confirmDeleteVehicle()" style="width:100%;padding:13px;border-radius:12px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar vehículo</button>
+      </div>
     </div>
   </div>
 </div>
@@ -600,19 +605,24 @@ function statCard(lbl, val, foot, color) {
 
 // ══ FLOTA — agrupado por CCAA (mismo diseño que la App Supervisor) ══
 var VEHICULOS_EXTRA = [];
-function getAllVehiculos() { return VEHICULOS.concat(VEHICULOS_EXTRA); }
+var VEHICULOS_OCULTOS = {};
+function getAllVehiculos() {
+  return VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlug(v.matricula)]; });
+}
 
 function renderFlota() {
   var container = document.getElementById('flota-list');
   if (!container) return;
   container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando flota…</div>';
 
-  fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).then(function(data){
-    data = data || {};
-    VEHICULOS_EXTRA = Object.keys(data).map(function(k){ return data[k]; });
-    paintFlota();
-  }).catch(function(){
-    VEHICULOS_EXTRA = [];
+  Promise.all([
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var extra = results[0] || {};
+    var ocultos = results[1] || {};
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return extra[k]; });
+    VEHICULOS_OCULTOS = ocultos;
     paintFlota();
   });
 }
@@ -728,8 +738,17 @@ function paintFlota() {
 
 // ══ FIREBASE (base de datos compartida real, entre cualquier dispositivo) ══
 var FIREBASE_URL = 'https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app';
+
+// fetch() NO falla automáticamente si Firebase responde con error (401, 403...);
+// esta función detecta esos casos para que no sigamos como si hubiera ido bien.
+function fbCheck(r) {
+  if (!r.ok) throw new Error('Firebase respondió con error ' + r.status);
+  return r;
+}
+
 function fbGetVehicleDocs(matSlug) {
   return fetch(FIREBASE_URL + '/documentos/' + matSlug + '.json')
+    .then(fbCheck)
     .then(function(r){ return r.json(); })
     .then(function(data){ return data || {}; });
 }
@@ -738,10 +757,10 @@ function fbSetDoc(matSlug, docKey, data) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
-  });
+  }).then(fbCheck);
 }
 function fbDeleteDoc(matSlug, docKey) {
-  return fetch(FIREBASE_URL + '/documentos/' + matSlug + '/' + docKey + '.json', { method: 'DELETE' });
+  return fetch(FIREBASE_URL + '/documentos/' + matSlug + '/' + docKey + '.json', { method: 'DELETE' }).then(fbCheck);
 }
 
 // ══ FICHA DE VEHÍCULO — CONDUCTORES + DOCUMENTACIÓN ══
@@ -799,6 +818,9 @@ function openVehicleDetail(matricula) {
   itvEl.style.color = itvColor;
 
   renderConductoresYTurnos(v);
+
+  var delBtn = document.getElementById('vd-delete-btn');
+  if (delBtn) { delBtn.removeAttribute('data-confirm'); delBtn.textContent = '🗑 Eliminar vehículo'; delBtn.style.background = 'rgba(255,71,87,.08)'; }
 
   // Reset del formulario de invitación
   document.getElementById('vd-invite-form').style.display = 'none';
@@ -913,9 +935,12 @@ function guardarNuevoVehiculo() {
   };
 
   var mySlug = matSlug(matricula);
+  var saveBtn = document.querySelector('#add-vehicle-modal button[onclick="guardarNuevoVehiculo()"]');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…'; }
+
   fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(vehiculo)
-  }).then(function(){
+  }).then(fbCheck).then(function(){
     // Subir los documentos que se hayan adjuntado (si hay alguno)
     var docKeys = Object.keys(_avPendingFiles);
     var uploads = docKeys.map(function(key){
@@ -926,11 +951,48 @@ function guardarNuevoVehiculo() {
     });
     return Promise.all(uploads);
   }).then(function(){
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✓ Guardar vehículo'; }
     closeAddVehicleModal();
     renderFlota();
-  }).catch(function(){
-    alert('No se pudo guardar el vehículo. Revisa tu conexión.');
+  }).catch(function(err){
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✓ Guardar vehículo'; }
+    alert('No se pudo guardar el vehículo: ' + err.message);
   });
+}
+
+function confirmDeleteVehicle() {
+  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  var btn = document.getElementById('vd-delete-btn');
+  if (btn.getAttribute('data-confirm') === '1') {
+    // Segunda pulsación: eliminar de verdad
+    var mySlug = matSlug(_vdCurrentMat);
+    Promise.all([
+      fetch(FIREBASE_URL + '/vehiculos_ocultos/' + mySlug + '.json', {
+        method: 'PUT', headers: { 'Content-Type':'application/json' }, body: 'true'
+      }).then(fbCheck),
+      fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '.json', { method: 'DELETE' }).then(fbCheck)
+    ]).then(function(){
+      closeVehicleDetail();
+      renderFlota();
+    }).catch(function(err){
+      alert('No se pudo eliminar el vehículo: ' + err.message);
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar vehículo';
+      btn.style.background = 'rgba(255,71,87,.08)';
+    });
+    return;
+  }
+  // Primera pulsación: pedir confirmación
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Pulsa otra vez para confirmar — esta acción no se puede deshacer';
+  btn.style.background = 'rgba(255,71,87,.25)';
+  setTimeout(function(){
+    if (btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar vehículo';
+      btn.style.background = 'rgba(255,71,87,.08)';
+    }
+  }, 5000);
 }
 
 function closeVehicleDetail() {
@@ -974,11 +1036,11 @@ function enviarInvitacion() {
 
   fetch(FIREBASE_URL + '/invites/' + code + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(invite)
-  }).then(function(){
+  }).then(fbCheck).then(function(){
     document.getElementById('vd-invite-code').textContent = code;
     document.getElementById('vd-invite-result').style.display = 'block';
-  }).catch(function(){
-    alert('No se pudo crear la invitación. Revisa tu conexión.');
+  }).catch(function(err){
+    alert('No se pudo crear la invitación: ' + err.message);
   });
 }
 function copyInviteCode() {
