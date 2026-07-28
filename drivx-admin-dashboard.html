@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DRIVX · Panel Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root {
   --bg:      #070b12; --surface:#0d1420; --surface2:#111b2b;
@@ -261,6 +262,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
     <div class="sb-section">Operaciones</div>
     <button class="sb-item" id="nav-flota" onclick="showDashScreen('flota')"><span class="ic">🚗</span> Flota</button>
+    <button class="sb-item" id="nav-gastos" onclick="showDashScreen('gastos')"><span class="ic">🧾</span> Gastos</button>
     <button class="sb-item disabled"><span class="ic">📅</span> Citas y revisiones <span class="sb-soon">PRÓXIMAMENTE</span></button>
     <button class="sb-item disabled"><span class="ic">👥</span> Conductores <span class="sb-soon">PRÓXIMAMENTE</span></button>
 
@@ -306,6 +308,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <!-- ── FLOTA ── -->
       <div class="dash-screen" id="dash-flota">
         <div id="flota-list"></div>
+      </div>
+
+      <!-- ── GASTOS ── -->
+      <div class="dash-screen" id="dash-gastos">
+        <div id="gastos-list"></div>
       </div>
 
     </div>
@@ -564,10 +571,12 @@ function showDashScreen(id) {
 
   var titles = {
     inicio: ['Inicio', 'Resumen general'],
-    flota:  ['Flota', 'Vehículos por comunidad autónoma']
+    flota:  ['Flota', 'Vehículos por comunidad autónoma'],
+    gastos: ['Gastos', 'Tickets subidos por los conductores, por comunidad autónoma']
   };
   document.getElementById('tb-title').textContent = titles[id][0];
   document.getElementById('tb-sub').textContent = titles[id][1];
+  if (id === 'gastos') renderGastos();
 }
 
 // ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
@@ -883,6 +892,214 @@ function filterCcaaVehicles(cc, gid, term) {
   cards.forEach(function(c){
     var match = term && c.getAttribute('data-matricula').indexOf(term) !== -1;
     c.style.boxShadow = match ? '0 0 0 2px var(--cyan)' : '';
+  });
+}
+
+// ══ GASTOS — tickets subidos por los conductores, por CCAA → matrícula → categoría ══
+var CATEGORIAS_GASTOS = [
+  { key:'gasolina', label:'Gasolina / Carga', icon:'⛽' },
+  { key:'peaje',     label:'Peaje',            icon:'🛣️' },
+  { key:'parking',   label:'Parking',          icon:'🅿️' },
+  { key:'lavado',    label:'Lavado',           icon:'🚿' },
+  { key:'datafono',  label:'Datáfono',         icon:'💳' },
+  { key:'otros',     label:'Otros',            icon:'📄' }
+];
+var _gastosDataCache = {};
+
+function renderGastos() {
+  var container = document.getElementById('gastos-list');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando gastos…</div>';
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/gastos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var gastos = results[0] || {};
+    var extra = results[1] || {};
+    var ocultos = results[2] || {};
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
+    VEHICULOS_OCULTOS = ocultos;
+    _gastosDataCache = gastos;
+    try {
+      paintGastos();
+    } catch (err) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar gastos: ' + err.message + '<br><br>' +
+        '<button onclick="renderGastos()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+    }
+  }).catch(function(){
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo conectar con la base de datos.<br><br>' +
+      '<button onclick="renderGastos()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+  });
+}
+
+function paintGastos() {
+  var container = document.getElementById('gastos-list');
+  if (!container) return;
+
+  var vehByMatSlug = {};
+  getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+
+  var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+  var groups = {};
+  ccaaOrder.forEach(function(cc){ groups[cc] = []; });
+
+  Object.keys(_gastosDataCache).forEach(function(mSlug){
+    var v = vehByMatSlug[mSlug];
+    var ccaa = v ? v.ccaa : 'Otras';
+    if (!groups[ccaa]) groups[ccaa] = [];
+    groups[ccaa].push({
+      matSlug: mSlug,
+      matricula: v ? v.matricula : mSlug.replace(/_/g,' '),
+      modelo: v ? v.modelo : '',
+      categorias: _gastosDataCache[mSlug] || {}
+    });
+  });
+
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai<0?99:ai) - (bi<0?99:bi);
+  });
+
+  var ccaaIcons  = { 'Andalucía':'🌞', 'Comunidad Valenciana':'🍊', 'Castilla-La Mancha':'🌾' };
+  var ccBg       = { 'Andalucía':'#1f1500', 'Comunidad Valenciana':'#1a0f1f', 'Castilla-La Mancha':'#0a1a0f' };
+  var ccBorder   = { 'Andalucía':'#7a4a00', 'Comunidad Valenciana':'#5a1a7a', 'Castilla-La Mancha':'#1a5a2a' };
+  var ccGroupBg  = { 'Andalucía':'rgba(122,74,0,.05)', 'Comunidad Valenciana':'rgba(90,26,122,.05)', 'Castilla-La Mancha':'rgba(26,90,42,.05)' };
+
+  var html = '';
+  ccaas.forEach(function(cc){
+    var mats = groups[cc] || [];
+    var gid = 'gg' + cc.replace(/[^a-zA-Z0-9]/g,'');
+    var totalTickets = 0;
+    mats.forEach(function(m){
+      CATEGORIAS_GASTOS.forEach(function(catDef){
+        var cat = m.categorias[catDef.key];
+        if (cat) totalTickets += Object.keys(cat).length;
+      });
+    });
+
+    html += '<div class="ccaa-header" style="background:'+(ccBg[cc]||'#0d1f35')+';border-color:'+(ccBorder[cc]||'#2a4a6e')+'" id="btn_'+gid+'">';
+    html += '<span style="font-size:22px">'+(ccaaIcons[cc]||'📍')+'</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">'+mats.length+' matrícula'+(mats.length!==1?'s':'')+' con gastos · '+totalTickets+' tickets</div></div>';
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px">⌄</span>';
+    html += '</div>';
+
+    html += '<div id="'+gid+'" style="display:block;background:'+(ccGroupBg[cc]||'transparent')+';border-radius:12px;padding:8px 0;margin-bottom:14px">';
+
+    if (!mats.length) {
+      html += '<div style="padding:16px;color:var(--text3);font-size:12px;text-align:center">Sin tickets todavía en esta comunidad</div>';
+    }
+
+    mats.forEach(function(m){
+      var mgid = 'mg' + m.matSlug;
+      var mTotal = 0, mCount = 0;
+      CATEGORIAS_GASTOS.forEach(function(catDef){
+        var cat = m.categorias[catDef.key];
+        if (cat) { Object.keys(cat).forEach(function(tid){ mTotal += (cat[tid].importe||0); mCount++; }); }
+      });
+
+      html += '<div style="margin:0 16px 12px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface2)">';
+      html += '<div onclick="toggleMatGastos(\''+mgid+'\')" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;flex-wrap:wrap">';
+      html += '<span style="font-size:18px">📁</span>';
+      html += '<div style="flex:1"><div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">'+m.matricula+'</div>';
+      html += '<div style="font-size:11px;color:var(--text3)">'+m.modelo+' · '+mCount+' tickets · € '+mTotal.toFixed(2)+'</div></div>';
+      html += '<button onclick="event.stopPropagation();descargarTodoMatricula(\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn">⬇ DESCARGAR TODO</button>';
+      html += '<span id="chvm_'+mgid+'" style="color:var(--text3);font-size:14px;margin-left:6px;transition:transform .2s">▾</span>';
+      html += '</div>';
+
+      html += '<div id="'+mgid+'" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
+      var anyCat = false;
+      CATEGORIAS_GASTOS.forEach(function(catDef){
+        var catData = m.categorias[catDef.key];
+        var tids = catData ? Object.keys(catData) : [];
+        if (!tids.length) return;
+        anyCat = true;
+        html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">'+catDef.icon+' '+catDef.label+' ('+tids.length+')</div>';
+        tids.forEach(function(tid){
+          var t = catData[tid];
+          html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">';
+          if (t.url) {
+            html += '<img src="'+t.url+'" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0" onclick="window.open(\''+t.url+'\',\'_blank\')">';
+          } else {
+            html += '<div style="width:44px;height:44px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text3);flex-shrink:0">🧾</div>';
+          }
+          html += '<div style="flex:1;min-width:0">';
+          html += '<div style="font-size:13px;font-weight:700">€ '+(t.importe||0).toFixed(2)+' <span style="color:var(--text3);font-weight:400">· '+(t.nombre||catDef.label)+'</span></div>';
+          html += '<div style="font-size:11px;color:var(--text3)">'+(t.fecha||'')+' '+(t.hora||'')+(t.conductor?' · '+t.conductor:'')+'</div>';
+          html += '</div>';
+          if (t.url) {
+            html += '<button onclick="window.open(\''+t.url+'\',\'_blank\')" class="edit-btn">Ver</button>';
+            html += '<a href="'+cloudinaryDownloadUrl(t.url)+'" download class="edit-btn" style="text-decoration:none;display:inline-flex;align-items:center;margin-left:6px">⬇</a>';
+          }
+          html += '</div>';
+        });
+      });
+      if (!anyCat) html += '<div style="padding:12px 0;color:var(--text3);font-size:12px">Sin tickets</div>';
+      html += '</div>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin gastos todavía</div>';
+
+  ccaas.forEach(function(cc){
+    var gid = 'gg' + cc.replace(/[^a-zA-Z0-9]/g,'');
+    var btn = document.getElementById('btn_'+gid);
+    if (btn) btn.onclick = function(){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_'+gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
+}
+
+function toggleMatGastos(mgid) {
+  var el = document.getElementById(mgid);
+  var chev = document.getElementById('chvm_'+mgid);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function descargarTodoMatricula(mSlug, matricula) {
+  var catData = _gastosDataCache[mSlug];
+  if (!catData) { alert('No hay tickets para esta matrícula.'); return; }
+  var urls = [];
+  CATEGORIAS_GASTOS.forEach(function(catDef){
+    var cat = catData[catDef.key];
+    if (!cat) return;
+    Object.keys(cat).forEach(function(tid){
+      var t = cat[tid];
+      if (t.url) urls.push({ url: t.url, name: catDef.key + '_' + (t.fecha || tid).replace(/[^a-zA-Z0-9]/g,'') + '.jpg' });
+    });
+  });
+  if (!urls.length) { alert('No hay imágenes de tickets para descargar en esta matrícula.'); return; }
+  if (typeof JSZip === 'undefined') { alert('No se pudo cargar el generador de ZIP. Revisa tu conexión.'); return; }
+
+  var zip = new JSZip();
+  var fetches = urls.map(function(u, i){
+    return fetch(u.url).then(function(r){ return r.blob(); }).then(function(blob){
+      zip.file((i+1) + '_' + u.name, blob);
+    }).catch(function(){});
+  });
+  Promise.all(fetches).then(function(){
+    return zip.generateAsync({ type: 'blob' });
+  }).then(function(blob){
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tickets_' + matricula.replace(/\s/g,'_') + '.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }).catch(function(){
+    alert('No se pudo generar el archivo ZIP.');
   });
 }
 

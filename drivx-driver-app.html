@@ -1793,16 +1793,50 @@ function onCatFile(input, cat) {
         toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
       }
 
-            gastosHashes[hash] = true;
-      registerTicket(cat, importe, nombre, fecha, hora);
+      gastosHashes[hash] = true;
+      registerTicket(cat, importe, nombre, fecha, hora, file);
     }).catch(function() { proc.classList.remove('visible'); toast('❌ Error analizando ticket'); });
   };
   reader.readAsDataURL(file);
 }
 
-function registerTicket(cat, importe, nombre, fecha, hora) {
+function base64ToBlob(b64, mimeType) {
+  var byteChars = atob(b64);
+  var byteNumbers = new Array(byteChars.length);
+  for (var i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  var byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: mimeType || 'image/jpeg' });
+}
+
+// Sube el ticket a Cloudinary y guarda el registro en Firebase, para que
+// el Dashboard pueda verlo/descargarlo organizado por matrícula y categoría.
+function uploadTicketToFirebase(cat, ticket, file) {
+  if (!currentUser) return;
+  var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  var ticketId = 'tk_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+  var record = {
+    importe: ticket.importe, nombre: ticket.nombre, fecha: ticket.fecha, hora: ticket.hora,
+    categoria: cat, ts: Date.now(),
+    matricula: currentUser.matricula, ccaa: currentUser.ccaa || '',
+    conductor: currentUser.nombre || ''
+  };
+  function saveRecord(url) {
+    if (url) record.url = url;
+    fetch(FIREBASE_URL + '/gastos/' + matSlug + '/' + cat + '/' + ticketId + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(record)
+    });
+  }
+  if (file) {
+    uploadToCloudinary(file).then(function(res){ saveRecord(res.secure_url); }).catch(function(){ saveRecord(null); });
+  } else {
+    saveRecord(null);
+  }
+}
+
+function registerTicket(cat, importe, nombre, fecha, hora, file) {
   gastosTotals[cat] = (gastosTotals[cat] || 0) + importe;
   data.gastos[cat].push({ importe:importe, nombre:nombre, fecha:fecha, hora:hora });
+  uploadTicketToFirebase(cat, { importe:importe, nombre:nombre, fecha:fecha, hora:hora }, file);
 
   var count = data.gastos[cat].length;
   var cEl = document.getElementById('count-'+cat);
@@ -1938,7 +1972,8 @@ function confirmParking() {
 
   document.getElementById('parking-modal').classList.remove('open');
   if (hash) gastosHashes[hash] = { cat:'parking', importe:amt, hora:hora };
-  registerTicket('parking', amt, 'Parking', fecha, hora);
+  var parkingFile = parkingPending.b64 ? base64ToBlob(parkingPending.b64, parkingPending.mt) : null;
+  registerTicket('parking', amt, 'Parking', fecha, hora, parkingFile);
   parkingPending = {};
 }
 
