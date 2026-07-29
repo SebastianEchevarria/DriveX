@@ -1484,7 +1484,9 @@ function refreshFicharUI() {
     var kmEntradaVal = document.getElementById('km-entrada-val');
     if (kmEntradaVal) kmEntradaVal.textContent = data.kmEntrada ? data.kmEntrada.toLocaleString('es-ES') : '—';
     var kmSalidaVal = document.getElementById('km-salida-val');
-    if (kmSalidaVal) kmSalidaVal.textContent = data.kmSalida ? data.kmSalida.toLocaleString('es-ES') : '—';
+    if (kmSalidaVal) kmSalidaVal.textContent = '—'; // en turno: la salida aún no se ha fichado
+    var kmTotalVal = document.getElementById('km-total-val');
+    if (kmTotalVal) kmTotalVal.textContent = '—';
   } else {
     if (btn) btn.className = 'btn-fichar entrada';
     if (icon) icon.textContent = '🟢';
@@ -1770,6 +1772,7 @@ function confirmKm() {
 
   if (pendingFichar === 'entrada') {
     data.fichado = true; data.horaEntrada = timeStr; data.kmEntrada = km; kmEntrada = km;
+    data.horaSalida = null; data.kmSalida = null; // limpiamos el turno anterior, si lo hubiera
     document.getElementById('km-entrada-val').textContent = km.toLocaleString('es-ES');
     document.getElementById('km-salida-val').textContent  = '—';
     document.getElementById('km-total-val').textContent   = '—';
@@ -2236,6 +2239,21 @@ function syncData() {
     ts: Date.now()
   });
   localStorage.setItem('drivx_conductor_'+currentUser.cid, JSON.stringify(payload));
+
+  // También mandamos el estado de fichaje a Firebase, para que el Dashboard
+  // pueda verlo desde cualquier dispositivo (no solo si es el mismo navegador).
+  fetch(FIREBASE_URL + '/fichajes/' + currentUser.cid + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      fichado: !!data.fichado,
+      horaEntrada: data.horaEntrada || null,
+      horaSalida: data.horaSalida || null,
+      nombre: currentUser.nombre || '',
+      matricula: currentUser.matricula || '',
+      turno: currentUser.turno || '',
+      ts: Date.now()
+    })
+  }).catch(function(){});
 }
 
 // ── AYUDA — CONTENIDO POR TEMA ──
@@ -2945,10 +2963,23 @@ var _citaInterval = null;
 
 function loadProximaCita() {
   if (!currentUser) return;
-  var cid = currentUser.cid;
-  var citas = [];
-  try { citas = JSON.parse(localStorage.getItem('drivx_citas_' + cid) || '[]'); } catch(e){}
+  fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+    lista = lista || [];
+    if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    var citas = lista.filter(function(c){
+      return c && (c.cid === currentUser.cid || c.matricula === currentUser.matricula);
+    });
+    pintarProximaCita(citas);
+  }).catch(function(){
+    // Sin conexión: usamos lo último que se guardó localmente como respaldo
+    var cid = currentUser.cid;
+    var citas = [];
+    try { citas = JSON.parse(localStorage.getItem('drivx_citas_' + cid) || '[]'); } catch(e){}
+    pintarProximaCita(citas);
+  });
+}
 
+function pintarProximaCita(citas) {
   // Filter future citas only, sort by date
   var now = new Date();
   citas = citas.filter(function(c) {

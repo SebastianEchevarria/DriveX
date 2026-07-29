@@ -263,7 +263,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div class="sb-section">Operaciones</div>
     <button class="sb-item" id="nav-flota" onclick="showDashScreen('flota')"><span class="ic">🚗</span> Flota</button>
     <button class="sb-item" id="nav-gastos" onclick="showDashScreen('gastos')"><span class="ic">🧾</span> Gastos</button>
-    <button class="sb-item disabled"><span class="ic">📅</span> Citas y revisiones <span class="sb-soon">PRÓXIMAMENTE</span></button>
+    <button class="sb-item" id="nav-citas" onclick="showDashScreen('citas')"><span class="ic">📅</span> Citas y revisiones</button>
     <button class="sb-item disabled"><span class="ic">👥</span> Conductores <span class="sb-soon">PRÓXIMAMENTE</span></button>
 
     <div class="sb-section">Negocio</div>
@@ -296,6 +296,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <!-- ── INICIO ── -->
       <div class="dash-screen active" id="dash-inicio">
         <div id="fichaje-alerts"></div>
+        <div id="proximas-citas-inicio"></div>
         <div class="stat-grid" id="inicio-stats"></div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px">
           <div style="font-size:14px;font-weight:800;margin-bottom:10px">👋 Bienvenido al Panel de Administración</div>
@@ -314,6 +315,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <!-- ── GASTOS ── -->
       <div class="dash-screen" id="dash-gastos">
         <div id="gastos-list"></div>
+      </div>
+
+      <!-- ── CITAS Y REVISIONES ── -->
+      <div class="dash-screen" id="dash-citas">
+        <div id="citas-list"></div>
       </div>
 
     </div>
@@ -389,6 +395,76 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <button id="vd-delete-btn" onclick="confirmDeleteVehicle()" style="width:100%;padding:13px;border-radius:12px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar vehículo</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: NUEVA CITA ══════════════ -->
+<div id="add-cita-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="font-size:26px">📅</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900">Nueva cita</div>
+        <div style="font-size:12px;color:var(--text3)">Visible para todos los conductores del vehículo</div>
+      </div>
+      <button onclick="closeAddCitaModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px 22px">
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Matrícula *</label>
+        <select id="ac-matricula" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit"></select>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Tipo de cita *</label>
+        <select id="ac-tipo" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+          <option value="ITV">🔧 ITV</option>
+          <option value="Revisión general">🔍 Revisión general</option>
+          <option value="Cambio aceite">🛢️ Cambio de aceite</option>
+          <option value="Frenos">🛑 Frenos</option>
+          <option value="Neumáticos">🏎️ Neumáticos</option>
+          <option value="Batería">⚡ Batería</option>
+          <option value="Climatización">❄️ Climatización</option>
+          <option value="Suspensión">🔧 Suspensión</option>
+          <option value="Filtros">🌀 Filtros</option>
+          <option value="Otro">🔩 Otro</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Fecha *</label>
+          <input id="ac-fecha" type="date" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Hora</label>
+          <input id="ac-hora" type="time" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        </div>
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Lugar / Dirección</label>
+        <input id="ac-lugar" type="text" placeholder="Ej: ITV Málaga, Av. Juan XXIII" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px">📍 Con esto, el conductor verá en su app un botón para ir directo con Google Maps.</div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nota (opcional)</label>
+        <input id="ac-nota" type="text" placeholder="Ej: Llevar ficha técnica" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+      </div>
+      <button onclick="guardarNuevaCitaDashboard()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar cita</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: DETALLE DE CITA ══════════════ -->
+<div id="cita-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div id="cd-icon" style="font-size:30px">📅</div>
+      <div style="flex:1">
+        <div id="cd-tipo" style="font-size:17px;font-weight:900">—</div>
+        <div id="cd-ccaa" style="font-size:12px;color:var(--text3)">—</div>
+      </div>
+      <button onclick="closeCitaDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="cd-body" style="padding:8px 22px 22px"></div>
   </div>
 </div>
 
@@ -576,7 +652,9 @@ function enterShell() {
   renderInicioStats();
   renderFlota();
   renderFichajeAlerts();
+  renderProximasCitasInicio();
   setInterval(renderFichajeAlerts, 60000);
+  setInterval(renderProximasCitasInicio, 60000);
 }
 
 // ══ NAVEGACIÓN ══
@@ -590,11 +668,13 @@ function showDashScreen(id) {
   var titles = {
     inicio: ['Inicio', 'Resumen general'],
     flota:  ['Flota', 'Vehículos por comunidad autónoma'],
-    gastos: ['Gastos', 'Tickets subidos por los conductores, por comunidad autónoma']
+    gastos: ['Gastos', 'Tickets subidos por los conductores, por comunidad autónoma'],
+    citas:  ['Citas y revisiones', 'Calendario y detalle por comunidad autónoma']
   };
   document.getElementById('tb-title').textContent = titles[id][0];
   document.getElementById('tb-sub').textContent = titles[id][1];
   if (id === 'gastos') renderGastos();
+  if (id === 'citas') renderCitas();
 }
 
 // ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
@@ -644,6 +724,60 @@ function parseTurnoInicio(turno) {
   var m = turno.match(/(\d{1,2}):(\d{2})/);
   if (!m) return null;
   return { h: parseInt(m[1],10), min: parseInt(m[2],10) };
+}
+
+function renderProximasCitasInicio() {
+  var container = document.getElementById('proximas-citas-inicio');
+  if (!container) return;
+
+  fetchTodasLasCitas().then(function(lista){
+    _citasCache = lista;
+    var vehByMatSlug = {};
+    getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+
+    var now = new Date();
+    var limite = new Date(now.getTime() + 7*86400000);
+
+    var proximas = lista.filter(function(c){
+      if (!c.fecha) return false;
+      var d = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+      return d >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && d <= limite;
+    });
+    proximas.sort(function(a,b){ return (a.fecha+(a.hora||'00:00')).localeCompare(b.fecha+(b.hora||'00:00')); });
+
+    if (!proximas.length) { container.innerHTML = ''; return; }
+
+    var html = '<div style="margin-bottom:24px">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">📅 Próximas citas (7 días) <span style="color:var(--text3);font-weight:600;font-size:12px">· '+proximas.length+'</span></div>';
+
+    proximas.forEach(function(cita){
+      var info = citaTipoInfo(cita.tipo);
+      var v = vehByMatSlug[matSlug(cita.matricula || '')];
+      var ccaa = v ? v.ccaa : 'Sin asignar';
+      var d = new Date(cita.fecha + 'T' + (cita.hora || '00:00'));
+      var diasFaltan = Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate())) / 86400000);
+
+      var urgColor, urgBg, urgLabel, scale;
+      if (diasFaltan <= 0) { urgColor = 'var(--red)'; urgBg = 'rgba(255,71,87,.1)'; urgLabel = diasFaltan === 0 ? 'HOY' : 'VENCIDA'; scale = '1'; }
+      else if (diasFaltan === 1) { urgColor = 'var(--red)'; urgBg = 'rgba(255,71,87,.08)'; urgLabel = 'MAÑANA'; scale = '1'; }
+      else if (diasFaltan <= 3) { urgColor = 'var(--amber)'; urgBg = 'rgba(255,179,0,.08)'; urgLabel = 'en '+diasFaltan+' días'; scale = '0.98'; }
+      else { urgColor = 'var(--cyan)'; urgBg = 'rgba(0,212,255,.06)'; urgLabel = 'en '+diasFaltan+' días'; scale = '0.96'; }
+
+      html += '<div onclick="openCitaDetail('+cita.id+')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px;border-radius:14px;cursor:pointer;background:'+urgBg+';border:2px solid '+urgColor+';transform:scale('+scale+');transform-origin:left center">' +
+        '<div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0">'+info.icon+'</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;font-weight:900;color:#fff">'+cita.tipo+'</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="font-family:var(--mono);color:var(--cyan);font-weight:700">'+cita.matricula+'</span></div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+(CCAA_ICONS[ccaa]||'📍')+' '+ccaa+'</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0">' +
+          '<div style="font-size:13px;font-weight:900;color:'+urgColor+'">'+urgLabel+'</div>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function(){});
 }
 
 function renderFichajeAlerts() {
@@ -1543,6 +1677,344 @@ function descargarTodoMatricula(mSlug, matricula) {
     document.body.removeChild(a);
   }).catch(function(){
     alert('No se pudo generar el archivo ZIP.');
+  });
+}
+
+// ══ CITAS Y REVISIONES — por CCAA, con calendario y detalle ══
+var CITA_TIPOS = {
+  'ITV':      { icon:'🔧', color:'var(--amber)' },
+  'Revisión general': { icon:'🔍', color:'var(--cyan)' },
+  'Cambio aceite':    { icon:'🛢️', color:'var(--cyan)' },
+  'Frenos':   { icon:'🛑', color:'var(--red)' },
+  'Neumáticos': { icon:'🏎️', color:'var(--cyan)' },
+  'Batería':  { icon:'⚡', color:'var(--amber)' },
+  'Climatización': { icon:'❄️', color:'var(--cyan)' },
+  'Suspensión': { icon:'🔧', color:'var(--cyan)' },
+  'Filtros':  { icon:'🌀', color:'var(--cyan)' },
+  'Otro':     { icon:'🔩', color:'var(--text3)' }
+};
+function citaTipoInfo(tipo) { return CITA_TIPOS[tipo] || { icon:'📅', color:'var(--cyan)' }; }
+
+var _citasCache = [];
+var _citasInvitadosCache = {};
+
+function fetchTodasLasCitas() {
+  return Promise.all([
+    fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    _citasInvitadosCache = results[1] || {};
+    var lista = results[0] || [];
+    if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    return lista.filter(Boolean);
+  });
+}
+
+function nombreConductorCita(cid) {
+  var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+  if (c) return c.nombre;
+  if (_citasInvitadosCache[cid]) return _citasInvitadosCache[cid].nombre || 'Conductor';
+  return null;
+}
+
+function renderCitas() {
+  var container = document.getElementById('citas-list');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando citas…</div>';
+
+  Promise.all([
+    fetchTodasLasCitas(),
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/comunidades_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    _citasCache = results[0];
+    var extra = results[1] || {};
+    var ocultos = results[2] || {};
+    var comunidadesExtra = results[3] || {};
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
+    VEHICULOS_OCULTOS = ocultos;
+    CCAA_EXTRA = Object.keys(comunidadesExtra).filter(function(cc){ return comunidadesExtra[cc]; });
+    try { paintCitas(); }
+    catch (err) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar las citas: ' + err.message + '<br><br>' +
+        '<button onclick="renderCitas()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+    }
+  }).catch(function(){
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo conectar con la base de datos.<br><br>' +
+      '<button onclick="renderCitas()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+  });
+}
+
+function paintCitas() {
+  var container = document.getElementById('citas-list');
+  if (!container) return;
+
+  var vehByMatSlug = {};
+  getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+
+  var ccaaOrder = getCcaaOrder();
+  var groups = {};
+  ccaaOrder.forEach(function(cc){ groups[cc] = []; });
+  _citasCache.forEach(function(cita){
+    var v = vehByMatSlug[matSlug(cita.matricula || '')];
+    var cc = v ? v.ccaa : 'Sin asignar';
+    if (!groups[cc]) groups[cc] = [];
+    groups[cc].push(cita);
+  });
+
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai<0?99:ai) - (bi<0?99:bi);
+  });
+
+  var now = new Date();
+  var html = '';
+  html += '<button onclick="openAddCitaModal()" style="width:100%;padding:14px;border-radius:14px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.12));cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;font-size:14px;font-weight:900;font-family:inherit;box-shadow:0 4px 16px rgba(0,212,255,.2);margin-bottom:16px">' +
+    '➕ NUEVA CITA' +
+  '</button>';
+
+  ccaas.forEach(function(cc){
+    var citasCcaa = groups[cc] || [];
+    citasCcaa.sort(function(a,b){ return (a.fecha+((a.hora)||'00:00')).localeCompare(b.fecha+((b.hora)||'00:00')); });
+    var gid = 'cg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+
+    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+'" id="btn_'+gid+'">';
+    html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">'+citasCcaa.length+' cita'+(citasCcaa.length!==1?'s':'')+' programada'+(citasCcaa.length!==1?'s':'')+'</div></div>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
+    html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
+      '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
+      '<input type="text" id="searchinput_'+gid+'" placeholder="Buscar matrícula en '+cc+'…" oninput="filterCitasPorMatricula(\''+gid+'\',this.value)" ' +
+      'style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:13px 16px 13px 42px;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--mono);box-sizing:border-box;box-shadow:0 0 0 4px rgba(0,212,255,.12),0 4px 14px rgba(0,212,255,.2);outline:none">' +
+    '</div>';
+    html += '</div>';
+
+    html += '<div id="'+gid+'" style="display:block;background:'+ccaaGroupBg(cc)+';border-radius:12px;padding:14px;margin-bottom:16px">';
+
+    // Mini calendario del mes actual
+    html += buildMiniCalendar(citasCcaa, now, gid);
+
+    // Listado cronológico con todos los detalles
+    html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📋 Próximas citas</div>';
+    if (!citasCcaa.length) {
+      html += '<div style="padding:14px;color:var(--text3);font-size:12px;text-align:center">Sin citas programadas en esta comunidad</div>';
+    }
+    citasCcaa.forEach(function(cita){
+      var info = citaTipoInfo(cita.tipo);
+      var dCita = new Date(cita.fecha + 'T' + (cita.hora || '00:00'));
+      var diasFaltan = Math.ceil((dCita - now) / 86400000);
+      var vencida = dCita < now && diasFaltan < 0;
+      var borderColor = vencida ? 'rgba(255,71,87,.4)' : diasFaltan <= 2 ? 'rgba(255,179,0,.4)' : 'var(--border)';
+      var nombreCond = nombreConductorCita(cita.cid);
+
+      html += '<div class="cita-card" data-matricula="'+(cita.matricula||'').replace(/\s/g,'').toUpperCase()+'" onclick="openCitaDetail('+cita.id+')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:2px solid '+borderColor+';border-radius:14px;margin-bottom:8px;cursor:pointer;background:var(--surface2)">';
+      html += '<div style="width:40px;height:40px;border-radius:11px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">'+info.icon+'</div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:13px;font-weight:800;color:var(--text)">'+cita.tipo+'</div>';
+      html += '<div style="font-size:11px;color:var(--text3)">'+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="font-family:var(--mono);color:var(--cyan)">'+cita.matricula+'</span>'+(nombreCond?' · '+nombreCond:'')+'</div>';
+      html += '</div>';
+      html += vencida
+        ? '<span style="font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:3px 8px;flex-shrink:0">VENCIDA</span>'
+        : '<span style="font-size:10px;font-weight:800;color:'+(diasFaltan<=2?'var(--amber)':'var(--text3)')+';flex-shrink:0">'+(diasFaltan===0?'HOY':diasFaltan===1?'MAÑANA':diasFaltan+' días')+'</span>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin citas todavía</div>';
+
+  ccaas.forEach(function(cc){
+    var gid = 'cg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var btn = document.getElementById('btn_'+gid);
+    if (btn) btn.onclick = function(){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_'+gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
+}
+
+function filterCitasPorMatricula(gid, term) {
+  term = (term||'').trim().toUpperCase().replace(/\s/g,'');
+  var cards = document.querySelectorAll('#'+gid+' .cita-card');
+  cards.forEach(function(c){
+    var match = !term || (c.getAttribute('data-matricula')||'').indexOf(term) !== -1;
+    c.style.display = match ? 'flex' : 'none';
+  });
+}
+
+function formatFechaCita(fechaStr) {
+  if (!fechaStr) return '—';
+  var d = new Date(fechaStr + 'T00:00:00');
+  return d.toLocaleDateString('es-ES', { weekday:'short', day:'2-digit', month:'short' });
+}
+
+// Calendario sencillo del mes actual: resalta los días que tienen alguna cita
+function buildMiniCalendar(citas, now, gid) {
+  var year = now.getFullYear(), month = now.getMonth();
+  var firstDay = new Date(year, month, 1);
+  var startWeekday = (firstDay.getDay() + 6) % 7; // Lunes=0
+  var daysInMonth = new Date(year, month+1, 0).getDate();
+  var todayNum = now.getDate();
+
+  var citasPorDia = {};
+  citas.forEach(function(c){
+    if (!c.fecha) return;
+    var d = new Date(c.fecha + 'T00:00:00');
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      citasPorDia[d.getDate()] = (citasPorDia[d.getDate()] || 0) + 1;
+    }
+  });
+
+  var mesNombre = now.toLocaleDateString('es-ES', { month:'long', year:'numeric' });
+  var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px">';
+  html += '<div style="font-size:12px;font-weight:800;color:var(--text2);text-transform:capitalize;margin-bottom:10px">🗓️ '+mesNombre+'</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;color:var(--text3);text-align:center;margin-bottom:4px">';
+  ['L','M','X','J','V','S','D'].forEach(function(d){ html += '<div>'+d+'</div>'; });
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+  for (var i=0; i<startWeekday; i++) html += '<div></div>';
+  for (var day=1; day<=daysInMonth; day++) {
+    var count = citasPorDia[day] || 0;
+    var isToday = day === todayNum;
+    var bg = count > 0 ? (isToday ? 'var(--red)' : 'rgba(0,212,255,.25)') : (isToday ? 'rgba(255,255,255,.08)' : 'transparent');
+    var color = count > 0 ? '#fff' : (isToday ? 'var(--cyan)' : 'var(--text2)');
+    html += '<div style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:'+bg+';color:'+color+';font-size:11px;font-weight:'+(count>0||isToday?'800':'400')+'">' +
+      day + (count>0 ? '<span style="font-size:8px;line-height:1">●'+(count>1?'×'+count:'')+'</span>' : '') +
+    '</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+// ── Modal de detalle de cita (compartido con el widget de Inicio) ──
+function openCitaDetail(id) {
+  var cita = _citasCache.find(function(c){ return c.id === id; });
+  if (!cita) return;
+  var info = citaTipoInfo(cita.tipo);
+  var v = getAllVehiculos().find(function(x){ return x.matricula === cita.matricula; });
+  var nombreCond = nombreConductorCita(cita.cid);
+
+  document.getElementById('cd-icon').textContent = info.icon;
+  document.getElementById('cd-tipo').textContent = cita.tipo;
+  document.getElementById('cd-ccaa').innerHTML = (v ? (CCAA_ICONS[v.ccaa]||'📍') + ' ' + v.ccaa : 'Comunidad autónoma sin identificar');
+
+  var body = '';
+  body += citaDetailRow('📅', 'Fecha', formatFechaCita(cita.fecha));
+  body += citaDetailRow('🕐', 'Hora', cita.hora || 'No especificada');
+  body += citaDetailRow('🚗', 'Matrícula', cita.matricula || '—');
+  body += citaDetailRow('👤', 'Conductor', nombreCond || 'Sin asignar / todos los conductores del vehículo');
+  body += citaDetailRow('📍', 'Lugar', cita.lugar || 'No especificado');
+  if (cita.nota) body += citaDetailRow('📝', 'Nota', cita.nota);
+  body += '<div style="margin-top:18px">' +
+    '<button id="cd-delete-btn" onclick="confirmDeleteCita('+cita.id+')" style="width:100%;padding:13px;border-radius:12px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar cita</button>' +
+  '</div>';
+  document.getElementById('cd-body').innerHTML = body;
+
+  document.getElementById('cita-detail-modal').style.display = 'flex';
+}
+function confirmDeleteCita(id) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById('cd-delete-btn');
+  if (!btn) return;
+
+  if (btn.getAttribute('data-confirm') === '1') {
+    btn.disabled = true;
+    btn.textContent = 'Eliminando…';
+    fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+      lista = lista || [];
+      if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+      lista = lista.filter(function(c){ return c && c.id !== id; });
+      return fetch(FIREBASE_URL + '/citas_globales.json', {
+        method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(lista)
+      }).then(fbCheck);
+    }).then(function(){
+      closeCitaDetail();
+      renderCitas();
+      renderProximasCitasInicio();
+    }).catch(function(err){
+      alert('No se pudo eliminar la cita: ' + err.message);
+      btn.disabled = false;
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar cita';
+    });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Pulsa otra vez para confirmar';
+  btn.style.background = 'rgba(255,71,87,.25)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar cita';
+      btn.style.background = 'rgba(255,71,87,.08)';
+    }
+  }, 5000);
+}
+function citaDetailRow(icon, label, value) {
+  return '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+    '<div style="font-size:18px;width:24px;flex-shrink:0">'+icon+'</div>' +
+    '<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">'+label+'</div>' +
+    '<div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">'+value+'</div></div>' +
+  '</div>';
+}
+function closeCitaDetail() {
+  document.getElementById('cita-detail-modal').style.display = 'none';
+}
+
+function openAddCitaModal() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var sel = document.getElementById('ac-matricula');
+  sel.innerHTML = getAllVehiculos().map(function(v){
+    return '<option value="'+v.matricula+'">'+v.matricula+' — '+v.modelo+' ('+v.ccaa+')</option>';
+  }).join('');
+  document.getElementById('ac-tipo').value = 'ITV';
+  document.getElementById('ac-fecha').value = '';
+  document.getElementById('ac-hora').value = '';
+  document.getElementById('ac-lugar').value = '';
+  document.getElementById('ac-nota').value = '';
+  document.getElementById('add-cita-modal').style.display = 'flex';
+}
+function closeAddCitaModal() {
+  document.getElementById('add-cita-modal').style.display = 'none';
+}
+function guardarNuevaCitaDashboard() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var matricula = document.getElementById('ac-matricula').value;
+  var tipo = document.getElementById('ac-tipo').value;
+  var fecha = document.getElementById('ac-fecha').value;
+  var hora = document.getElementById('ac-hora').value;
+  var lugar = document.getElementById('ac-lugar').value.trim();
+  var nota = document.getElementById('ac-nota').value.trim();
+
+  if (!matricula) { alert('Elige una matrícula.'); return; }
+  if (!fecha) { alert('Elige una fecha.'); return; }
+
+  var cita = {
+    id: Date.now(), cid: '', matricula: matricula, tipo: tipo,
+    fecha: fecha, hora: hora || '', lugar: lugar || '', nota: nota || '', ts: Date.now()
+  };
+
+  fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+    lista = lista || [];
+    if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    lista = lista.filter(Boolean);
+    lista.push(cita);
+    return fetch(FIREBASE_URL + '/citas_globales.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(lista)
+    }).then(fbCheck);
+  }).then(function(){
+    closeAddCitaModal();
+    renderCitas();
+    renderProximasCitasInicio();
+  }).catch(function(err){
+    alert('No se pudo guardar la cita: ' + err.message);
   });
 }
 

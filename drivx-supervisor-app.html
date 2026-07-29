@@ -1317,6 +1317,7 @@ function toggleCitaDetail(id) {
 window.addEventListener('load', showBiometricBtn);
 function startSync() {
   syncFromDrivers();
+  pullCitasFromFirebase();
   setTimeout(initLugarAutocomplete, 500);
   renderNotifCitas();
   renderHomeProximas();
@@ -1328,8 +1329,40 @@ function startSync() {
     renderVehiculosHome();
     renderITVAlerts();
   }, 6000);
+  setInterval(function(){
+    pullCitasFromFirebase();
+    renderNotifCitas();
+    renderHomeProximas();
+  }, 8000);
   setInterval(renderNotifCitas, 30000);
   setInterval(renderHomeProximas, 30000);
+}
+
+// Trae de Firebase cualquier cita creada desde otra app (p.ej. el Dashboard) y
+// la integra en el mismo almacenamiento local que ya usa toda la interfaz de
+// Supervisor, para no tener que tocar cada pantalla que muestra citas.
+function pullCitasFromFirebase() {
+  fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+    lista = lista || [];
+    if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    lista = lista.filter(Boolean);
+
+    localStorage.setItem('drivx_citas', JSON.stringify(lista));
+
+    var todosVehiculos = getAllVehiculos();
+    var porConductor = {};
+    lista.forEach(function(c){
+      if (c.cid) {
+        (porConductor[c.cid] = porConductor[c.cid] || []).push(c);
+      } else if (c.matricula) {
+        var v = todosVehiculos.find(function(x){ return x.matricula === c.matricula; });
+        if (v) v.conductores.forEach(function(cid){ (porConductor[cid] = porConductor[cid] || []).push(c); });
+      }
+    });
+    Object.keys(porConductor).forEach(function(cid){
+      localStorage.setItem('drivx_citas_' + cid, JSON.stringify(porConductor[cid]));
+    });
+  }).catch(function(){});
 }
 
 // ══ CITAS ══
@@ -1356,6 +1389,7 @@ function guardarCitaTallerMat() {
   try { all = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
   all.push({ id:Date.now()+Math.random(), matricula:v.matricula, tipo:tipo, fecha:fecha, hora:hora, lugar:lugar, nota:nota, ts:Date.now() });
   localStorage.setItem('drivx_citas', JSON.stringify(all));
+  syncAllCitasToFirebase(all);
 
   // Reset form
   document.getElementById('mat-taller-fecha').value = '';
@@ -1485,6 +1519,15 @@ function verAdminDoc(docType) {
   var doc = _matDocsCache[docType];
   if (!doc || !doc.url) return;
   window.open(doc.url, '_blank');
+}
+
+// Cada vez que se guarda/borra una cita, mandamos también una copia completa
+// a Firebase, para que el Dashboard pueda verlas desde cualquier dispositivo.
+function syncAllCitasToFirebase(citasList) {
+  fetch(FIREBASE_URL + '/citas_globales.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(citasList || [])
+  }).catch(function(){});
 }
 
 function guardarCita() {
@@ -1897,6 +1940,7 @@ function guardarCitaTallerModal() {
   try { all = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
   all.push({ id: Date.now()+Math.random(), matricula:v.matricula, tipo:tipo, fecha:fecha, hora:hora, lugar:lugar, nota:nota, ts:Date.now() });
   localStorage.setItem('drivx_citas', JSON.stringify(all));
+  syncAllCitasToFirebase(all);
 
   document.getElementById('am-fecha').value = '';
   document.getElementById('am-hora').value  = '';
@@ -2023,6 +2067,7 @@ function guardarCitaTallerVer() {
   try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
   all.push({id:Date.now()+Math.random(),matricula:v.matricula,tipo:tipo,fecha:fecha,hora:hora,lugar:lugar,nota:nota,ts:Date.now()});
   localStorage.setItem('drivx_citas',JSON.stringify(all));
+  syncAllCitasToFirebase(all);
 
   toast('✅ Cita creada · '+v.matricula+' · '+tipo);
   renderNotifCitas(); renderITVAlerts(); renderVehiculosHome(); renderHomeProximas();
@@ -2370,6 +2415,7 @@ function saveEditCita() {
     return c;
   });
   localStorage.setItem('drivx_citas',JSON.stringify(all));
+  syncAllCitasToFirebase(all);
   document.getElementById('cal-edit-modal').style.display='none';
   _pendingEditKey=null;
   toast('✅ Cita actualizada');
@@ -2417,6 +2463,7 @@ function confirmDelCita() {
     return !( (c.matricula||'')===mat && (c.tipo||'')===tipo && (c.fecha||'')===fecha );
   });
   localStorage.setItem('drivx_citas',JSON.stringify(all));
+  syncAllCitasToFirebase(all);
 
   renderHomeProximas();
   renderNotifCitas();
@@ -2892,6 +2939,7 @@ function saveEditCita() {
     return c;
   });
   localStorage.setItem('drivx_citas',JSON.stringify(all));
+  syncAllCitasToFirebase(all);
   document.getElementById('cal-edit-modal').style.display='none';
   _pendingEditKey=null;
   toast('\u2705 Cita actualizada');
