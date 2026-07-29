@@ -1165,6 +1165,9 @@ function filtrarTicketsMatricula(mgid) {
 
   var rows = document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"]');
   rows.forEach(function(row) {
+    // Los tickets se suben el mismo día en que se hace la foto (foto directa,
+    // no archivo adjunto), así que la fecha de subida es 100% fiable — no
+    // depende de que la IA lea bien la fecha impresa en el ticket.
     var ts = parseInt(row.getAttribute('data-ts') || '0', 10);
     var rowCond = row.getAttribute('data-conductor') || '';
     var visible = true;
