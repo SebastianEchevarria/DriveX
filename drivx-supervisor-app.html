@@ -1582,6 +1582,7 @@ function guardarCita() {
   try { allCitas = JSON.parse(localStorage.getItem(allKey)||'[]'); } catch(e){}
   allCitas.push(cita);
   localStorage.setItem(allKey, JSON.stringify(allCitas));
+  syncAllCitasToFirebase(allCitas);
 
   document.getElementById('cita-modal').style.display='none';
   resetCitaModalGeneral();
@@ -1638,6 +1639,7 @@ function deleteCita(id) {
   try { allCitas = JSON.parse(localStorage.getItem(allKey)||'[]'); } catch(e){}
   allCitas = allCitas.filter(function(c){ return c.id !== id; });
   localStorage.setItem(allKey, JSON.stringify(allCitas));
+  syncAllCitasToFirebase(allCitas);
 
   // Remove from conductor-specific keys
   CONDUCTORES.forEach(function(c) {
@@ -1844,9 +1846,7 @@ function guardarCitaTaller() {
     all.push({ id:Date.now()+Math.random(), cid:cid, matricula:mat, tipo:tipo, fecha:fecha, hora:hora||'', lugar:lugar, nota:nota, ts:Date.now() });
   });
   localStorage.setItem(allKey, JSON.stringify(all));
-
-  // Reset form
-  document.getElementById('taller-fecha').value = '';
+  syncAllCitasToFirebase(all);
   document.getElementById('taller-hora').value  = '';
   document.getElementById('taller-lugar').value = '';
   document.getElementById('taller-nota').value  = '';
