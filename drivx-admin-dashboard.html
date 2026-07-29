@@ -411,6 +411,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     </div>
     <div style="padding:20px 22px">
       <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma *</label>
+        <select id="ac-ccaa" onchange="filtrarMatriculasPorCcaa()" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit"></select>
+      </div>
+      <div style="margin-bottom:14px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Matrícula *</label>
         <select id="ac-matricula" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit"></select>
       </div>
@@ -1795,7 +1799,7 @@ function paintCitas() {
     html += '<div id="'+gid+'" style="display:block;background:'+ccaaGroupBg(cc)+';border-radius:12px;padding:14px;margin-bottom:16px">';
 
     // Mini calendario del mes actual
-    html += buildMiniCalendar(citasCcaa, now, gid);
+    html += buildMiniCalendar(citasCcaa, now, gid, cc);
 
     // Listado cronológico con todos los detalles
     html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📋 Próximas citas</div>';
@@ -1856,7 +1860,7 @@ function formatFechaCita(fechaStr) {
 }
 
 // Calendario sencillo del mes actual: resalta los días que tienen alguna cita
-function buildMiniCalendar(citas, now, gid) {
+function buildMiniCalendar(citas, now, gid, cc) {
   var year = now.getFullYear(), month = now.getMonth();
   var firstDay = new Date(year, month, 1);
   var startWeekday = (firstDay.getDay() + 6) % 7; // Lunes=0
@@ -1873,20 +1877,21 @@ function buildMiniCalendar(citas, now, gid) {
   });
 
   var mesNombre = now.toLocaleDateString('es-ES', { month:'long', year:'numeric' });
-  var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px">';
-  html += '<div style="font-size:12px;font-weight:800;color:var(--text2);text-transform:capitalize;margin-bottom:10px">🗓️ '+mesNombre+'</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;color:var(--text3);text-align:center;margin-bottom:4px">';
+  var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;max-width:230px">';
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text2);text-transform:capitalize;margin-bottom:6px">🗓️ '+mesNombre+'</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:8px;color:var(--text3);text-align:center;margin-bottom:3px">';
   ['L','M','X','J','V','S','D'].forEach(function(d){ html += '<div>'+d+'</div>'; });
   html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
   for (var i=0; i<startWeekday; i++) html += '<div></div>';
   for (var day=1; day<=daysInMonth; day++) {
     var count = citasPorDia[day] || 0;
     var isToday = day === todayNum;
     var bg = count > 0 ? (isToday ? 'var(--red)' : 'rgba(0,212,255,.25)') : (isToday ? 'rgba(255,255,255,.08)' : 'transparent');
     var color = count > 0 ? '#fff' : (isToday ? 'var(--cyan)' : 'var(--text2)');
-    html += '<div style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:'+bg+';color:'+color+';font-size:11px;font-weight:'+(count>0||isToday?'800':'400')+'">' +
-      day + (count>0 ? '<span style="font-size:8px;line-height:1">●'+(count>1?'×'+count:'')+'</span>' : '') +
+    var fechaDia = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="Añadir cita el '+day+'" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:'+bg+';color:'+color+';font-size:9px;font-weight:'+(count>0||isToday?'800':'400')+';cursor:pointer;line-height:1">' +
+      day +
     '</div>';
   }
   html += '</div></div>';
@@ -1968,18 +1973,29 @@ function closeCitaDetail() {
   document.getElementById('cita-detail-modal').style.display = 'none';
 }
 
-function openAddCitaModal() {
+function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
   if (!currentUser || currentUser.role !== 'admin') return;
-  var sel = document.getElementById('ac-matricula');
-  sel.innerHTML = getAllVehiculos().map(function(v){
-    return '<option value="'+v.matricula+'">'+v.matricula+' — '+v.modelo+' ('+v.ccaa+')</option>';
+  var ccaaSel = document.getElementById('ac-ccaa');
+  ccaaSel.innerHTML = getCcaaOrder().map(function(cc){
+    return '<option value="'+cc+'">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</option>';
   }).join('');
+  ccaaSel.value = ccaaPreseleccionada || getCcaaOrder()[0];
+  filtrarMatriculasPorCcaa();
+
   document.getElementById('ac-tipo').value = 'ITV';
-  document.getElementById('ac-fecha').value = '';
+  document.getElementById('ac-fecha').value = fechaPreseleccionada || '';
   document.getElementById('ac-hora').value = '';
   document.getElementById('ac-lugar').value = '';
   document.getElementById('ac-nota').value = '';
   document.getElementById('add-cita-modal').style.display = 'flex';
+}
+function filtrarMatriculasPorCcaa() {
+  var cc = document.getElementById('ac-ccaa').value;
+  var sel = document.getElementById('ac-matricula');
+  var vehiculos = getAllVehiculos().filter(function(v){ return v.ccaa === cc; });
+  sel.innerHTML = vehiculos.length
+    ? vehiculos.map(function(v){ return '<option value="'+v.matricula+'">'+v.matricula+' — '+v.modelo+'</option>'; }).join('')
+    : '<option value="">Sin vehículos en esta comunidad</option>';
 }
 function closeAddCitaModal() {
   document.getElementById('add-cita-modal').style.display = 'none';
