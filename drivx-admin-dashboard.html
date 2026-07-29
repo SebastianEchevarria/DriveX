@@ -1145,7 +1145,8 @@ function eliminarTodoGastosMatricula(mSlug) {
     ? fetch('/api/cloudinary-delete', {
         method: 'POST', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({ publicIds: publicIds })
-      }).catch(function(){ /* si el endpoint aún no existe, seguimos con Firebase igualmente */ })
+      }).then(function(r){ return r.json().then(function(data){ console.log('Cloudinary delete response:', r.status, data); }); })
+      .catch(function(err){ console.error('Cloudinary delete falló:', err); })
     : Promise.resolve();
 
   // 2) Borrar el registro completo de Firebase
@@ -1233,7 +1234,9 @@ function eliminarSeleccionados(mgid, mSlug) {
     var publicIds = refs.map(function(r){ return r.url ? extractCloudinaryPublicId(r.url) : null; }).filter(Boolean);
 
     var cloudinaryDelete = publicIds.length
-      ? fetch('/api/cloudinary-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ publicIds: publicIds }) }).catch(function(){})
+      ? fetch('/api/cloudinary-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ publicIds: publicIds }) })
+          .then(function(r){ return r.json().then(function(data){ console.log('Cloudinary delete response:', r.status, data); }); })
+          .catch(function(err){ console.error('Cloudinary delete falló:', err); })
       : Promise.resolve();
 
     cloudinaryDelete.then(function(){
