@@ -295,6 +295,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
       <!-- ── INICIO ── -->
       <div class="dash-screen active" id="dash-inicio">
+        <div id="fichaje-alerts"></div>
         <div class="stat-grid" id="inicio-stats"></div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px">
           <div style="font-size:14px;font-weight:800;margin-bottom:10px">👋 Bienvenido al Panel de Administración</div>
@@ -559,6 +560,8 @@ function enterShell() {
 
   renderInicioStats();
   renderFlota();
+  renderFichajeAlerts();
+  setInterval(renderFichajeAlerts, 60000);
 }
 
 // ══ NAVEGACIÓN ══
@@ -605,6 +608,93 @@ function renderInicioStats() {
     try { paintInicioStats(); } catch(err) { console.error('paintInicioStats error:', err); }
   });
 }
+// ══ NOTIFICACIONES — RETRASOS DE FICHAJE ══
+function parseTurnoInicio(turno) {
+  if (!turno) return null;
+  var m = turno.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return { h: parseInt(m[1],10), min: parseInt(m[2],10) };
+}
+
+function renderFichajeAlerts() {
+  var container = document.getElementById('fichaje-alerts');
+  if (!container) return;
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var invitados = results[0] || {};
+    var fichajes = results[1] || {};
+
+    var allConductores = [];
+    CONDUCTORES.forEach(function(c){
+      if (c.cid === 'test') return; // no alertamos sobre el usuario de pruebas
+      allConductores.push({ cid:c.cid, nombre:c.nombre, matricula:c.matricula, turno:c.turno });
+    });
+    Object.keys(invitados).forEach(function(cid){
+      var r = invitados[cid];
+      if (!r) return;
+      allConductores.push({ cid:cid, nombre:r.nombre||'Conductor', matricula:r.matricula, turno:r.turno });
+    });
+
+    var vehByMatSlug = {};
+    getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+
+    var now = new Date();
+    var todayStr = now.toDateString();
+    var late = [];
+
+    allConductores.forEach(function(c){
+      var inicio = parseTurnoInicio(c.turno);
+      if (!inicio) return;
+      var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), inicio.h, inicio.min, 0);
+      var deadline = new Date(startToday.getTime() + 15*60000);
+      if (now < deadline) return; // todavía no han pasado los 15 minutos de margen
+
+      var fj = fichajes[c.cid];
+      var fichadoHoy = !!(fj && fj.fichado === true && fj.ts && new Date(fj.ts).toDateString() === todayStr);
+      if (fichadoHoy) return;
+
+      var v = vehByMatSlug[matSlug(c.matricula || '')];
+      var minutosTarde = Math.round((now - startToday) / 60000);
+      late.push({ nombre: c.nombre, turno: c.turno, matricula: c.matricula, ccaa: v ? v.ccaa : 'Sin asignar', minutosTarde: minutosTarde });
+    });
+
+    if (!late.length) { container.innerHTML = ''; return; }
+
+    var ccaaIcons = { 'Andalucía':'🌞', 'Comunidad Valenciana':'🍊', 'Castilla-La Mancha':'🌾' };
+    var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+    var groups = {};
+    late.forEach(function(l){ (groups[l.ccaa] = groups[l.ccaa] || []).push(l); });
+    var ccaasPresentes = Object.keys(groups).sort(function(a,b){
+      var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+
+    var html = '<div style="margin-bottom:24px">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:8px">🔔 Retrasos de fichaje (' + late.length + ')</div>';
+    ccaasPresentes.forEach(function(cc){
+      html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">' + (ccaaIcons[cc]||'📍') + ' ' + cc + '</div>';
+      groups[cc].forEach(function(l){
+        html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.08);border:2px solid rgba(255,71,87,.45);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(255,71,87,.12)">' +
+          '<div style="font-size:26px">⚠️</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:14px;font-weight:900;color:#fff">' + l.nombre + '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px">🕐 ' + l.turno + ' · 🚗 <span style="font-family:var(--mono);color:var(--cyan);font-weight:700">' + l.matricula + '</span></div>' +
+          '</div>' +
+          '<div style="text-align:right;flex-shrink:0">' +
+            '<div style="font-size:17px;font-weight:900;color:var(--red)">' + l.minutosTarde + ' min</div>' +
+            '<div style="font-size:10px;color:var(--text3)">de retraso</div>' +
+          '</div>' +
+        '</div>';
+      });
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function(){});
+}
+
 function paintInicioStats() {
   var now = new Date();
   function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
@@ -876,9 +966,9 @@ function toggleCcaaSearch(gid) {
 }
 function filterCcaaVehicles(cc, gid, term) {
   term = (term || '').trim().toUpperCase().replace(/\s/g, '');
-  var grid = document.querySelector('#' + gid + ' .veh-grid');
+  var grid = document.querySelector('#' + gid + ' .veh-grid') || document.getElementById(gid);
   if (!grid) return;
-  var cards = Array.prototype.slice.call(grid.children);
+  var cards = Array.prototype.slice.call(grid.children).filter(function(c){ return c.hasAttribute('data-matricula'); });
   cards.sort(function(a, b) {
     var order = parseInt(a.getAttribute('data-order') || '0', 10) - parseInt(b.getAttribute('data-order') || '0', 10);
     if (!term) return order;
@@ -888,11 +978,16 @@ function filterCcaaVehicles(cc, gid, term) {
   });
   cards.forEach(function(c){ grid.appendChild(c); });
 
-  // Si hay coincidencia, resalta un poco la tarjeta encontrada
-  cards.forEach(function(c){
-    var match = term && c.getAttribute('data-matricula').indexOf(term) !== -1;
-    c.style.boxShadow = match ? '0 0 0 2px var(--cyan)' : '';
-  });
+  // Si hay coincidencia, resalta un poco la tarjeta encontrada (sin tocar su sombra habitual si no coincide)
+  if (term) {
+    cards.forEach(function(c){
+      var match = c.getAttribute('data-matricula').indexOf(term) !== -1;
+      if (match) c.style.boxShadow = '0 0 0 3px var(--cyan)';
+      else c.style.boxShadow = c.getAttribute('data-baseshadow') || '';
+    });
+  } else {
+    cards.forEach(function(c){ c.style.boxShadow = c.getAttribute('data-baseshadow') || ''; });
+  }
 }
 
 // ══ GASTOS — tickets subidos por los conductores, por CCAA → matrícula → categoría ══
@@ -983,7 +1078,13 @@ function paintGastos() {
     html += '<span style="font-size:22px">'+(ccaaIcons[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+mats.length+' matrícula'+(mats.length!==1?'s':'')+' con gastos · '+totalTickets+' tickets</div></div>';
-    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px">⌄</span>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
+    html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
+      '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
+      '<input type="text" id="searchinput_'+gid+'" placeholder="Buscar matrícula en '+cc+'…" oninput="filterCcaaVehicles(\''+cc+'\',\''+gid+'\',this.value)" ' +
+      'style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:13px 16px 13px 42px;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--mono);box-sizing:border-box;box-shadow:0 0 0 4px rgba(0,212,255,.12),0 4px 14px rgba(0,212,255,.2);outline:none">' +
+    '</div>';
     html += '</div>';
 
     html += '<div id="'+gid+'" style="display:block;background:'+(ccGroupBg[cc]||'transparent')+';border-radius:12px;padding:8px 0;margin-bottom:14px">';
@@ -992,7 +1093,7 @@ function paintGastos() {
       html += '<div style="padding:16px;color:var(--text3);font-size:12px;text-align:center">Sin tickets todavía en esta comunidad</div>';
     }
 
-    mats.forEach(function(m){
+    mats.forEach(function(m, mIdx){
       var mgid = 'mg' + m.matSlug;
       var mTotal = 0, mCount = 0;
       CATEGORIAS_GASTOS.forEach(function(catDef){
@@ -1000,7 +1101,7 @@ function paintGastos() {
         if (cat) { Object.keys(cat).forEach(function(tid){ mTotal += (cat[tid].importe||0); mCount++; }); }
       });
 
-      html += '<div style="margin:0 16px 14px;border:2px solid rgba(0,212,255,.4);border-radius:16px;overflow:hidden;background:linear-gradient(135deg,rgba(0,212,255,.1),rgba(124,92,252,.08));box-shadow:0 4px 18px rgba(0,212,255,.12)">';
+      html += '<div data-matricula="'+m.matricula.replace(/\s/g,'').toUpperCase()+'" data-order="'+mIdx+'" data-baseshadow="0 4px 18px rgba(0,212,255,.12)" style="margin:0 16px 14px;border:2px solid rgba(0,212,255,.4);border-radius:16px;overflow:hidden;background:linear-gradient(135deg,rgba(0,212,255,.1),rgba(124,92,252,.08));box-shadow:0 4px 18px rgba(0,212,255,.12)">';
       html += '<div onclick="toggleMatGastos(\''+mgid+'\')" style="padding:16px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;flex-wrap:wrap">';
       html += '<div style="width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,212,255,.35)">📁</div>';
       html += '<div style="flex:1"><div style="font-size:16px;font-weight:900;font-family:var(--mono);color:#fff;letter-spacing:.3px">'+m.matricula+'</div>';
@@ -1074,7 +1175,29 @@ function paintGastos() {
     html += '</div>';
   });
 
+  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
+  var openSearches = {};
+  container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
+    if (el.style.display !== 'none') {
+      var input = document.getElementById(el.id.replace('searchbox_', 'searchinput_'));
+      openSearches[el.id] = input ? input.value : '';
+    }
+  });
+
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin gastos todavía</div>';
+
+  Object.keys(openSearches).forEach(function(boxId) {
+    var box = document.getElementById(boxId);
+    if (!box) return;
+    box.style.display = 'block';
+    var gid = boxId.replace('searchbox_', '');
+    var input = document.getElementById('searchinput_' + gid);
+    if (input) {
+      input.value = openSearches[boxId];
+      var cc = input.getAttribute('placeholder').replace('Buscar matrícula en ', '').replace('…', '');
+      filterCcaaVehicles(cc, gid, openSearches[boxId]);
+    }
+  });
 
   ccaas.forEach(function(cc){
     var gid = 'gg' + cc.replace(/[^a-zA-Z0-9]/g,'');
