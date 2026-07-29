@@ -392,6 +392,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+<!-- ══════════════ MODAL: AGREGAR COMUNIDAD AUTÓNOMA ══════════════ -->
+<div id="add-ccaa-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="font-size:26px">🗺️</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900">Agregar comunidad autónoma</div>
+        <div style="font-size:12px;color:var(--text3)">Elige cuál quieres añadir a la Flota</div>
+      </div>
+      <button onclick="closeAddCcaaModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="add-ccaa-list" style="padding:14px 16px 20px"></div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: AGREGAR VEHÍCULO ══════════════ -->
 <div id="add-vehicle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto">
@@ -609,6 +624,21 @@ function renderInicioStats() {
   });
 }
 // ══ NOTIFICACIONES — RETRASOS DE FICHAJE ══
+function descartarAlertaFichaje(cid) {
+  var todayKey = new Date().toISOString().slice(0,10);
+  var storageKey = 'drivx_alertas_descartadas_' + todayKey;
+  var dismissed = {};
+  try { dismissed = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e){}
+  dismissed[cid] = true;
+  localStorage.setItem(storageKey, JSON.stringify(dismissed));
+
+  var el = document.getElementById('alert_' + cid);
+  if (el) el.remove();
+  // Si ya no queda ningún aviso visible, limpiamos también el título "Retrasos de fichaje (N)"
+  var container = document.getElementById('fichaje-alerts');
+  if (container && !container.querySelector('[id^="alert_"]')) container.innerHTML = '';
+}
+
 function parseTurnoInicio(turno) {
   if (!turno) return null;
   var m = turno.match(/(\d{1,2}):(\d{2})/);
@@ -630,12 +660,12 @@ function renderFichajeAlerts() {
     var allConductores = [];
     CONDUCTORES.forEach(function(c){
       if (c.cid === 'test') return; // no alertamos sobre el usuario de pruebas
-      allConductores.push({ cid:c.cid, nombre:c.nombre, matricula:c.matricula, turno:c.turno });
+      allConductores.push({ cid:c.cid, nombre:c.nombre, matricula:c.matricula, turno:c.turno, telefono:c.telefono || null });
     });
     Object.keys(invitados).forEach(function(cid){
       var r = invitados[cid];
       if (!r) return;
-      allConductores.push({ cid:cid, nombre:r.nombre||'Conductor', matricula:r.matricula, turno:r.turno });
+      allConductores.push({ cid:cid, nombre:r.nombre||'Conductor', matricula:r.matricula, turno:r.turno, telefono:r.telefono || null });
     });
 
     var vehByMatSlug = {};
@@ -643,9 +673,14 @@ function renderFichajeAlerts() {
 
     var now = new Date();
     var todayStr = now.toDateString();
+    var todayKey = now.toISOString().slice(0,10);
+    var dismissed = {};
+    try { dismissed = JSON.parse(localStorage.getItem('drivx_alertas_descartadas_' + todayKey) || '{}'); } catch(e){}
+
     var late = [];
 
     allConductores.forEach(function(c){
+      if (dismissed[c.cid]) return; // el admin ya descartó este aviso hoy
       var inicio = parseTurnoInicio(c.turno);
       if (!inicio) return;
       var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), inicio.h, inicio.min, 0);
@@ -658,13 +693,13 @@ function renderFichajeAlerts() {
 
       var v = vehByMatSlug[matSlug(c.matricula || '')];
       var minutosTarde = Math.round((now - startToday) / 60000);
-      late.push({ nombre: c.nombre, turno: c.turno, matricula: c.matricula, ccaa: v ? v.ccaa : 'Sin asignar', minutosTarde: minutosTarde });
+      late.push({ cid: c.cid, nombre: c.nombre, turno: c.turno, matricula: c.matricula, telefono: c.telefono, ccaa: v ? v.ccaa : 'Sin asignar', minutosTarde: minutosTarde });
     });
 
     if (!late.length) { container.innerHTML = ''; return; }
 
     var ccaaIcons = { 'Andalucía':'🌞', 'Comunidad Valenciana':'🍊', 'Castilla-La Mancha':'🌾' };
-    var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+    var ccaaOrder = getCcaaOrder();
     var groups = {};
     late.forEach(function(l){ (groups[l.ccaa] = groups[l.ccaa] || []).push(l); });
     var ccaasPresentes = Object.keys(groups).sort(function(a,b){
@@ -677,16 +712,18 @@ function renderFichajeAlerts() {
     ccaasPresentes.forEach(function(cc){
       html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">' + (ccaaIcons[cc]||'📍') + ' ' + cc + '</div>';
       groups[cc].forEach(function(l){
-        html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.08);border:2px solid rgba(255,71,87,.45);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(255,71,87,.12)">' +
+        html += '<div id="alert_'+l.cid+'" style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.08);border:2px solid rgba(255,71,87,.45);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(255,71,87,.12)">' +
           '<div style="font-size:26px">⚠️</div>' +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:14px;font-weight:900;color:#fff">' + l.nombre + '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">🕐 ' + l.turno + ' · 🚗 <span style="font-family:var(--mono);color:var(--cyan);font-weight:700">' + l.matricula + '</span></div>' +
+            (l.telefono ? '<div style="font-size:12px;color:var(--text2);margin-top:2px">📱 ' + l.telefono + '</div>' : '') +
           '</div>' +
           '<div style="text-align:right;flex-shrink:0">' +
             '<div style="font-size:17px;font-weight:900;color:var(--red)">' + l.minutosTarde + ' min</div>' +
             '<div style="font-size:10px;color:var(--text3)">de retraso</div>' +
           '</div>' +
+          '<button onclick="descartarAlertaFichaje(\''+l.cid+'\')" title="Descartar este aviso" style="background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--text3);width:28px;height:28px;border-radius:8px;font-size:14px;cursor:pointer;flex-shrink:0;margin-left:4px">✕</button>' +
         '</div>';
       });
     });
@@ -721,6 +758,15 @@ function statCard(lbl, val, foot, color) {
 
 // ══ FLOTA — agrupado por CCAA (mismo diseño que la App Supervisor) ══
 var VEHICULOS_EXTRA = [];
+var CCAA_BASE = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+var CCAA_EXTRA = [];
+function getCcaaOrder() { return CCAA_BASE.concat(CCAA_EXTRA); }
+var TODAS_CCAA_ESPANA = [
+  'Andalucía','Aragón','Asturias','Islas Baleares','Canarias','Cantabria',
+  'Castilla-La Mancha','Castilla y León','Cataluña','Comunidad Valenciana',
+  'Extremadura','Galicia','La Rioja','Comunidad de Madrid','Región de Murcia',
+  'Comunidad Foral de Navarra','País Vasco','Ceuta','Melilla'
+];
 var VEHICULOS_OCULTOS = {};
 function getAllVehiculos() {
   return VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlug(v.matricula)]; });
@@ -733,12 +779,15 @@ function renderFlota() {
 
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/comunidades_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
     var ocultos = results[1] || {};
+    var comunidadesExtra = results[2] || {};
     VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
     VEHICULOS_OCULTOS = ocultos;
+    CCAA_EXTRA = Object.keys(comunidadesExtra).filter(function(cc){ return comunidadesExtra[cc]; });
     try {
       paintFlota();
     } catch (err) {
@@ -759,7 +808,7 @@ function paintFlota() {
   function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
-  var ccaaOrder = ['Andalucía', 'Comunidad Valenciana', 'Castilla-La Mancha'];
+  var ccaaOrder = getCcaaOrder();
   var allVehiculos = getAllVehiculos();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; }); // asegura que las 3 CCAA existan aunque no tengan vehículos
@@ -783,9 +832,14 @@ function paintFlota() {
   var isAdmin = currentUser && currentUser.role === 'admin';
 
   var html = '';
-  html += '<button onclick="openAddVehicleModal()" style="width:100%;padding:14px;border-radius:14px;border:2px dashed rgba(0,212,255,.4);background:rgba(0,212,255,.04);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--cyan);font-size:14px;font-weight:800;font-family:inherit;margin-bottom:16px">' +
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+  html += '<button onclick="openAddVehicleModal()" style="padding:14px;border-radius:14px;border:2px dashed rgba(0,212,255,.4);background:rgba(0,212,255,.04);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--cyan);font-size:14px;font-weight:800;font-family:inherit">' +
     '➕ AGREGAR VEHÍCULO' +
   '</button>';
+  html += '<button onclick="openAddCcaaModal()" style="padding:14px;border-radius:14px;border:2px solid rgba(124,92,252,.5);background:linear-gradient(135deg,rgba(124,92,252,.16),rgba(0,212,255,.1));cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;font-size:14px;font-weight:900;font-family:inherit;box-shadow:0 4px 16px rgba(124,92,252,.25)">' +
+    '🗺️ AGREGAR COMUNIDAD AUTÓNOMA' +
+  '</button>';
+  html += '</div>';
   ccaas.forEach(function(cc){
     var vl = groups[cc] || [];
     var gid = 'dg' + cc.replace(/[^a-zA-Z0-9]/g, '');
@@ -1036,7 +1090,7 @@ function paintGastos() {
   var vehByMatSlug = {};
   getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
 
-  var ccaaOrder = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+  var ccaaOrder = getCcaaOrder();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; });
 
@@ -1500,6 +1554,37 @@ function renderConductoresYTurnos(v) {
   document.getElementById('vd-conductores').innerHTML = condHtml || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
 }
 
+// ══ AGREGAR COMUNIDAD AUTÓNOMA ══
+function openAddCcaaModal() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var existentes = getCcaaOrder();
+  var disponibles = TODAS_CCAA_ESPANA.filter(function(cc){ return existentes.indexOf(cc) === -1; });
+
+  var listEl = document.getElementById('add-ccaa-list');
+  if (!disponibles.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:13px;padding:20px 0">Ya están todas las comunidades autónomas de España añadidas.</div>';
+  } else {
+    listEl.innerHTML = disponibles.map(function(cc){
+      return '<button onclick="agregarComunidad(\''+cc+'\')" style="width:100%;text-align:left;padding:13px 16px;border-radius:12px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">' +
+        cc + '<span style="color:var(--cyan);font-size:16px">+</span></button>';
+    }).join('');
+  }
+  document.getElementById('add-ccaa-modal').style.display = 'flex';
+}
+function closeAddCcaaModal() {
+  document.getElementById('add-ccaa-modal').style.display = 'none';
+}
+function agregarComunidad(cc) {
+  fetch(FIREBASE_URL + '/comunidades_extra/' + encodeURIComponent(cc) + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: 'true'
+  }).then(fbCheck).then(function(){
+    closeAddCcaaModal();
+    renderFlota();
+  }).catch(function(err){
+    alert('No se pudo añadir la comunidad autónoma: ' + err.message);
+  });
+}
+
 // ══ AGREGAR VEHÍCULO ══
 var _avPendingFiles = {};
 function openAddVehicleModal(ccaa) {
@@ -1510,7 +1595,9 @@ function openAddVehicleModal(ccaa) {
   document.getElementById('av-anio').value = '';
   document.getElementById('av-ciudad').value = '';
   document.getElementById('av-combustible').value = 'electrico';
-  document.getElementById('av-ccaa').value = ccaa || 'Andalucía';
+  var ccaaSelect = document.getElementById('av-ccaa');
+  ccaaSelect.innerHTML = getCcaaOrder().map(function(cc){ return '<option value="'+cc+'">'+cc+'</option>'; }).join('');
+  ccaaSelect.value = ccaa || getCcaaOrder()[0];
   _avPendingFiles = {};
   renderAvDocsList();
   document.getElementById('add-vehicle-modal').style.display = 'flex';
