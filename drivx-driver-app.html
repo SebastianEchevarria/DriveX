@@ -1424,6 +1424,26 @@ function finalizeRegistro() {
 function loginAs(u) {
   currentUser = u;
   localStorage.setItem('drivx_current_user', u.email || u.cid);
+
+  // Si el conductor ya había fichado entrada y cerró la app sin fichar salida
+  // (o cerró sesión por accidente), recuperamos ese estado en vez de forzarle
+  // a fichar entrada otra vez. La salida solo se ficha manualmente (foto de km).
+  try {
+    var saved = JSON.parse(localStorage.getItem('drivx_conductor_' + u.cid) || 'null');
+    if (saved) {
+      data.fichado    = !!saved.fichado;
+      data.horaEntrada = saved.horaEntrada || null;
+      data.horaSalida  = saved.horaSalida  || null;
+      data.kmEntrada   = saved.kmEntrada   || null;
+      data.kmSalida    = saved.kmSalida    || null;
+      if (saved.uber)   data.uber   = saved.uber;
+      if (saved.bolt)   data.bolt   = saved.bolt;
+      if (saved.cabify) data.cabify = saved.cabify;
+      if (typeof saved.privados === 'number') data.privados = saved.privados;
+      if (typeof saved.efectivo === 'number') data.efectivo = saved.efectivo;
+    }
+  } catch (e) {}
+
   var hn = document.getElementById('home-name'); if(hn) hn.textContent = u.nombre;
   var hm = document.getElementById('home-meta'); if(hm) hm.textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
   // Fill conductor card
@@ -1434,13 +1454,112 @@ function loginAs(u) {
   document.getElementById('conductor-turno').textContent    = u.turno;
   showScreen('home');
   document.getElementById('navbar').classList.add('visible');
+  refreshFicharUI();
   updateNavState();
   updateGastosInputs();
   loadProximaCita();
   loadPoliza();
+  refreshGastosFromFirebase();
   setInterval(loadProximaCita, 30000);
   setInterval(loadPoliza, 30000);
+  setInterval(refreshGastosFromFirebase, 20000);
   updateFuelButton();
+}
+
+// Refleja en el botón/estado de fichar lo que haya en `data` — se usa tanto al
+// fichar en el momento como al recuperar el estado guardado tras reabrir la app.
+function refreshFicharUI() {
+  var btn = document.getElementById('btn-fichar');
+  var icon = document.getElementById('fichar-icon');
+  var text = document.getElementById('fichar-text');
+  var status = document.getElementById('home-status');
+  if (data.fichado) {
+    if (btn) btn.className = 'btn-fichar salida';
+    if (icon) icon.textContent = '🔴';
+    if (text) text.textContent = 'Fichar salida';
+    if (status) { status.className = 'status-badge online'; status.innerHTML = '<span class="status-dot"></span>En turno' + (data.horaEntrada ? ' · ' + data.horaEntrada : ''); }
+    kmEntrada = data.kmEntrada || null;
+    var kmPanel = document.getElementById('km-panel');
+    if (kmPanel) kmPanel.style.display = 'block';
+    var kmEntradaVal = document.getElementById('km-entrada-val');
+    if (kmEntradaVal) kmEntradaVal.textContent = data.kmEntrada ? data.kmEntrada.toLocaleString('es-ES') : '—';
+    var kmSalidaVal = document.getElementById('km-salida-val');
+    if (kmSalidaVal) kmSalidaVal.textContent = data.kmSalida ? data.kmSalida.toLocaleString('es-ES') : '—';
+  } else {
+    if (btn) btn.className = 'btn-fichar entrada';
+    if (icon) icon.textContent = '🟢';
+    if (text) text.textContent = 'Fichar entrada';
+    if (status) { status.className = 'status-badge offline'; status.innerHTML = '<span class="status-dot"></span>Turno finalizado'; }
+  }
+}
+
+// Vuelve a leer los gastos directamente de Firebase, para que si el admin
+// borra algún ticket desde el Dashboard, desaparezca aquí también sin tener
+// que cerrar sesión y volver a entrar.
+function refreshGastosFromFirebase() {
+  if (!currentUser) return;
+  var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  fetch(FIREBASE_URL + '/gastos/' + matSlug + '.json').then(function(r){ return r.json(); }).then(function(remote){
+    remote = remote || {};
+    var cats = ['gasolina','peaje','parking','lavado','datafono','otros'];
+    var grandTotal = 0;
+
+    cats.forEach(function(cat){
+      var catObj = remote[cat] || {};
+      var tickets = Object.keys(catObj).map(function(tid){ return catObj[tid]; });
+      tickets.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+
+      data.gastos[cat] = tickets.map(function(t){ return { importe:t.importe, nombre:t.nombre, fecha:t.fecha, hora:t.hora }; });
+      var total = tickets.reduce(function(s,t){ return s + (t.importe||0); }, 0);
+      gastosTotals[cat] = total;
+      grandTotal += total;
+
+      var count = tickets.length;
+      var cEl = document.getElementById('count-'+cat);
+      var tEl = document.getElementById('total-'+cat);
+      if (cEl) { if (count) { cEl.textContent = count; cEl.classList.add('visible'); } else { cEl.classList.remove('visible'); } }
+      if (tEl) tEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
+
+      var limit = catLimits[cat];
+      var catBtn = document.getElementById('cat-'+cat);
+      if (catBtn) {
+        if (limit && count >= limit) { catBtn.style.opacity = '.4'; catBtn.style.pointerEvents = 'none'; catBtn.title = 'Límite alcanzado ('+limit+'/'+limit+')'; }
+        else { catBtn.style.opacity = ''; catBtn.style.pointerEvents = ''; catBtn.title = ''; }
+      }
+
+      var bd = document.getElementById('bd-'+cat);
+      if (bd) {
+        if (count) bd.classList.add('visible'); else bd.classList.remove('visible');
+        var bdTotalEl = document.getElementById('bd-total-'+cat);
+        if (bdTotalEl) bdTotalEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
+        var li = document.getElementById('bd-list-'+cat);
+        if (li) {
+          li.innerHTML = tickets.map(function(t){
+            var metaParts = [];
+            if (t.fecha) metaParts.push(t.fecha);
+            if (t.hora)  metaParts.push(t.hora);
+            if (!metaParts.length) metaParts.push('Hoy');
+            return '<div class="ticket-item">' +
+              '<div class="ticket-info">' +
+                '<div class="ticket-name">' + (t.nombre || catNames[cat]) + '</div>' +
+                '<div class="ticket-meta">' + metaParts.join(' · ') + '</div>' +
+              '</div>' +
+              '<div class="ticket-amt" style="color:' + catColors[cat] + '">€ ' + (t.importe||0).toFixed(2).replace('.',',') + '</div>' +
+            '</div>';
+          }).join('');
+        }
+      }
+    });
+
+    var emptyEl = document.getElementById('gastos-empty');
+    if (emptyEl) emptyEl.style.display = grandTotal > 0 ? 'none' : '';
+    var subEl = document.getElementById('gastos-sub');
+    if (subEl) subEl.textContent = 'Hoy · € ' + grandTotal.toFixed(2).replace('.',',');
+    var statEl = document.getElementById('stat-gastos');
+    if (statEl) statEl.textContent = '€ ' + grandTotal.toFixed(2).replace('.',',');
+
+    syncData();
+  }).catch(function(){ /* sin conexión: dejamos lo que ya había en pantalla */ });
 }
 
 // Si el vehículo es 100% eléctrico (registrado desde el Panel Admin),
