@@ -1803,8 +1803,10 @@ function paintCitas() {
 
     html += '<div id="'+gid+'" style="display:block;background:'+ccaaGroupBg(cc)+';border-radius:12px;padding:14px;margin-bottom:16px">';
 
-    // Mini calendario del mes actual
-    html += buildMiniCalendar(citasCcaa, now, gid, cc);
+    // Mini calendario, con navegación entre meses (guardamos las citas de esta
+    // comunidad para poder repintar solo el calendario al cambiar de mes)
+    _citasPorGidCache[gid] = citasCcaa;
+    html += '<div id="calwrap_'+gid+'">' + buildMiniCalendar(citasCcaa, now, gid, cc) + '</div>';
 
     // Listado cronológico con todos los detalles
     html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📋 Próximas citas</div>';
@@ -1907,12 +1909,25 @@ function formatFechaCita(fechaStr) {
 }
 
 // Calendario sencillo del mes actual: resalta los días que tienen alguna cita
-function buildMiniCalendar(citas, now, gid, cc) {
+var _calendarMonthOffset = {};
+var _citasPorGidCache = {};
+
+function cambiarMesCalendario(gid, cc, delta) {
+  _calendarMonthOffset[gid] = (_calendarMonthOffset[gid] || 0) + delta;
+  var wrap = document.getElementById('calwrap_' + gid);
+  if (!wrap) return;
+  wrap.innerHTML = buildMiniCalendar(_citasPorGidCache[gid] || [], new Date(), gid, cc);
+}
+
+function buildMiniCalendar(citas, baseNow, gid, cc) {
+  var offset = _calendarMonthOffset[gid] || 0;
+  var now = new Date(baseNow.getFullYear(), baseNow.getMonth() + offset, 1);
   var year = now.getFullYear(), month = now.getMonth();
   var firstDay = new Date(year, month, 1);
   var startWeekday = (firstDay.getDay() + 6) % 7; // Lunes=0
   var daysInMonth = new Date(year, month+1, 0).getDate();
-  var todayNum = now.getDate();
+  var esMesActual = (year === baseNow.getFullYear() && month === baseNow.getMonth());
+  var todayNum = esMesActual ? baseNow.getDate() : -1;
 
   var citasPorDia = {};
   citas.forEach(function(c){
@@ -1925,7 +1940,11 @@ function buildMiniCalendar(citas, now, gid, cc) {
 
   var mesNombre = now.toLocaleDateString('es-ES', { month:'long', year:'numeric' });
   var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;max-width:230px">';
-  html += '<div style="font-size:10px;font-weight:800;color:var(--text2);text-transform:capitalize;margin-bottom:6px">🗓️ '+mesNombre+'</div>';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+  html += '<button onclick="cambiarMesCalendario(\''+gid+'\',\''+cc+'\',-1)" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:var(--cyan);width:20px;height:20px;border-radius:5px;font-size:10px;cursor:pointer;line-height:1;padding:0">‹</button>';
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text2);text-transform:capitalize">🗓️ '+mesNombre+'</div>';
+  html += '<button onclick="cambiarMesCalendario(\''+gid+'\',\''+cc+'\',1)" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:var(--cyan);width:20px;height:20px;border-radius:5px;font-size:10px;cursor:pointer;line-height:1;padding:0">›</button>';
+  html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:8px;color:var(--text3);text-align:center;margin-bottom:3px">';
   ['L','M','X','J','V','S','D'].forEach(function(d){ html += '<div>'+d+'</div>'; });
   html += '</div>';
@@ -1934,10 +1953,11 @@ function buildMiniCalendar(citas, now, gid, cc) {
   for (var day=1; day<=daysInMonth; day++) {
     var count = citasPorDia[day] || 0;
     var isToday = day === todayNum;
-    var bg = count > 0 ? (isToday ? 'var(--red)' : 'rgba(0,212,255,.25)') : (isToday ? 'rgba(255,255,255,.08)' : 'transparent');
+    var bg = count > 0 ? (isToday ? 'var(--red)' : 'rgba(0,212,255,.3)') : (isToday ? 'rgba(255,255,255,.08)' : 'transparent');
+    var border = count > 0 ? '1px solid rgba(0,212,255,.6)' : 'none';
     var color = count > 0 ? '#fff' : (isToday ? 'var(--cyan)' : 'var(--text2)');
     var fechaDia = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
-    html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="Añadir cita el '+day+'" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:'+bg+';color:'+color+';font-size:9px;font-weight:'+(count>0||isToday?'800':'400')+';cursor:pointer;line-height:1">' +
+    html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="'+(count>0 ? count+' cita(s) el '+day+' — toca para añadir otra' : 'Añadir cita el '+day)+'" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:'+bg+';border:'+border+';color:'+color+';font-size:9px;font-weight:'+(count>0||isToday?'800':'400')+';cursor:pointer;line-height:1;box-sizing:border-box">' +
       day +
     '</div>';
   }
