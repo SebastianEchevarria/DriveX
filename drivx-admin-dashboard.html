@@ -659,6 +659,7 @@ function enterShell() {
   renderProximasCitasInicio();
   setInterval(renderFichajeAlerts, 60000);
   setInterval(renderProximasCitasInicio, 60000);
+  setInterval(function(){ if (document.getElementById('dash-citas').classList.contains('active')) renderCitas(); }, 8000);
 }
 
 // ══ NAVEGACIÓN ══
@@ -1721,10 +1722,13 @@ function nombreConductorCita(cid) {
   return null;
 }
 
+var _citasLoadedOnce = false;
 function renderCitas() {
   var container = document.getElementById('citas-list');
   if (!container) return;
-  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando citas…</div>';
+  if (!_citasLoadedOnce) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando citas…</div>';
+  }
 
   Promise.all([
     fetchTodasLasCitas(),
@@ -1739,6 +1743,7 @@ function renderCitas() {
     VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
     VEHICULOS_OCULTOS = ocultos;
     CCAA_EXTRA = Object.keys(comunidadesExtra).filter(function(cc){ return comunidadesExtra[cc]; });
+    _citasLoadedOnce = true;
     try { paintCitas(); }
     catch (err) {
       container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar las citas: ' + err.message + '<br><br>' +
@@ -1829,7 +1834,49 @@ function paintCitas() {
     html += '</div>';
   });
 
+  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
+  var openSearches = {};
+  container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
+    if (el.style.display !== 'none') {
+      var input = document.getElementById(el.id.replace('searchbox_', 'searchinput_'));
+      openSearches[el.id] = input ? input.value : '';
+    }
+  });
+
+  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
+  var openSearches = {};
+  container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
+    if (el.style.display !== 'none') {
+      var input = document.getElementById(el.id.replace('searchbox_', 'searchinput_'));
+      openSearches[el.id] = input ? input.value : '';
+    }
+  });
+
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin citas todavía</div>';
+
+  Object.keys(openSearches).forEach(function(boxId) {
+    var box = document.getElementById(boxId);
+    if (!box) return;
+    box.style.display = 'block';
+    var gid = boxId.replace('searchbox_', '');
+    var input = document.getElementById('searchinput_' + gid);
+    if (input) {
+      input.value = openSearches[boxId];
+      filterCitasPorMatricula(gid, openSearches[boxId]);
+    }
+  });
+
+  Object.keys(openSearches).forEach(function(boxId) {
+    var box = document.getElementById(boxId);
+    if (!box) return;
+    box.style.display = 'block';
+    var gid = boxId.replace('searchbox_', '');
+    var input = document.getElementById('searchinput_' + gid);
+    if (input) {
+      input.value = openSearches[boxId];
+      filterCitasPorMatricula(gid, openSearches[boxId]);
+    }
+  });
 
   ccaas.forEach(function(cc){
     var gid = 'cg' + cc.replace(/[^a-zA-Z0-9]/g, '');
