@@ -1333,7 +1333,7 @@ function paintGastos() {
       });
     });
 
-    html += '<div class="ccaa-header" style="background:'+(ccBg[cc]||'#0d1f35')+';border-color:'+(ccBorder[cc]||'#2a4a6e')+'" id="btn_'+gid+'">';
+    html += '<div class="ccaa-header" style="background:'+(ccBg[cc]||'#0d1f35')+';border-color:'+(ccBorder[cc]||'#2a4a6e')+';flex-wrap:wrap" id="btn_'+gid+'">';
     html += '<span style="font-size:22px">'+(ccaaIcons[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+mats.length+' matrícula'+(mats.length!==1?'s':'')+' con gastos · '+totalTickets+' tickets</div></div>';
@@ -1788,7 +1788,7 @@ function paintCitas() {
     citasCcaa.sort(function(a,b){ return (a.fecha+((a.hora)||'00:00')).localeCompare(b.fecha+((b.hora)||'00:00')); });
     var gid = 'cg' + cc.replace(/[^a-zA-Z0-9]/g, '');
 
-    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+'" id="btn_'+gid+'">';
+    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+';flex-wrap:wrap" id="btn_'+gid+'">';
     html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+citasCcaa.length+' cita'+(citasCcaa.length!==1?'s':'')+' programada'+(citasCcaa.length!==1?'s':'')+'</div></div>';
@@ -1836,16 +1836,13 @@ function paintCitas() {
     html += '</div>';
   });
 
-  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
-  var openSearches = {};
-  container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
-    if (el.style.display !== 'none') {
-      var input = document.getElementById(el.id.replace('searchbox_', 'searchinput_'));
-      openSearches[el.id] = input ? input.value : '';
-    }
+  // Guardamos qué comunidades tenías cerradas, y qué buscadores abiertos (con
+  // su texto), antes de reemplazar el HTML — así el refresco automático no te
+  // deshace lo que ya habías dejado así.
+  var gruposCerrados = {};
+  container.querySelectorAll('[id^="cg"]').forEach(function(el) {
+    if (el.id.indexOf('cg') === 0 && el.style.display === 'none') gruposCerrados[el.id] = true;
   });
-
-  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
   var openSearches = {};
   container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
     if (el.style.display !== 'none') {
@@ -1856,16 +1853,11 @@ function paintCitas() {
 
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin citas todavía</div>';
 
-  Object.keys(openSearches).forEach(function(boxId) {
-    var box = document.getElementById(boxId);
-    if (!box) return;
-    box.style.display = 'block';
-    var gid = boxId.replace('searchbox_', '');
-    var input = document.getElementById('searchinput_' + gid);
-    if (input) {
-      input.value = openSearches[boxId];
-      filterCitasPorMatricula(gid, openSearches[boxId]);
-    }
+  Object.keys(gruposCerrados).forEach(function(gidCerrado) {
+    var el = document.getElementById(gidCerrado);
+    var chev = document.getElementById('chv_' + gidCerrado);
+    if (el) el.style.display = 'none';
+    if (chev) chev.textContent = '›';
   });
 
   Object.keys(openSearches).forEach(function(boxId) {
