@@ -483,6 +483,24 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   </div>
 </div>
 
+<!-- ══════════════ MODAL: AÑADIR VEHÍCULO A PROPIETARIO ══════════════ -->
+<div id="add-vehiculo-propietario-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+      <div style="font-size:24px">🚗</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:900">Añadir vehículo</div>
+        <div id="avp-nombre" style="font-size:12px;color:var(--text3)">—</div>
+      </div>
+      <button onclick="closeAddVehiculoPropietario()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:16px 22px 22px">
+      <div id="avp-lista" style="max-height:280px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2);margin-bottom:16px"></div>
+      <button onclick="guardarVehiculoPropietario()" style="width:100%;padding:13px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Añadir seleccionados</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: VER CÓDIGO DE INVITACIÓN (PROPIETARIO) ══════════════ -->
 <div id="ver-codigo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:360px;width:100%">
@@ -2485,8 +2503,9 @@ function paintPropietarios() {
       html += '</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">✉️ '+(p.email||'—')+(p.telefono?' · 📱 '+p.telefono:'')+'</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📅 Alta: '+(p.fechaAlta||'—')+'</div>';
-      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' +
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">' +
         (p.matriculas||[]).map(function(m){ return '<span style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--cyan);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:3px 8px">'+m+'</span>'; }).join('') +
+        '<button onclick="openAddVehiculoPropietario(\''+item.pid+'\')" style="font-size:11px;font-weight:800;color:var(--green);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:3px 9px;cursor:pointer;font-family:inherit">+ VEHÍCULO</button>' +
       '</div>';
       if (p.cuentaBancaria) {
         html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:9px 12px;margin-bottom:10px">' +
@@ -2588,6 +2607,64 @@ function filtrarMatriculasPorCcaaYTexto() {
       next = next.nextElementSibling;
     }
     h.style.display = algunaVisible ? 'block' : 'none';
+  });
+}
+
+var _avpPid = null;
+function openAddVehiculoPropietario(pid) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var p = _propietariosCache[pid];
+  if (!p) return;
+  _avpPid = pid;
+  document.getElementById('avp-nombre').textContent = p.nombre || '';
+
+  var yaTiene = (p.matriculas || []).map(function(m){ return m.replace(/\s/g,'').toUpperCase(); });
+  var disponibles = getAllVehiculos().filter(function(v){ return yaTiene.indexOf(v.matricula.replace(/\s/g,'').toUpperCase()) === -1; });
+
+  var listEl = document.getElementById('avp-lista');
+  if (!disponibles.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:14px 0">Ya tiene asignados todos los vehículos de la flota.</div>';
+  } else {
+    var porCcaa = {};
+    disponibles.forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
+    var orden = getCcaaOrder();
+    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+      var ai = orden.indexOf(a), bi = orden.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+    listEl.innerHTML = ccaasPresentes.map(function(cc){
+      return '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:8px 0 4px">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</div>' +
+        porCcaa[cc].map(function(v){
+          return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer">' +
+            '<input type="checkbox" class="avp-mat-check" value="'+v.matricula+'" style="width:15px;height:15px;accent-color:var(--cyan)">' +
+            '<span style="font-size:13px;font-family:var(--mono);color:var(--text)">'+v.matricula+'</span>' +
+            '<span style="font-size:11px;color:var(--text3)">'+v.modelo+'</span>' +
+          '</label>';
+        }).join('');
+    }).join('');
+  }
+
+  document.getElementById('add-vehiculo-propietario-modal').style.display = 'flex';
+}
+function closeAddVehiculoPropietario() {
+  document.getElementById('add-vehiculo-propietario-modal').style.display = 'none';
+}
+function guardarVehiculoPropietario() {
+  if (!currentUser || currentUser.role !== 'admin' || !_avpPid) return;
+  var seleccionadas = Array.prototype.slice.call(document.querySelectorAll('.avp-mat-check:checked')).map(function(c){ return c.value; });
+  if (!seleccionadas.length) { alert('Selecciona al menos un vehículo.'); return; }
+
+  var p = _propietariosCache[_avpPid];
+  var nuevasMatriculas = (p.matriculas || []).concat(seleccionadas);
+
+  fetch(FIREBASE_URL + '/propietarios/' + _avpPid + '.json', {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ matriculas: nuevasMatriculas })
+  }).then(fbCheck).then(function(){
+    closeAddVehiculoPropietario();
+    renderPropietarios();
+  }).catch(function(err){
+    alert('No se pudo añadir el vehículo: ' + err.message);
   });
 }
 
