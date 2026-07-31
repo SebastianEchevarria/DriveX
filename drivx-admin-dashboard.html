@@ -499,8 +499,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       </div>
 
       <div style="margin-bottom:14px">
-        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
-        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
+        <label id="ap-lbl-doc" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
+        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" oninput="marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
@@ -526,7 +526,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
       <div style="margin-bottom:20px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Matrículas que posee *</label>
-        <input id="ap-mat-buscar" type="text" placeholder="🔍 Buscar matrícula o modelo…" oninput="buscarEnListaMatriculas(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 12px;border-radius:10px;font-size:13px;font-family:inherit;margin-bottom:8px">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <select id="ap-mat-ccaa-filtro" onchange="filtrarMatriculasPorCcaaYTexto()" style="background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.5);color:#fff;padding:11px 10px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;flex-shrink:0">
+            <option value="">Todas</option>
+          </select>
+          <div style="position:relative;flex:1">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
+            <input id="ap-mat-buscar" type="text" placeholder="Buscar matrícula o modelo…" oninput="filtrarMatriculasPorCcaaYTexto()" style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:11px 12px 11px 34px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;box-sizing:border-box;box-shadow:0 0 0 3px rgba(0,212,255,.12);outline:none">
+          </div>
+        </div>
         <div id="ap-matriculas-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2)"></div>
       </div>
 
@@ -2497,15 +2505,22 @@ function confirmDeletePropietario(pid) {
 
 // ── Alta de propietario + invitación ──
 function marcarCampoRellenoPropietario(inputId, labelId) {
-  var val = document.getElementById(inputId).value.trim();
-  document.getElementById(labelId).style.color = val ? 'var(--text3)' : 'var(--red)';
+  var input = document.getElementById(inputId);
+  var val = input.value.trim();
+  var lleno = !!val;
+  if (labelId) document.getElementById(labelId).style.color = lleno ? 'var(--text3)' : 'var(--red)';
+  input.style.borderColor = lleno ? 'rgba(0,230,118,.5)' : 'rgba(255,71,87,.6)';
+  input.style.background = lleno ? 'rgba(0,230,118,.06)' : 'rgba(255,71,87,.08)';
 }
-function buscarEnListaMatriculas(term) {
-  term = (term || '').trim().toUpperCase();
+function filtrarMatriculasPorCcaaYTexto() {
+  var term = (document.getElementById('ap-mat-buscar').value || '').trim().toUpperCase();
+  var ccaaFiltro = document.getElementById('ap-mat-ccaa-filtro').value;
   var labels = document.querySelectorAll('#ap-matriculas-list label');
   labels.forEach(function(lbl){
     var texto = lbl.textContent.toUpperCase();
-    lbl.style.display = (!term || texto.indexOf(term) !== -1) ? 'flex' : 'none';
+    var coincideTexto = !term || texto.indexOf(term) !== -1;
+    var coincideCcaa = !ccaaFiltro || lbl.getAttribute('data-ccaa') === ccaaFiltro;
+    lbl.style.display = (coincideTexto && coincideCcaa) ? 'flex' : 'none';
   });
   // También ocultamos el título de una comunidad si ninguna de sus matrículas coincide
   var headers = document.querySelectorAll('#ap-matriculas-list > div');
@@ -2533,9 +2548,10 @@ function openAddPropietarioModal() {
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '📨 Guardar y enviar invitación';
   document.getElementById('ap-mat-buscar').value = '';
-  ['ap-lbl-nombre','ap-lbl-email','ap-lbl-telefono'].forEach(function(id){
-    document.getElementById(id).style.color = 'var(--red)';
-  });
+  marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre');
+  marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc');
+  marcarCampoRellenoPropietario('ap-email','ap-lbl-email');
+  marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono');
 
   var listEl = document.getElementById('ap-matriculas-list');
   var porCcaa = {};
@@ -2548,13 +2564,18 @@ function openAddPropietarioModal() {
   listEl.innerHTML = ccaasPresentes.map(function(cc){
     return '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:8px 0 4px">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</div>' +
       porCcaa[cc].map(function(v){
-        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer">' +
+        return '<label data-ccaa="'+cc+'" style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer">' +
           '<input type="checkbox" class="ap-mat-check" value="'+v.matricula+'" style="width:15px;height:15px;accent-color:var(--cyan)">' +
           '<span style="font-size:13px;font-family:var(--mono);color:var(--text)">'+v.matricula+'</span>' +
           '<span style="font-size:11px;color:var(--text3)">'+v.modelo+'</span>' +
         '</label>';
       }).join('');
   }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0">No hay vehículos en la flota todavía</div>';
+
+  var filtroCcaaSel = document.getElementById('ap-mat-ccaa-filtro');
+  filtroCcaaSel.innerHTML = '<option value="">Todas</option>' + ccaasPresentes.map(function(cc){
+    return '<option value="'+cc+'">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</option>';
+  }).join('');
 
   document.getElementById('add-propietario-modal').style.display = 'flex';
 }
