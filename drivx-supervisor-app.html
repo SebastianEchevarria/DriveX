@@ -1317,10 +1317,11 @@ function toggleCitaDetail(id) {
 window.addEventListener('load', showBiometricBtn);
 function startSync() {
   syncFromDrivers();
-  pullCitasFromFirebase();
+  pullCitasFromFirebase().then(function(){
+    renderNotifCitas();
+    renderHomeProximas();
+  });
   setTimeout(initLugarAutocomplete, 500);
-  renderNotifCitas();
-  renderHomeProximas();
   renderVehiculosHome();
   renderITVAlerts();
   initTallerSelect();
@@ -1330,19 +1331,20 @@ function startSync() {
     renderITVAlerts();
   }, 6000);
   setInterval(function(){
-    pullCitasFromFirebase();
-    renderNotifCitas();
-    renderHomeProximas();
+    pullCitasFromFirebase().then(function(){
+      renderNotifCitas();
+      renderHomeProximas();
+    });
   }, 8000);
   setInterval(renderNotifCitas, 30000);
   setInterval(renderHomeProximas, 30000);
 }
 
-// Trae de Firebase cualquier cita creada desde otra app (p.ej. el Dashboard) y
-// la integra en el mismo almacenamiento local que ya usa toda la interfaz de
-// Supervisor, para no tener que tocar cada pantalla que muestra citas.
+// Trae de Firebase cualquier cita creada, editada o borrada desde otra app
+// (p.ej. el Dashboard) y la integra en el mismo almacenamiento local que ya
+// usa toda la interfaz de Supervisor, para no tener que tocar cada pantalla.
 function pullCitasFromFirebase() {
-  fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+  return fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
     lista = lista || [];
     if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
     lista = lista.filter(Boolean);
@@ -1351,6 +1353,13 @@ function pullCitasFromFirebase() {
 
     var todosVehiculos = getAllVehiculos();
     var porConductor = {};
+
+    // Preparamos una entrada vacía para TODOS los conductores conocidos —
+    // así, si una cita se borra y un conductor se queda sin ninguna, su lista
+    // local también se vacía (antes solo se actualizaba a quien SÍ tenía alguna).
+    CONDUCTORES.forEach(function(c){ porConductor[c.cid] = []; });
+    Object.keys(_conductoresInvitadosGlobal || {}).forEach(function(cid){ porConductor[cid] = []; });
+
     lista.forEach(function(c){
       if (c.cid) {
         (porConductor[c.cid] = porConductor[c.cid] || []).push(c);
