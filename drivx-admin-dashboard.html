@@ -91,12 +91,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .edit-btn:hover{border-color:var(--cyan);color:var(--cyan)}
 .manager-lock{font-size:10px;color:var(--text3);font-style:italic}
 .veh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0 16px}
+.dual-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:190}
+#hamburger-btn{display:none;background:transparent;border:1px solid var(--border2);color:var(--text2);width:36px;height:36px;border-radius:9px;font-size:16px;cursor:pointer;flex-shrink:0}
 
 @media (max-width:860px){
   #sidebar{position:fixed;left:-240px;top:0;height:100%;z-index:200;transition:left .2s}
   #sidebar.open{left:0}
-  #content{padding:18px}
+  #sidebar-overlay.open{display:block}
+  #hamburger-btn{display:flex;align-items:center;justify-content:center}
+  #content{padding:16px}
+  #topbar{padding:0 14px 0 12px}
   .veh-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .dual-btn-row{grid-template-columns:1fr}
+  .tb-title{font-size:15px}
+  .tb-sub{font-size:10px}
+  .sync-pill{display:none}
+}
+@media (max-width:480px){
+  .stat-grid{grid-template-columns:1fr}
+  .stat-card .val{font-size:24px}
 }
 </style>
 </head>
@@ -284,12 +299,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
   <div id="main-wrap">
     <header id="topbar">
-      <div>
-        <div class="tb-title" id="tb-title">Inicio</div>
-        <div class="tb-sub" id="tb-sub">Resumen general</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button id="hamburger-btn" onclick="toggleMobileSidebar()">☰</button>
+        <div>
+          <div class="tb-title" id="tb-title">Inicio</div>
+          <div class="tb-sub" id="tb-sub">Resumen general</div>
+        </div>
       </div>
       <div class="sync-pill"><span class="sync-dot"></span> Conectado a App Conductor y App Supervisor</div>
     </header>
+
+    <div id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
 
     <div id="content">
 
@@ -671,12 +691,20 @@ function enterShell() {
 }
 
 // ══ NAVEGACIÓN ══
+function toggleMobileSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
 function showDashScreen(id) {
   document.querySelectorAll('.dash-screen').forEach(function(s){ s.classList.remove('active'); });
   document.querySelectorAll('.sb-item').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('dash-' + id).classList.add('active');
   var nb = document.getElementById('nav-' + id);
   if (nb) nb.classList.add('active');
+  // En móvil, cerramos el menú lateral al navegar a otra sección
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
 
   var titles = {
     inicio: ['Inicio', 'Resumen general'],
@@ -1087,7 +1115,7 @@ function paintFlota() {
   var isAdmin = currentUser && currentUser.role === 'admin';
 
   var html = '';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+  html += '<div class="dual-btn-row" style="margin-bottom:16px">';
   html += '<button onclick="openAddVehicleModal()" style="padding:14px;border-radius:14px;border:2px dashed rgba(0,212,255,.4);background:rgba(0,212,255,.04);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--cyan);font-size:14px;font-weight:800;font-family:inherit">' +
     '➕ AGREGAR VEHÍCULO' +
   '</button>';
