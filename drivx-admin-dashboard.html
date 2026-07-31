@@ -1273,7 +1273,7 @@ function paintFlota() {
       html += '<div class="veh-icon">' + v.icon + '</div>';
       html += plateHtml(v.matricula);
       html += isAdmin
-        ? '<span class="edit-btn" style="margin-left:auto">Ver ficha ›</span>'
+        ? '<span class="edit-btn" style="margin-left:auto">VER ›</span>'
         : '<span class="manager-lock" style="margin-left:auto">🔒 solo lectura</span>';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 58px">' + v.modelo + ' · ' + v.ciudad + '</div>';
@@ -1388,12 +1388,12 @@ function formatMatriculaPlaca(matricula) {
 }
 // Placa estilo matrícula real (azul francia, contorno blanco), igual en las 4 apps
 function plateHtml(matricula) {
-  return '<div style="display:inline-flex;align-items:stretch;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff">' +
-    '<div style="background:#0055a4;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:2px solid #ffffff">' +
+  return '<div style="display:inline-flex;align-items:stretch;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff;flex-shrink:0;white-space:nowrap">' +
+    '<div style="background:#0055a4;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:2px solid #ffffff;flex-shrink:0;border-radius:4px 0 0 4px">' +
       estrellasUE(20) +
       '<span style="font-weight:900;font-size:11px;margin-top:1px">E</span>' +
     '</div>' +
-    '<div style="background:#0055a4;color:#fff;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 12px;display:flex;align-items:center">'+formatMatriculaPlaca(matricula)+'</div>' +
+    '<div style="background:#0055a4;color:#fff;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 14px;display:flex;align-items:center;border-radius:0 4px 4px 0">'+formatMatriculaPlaca(matricula)+'</div>' +
   '</div>';
 }
 var _vdCurrentMat = null;
