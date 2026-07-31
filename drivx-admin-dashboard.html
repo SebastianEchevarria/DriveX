@@ -283,6 +283,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <button class="sb-item" id="nav-flota" onclick="showDashScreen('flota')"><span class="ic">🚗</span> Flota</button>
     <button class="sb-item" id="nav-gastos" onclick="showDashScreen('gastos')"><span class="ic">🧾</span> Gastos</button>
     <button class="sb-item" id="nav-citas" onclick="showDashScreen('citas')"><span class="ic">📅</span> Citas y revisiones</button>
+    <button class="sb-item" id="nav-propietarios" onclick="showDashScreen('propietarios')"><span class="ic">🧑‍💼</span> Propietarios</button>
     <button class="sb-item disabled"><span class="ic">👥</span> Conductores <span class="sb-soon">PRÓXIMAMENTE</span></button>
 
     <div class="sb-section">Negocio</div>
@@ -337,6 +338,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       <!-- ── CITAS Y REVISIONES ── -->
       <div class="dash-screen" id="dash-citas">
         <div id="citas-list"></div>
+      </div>
+
+      <!-- ── PROPIETARIOS ── -->
+      <div class="dash-screen" id="dash-propietarios">
+        <div id="propietarios-list"></div>
       </div>
 
     </div>
@@ -470,6 +476,67 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <input id="ac-nota" type="text" placeholder="Ej: Llevar ficha técnica" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
       <button id="ac-save-btn" onclick="guardarNuevaCitaDashboard()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar cita</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: AGREGAR / EDITAR PROPIETARIO ══════════════ -->
+<div id="add-propietario-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="font-size:26px">🧑‍💼</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900" id="ap-modal-title">Nuevo propietario</div>
+        <div style="font-size:12px;color:var(--text3)">Titular de uno o varios vehículos de la flota</div>
+      </div>
+      <button onclick="closeAddPropietarioModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:20px 22px">
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
+        <input id="ap-nombre" type="text" placeholder="Ej: María López García" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
+        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
+          <input id="ap-email" type="email" placeholder="correo@ejemplo.com" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono</label>
+          <input id="ap-telefono" type="tel" placeholder="600 123 456" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Fecha de alta en la flota</label>
+        <input id="ap-fecha-alta" type="date" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+      </div>
+
+      <div style="margin-bottom:18px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Cuenta bancaria / IBAN</label>
+        <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
+      </div>
+
+      <div style="margin-bottom:20px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Matrículas que posee *</label>
+        <div id="ap-matriculas-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2)"></div>
+      </div>
+
+      <button onclick="guardarPropietario()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer;margin-bottom:10px" id="ap-save-btn">📨 Guardar y enviar invitación</button>
+
+      <div id="ap-invite-result" style="display:none;margin-top:6px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código de invitación generado — compártelo con el propietario</div>
+        <div id="ap-invite-code" style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--green);letter-spacing:1px">—</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Servirá para registrarse en la futura app de Propietarios</div>
+        <button onclick="copiarCodigoInvitePropietario()" style="margin-top:10px;padding:7px 16px;border-radius:8px;border:1px solid rgba(0,230,118,.4);background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">📋 Copiar código</button>
+      </div>
     </div>
   </div>
 </div>
@@ -714,12 +781,14 @@ function showDashScreen(id) {
     inicio: ['Inicio', 'Resumen general'],
     flota:  ['Flota', 'Vehículos por comunidad autónoma'],
     gastos: ['Gastos', 'Tickets subidos por los conductores, por comunidad autónoma'],
-    citas:  ['Citas y revisiones', 'Calendario y detalle por comunidad autónoma']
+    citas:  ['Citas y revisiones', 'Calendario y detalle por comunidad autónoma'],
+    propietarios: ['Propietarios', 'Titulares de los vehículos, por comunidad autónoma']
   };
   document.getElementById('tb-title').textContent = titles[id][0];
   document.getElementById('tb-sub').textContent = titles[id][1];
   if (id === 'gastos') renderGastos();
   if (id === 'citas') renderCitas();
+  if (id === 'propietarios') renderPropietarios();
 }
 
 // ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
@@ -2250,6 +2319,265 @@ function guardarNuevaCitaDashboard() {
     renderProximasCitasInicio();
   }).catch(function(err){
     alert('No se pudo guardar la cita: ' + err.message);
+  });
+}
+
+// ══ PROPIETARIOS — titulares de vehículos, por CCAA, con alta e invitación ══
+var _propietariosCache = {};
+
+function renderPropietarios() {
+  var container = document.getElementById('propietarios-list');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando propietarios…</div>';
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/comunidades_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    _propietariosCache = results[0] || {};
+    var extra = results[1] || {};
+    var ocultos = results[2] || {};
+    var comunidadesExtra = results[3] || {};
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
+    VEHICULOS_OCULTOS = ocultos;
+    CCAA_EXTRA = Object.keys(comunidadesExtra).filter(function(cc){ return comunidadesExtra[cc]; });
+    try { paintPropietarios(); }
+    catch (err) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar propietarios: ' + err.message + '<br><br>' +
+        '<button onclick="renderPropietarios()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+    }
+  }).catch(function(){
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo conectar con la base de datos.<br><br>' +
+      '<button onclick="renderPropietarios()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+  });
+}
+
+function paintPropietarios() {
+  var container = document.getElementById('propietarios-list');
+  if (!container) return;
+
+  var vehByMatSlug = {};
+  getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+
+  var ccaaOrder = getCcaaOrder();
+  var groups = {};
+  ccaaOrder.forEach(function(cc){ groups[cc] = []; });
+
+  Object.keys(_propietariosCache).forEach(function(pid){
+    var p = _propietariosCache[pid];
+    if (!p) return;
+    var matriculas = p.matriculas || [];
+    var primerVeh = matriculas.length ? vehByMatSlug[matSlug(matriculas[0])] : null;
+    var cc = primerVeh ? primerVeh.ccaa : 'Sin asignar';
+    if (!groups[cc]) groups[cc] = [];
+    groups[cc].push({ pid: pid, p: p });
+  });
+
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai<0?99:ai) - (bi<0?99:bi);
+  });
+
+  var html = '';
+  html += '<button onclick="openAddPropietarioModal()" style="width:100%;padding:14px;border-radius:14px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.12));cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:#fff;font-size:14px;font-weight:900;font-family:inherit;box-shadow:0 4px 16px rgba(0,212,255,.2);margin-bottom:16px">' +
+    '➕ AGREGAR PROPIETARIO' +
+  '</button>';
+
+  ccaas.forEach(function(cc){
+    var lista = groups[cc] || [];
+    var gid = 'pg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+
+    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+';flex-wrap:wrap" id="btn_'+gid+'">';
+    html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">'+lista.length+' propietario'+(lista.length!==1?'s':'')+'</div></div>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar propietario" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
+    html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
+      '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
+      '<input type="text" id="searchinput_'+gid+'" placeholder="Buscar por nombre o matrícula…" oninput="filtrarPropietarios(\''+gid+'\',this.value)" ' +
+      'style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:13px 16px 13px 42px;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--mono);box-sizing:border-box;box-shadow:0 0 0 4px rgba(0,212,255,.12),0 4px 14px rgba(0,212,255,.2);outline:none">' +
+    '</div>';
+    html += '</div>';
+
+    html += '<div id="'+gid+'" style="display:block;background:'+ccaaGroupBg(cc)+';border-radius:12px;padding:12px;margin-bottom:16px">';
+    if (!lista.length) {
+      html += '<div style="padding:14px;color:var(--text3);font-size:12px;text-align:center">Sin propietarios todavía en esta comunidad</div>';
+    }
+    lista.forEach(function(item){
+      var p = item.p;
+      var estadoInvite = p.inviteUsado
+        ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Registrado</span>'
+        : '<span style="font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:3px 8px">⏳ Invitación pendiente</span>';
+
+      html += '<div class="prop-card" data-nombre="'+(p.nombre||'').toUpperCase()+'" data-matriculas="'+(p.matriculas||[]).join(',').replace(/\s/g,'').toUpperCase()+'" style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px">';
+      html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">';
+      html += '<div><div style="font-size:14px;font-weight:800">'+(p.nombre||'—')+'</div>';
+      html += '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+(p.doc||'—')+'</div></div>';
+      html += estadoInvite;
+      html += '</div>';
+      html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">✉️ '+(p.email||'—')+(p.telefono?' · 📱 '+p.telefono:'')+'</div>';
+      html += '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📅 Alta: '+(p.fechaAlta||'—')+'</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' +
+        (p.matriculas||[]).map(function(m){ return '<span style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--cyan);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:3px 8px">'+m+'</span>'; }).join('') +
+      '</div>';
+      if (p.cuentaBancaria) {
+        html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:9px 12px;margin-bottom:10px">' +
+          '<span style="font-size:16px">🏦</span>' +
+          '<div id="propcuenta-'+item.pid+'" style="flex:1;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.cuentaBancaria+'</div>' +
+          '<button onclick="copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
+        '</div>';
+      }
+      html += '<button id="delprop_'+item.pid+'" onclick="confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+
+  ccaas.forEach(function(cc){
+    var gid = 'pg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var btn = document.getElementById('btn_'+gid);
+    if (btn) btn.onclick = function(){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_'+gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
+}
+
+function filtrarPropietarios(gid, term) {
+  term = (term||'').trim().toUpperCase();
+  var cards = document.querySelectorAll('#'+gid+' .prop-card');
+  cards.forEach(function(c){
+    var nombre = c.getAttribute('data-nombre')||'';
+    var mats = c.getAttribute('data-matriculas')||'';
+    var match = !term || nombre.indexOf(term)!==-1 || mats.indexOf(term.replace(/\s/g,''))!==-1;
+    c.style.display = match ? 'block' : 'none';
+  });
+}
+
+function copiarCuentaPropietario(pid) {
+  var el = document.getElementById('propcuenta-' + pid);
+  if (!el) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(el.textContent);
+  var btn = event.target;
+  var old = btn.textContent;
+  btn.textContent = '✓ Copiado';
+  setTimeout(function(){ btn.textContent = old; }, 1500);
+}
+
+function confirmDeletePropietario(pid) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById('delprop_' + pid);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', { method: 'DELETE' }).then(fbCheck).then(function(){
+      renderPropietarios();
+    }).catch(function(err){ alert('No se pudo eliminar: ' + err.message); });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Pulsa otra vez para confirmar';
+  btn.style.background = 'rgba(255,71,87,.25)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar propietario';
+      btn.style.background = '';
+    }
+  }, 5000);
+}
+
+// ── Alta de propietario + invitación ──
+function openAddPropietarioModal() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  document.getElementById('ap-modal-title').textContent = 'Nuevo propietario';
+  document.getElementById('ap-nombre').value = '';
+  document.getElementById('ap-doc').value = '';
+  document.getElementById('ap-email').value = '';
+  document.getElementById('ap-telefono').value = '';
+  document.getElementById('ap-fecha-alta').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ap-cuenta').value = '';
+  document.getElementById('ap-invite-result').style.display = 'none';
+  document.getElementById('ap-save-btn').disabled = false;
+  document.getElementById('ap-save-btn').textContent = '📨 Guardar y enviar invitación';
+
+  var listEl = document.getElementById('ap-matriculas-list');
+  var porCcaa = {};
+  getAllVehiculos().forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
+  var orden = getCcaaOrder();
+  var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+    var ai = orden.indexOf(a), bi = orden.indexOf(b);
+    return (ai<0?99:ai) - (bi<0?99:bi);
+  });
+  listEl.innerHTML = ccaasPresentes.map(function(cc){
+    return '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:8px 0 4px">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</div>' +
+      porCcaa[cc].map(function(v){
+        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer">' +
+          '<input type="checkbox" class="ap-mat-check" value="'+v.matricula+'" style="width:15px;height:15px;accent-color:var(--cyan)">' +
+          '<span style="font-size:13px;font-family:var(--mono);color:var(--text)">'+v.matricula+'</span>' +
+          '<span style="font-size:11px;color:var(--text3)">'+v.modelo+'</span>' +
+        '</label>';
+      }).join('');
+  }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0">No hay vehículos en la flota todavía</div>';
+
+  document.getElementById('add-propietario-modal').style.display = 'flex';
+}
+function closeAddPropietarioModal() {
+  document.getElementById('add-propietario-modal').style.display = 'none';
+  renderPropietarios();
+}
+function copiarCodigoInvitePropietario() {
+  var code = document.getElementById('ap-invite-code').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  var btn = event.target;
+  var old = btn.textContent;
+  btn.textContent = '✓ Copiado';
+  setTimeout(function(){ btn.textContent = old; }, 1500);
+}
+function guardarPropietario() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var nombre = document.getElementById('ap-nombre').value.trim();
+  var doc = document.getElementById('ap-doc').value.trim();
+  var email = document.getElementById('ap-email').value.trim().toLowerCase();
+  var telefono = document.getElementById('ap-telefono').value.trim();
+  var fechaAlta = document.getElementById('ap-fecha-alta').value;
+  var cuenta = document.getElementById('ap-cuenta').value.trim();
+  var matriculas = Array.prototype.slice.call(document.querySelectorAll('.ap-mat-check:checked')).map(function(c){ return c.value; });
+
+  if (!nombre) { alert('Introduce el nombre completo.'); return; }
+  if (!doc) { alert('Introduce el DNI, NIE o pasaporte.'); return; }
+  if (!email || email.indexOf('@') === -1) { alert('Introduce un email válido.'); return; }
+  if (!matriculas.length) { alert('Selecciona al menos una matrícula.'); return; }
+
+  var pid = 'prop_' + Date.now();
+  var code = generateInviteCode();
+  var propietario = {
+    nombre: nombre, doc: doc, email: email, telefono: telefono || '',
+    fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
+    inviteCode: code, inviteUsado: false, ts: Date.now()
+  };
+
+  var btn = document.getElementById('ap-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(propietario)
+  }).then(fbCheck).then(function(){
+    document.getElementById('ap-invite-code').textContent = code;
+    document.getElementById('ap-invite-result').style.display = 'block';
+    btn.textContent = '✓ Guardado';
+  }).catch(function(err){
+    alert('No se pudo guardar el propietario: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '📨 Guardar y enviar invitación';
   });
 }
 
