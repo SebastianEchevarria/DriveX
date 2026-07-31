@@ -171,7 +171,14 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── INICIO ── -->
   <div class="screen active" id="screen-inicio">
-    <div class="mini-brand"><div class="mk">D</div><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
+    <div class="mini-brand"><svg width="30" height="30" viewBox="5 5 40 42" style="border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--purple))">
+      <circle cx="28" cy="32" r="11" fill="none" stroke="#020810" stroke-width="1.8"/>
+      <circle cx="19" cy="42" r="4" fill="#020810"/>
+      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#020810" stroke-width="1.4" stroke-dasharray="3,3"/>
+      <circle cx="33" cy="14" r="7" fill="#020810"/>
+      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+    </svg><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
     <div class="header">
       <div>
         <div class="header-title">Hola, <span id="home-nombre">—</span></div>
@@ -185,7 +192,14 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── CONDUCTORES ── -->
   <div class="screen" id="screen-conductores">
-    <div class="mini-brand"><div class="mk">D</div><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
+    <div class="mini-brand"><svg width="30" height="30" viewBox="5 5 40 42" style="border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--purple))">
+      <circle cx="28" cy="32" r="11" fill="none" stroke="#020810" stroke-width="1.8"/>
+      <circle cx="19" cy="42" r="4" fill="#020810"/>
+      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#020810" stroke-width="1.4" stroke-dasharray="3,3"/>
+      <circle cx="33" cy="14" r="7" fill="#020810"/>
+      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+    </svg><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
     <div class="header">
       <div>
         <div class="header-title">Conductores</div>
@@ -199,7 +213,14 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── CITAS ── -->
   <div class="screen" id="screen-citas">
-    <div class="mini-brand"><div class="mk">D</div><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
+    <div class="mini-brand"><svg width="30" height="30" viewBox="5 5 40 42" style="border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--purple))">
+      <circle cx="28" cy="32" r="11" fill="none" stroke="#020810" stroke-width="1.8"/>
+      <circle cx="19" cy="42" r="4" fill="#020810"/>
+      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#020810" stroke-width="1.4" stroke-dasharray="3,3"/>
+      <circle cx="33" cy="14" r="7" fill="#020810"/>
+      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+    </svg><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
     <div class="header">
       <div>
         <div class="header-title">Citas y revisiones</div>
@@ -407,60 +428,96 @@ function cargarInicio() {
     var now = new Date();
     function diasItv(f) { return f ? Math.round((new Date(f) - now) / 86400000) : null; }
 
-    cont.innerHTML = misVehiculos.map(function(v){
-      var d = diasItv(v.docs.itv.fecha);
-      var fechaTxt = v.docs.itv.fecha ? new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : null;
-      var itvColor = d===null ? 'var(--text3)' : d<0 ? 'var(--red)' : d<=30 ? 'var(--amber)' : d<=90 ? '#ffd54f' : 'var(--green)';
-      var itvTxt = d===null ? 'Sin datos de ITV' : d<0 ? '🚨 ITV vencida el '+fechaTxt : d<=30 ? '⚠ ITV vence el '+fechaTxt+' (en '+d+' días)' : d<=90 ? '⏰ ITV vence el '+fechaTxt+' (en '+d+' días)' : '✓ ITV en orden — '+fechaTxt;
-      var borderColor = CCAA_BORDER_O[v.ccaa] || '#2a4a6e';
+    // Agrupamos por comunidad autónoma — solo aparecen las que el propietario
+    // realmente tiene, y son fijas (no se pliegan), a diferencia de "Documentos".
+    var porCcaa = {};
+    misVehiculos.forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
+    var ccaaOrderO = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+      var ai = ccaaOrderO.indexOf(a), bi = ccaaOrderO.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
 
-      var conductoresVeh = [];
-      CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre, turno:c.turno}); });
-      Object.keys(invitados).forEach(function(cid){
-        var r = invitados[cid];
-        if (r && r.matricula === v.matricula) conductoresVeh.push({cid:cid, nombre:r.nombre||'Conductor', turno:r.turno||''});
-      });
-
-      var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
-        var online = estaFichadoHoy(fichajes[c.cid]);
-        return '<div class="cond-row"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div>' +
-          '<div style="font-size:11px;color:var(--text3)">'+c.turno+'</div></div>' +
-          '<div style="font-size:11px;font-weight:700;color:'+(online?'var(--green)':'var(--text3)')+'"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div></div>';
-      }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
-
-      var docsVeh = documentos[matSlugO(v.matricula)] || {};
-      var docDefs = [
-        { key:'seguro', label:'Seguro', icon:'🛡️' },
-        { key:'permiso', label:'Permiso circulación', icon:'📄' },
-        { key:'ficha', label:'Ficha técnica', icon:'📋' },
-        { key:'itv', label:'Informe ITV', icon:'🔧' }
-      ];
-      var docsHtml = docDefs.map(function(dd){
-        var doc = docsVeh[dd.key];
-        if (doc && doc.url) {
-          return '<a href="'+doc.url+'" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit">' +
-            '<span style="font-size:15px">'+dd.icon+'</span>' +
-            '<span style="flex:1;font-size:12px;font-weight:600">'+dd.label+'</span>' +
-            '<span style="font-size:11px;color:var(--cyan);font-weight:700">Ver ›</span></a>';
-        }
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);opacity:.5">' +
-          '<span style="font-size:15px">'+dd.icon+'</span>' +
-          '<span style="flex:1;font-size:12px">'+dd.label+'</span>' +
-          '<span style="font-size:11px;color:var(--text3)">No disponible</span></div>';
-      }).join('');
-
-      return '<div class="veh-card" style="border:2px solid '+borderColor+'">' +
-        '<div class="veh-top"><div class="veh-icon">'+v.icon+'</div><div>' +
-        '<div class="veh-plate" style="display:inline-block;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:3px 10px;margin-bottom:2px">'+v.matricula+'</div>' +
-        '<div class="veh-model">'+v.modelo+' · '+v.ccaa+'</div></div></div>' +
-        '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:12px">'+itvTxt+'</div>' +
-        '<div class="section-title" style="margin:0 0 6px">Conductores</div>' +
-        condHtml +
-        '<div class="section-title" style="margin-bottom:6px">Documentos del vehículo</div>' +
-        docsHtml +
+    var htmlOut = '';
+    ccaasPresentes.forEach(function(cc){
+      var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
+      htmlOut += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:14px 0 10px;border-radius:12px;background:rgba(255,255,255,.03);border:2px solid '+borderCc+'">' +
+        '<span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.5px">'+cc+'</span>' +
       '</div>';
-    }).join('');
+
+      htmlOut += porCcaa[cc].map(function(v){
+        var vid = matSlugO(v.matricula);
+        var d = diasItv(v.docs.itv.fecha);
+        var fechaTxt = v.docs.itv.fecha ? new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : null;
+        var itvColor = d===null ? 'var(--text3)' : d<0 ? 'var(--red)' : d<=30 ? 'var(--amber)' : d<=90 ? '#ffd54f' : 'var(--green)';
+        var itvTxt = d===null ? 'Sin datos de ITV' : d<0 ? '🚨 ITV vencida el '+fechaTxt : d<=30 ? '⚠ ITV vence el '+fechaTxt+' (en '+d+' días)' : d<=90 ? '⏰ ITV vence el '+fechaTxt+' (en '+d+' días)' : '✓ ITV en orden — '+fechaTxt;
+        var borderColor = CCAA_BORDER_O[v.ccaa] || '#2a4a6e';
+
+        var conductoresVeh = [];
+        CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre, turno:c.turno}); });
+        Object.keys(invitados).forEach(function(cid){
+          var r = invitados[cid];
+          if (r && r.matricula === v.matricula) conductoresVeh.push({cid:cid, nombre:r.nombre||'Conductor', turno:r.turno||''});
+        });
+
+        var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
+          var online = estaFichadoHoy(fichajes[c.cid]);
+          return '<div class="cond-row"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div>' +
+            '<div style="font-size:11px;color:var(--text3)">'+c.turno+'</div></div>' +
+            '<div style="font-size:11px;font-weight:700;color:'+(online?'var(--green)':'var(--text3)')+'"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div></div>';
+        }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
+
+        var docsVeh = documentos[vid] || {};
+        var docDefs = [
+          { key:'seguro', label:'Seguro', icon:'🛡️' },
+          { key:'permiso', label:'Permiso circulación', icon:'📄' },
+          { key:'ficha', label:'Ficha técnica', icon:'📋' },
+          { key:'itv', label:'Informe ITV', icon:'🔧' }
+        ];
+        var docCount = docDefs.filter(function(dd){ return docsVeh[dd.key] && docsVeh[dd.key].url; }).length;
+        var docsHtml = docDefs.map(function(dd){
+          var doc = docsVeh[dd.key];
+          if (doc && doc.url) {
+            return '<a href="'+doc.url+'" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit">' +
+              '<span style="font-size:15px">'+dd.icon+'</span>' +
+              '<span style="flex:1;font-size:12px;font-weight:600">'+dd.label+'</span>' +
+              '<span style="font-size:11px;color:var(--cyan);font-weight:700">Ver ›</span></a>';
+          }
+          return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);opacity:.5">' +
+            '<span style="font-size:15px">'+dd.icon+'</span>' +
+            '<span style="flex:1;font-size:12px">'+dd.label+'</span>' +
+            '<span style="font-size:11px;color:var(--text3)">No disponible</span></div>';
+        }).join('');
+
+        return '<div class="veh-card" style="border:2px solid '+borderColor+'">' +
+          '<div class="veh-top"><div class="veh-icon">'+v.icon+'</div><div>' +
+          '<div class="veh-plate" style="display:inline-block;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:3px 10px;margin-bottom:2px">'+v.matricula+'</div>' +
+          '<div class="veh-model">'+v.modelo+' · '+v.ccaa+'</div></div></div>' +
+          '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:12px">'+itvTxt+'</div>' +
+          '<div class="section-title" style="margin:0 0 6px">Conductores</div>' +
+          condHtml +
+          '<button onclick="toggleDocsVeh(\''+vid+'\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:14px;border-radius:12px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.12));cursor:pointer;box-shadow:0 4px 14px rgba(0,212,255,.18)">' +
+            '<span style="font-size:18px">📁</span>' +
+            '<span style="flex:1;text-align:left;font-size:13px;font-weight:800;color:#fff">Documentos del vehículo</span>' +
+            '<span style="font-size:10px;font-weight:800;color:var(--cyan)">'+docCount+'/4</span>' +
+            '<span id="docschev-'+vid+'" style="color:var(--cyan);font-size:14px;transition:transform .2s">▾</span>' +
+          '</button>' +
+          '<div id="docsveh-'+vid+'" style="display:none;padding-top:10px">' + docsHtml + '</div>' +
+        '</div>';
+      }).join('');
+    });
+
+    cont.innerHTML = htmlOut;
   }).catch(function(){});
+}
+
+function toggleDocsVeh(vid) {
+  var el = document.getElementById('docsveh-' + vid);
+  var chev = document.getElementById('docschev-' + vid);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 // ── CONDUCTORES: lista plana de todos, con estado en vivo ──
