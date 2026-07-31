@@ -549,13 +549,21 @@ function cargarInicio() {
     fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/documentos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/propietarios/' + currentUser.pid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
     var invitados = results[1] || {};
     var fichajes = results[2] || {};
     var documentos = results[3] || {};
     var citasLista = results[4] || [];
+    var propioActualizado = results[5];
+    // El admin puede añadirte vehículos nuevos en cualquier momento — nos
+    // aseguramos de tener siempre la lista de matrículas más reciente.
+    if (propioActualizado && Array.isArray(propioActualizado.matriculas)) {
+      currentUser.matriculas = propioActualizado.matriculas;
+      localStorage.setItem('drivx_propietario_actual', JSON.stringify(currentUser));
+    }
     if (!Array.isArray(citasLista)) citasLista = Object.keys(citasLista).map(function(k){ return citasLista[k]; });
     citasLista = citasLista.filter(Boolean);
     _citasCache = citasLista; // así el modal de detalle también funciona desde Inicio
