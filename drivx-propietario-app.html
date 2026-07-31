@@ -45,6 +45,10 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .header { padding:20px 16px 14px; display:flex; align-items:center; justify-content:space-between; }
 .header-title { font-size:20px; font-weight:800; }
 .header-sub { font-size:12px; color:var(--text2); margin-top:1px; }
+.mini-brand { display:flex; align-items:center; gap:8px; padding:14px 16px 0; }
+.mini-brand .mk { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--cyan),var(--purple)); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; color:#000; }
+.mini-brand .tx { font-size:13px; font-weight:900; letter-spacing:.3px; }
+.mini-brand .tag { font-size:10px; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-left:2px; }
 
 /* ── LOGIN ── */
 #screen-login { background:var(--bg); align-items:center; justify-content:center; padding:32px 24px; display:flex; }
@@ -167,6 +171,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── INICIO ── -->
   <div class="screen active" id="screen-inicio">
+    <div class="mini-brand"><div class="mk">D</div><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
     <div class="header">
       <div>
         <div class="header-title">Hola, <span id="home-nombre">—</span></div>
@@ -180,6 +185,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── CONDUCTORES ── -->
   <div class="screen" id="screen-conductores">
+    <div class="mini-brand"><div class="mk">D</div><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
     <div class="header">
       <div>
         <div class="header-title">Conductores</div>
@@ -193,6 +199,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── CITAS ── -->
   <div class="screen" id="screen-citas">
+    <div class="mini-brand"><div class="mk">D</div><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
     <div class="header">
       <div>
         <div class="header-title">Citas y revisiones</div>
@@ -255,6 +262,13 @@ var VEHICULOS = [
 var CONDUCTORES = [
   { cid:'test', nombre:'Test User', matricula:'0000 TST', turno:'06:00–14:00' }
 ];
+var CCAA_BORDER_O = {
+  'Andalucía':'#7a4a00', 'Comunidad Valenciana':'#5a1a7a', 'Castilla-La Mancha':'#1a5a2a',
+  'Aragón':'#3a5a9a', 'Asturias':'#3a7a2a', 'Islas Baleares':'#1a7a9a', 'Canarias':'#9a3a0a',
+  'Cantabria':'#2a5a8a', 'Castilla y León':'#8a5a1a', 'Cataluña':'#9a2a5a', 'Extremadura':'#8a4a1a',
+  'Galicia':'#1a7a6a', 'La Rioja':'#8a1a2a', 'Comunidad de Madrid':'#7a1a5a', 'Región de Murcia':'#9a4a0a',
+  'Comunidad Foral de Navarra':'#5a1a8a', 'País Vasco':'#1a4a6a', 'Ceuta':'#1a6a8a', 'Melilla':'#7a4a0a'
+};
 
 var currentUser = null;
 var _citasCache = [];
@@ -362,6 +376,7 @@ function getAllVehiculosOwner() { return VEHICULOS; } // + vehículos añadidos,
 var VEHICULOS_EXTRA_O = [];
 function todosLosVehiculos() { return VEHICULOS.concat(VEHICULOS_EXTRA_O); }
 
+function matSlugO(mat) { return mat.replace(/\s/g,'_'); }
 function estaFichadoHoy(fj) {
   if (!fj || !fj.fichado || !fj.ts) return false;
   return new Date(fj.ts).toDateString() === new Date().toDateString();
@@ -373,11 +388,13 @@ function cargarInicio() {
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/documentos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
     var invitados = results[1] || {};
     var fichajes = results[2] || {};
+    var documentos = results[3] || {};
     VEHICULOS_EXTRA_O = Object.keys(extra).map(function(k){ var v = extra[k]||{}; return {
       matricula: v.matricula||k, modelo: v.modelo||'Vehículo', ciudad: v.ciudad||'', ccaa: v.ccaa||'Andalucía',
       icon: v.icon||'🚗', docs: { itv: { fecha: (v.docs&&v.docs.itv&&v.docs.itv.fecha) || null } }, conductores: v.conductores||[]
@@ -392,8 +409,10 @@ function cargarInicio() {
 
     cont.innerHTML = misVehiculos.map(function(v){
       var d = diasItv(v.docs.itv.fecha);
-      var itvTxt = d===null ? 'Sin datos de ITV' : d<0 ? '🚨 ITV vencida' : d<=30 ? '⚠ ITV en '+d+' días' : '✓ ITV en orden';
-      var itvColor = d!==null && d<=30 ? (d<0?'var(--red)':'var(--amber)') : 'var(--text3)';
+      var fechaTxt = v.docs.itv.fecha ? new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : null;
+      var itvColor = d===null ? 'var(--text3)' : d<0 ? 'var(--red)' : d<=30 ? 'var(--amber)' : d<=90 ? '#ffd54f' : 'var(--green)';
+      var itvTxt = d===null ? 'Sin datos de ITV' : d<0 ? '🚨 ITV vencida el '+fechaTxt : d<=30 ? '⚠ ITV vence el '+fechaTxt+' (en '+d+' días)' : d<=90 ? '⏰ ITV vence el '+fechaTxt+' (en '+d+' días)' : '✓ ITV en orden — '+fechaTxt;
+      var borderColor = CCAA_BORDER_O[v.ccaa] || '#2a4a6e';
 
       var conductoresVeh = [];
       CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre, turno:c.turno}); });
@@ -409,10 +428,36 @@ function cargarInicio() {
           '<div style="font-size:11px;font-weight:700;color:'+(online?'var(--green)':'var(--text3)')+'"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div></div>';
       }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
 
-      return '<div class="veh-card">' +
-        '<div class="veh-top"><div class="veh-icon">'+v.icon+'</div><div><div class="veh-plate">'+v.matricula+'</div><div class="veh-model">'+v.modelo+' · '+v.ccaa+'</div></div></div>' +
-        '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:8px">'+itvTxt+'</div>' +
+      var docsVeh = documentos[matSlugO(v.matricula)] || {};
+      var docDefs = [
+        { key:'seguro', label:'Seguro', icon:'🛡️' },
+        { key:'permiso', label:'Permiso circulación', icon:'📄' },
+        { key:'ficha', label:'Ficha técnica', icon:'📋' },
+        { key:'itv', label:'Informe ITV', icon:'🔧' }
+      ];
+      var docsHtml = docDefs.map(function(dd){
+        var doc = docsVeh[dd.key];
+        if (doc && doc.url) {
+          return '<a href="'+doc.url+'" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit">' +
+            '<span style="font-size:15px">'+dd.icon+'</span>' +
+            '<span style="flex:1;font-size:12px;font-weight:600">'+dd.label+'</span>' +
+            '<span style="font-size:11px;color:var(--cyan);font-weight:700">Ver ›</span></a>';
+        }
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);opacity:.5">' +
+          '<span style="font-size:15px">'+dd.icon+'</span>' +
+          '<span style="flex:1;font-size:12px">'+dd.label+'</span>' +
+          '<span style="font-size:11px;color:var(--text3)">No disponible</span></div>';
+      }).join('');
+
+      return '<div class="veh-card" style="border:2px solid '+borderColor+'">' +
+        '<div class="veh-top"><div class="veh-icon">'+v.icon+'</div><div>' +
+        '<div class="veh-plate" style="display:inline-block;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:3px 10px;margin-bottom:2px">'+v.matricula+'</div>' +
+        '<div class="veh-model">'+v.modelo+' · '+v.ccaa+'</div></div></div>' +
+        '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:12px">'+itvTxt+'</div>' +
+        '<div class="section-title" style="margin:0 0 6px">Conductores</div>' +
         condHtml +
+        '<div class="section-title" style="margin-bottom:6px">Documentos del vehículo</div>' +
+        docsHtml +
       '</div>';
     }).join('');
   }).catch(function(){});
