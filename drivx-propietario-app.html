@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DRIVX · Propietario</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #070b12;
+  --surface:  #0d1420;
+  --surface2: #111b2b;
+  --border:   #1c2d42;
+  --border2:  #243347;
+  --text:     #e8edf5;
+  --text2:    #c8d8e8;
+  --text3:    #9ab0c8;
+  --green:    #00e676;
+  --cyan:     #00d4ff;
+  --amber:    #ffb300;
+  --red:      #ff4757;
+  --purple:   #7c5cfc;
+  --orange:   #ff8c00;
+  --mono:     'JetBrains Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; }
+::-webkit-scrollbar{ display:none; }
+
+/* ── APP SHELL ── */
+#app { height:100vh; display:flex; flex-direction:column; }
+.screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.screen.active { display:flex; }
+.scroll { flex:1; overflow-y:auto; padding:0 16px 100px; }
+
+/* ── NAV BAR ── */
+#navbar { display:none; position:fixed; bottom:0; left:0; right:0; background:rgba(7,11,18,0.95); border-top:1px solid var(--border); backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom)); z-index:100; grid-template-columns:repeat(3,1fr); }
+#navbar.visible { display:grid; }
+.nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text2); cursor:pointer; }
+.nav-btn.active { color:var(--cyan); }
+.nav-btn span { font-size:20px; }
+.nav-btn small { font-size:9px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+
+/* ── HEADER ── */
+.header { padding:20px 16px 14px; display:flex; align-items:center; justify-content:space-between; }
+.header-title { font-size:20px; font-weight:800; }
+.header-sub { font-size:12px; color:var(--text2); margin-top:1px; }
+
+/* ── LOGIN ── */
+#screen-login { background:var(--bg); align-items:center; justify-content:center; padding:32px 24px; display:flex; }
+.login-box { width:100%; max-width:380px; }
+.login-logo { display:flex; align-items:center; gap:14px; margin-bottom:10px; justify-content:center; }
+.login-logo .mark { width:60px; height:60px; border-radius:16px; background:linear-gradient(135deg,var(--cyan),var(--purple)); display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:900; color:#000; box-shadow:0 6px 24px rgba(0,212,255,.4); }
+.login-logo .name { font-size:26px; font-weight:900; letter-spacing:.5px; }
+.login-tag { font-size:14px; font-weight:800; color:var(--cyan); letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:36px; }
+.field { margin-bottom:16px; }
+.field label { display:block; font-size:11px; font-weight:700; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.field input, .field select { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:13px 14px; border-radius:10px; font-size:15px; font-family:inherit; outline:none; }
+.field input:focus { border-color:var(--cyan); }
+.field input.campo-vacio { border-color:var(--orange); background:rgba(255,140,0,.08); }
+.btn-primary { width:100%; padding:14px; border-radius:12px; border:none; background:var(--cyan); color:#000; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; margin-top:6px; }
+.btn-secondary { width:100%; padding:13px; border-radius:12px; border:1px solid var(--border2); background:transparent; color:var(--text2); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:10px; }
+.login-error { background:rgba(255,71,87,.1); border:1px solid rgba(255,71,87,.3); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:14px; display:none; }
+.login-hint { margin-top:20px; font-size:11px; color:var(--text3); text-align:center; line-height:1.6; }
+
+/* ── TARJETAS ── */
+.veh-card { background:var(--surface2); border-radius:18px; padding:16px 18px; margin-bottom:14px; box-shadow:0 4px 20px rgba(0,0,0,.4); }
+.veh-top { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.veh-icon { width:44px; height:44px; border-radius:12px; background:rgba(0,212,255,.1); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+.veh-plate { font-size:17px; font-weight:900; font-family:var(--mono); color:var(--cyan); }
+.veh-model { font-size:12px; color:var(--text3); }
+.cond-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); }
+.cond-row:last-child { border-bottom:none; }
+.status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+
+.section-title { font-size:11px; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin:18px 0 10px; }
+.empty-msg { text-align:center; color:var(--text3); font-size:13px; padding:30px 0; }
+
+/* ── CALENDARIO ── */
+.mini-cal { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:16px; }
+.mini-cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.mini-cal-nav { background:rgba(0,212,255,.12); border:1px solid rgba(0,212,255,.3); color:var(--cyan); width:26px; height:26px; border-radius:7px; font-size:13px; cursor:pointer; }
+.mini-cal-title { font-size:13px; font-weight:800; text-transform:capitalize; }
+.mini-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.mini-cal-grid .wd { font-size:10px; color:var(--text3); text-align:center; padding:2px 0; }
+.mini-cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:7px; font-size:12px; }
+
+.cita-card { display:flex; align-items:center; gap:12px; padding:13px 14px; border:2px solid var(--border); border-radius:14px; margin-bottom:8px; background:var(--surface2); }
+.cita-icon { width:38px; height:38px; border-radius:10px; background:rgba(0,212,255,.1); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+
+/* ── MODAL DETALLE ── */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:300; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:var(--surface); border:1px solid var(--border); border-radius:20px; max-width:400px; width:100%; max-height:85vh; overflow-y:auto; }
+.modal-head { padding:20px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+.modal-close { background:transparent; border:1px solid var(--border2); color:var(--text3); border-radius:10px; width:32px; height:32px; font-size:16px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN / ACTIVACIÓN ══════════════ -->
+<div id="screen-login">
+  <div class="login-box">
+    <svg width="220" height="64" viewBox="0 0 220 64" style="display:block;margin:0 auto 4px">
+      <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+      <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+      <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+      <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
+      <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+      <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
+      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
+      <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+      <circle cx="33" cy="16" r="2.2" fill="#020810"/>
+      <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
+      <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+    </svg>
+    <div class="login-tag">App de Propietario</div>
+
+    <!-- Paso: activar cuenta con código (primera vez) -->
+    <div id="step-activar">
+      <div class="field">
+        <label>Código de invitación</label>
+        <input id="act-code" type="text" placeholder="DRVX-XXXX" class="campo-vacio" oninput="marcarCampoNaranja(this)" style="font-family:var(--mono);text-transform:uppercase;text-align:center;font-size:18px">
+      </div>
+      <div class="field">
+        <label>Email (el mismo que te registró tu gestor)</label>
+        <input id="act-email" type="email" placeholder="correo@ejemplo.com" class="campo-vacio" oninput="marcarCampoNaranja(this)">
+      </div>
+      <div class="field">
+        <label>Crea una contraseña</label>
+        <input id="act-pass1" type="password" placeholder="Mínimo 4 caracteres" class="campo-vacio" oninput="marcarCampoNaranja(this)">
+      </div>
+      <div class="field">
+        <label>Repite la contraseña</label>
+        <input id="act-pass2" type="password" placeholder="Vuelve a escribirla" class="campo-vacio" oninput="marcarCampoNaranja(this)">
+      </div>
+      <div id="act-error" class="login-error"></div>
+      <button class="btn-primary" onclick="activarCuenta()">Activar cuenta</button>
+      <button class="btn-secondary" onclick="mostrarLogin()">Ya tengo cuenta — iniciar sesión</button>
+    </div>
+
+    <!-- Paso: login normal -->
+    <div id="step-login" style="display:none">
+      <div class="field">
+        <label>Email</label>
+        <input id="log-email" type="email" placeholder="correo@ejemplo.com" class="campo-vacio" oninput="marcarCampoNaranja(this)">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input id="log-pass" type="password" placeholder="••••••••" class="campo-vacio" oninput="marcarCampoNaranja(this)">
+      </div>
+      <div id="log-error" class="login-error"></div>
+      <button class="btn-primary" onclick="doLogin()">Iniciar sesión</button>
+      <button class="btn-secondary" onclick="mostrarActivar()">Activar cuenta con código de invitación</button>
+    </div>
+
+    <div class="login-hint">Panel de solo lectura — verás la actividad de tus vehículos, pero no podrás modificarla.</div>
+  </div>
+</div>
+
+<!-- ══════════════ APP ══════════════ -->
+<div id="app" style="display:none">
+
+  <!-- ── INICIO ── -->
+  <div class="screen active" id="screen-inicio">
+    <div class="header">
+      <div>
+        <div class="header-title">Hola, <span id="home-nombre">—</span></div>
+        <div class="header-sub">Tus vehículos y conductores</div>
+      </div>
+    </div>
+    <div class="scroll" id="inicio-content">
+      <div class="empty-msg">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── CONDUCTORES ── -->
+  <div class="screen" id="screen-conductores">
+    <div class="header">
+      <div>
+        <div class="header-title">Conductores</div>
+        <div class="header-sub">Estado en tiempo real</div>
+      </div>
+    </div>
+    <div class="scroll" id="conductores-content">
+      <div class="empty-msg">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── CITAS ── -->
+  <div class="screen" id="screen-citas">
+    <div class="header">
+      <div>
+        <div class="header-title">Citas y revisiones</div>
+        <div class="header-sub">De tus vehículos</div>
+      </div>
+    </div>
+    <div class="scroll" id="citas-content">
+      <div class="empty-msg">Cargando…</div>
+    </div>
+  </div>
+
+  <div id="navbar">
+    <button class="nav-btn active" id="nav-inicio" onclick="showScreen('inicio')"><span>🏠</span><small>Inicio</small></button>
+    <button class="nav-btn" id="nav-conductores" onclick="showScreen('conductores')"><span>👤</span><small>Conductores</small></button>
+    <button class="nav-btn" id="nav-citas" onclick="showScreen('citas')"><span>📅</span><small>Citas</small></button>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: DETALLE DE CITA (solo lectura) ══════════════ -->
+<div id="cita-detail-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div id="cd-icon" style="font-size:28px">📅</div>
+      <div style="flex:1">
+        <div id="cd-tipo" style="font-size:16px;font-weight:900">—</div>
+        <div id="cd-matricula" style="font-size:12px;color:var(--text3);font-family:var(--mono)">—</div>
+      </div>
+      <button class="modal-close" onclick="closeCitaDetail()">✕</button>
+    </div>
+    <div id="cd-body" style="padding:8px 22px 22px"></div>
+  </div>
+</div>
+
+<script>
+var FIREBASE_URL = 'https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app';
+
+// ── Flota "de fábrica" (misma referencia que el resto de apps) ──
+var VEHICULOS = [
+  { matricula: '1234 ABC', modelo: 'Tesla Model 3', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '⚡',
+    docs: { itv: { fecha:'2026-08-10' } }, conductores: [] },
+  { matricula: '9012 GHI', modelo: 'BMW 5 Series', ciudad: 'Málaga', ccaa: 'Andalucía', icon: '🚗',
+    docs: { itv: { fecha:'2024-11-15' } }, conductores: [] },
+  { matricula: '5678 DEF', modelo: 'Mercedes EQS', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '⚡',
+    docs: { itv: { fecha:'2026-09-15' } }, conductores: [] },
+  { matricula: '3456 JKL', modelo: 'Toyota Prius', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
+    docs: { itv: { fecha:'2024-12-15' } }, conductores: [] },
+  { matricula: '7890 MNO', modelo: 'Skoda Octavia', ciudad: 'Valencia', ccaa: 'Comunidad Valenciana', icon: '🚗',
+    docs: { itv: { fecha:'2027-03-10' } }, conductores: [] },
+  { matricula: '0000 TST', modelo: 'Vehículo Test', ciudad: 'Test', ccaa: 'Andalucía', icon: '🔧',
+    docs: { itv: { fecha:'2026-01-01' } }, conductores: ['test'] },
+  { matricula: '2345 CLM', modelo: 'Tesla Model Y', ciudad: 'Albacete', ccaa: 'Castilla-La Mancha', icon: '⚡',
+    docs: { itv: { fecha:'2026-07-28' } }, conductores: [] },
+  { matricula: '6789 CLM', modelo: 'Toyota Camry', ciudad: 'Cuenca', ccaa: 'Castilla-La Mancha', icon: '🚗',
+    docs: { itv: { fecha:'2024-10-20' } }, conductores: [] },
+  { matricula: '1122 CLM', modelo: 'Tesla Model 3', ciudad: 'Toledo', ccaa: 'Castilla-La Mancha', icon: '⚡',
+    docs: { itv: { fecha:'2026-10-30' } }, conductores: [] },
+  { matricula: '3344 CLM', modelo: 'Volkswagen Passat', ciudad: 'Ciudad Real', ccaa: 'Castilla-La Mancha', icon: '🚗',
+    docs: { itv: { fecha:'2026-12-05' } }, conductores: [] }
+];
+var CONDUCTORES = [
+  { cid:'test', nombre:'Test User', matricula:'0000 TST', turno:'06:00–14:00' }
+];
+
+var currentUser = null;
+var _citasCache = [];
+
+function toast(msg) {
+  var t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 18px;border-radius:12px;font-size:13px;z-index:400;box-shadow:0 4px 20px rgba(0,0,0,.5)';
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 2500);
+}
+
+function marcarCampoNaranja(input) {
+  if (input.value.trim()) input.classList.remove('campo-vacio');
+  else input.classList.add('campo-vacio');
+}
+
+function mostrarActivar() {
+  document.getElementById('step-activar').style.display = 'block';
+  document.getElementById('step-login').style.display = 'none';
+}
+function mostrarLogin() {
+  document.getElementById('step-activar').style.display = 'none';
+  document.getElementById('step-login').style.display = 'block';
+}
+
+function activarCuenta() {
+  var code = (document.getElementById('act-code').value || '').trim().toUpperCase();
+  var email = (document.getElementById('act-email').value || '').trim().toLowerCase();
+  var pass1 = document.getElementById('act-pass1').value || '';
+  var pass2 = document.getElementById('act-pass2').value || '';
+  var errEl = document.getElementById('act-error');
+  errEl.style.display = 'none';
+
+  if (!code || !email) { errEl.textContent = 'Completa el código y el email.'; errEl.style.display = 'block'; return; }
+  if (pass1.length < 4 || pass1 !== pass2) { errEl.textContent = 'Revisa la contraseña (mínimo 4 caracteres, y que coincida).'; errEl.style.display = 'block'; return; }
+
+  fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var pid = null, prop = null;
+    Object.keys(data).forEach(function(k){
+      if (data[k] && data[k].inviteCode === code && (data[k].email||'').toLowerCase() === email) { pid = k; prop = data[k]; }
+    });
+    if (!prop) { errEl.textContent = 'Código o email incorrectos.'; errEl.style.display = 'block'; return; }
+    if (prop.inviteUsado) { errEl.textContent = 'Este código ya se usó. Inicia sesión con tu email y contraseña.'; errEl.style.display = 'block'; return; }
+
+    return fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', {
+      method: 'PATCH', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ pass: pass1, inviteUsado: true })
+    }).then(function(){
+      currentUser = { pid: pid, nombre: prop.nombre, email: email, matriculas: prop.matriculas || [] };
+      localStorage.setItem('drivx_propietario_actual', JSON.stringify(currentUser));
+      entrarApp();
+    });
+  }).catch(function(){
+    errEl.textContent = 'No se pudo conectar. Revisa tu conexión.';
+    errEl.style.display = 'block';
+  });
+}
+
+function doLogin() {
+  var email = (document.getElementById('log-email').value || '').trim().toLowerCase();
+  var pass = document.getElementById('log-pass').value || '';
+  var errEl = document.getElementById('log-error');
+  errEl.style.display = 'none';
+
+  fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var pid = null, prop = null;
+    Object.keys(data).forEach(function(k){
+      if (data[k] && (data[k].email||'').toLowerCase() === email && data[k].pass === pass) { pid = k; prop = data[k]; }
+    });
+    if (!prop) { errEl.textContent = 'Email o contraseña incorrectos.'; errEl.style.display = 'block'; return; }
+    currentUser = { pid: pid, nombre: prop.nombre, email: email, matriculas: prop.matriculas || [] };
+    localStorage.setItem('drivx_propietario_actual', JSON.stringify(currentUser));
+    entrarApp();
+  }).catch(function(){
+    errEl.textContent = 'No se pudo conectar. Revisa tu conexión.';
+    errEl.style.display = 'block';
+  });
+}
+
+function entrarApp() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('navbar').classList.add('visible');
+  document.getElementById('home-nombre').textContent = (currentUser.nombre || '').split(' ')[0];
+  cargarInicio();
+  cargarConductores();
+  cargarCitas();
+  setInterval(cargarInicio, 20000);
+  setInterval(cargarConductores, 15000);
+  setInterval(cargarCitas, 30000);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('screen-' + id).classList.add('active');
+  document.getElementById('nav-' + id).classList.add('active');
+}
+
+function getAllVehiculosOwner() { return VEHICULOS; } // + vehículos añadidos, se combinan al cargar
+
+var VEHICULOS_EXTRA_O = [];
+function todosLosVehiculos() { return VEHICULOS.concat(VEHICULOS_EXTRA_O); }
+
+function estaFichadoHoy(fj) {
+  if (!fj || !fj.fichado || !fj.ts) return false;
+  return new Date(fj.ts).toDateString() === new Date().toDateString();
+}
+
+// ── INICIO: vehículos propios + sus conductores con estado en vivo ──
+function cargarInicio() {
+  if (!currentUser) return;
+  Promise.all([
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var extra = results[0] || {};
+    var invitados = results[1] || {};
+    var fichajes = results[2] || {};
+    VEHICULOS_EXTRA_O = Object.keys(extra).map(function(k){ var v = extra[k]||{}; return {
+      matricula: v.matricula||k, modelo: v.modelo||'Vehículo', ciudad: v.ciudad||'', ccaa: v.ccaa||'Andalucía',
+      icon: v.icon||'🚗', docs: { itv: { fecha: (v.docs&&v.docs.itv&&v.docs.itv.fecha) || null } }, conductores: v.conductores||[]
+    };});
+
+    var misVehiculos = todosLosVehiculos().filter(function(v){ return currentUser.matriculas.indexOf(v.matricula) !== -1; });
+    var cont = document.getElementById('inicio-content');
+    if (!misVehiculos.length) { cont.innerHTML = '<div class="empty-msg">No tienes vehículos asignados todavía.</div>'; return; }
+
+    var now = new Date();
+    function diasItv(f) { return f ? Math.round((new Date(f) - now) / 86400000) : null; }
+
+    cont.innerHTML = misVehiculos.map(function(v){
+      var d = diasItv(v.docs.itv.fecha);
+      var itvTxt = d===null ? 'Sin datos de ITV' : d<0 ? '🚨 ITV vencida' : d<=30 ? '⚠ ITV en '+d+' días' : '✓ ITV en orden';
+      var itvColor = d!==null && d<=30 ? (d<0?'var(--red)':'var(--amber)') : 'var(--text3)';
+
+      var conductoresVeh = [];
+      CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre, turno:c.turno}); });
+      Object.keys(invitados).forEach(function(cid){
+        var r = invitados[cid];
+        if (r && r.matricula === v.matricula) conductoresVeh.push({cid:cid, nombre:r.nombre||'Conductor', turno:r.turno||''});
+      });
+
+      var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
+        var online = estaFichadoHoy(fichajes[c.cid]);
+        return '<div class="cond-row"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div>' +
+          '<div style="font-size:11px;color:var(--text3)">'+c.turno+'</div></div>' +
+          '<div style="font-size:11px;font-weight:700;color:'+(online?'var(--green)':'var(--text3)')+'"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div></div>';
+      }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
+
+      return '<div class="veh-card">' +
+        '<div class="veh-top"><div class="veh-icon">'+v.icon+'</div><div><div class="veh-plate">'+v.matricula+'</div><div class="veh-model">'+v.modelo+' · '+v.ccaa+'</div></div></div>' +
+        '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:8px">'+itvTxt+'</div>' +
+        condHtml +
+      '</div>';
+    }).join('');
+  }).catch(function(){});
+}
+
+// ── CONDUCTORES: lista plana de todos, con estado en vivo ──
+function cargarConductores() {
+  if (!currentUser) return;
+  Promise.all([
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var invitados = results[0] || {};
+    var fichajes = results[1] || {};
+    var misVehiculos = todosLosVehiculos().filter(function(v){ return currentUser.matriculas.indexOf(v.matricula) !== -1; });
+
+    var lista = [];
+    misVehiculos.forEach(function(v){
+      CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) lista.push({cid:c.cid, nombre:c.nombre, turno:c.turno, matricula:v.matricula}); });
+      Object.keys(invitados).forEach(function(cid){
+        var r = invitados[cid];
+        if (r && r.matricula === v.matricula) lista.push({cid:cid, nombre:r.nombre||'Conductor', turno:r.turno||'', matricula:v.matricula});
+      });
+    });
+
+    var cont = document.getElementById('conductores-content');
+    if (!lista.length) { cont.innerHTML = '<div class="empty-msg">Todavía no hay conductores asignados a tus vehículos.</div>'; return; }
+
+    cont.innerHTML = lista.map(function(c){
+      var online = estaFichadoHoy(fichajes[c.cid]);
+      return '<div class="veh-card" style="padding:14px 16px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' +
+        '<div><div style="font-weight:800;font-size:14px">'+c.nombre+'</div>' +
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+c.matricula+' · '+c.turno+'</div></div>' +
+        '<div style="font-size:11px;font-weight:800;color:'+(online?'var(--green)':'var(--text3)')+';display:flex;align-items:center"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div>' +
+        '</div></div>';
+    }).join('');
+  }).catch(function(){});
+}
+
+// ── CITAS: calendario + listado, de solo lectura ──
+var _citaCalOffset = 0;
+function cargarCitas() {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+    lista = lista || [];
+    if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    _citasCache = lista.filter(function(c){ return c && currentUser.matriculas.indexOf(c.matricula) !== -1; });
+    pintarCitas();
+  }).catch(function(){});
+}
+function pintarCitas() {
+  var cont = document.getElementById('citas-content');
+  var now = new Date();
+  cont.innerHTML = buildCal() + '<div class="section-title">📋 Próximas citas</div>' + buildListaCitas(now);
+}
+function buildCal() {
+  var base = new Date();
+  var year = base.getFullYear(), month = base.getMonth() + _citaCalOffset;
+  var d0 = new Date(year, month, 1);
+  year = d0.getFullYear(); month = d0.getMonth();
+  var startWd = (d0.getDay() + 6) % 7;
+  var daysInMonth = new Date(year, month+1, 0).getDate();
+  var esMesActual = (year === base.getFullYear() && month === base.getMonth());
+  var todayNum = esMesActual ? base.getDate() : -1;
+
+  var porDia = {};
+  _citasCache.forEach(function(c){
+    if (!c.fecha) return;
+    var d = new Date(c.fecha + 'T00:00:00');
+    if (d.getFullYear()===year && d.getMonth()===month) porDia[d.getDate()] = (porDia[d.getDate()]||0)+1;
+  });
+
+  var mesNombre = new Date(year, month, 1).toLocaleDateString('es-ES', {month:'long', year:'numeric'});
+  var html = '<div class="mini-cal"><div class="mini-cal-head">' +
+    '<button class="mini-cal-nav" onclick="_citaCalOffset--;pintarCitas()">‹</button>' +
+    '<div class="mini-cal-title">🗓️ '+mesNombre+'</div>' +
+    '<button class="mini-cal-nav" onclick="_citaCalOffset++;pintarCitas()">›</button></div>';
+  html += '<div class="mini-cal-grid">';
+  ['L','M','X','J','V','S','D'].forEach(function(d){ html += '<div class="wd">'+d+'</div>'; });
+  for (var i=0;i<startWd;i++) html += '<div></div>';
+  for (var day=1; day<=daysInMonth; day++) {
+    var count = porDia[day]||0;
+    var isToday = day===todayNum;
+    var bg = count>0 ? (isToday?'var(--red)':'rgba(0,212,255,.3)') : (isToday?'rgba(255,255,255,.08)':'transparent');
+    var color = count>0 ? '#fff' : (isToday?'var(--cyan)':'var(--text2)');
+    html += '<div class="mini-cal-day" style="background:'+bg+';color:'+color+';font-weight:'+(count>0||isToday?'800':'400')+'">'+day+'</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+function buildListaCitas(now) {
+  if (!_citasCache.length) return '<div class="empty-msg">Sin citas programadas</div>';
+  var ordenadas = _citasCache.slice().sort(function(a,b){ return (a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||'')); });
+  return ordenadas.map(function(c){
+    var d = new Date(c.fecha + 'T' + (c.hora||'00:00'));
+    var dias = Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);
+    var vencida = dias < 0;
+    var border = vencida ? 'rgba(255,71,87,.4)' : dias<=2 ? 'rgba(255,179,0,.4)' : 'var(--border)';
+    var fechaTxt = d.toLocaleDateString('es-ES', {weekday:'short', day:'2-digit', month:'short'});
+    return '<div class="cita-card" style="border-color:'+border+'" onclick="openCitaDetail('+c.id+')">' +
+      '<div class="cita-icon">📅</div>' +
+      '<div style="flex:1"><div style="font-weight:800;font-size:13px">'+c.tipo+'</div>' +
+      '<div style="font-size:11px;color:var(--text3)">'+fechaTxt+(c.hora?' · '+c.hora:'')+' · <span style="font-family:var(--mono);color:var(--cyan)">'+c.matricula+'</span></div></div>' +
+      '<div style="font-size:10px;font-weight:800;color:'+(vencida?'var(--red)':dias<=2?'var(--amber)':'var(--text3)')+'">'+(vencida?'VENCIDA':dias===0?'HOY':dias===1?'MAÑANA':dias+' días')+'</div>' +
+    '</div>';
+  }).join('');
+}
+function openCitaDetail(id) {
+  var c = _citasCache.find(function(x){ return x.id === id; });
+  if (!c) return;
+  document.getElementById('cd-tipo').textContent = c.tipo;
+  document.getElementById('cd-matricula').textContent = c.matricula;
+  var d = new Date(c.fecha + 'T00:00:00');
+  var body = '';
+  function row(icon, label, val) {
+    return '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="font-size:18px;width:24px;flex-shrink:0">'+icon+'</div>' +
+      '<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase">'+label+'</div>' +
+      '<div style="font-size:14px;font-weight:600;margin-top:2px">'+val+'</div></div></div>';
+  }
+  body += row('📅','Fecha', d.toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}));
+  body += row('🕐','Hora', c.hora || 'No especificada');
+  body += row('📍','Lugar', c.lugar || 'No especificado');
+  if (c.nota) body += row('📝','Nota', c.nota);
+  document.getElementById('cd-body').innerHTML = body;
+  document.getElementById('cita-detail-modal').classList.add('open');
+}
+function closeCitaDetail() { document.getElementById('cita-detail-modal').classList.remove('open'); }
+
+// ── Sesión guardada ──
+(function initSesion(){
+  try {
+    var saved = JSON.parse(localStorage.getItem('drivx_propietario_actual') || 'null');
+    if (saved) { currentUser = saved; entrarApp(); }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>
