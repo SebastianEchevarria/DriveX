@@ -34,7 +34,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .scroll { flex:1; overflow-y:auto; padding:0 16px 100px; }
 
 /* ── NAV BAR ── */
-#navbar { display:none; position:fixed; bottom:0; left:0; right:0; background:rgba(7,11,18,0.95); border-top:1px solid var(--border); backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom)); z-index:100; grid-template-columns:repeat(3,1fr); }
+#navbar { display:none; position:fixed; bottom:0; left:0; right:0; background:rgba(7,11,18,0.95); border-top:1px solid var(--border); backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom)); z-index:100; grid-template-columns:repeat(2,1fr); }
 #navbar.visible { display:grid; }
 .nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text2); cursor:pointer; }
 .nav-btn.active { color:var(--cyan); }
@@ -45,10 +45,9 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .header { padding:20px 16px 14px; display:flex; align-items:center; justify-content:space-between; }
 .header-title { font-size:20px; font-weight:800; }
 .header-sub { font-size:12px; color:var(--text2); margin-top:1px; }
-.mini-brand { display:flex; align-items:center; gap:8px; padding:14px 16px 0; }
-.mini-brand .mk { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--cyan),var(--purple)); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; color:#000; }
-.mini-brand .tx { font-size:13px; font-weight:900; letter-spacing:.3px; }
-.mini-brand .tag { font-size:10px; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-left:2px; }
+.mini-brand { padding:18px 16px 6px; text-align:center; border-bottom:1px solid var(--border); margin-bottom:4px; }
+.mini-brand svg { display:block; margin:0 auto 2px; }
+.mini-brand .tag { font-size:12px; font-weight:800; color:var(--cyan); letter-spacing:2px; text-transform:uppercase; }
 
 /* ── LOGIN ── */
 #screen-login { background:var(--bg); align-items:center; justify-content:center; padding:32px 24px; display:flex; }
@@ -171,14 +170,26 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <!-- ── INICIO ── -->
   <div class="screen active" id="screen-inicio">
-    <div class="mini-brand"><svg width="30" height="30" viewBox="5 5 40 42" style="border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--purple))">
-      <circle cx="28" cy="32" r="11" fill="none" stroke="#020810" stroke-width="1.8"/>
-      <circle cx="19" cy="42" r="4" fill="#020810"/>
-      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
-      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#020810" stroke-width="1.4" stroke-dasharray="3,3"/>
-      <circle cx="33" cy="14" r="7" fill="#020810"/>
-      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
-    </svg><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
+    <div class="mini-brand">
+      <svg width="160" height="46" viewBox="0 0 220 64">
+        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+        <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+        <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
+        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+        <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
+        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+        <circle cx="33" cy="16" r="2.2" fill="#020810"/>
+        <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
+        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+      </svg>
+      <div class="tag">App de Propietario</div>
+    </div>
     <div class="header">
       <div>
         <div class="header-title">Hola, <span id="home-nombre">—</span></div>
@@ -190,37 +201,29 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
     </div>
   </div>
 
-  <!-- ── CONDUCTORES ── -->
-  <div class="screen" id="screen-conductores">
-    <div class="mini-brand"><svg width="30" height="30" viewBox="5 5 40 42" style="border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--purple))">
-      <circle cx="28" cy="32" r="11" fill="none" stroke="#020810" stroke-width="1.8"/>
-      <circle cx="19" cy="42" r="4" fill="#020810"/>
-      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
-      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#020810" stroke-width="1.4" stroke-dasharray="3,3"/>
-      <circle cx="33" cy="14" r="7" fill="#020810"/>
-      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
-    </svg><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
-    <div class="header">
-      <div>
-        <div class="header-title">Conductores</div>
-        <div class="header-sub">Estado en tiempo real</div>
-      </div>
-    </div>
-    <div class="scroll" id="conductores-content">
-      <div class="empty-msg">Cargando…</div>
-    </div>
-  </div>
 
   <!-- ── CITAS ── -->
   <div class="screen" id="screen-citas">
-    <div class="mini-brand"><svg width="30" height="30" viewBox="5 5 40 42" style="border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--purple))">
-      <circle cx="28" cy="32" r="11" fill="none" stroke="#020810" stroke-width="1.8"/>
-      <circle cx="19" cy="42" r="4" fill="#020810"/>
-      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
-      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#020810" stroke-width="1.4" stroke-dasharray="3,3"/>
-      <circle cx="33" cy="14" r="7" fill="#020810"/>
-      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
-    </svg><div class="tx">DRIV<span style="color:var(--cyan)">X</span></div><div class="tag">Propietario</div></div>
+    <div class="mini-brand">
+      <svg width="160" height="46" viewBox="0 0 220 64">
+        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+        <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
+        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+        <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
+        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+        <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
+        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+        <circle cx="33" cy="16" r="2.2" fill="#020810"/>
+        <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
+        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+      </svg>
+      <div class="tag">App de Propietario</div>
+    </div>
     <div class="header">
       <div>
         <div class="header-title">Citas y revisiones</div>
@@ -234,7 +237,6 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
   <div id="navbar">
     <button class="nav-btn active" id="nav-inicio" onclick="showScreen('inicio')"><span>🏠</span><small>Inicio</small></button>
-    <button class="nav-btn" id="nav-conductores" onclick="showScreen('conductores')"><span>👤</span><small>Conductores</small></button>
     <button class="nav-btn" id="nav-citas" onclick="showScreen('citas')"><span>📅</span><small>Citas</small></button>
   </div>
 </div>
@@ -289,6 +291,13 @@ var CCAA_BORDER_O = {
   'Cantabria':'#2a5a8a', 'Castilla y León':'#8a5a1a', 'Cataluña':'#9a2a5a', 'Extremadura':'#8a4a1a',
   'Galicia':'#1a7a6a', 'La Rioja':'#8a1a2a', 'Comunidad de Madrid':'#7a1a5a', 'Región de Murcia':'#9a4a0a',
   'Comunidad Foral de Navarra':'#5a1a8a', 'País Vasco':'#1a4a6a', 'Ceuta':'#1a6a8a', 'Melilla':'#7a4a0a'
+};
+var CCAA_ICONS_O = {
+  'Andalucía':'🌞', 'Aragón':'🏔️', 'Asturias':'🐻', 'Islas Baleares':'🏝️', 'Canarias':'🌋',
+  'Cantabria':'🐄', 'Castilla-La Mancha':'🌾', 'Castilla y León':'🏰', 'Cataluña':'🎨',
+  'Comunidad Valenciana':'🍊', 'Extremadura':'🐷', 'Galicia':'🐙', 'La Rioja':'🍷',
+  'Comunidad de Madrid':'🏛️', 'Región de Murcia':'🍅', 'Comunidad Foral de Navarra':'🐂',
+  'País Vasco':'⛵', 'Ceuta':'⚓', 'Melilla':'🏰'
 };
 
 var currentUser = null;
@@ -378,10 +387,8 @@ function entrarApp() {
   document.getElementById('navbar').classList.add('visible');
   document.getElementById('home-nombre').textContent = (currentUser.nombre || '').split(' ')[0];
   cargarInicio();
-  cargarConductores();
   cargarCitas();
   setInterval(cargarInicio, 20000);
-  setInterval(cargarConductores, 15000);
   setInterval(cargarCitas, 30000);
 }
 
@@ -441,8 +448,12 @@ function cargarInicio() {
     var htmlOut = '';
     ccaasPresentes.forEach(function(cc){
       var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
-      htmlOut += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:14px 0 10px;border-radius:12px;background:rgba(255,255,255,.03);border:2px solid '+borderCc+'">' +
-        '<span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.5px">'+cc+'</span>' +
+      var iconCc = CCAA_ICONS_O[cc] || '📍';
+      var n = porCcaa[cc].length;
+      htmlOut += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin:16px 0 12px;border-radius:14px;background:linear-gradient(135deg,'+borderCc+'33,'+borderCc+'11);border:2px solid '+borderCc+'">' +
+        '<span style="font-size:26px">'+iconCc+'</span>' +
+        '<div style="flex:1"><div style="font-size:15px;font-weight:900;color:#fff">'+cc+'</div>' +
+        '<div style="font-size:11px;color:var(--text2)">'+n+' vehículo'+(n>1?'s':'')+'</div></div>' +
       '</div>';
 
       htmlOut += porCcaa[cc].map(function(v){
@@ -491,7 +502,12 @@ function cargarInicio() {
 
         return '<div class="veh-card" style="border:2px solid '+borderColor+'">' +
           '<div class="veh-top"><div class="veh-icon">'+v.icon+'</div><div>' +
-          '<div class="veh-plate" style="display:inline-block;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:3px 10px;margin-bottom:2px">'+v.matricula+'</div>' +
+          '<div style="display:inline-flex;align-items:stretch;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);margin-bottom:4px;border:1px solid rgba(0,0,0,.3)">' +
+            '<div style="background:#0a3d9e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 5px;font-size:8px;font-weight:900;line-height:1.1">' +
+              '<span style="color:#ffd700;font-size:7px">★★★</span>E' +
+            '</div>' +
+            '<div style="background:#f4f4f4;color:#111;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 12px;display:flex;align-items:center">'+v.matricula+'</div>' +
+          '</div>' +
           '<div class="veh-model">'+v.modelo+' · '+v.ccaa+'</div></div></div>' +
           '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:12px">'+itvTxt+'</div>' +
           '<div class="section-title" style="margin:0 0 6px">Conductores</div>' +
