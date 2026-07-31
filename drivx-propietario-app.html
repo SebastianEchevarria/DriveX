@@ -158,6 +158,16 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
       </div>
       <div id="log-error" class="login-error"></div>
       <button class="btn-primary" onclick="doLogin()">Iniciar sesión</button>
+      <button id="biometric-btn" onclick="loginWithBiometric()" style="display:none;width:100%;margin-top:14px;padding:0;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif">
+        <div style="width:100%;padding:16px;border-radius:16px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.12),rgba(0,212,255,.04));display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 4px 20px rgba(0,212,255,.15)">
+          <span style="font-size:28px;line-height:1">☝️</span>
+          <div style="text-align:left">
+            <div style="font-size:15px;font-weight:900;color:var(--cyan)">Entrar con huella</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:1px">Acceso rápido biométrico</div>
+          </div>
+        </div>
+      </button>
+      <div id="biometric-clear" style="text-align:center;margin-top:8px;display:none"><button onclick="document.getElementById('clear-biometric-modal').classList.add('open')" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline">Eliminar huella guardada</button></div>
       <button class="btn-secondary" onclick="mostrarActivar()">Activar cuenta con código de invitación</button>
     </div>
 
@@ -167,6 +177,7 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 <!-- ══════════════ APP ══════════════ -->
 <div id="app" style="display:none">
+  <button onclick="doLogout()" style="position:fixed;top:14px;right:14px;z-index:150;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
 
   <!-- ── INICIO ── -->
   <div class="screen active" id="screen-inicio">
@@ -258,6 +269,78 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 <script>
 var FIREBASE_URL = 'https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app';
+var WEBAUTHN_KEY = 'drivx_webauthn_cred_propietario';
+function webauthnSupported(){ return !!(window.PublicKeyCredential && navigator.credentials); }
+async function registerBiometric(email,pass){
+  localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({email:email,pass:pass,registered:true,ts:Date.now()}));
+  if(webauthnSupported()){
+    try{
+      var ch=new Uint8Array(32); crypto.getRandomValues(ch);
+      var cr=await navigator.credentials.create({publicKey:{
+        challenge:ch, rp:{name:'DRIVX',id:location.hostname},
+        user:{id:new TextEncoder().encode(email),name:email,displayName:email},
+        pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+        timeout:60000,attestation:'none'
+      }});
+      localStorage.setItem(WEBAUTHN_KEY,JSON.stringify({credId:Array.from(new Uint8Array(cr.rawId)),email:email,pass:pass,registered:true,ts:Date.now()}));
+    }catch(e){}
+  }
+  toast('✅ Acceso rápido activado');
+  showBiometricBtn();
+  entrarApp();
+}
+async function loginWithBiometric(){
+  var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
+  if(!s||!s.email||!s.pass||s.registered!==true)return;
+  if(webauthnSupported()&&s.credId){
+    try{
+      var ch=new Uint8Array(32); crypto.getRandomValues(ch);
+      await navigator.credentials.get({publicKey:{challenge:ch,rpId:location.hostname,allowCredentials:[{id:new Uint8Array(s.credId),type:'public-key'}],userVerification:'required',timeout:60000}});
+    }catch(e){if(e.name==='NotAllowedError')return;}
+  } else if(webauthnSupported()){
+    try{
+      var ch2=new Uint8Array(32); crypto.getRandomValues(ch2);
+      await navigator.credentials.get({publicKey:{challenge:ch2,rpId:location.hostname,userVerification:'required',timeout:60000}});
+    }catch(e){if(e.name==='NotAllowedError')return;}
+  }
+  document.getElementById('log-email').value=s.email;
+  document.getElementById('log-pass').value=s.pass;
+  doLogin();
+}
+function showBiometricBtn(){
+  var btn=document.getElementById('biometric-btn');
+  var clr=document.getElementById('biometric-clear');
+  var s=null; try{s=JSON.parse(localStorage.getItem(WEBAUTHN_KEY)||'null');}catch(e){}
+  var show=!!(s&&s.email&&s.pass&&s.registered===true);
+  if(btn)btn.style.display=show?'flex':'none';
+  if(clr)clr.style.display=show?'block':'none';
+}
+function clearBiometric(){localStorage.removeItem(WEBAUTHN_KEY);showBiometricBtn();toast('🗑 Acceso rápido eliminado');}
+function offerBiometricRegister(email,pass){
+  window._pendingLoginEmail = email; window._pendingLoginPass = pass;
+  var modal=document.getElementById('biometric-offer-modal');
+  var yesBtn=document.getElementById('biometric-offer-yes');
+  if(!modal||!yesBtn){ entrarApp(); return; }
+  yesBtn.onclick=function(){modal.style.display='none';registerBiometric(email,pass);};
+  var skipBtn=document.getElementById('biometric-skip-btn');
+  if(skipBtn) skipBtn.onclick=function(){modal.style.display='none';entrarApp();};
+  modal.style.display='flex';
+  setTimeout(function(){ if (modal.style.display!=='none'){ modal.style.display='none'; entrarApp(); } }, 10000);
+}
+function doLogout(){ document.getElementById('logout-modal').classList.add('open'); }
+function confirmLogout(){
+  document.getElementById('logout-modal').classList.remove('open');
+  document.getElementById('navbar').classList.remove('visible');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('screen-login').style.display = 'flex';
+  localStorage.removeItem('drivx_propietario_actual');
+  currentUser = null;
+  document.getElementById('log-email').value = '';
+  document.getElementById('log-pass').value = '';
+  mostrarLogin();
+  showBiometricBtn();
+}
 
 // ── Flota "de fábrica" (misma referencia que el resto de apps) ──
 var VEHICULOS = [
@@ -323,6 +406,7 @@ function mostrarActivar() {
 function mostrarLogin() {
   document.getElementById('step-activar').style.display = 'none';
   document.getElementById('step-login').style.display = 'block';
+  showBiometricBtn();
 }
 
 function activarCuenta() {
@@ -374,7 +458,12 @@ function doLogin() {
     if (!prop) { errEl.textContent = 'Email o contraseña incorrectos.'; errEl.style.display = 'block'; return; }
     currentUser = { pid: pid, nombre: prop.nombre, email: email, matriculas: prop.matriculas || [] };
     localStorage.setItem('drivx_propietario_actual', JSON.stringify(currentUser));
-    entrarApp();
+    var s = null; try { s = JSON.parse(localStorage.getItem(WEBAUTHN_KEY) || 'null'); } catch(e){}
+    if (!(s && s.email === email && s.registered === true)) {
+      offerBiometricRegister(email, pass);
+    } else {
+      entrarApp();
+    }
   }).catch(function(){
     errEl.textContent = 'No se pudo conectar. Revisa tu conexión.';
     errEl.style.display = 'block';
@@ -716,9 +805,48 @@ function closeCitaDetail() { document.getElementById('cita-detail-modal').classL
 (function initSesion(){
   try {
     var saved = JSON.parse(localStorage.getItem('drivx_propietario_actual') || 'null');
-    if (saved) { currentUser = saved; entrarApp(); }
+    if (saved) { currentUser = saved; entrarApp(); return; }
+  } catch(e) {}
+  try {
+    var s = JSON.parse(localStorage.getItem(WEBAUTHN_KEY) || 'null');
+    if (s && s.registered === true) mostrarLogin();
   } catch(e) {}
 })();
 </script>
+
+<div id="toast" style="position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 18px;border-radius:12px;font-size:13px;z-index:400;display:none"></div>
+
+<!-- BIOMETRIC OFFER MODAL -->
+<div id="biometric-offer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.3);border-radius:24px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
+    <div style="font-size:52px;margin-bottom:12px">☝️</div>
+    <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:8px">Acceso rápido</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Quieres guardar tu acceso con huella digital?</div>
+    <button id="biometric-offer-yes" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">☝️ Sí, usar huella</button>
+    <button id="biometric-skip-btn" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Ahora no</button>
+  </div>
+</div>
+
+<!-- CLEAR BIOMETRIC MODAL -->
+<div id="clear-biometric-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:300px;text-align:center;padding:32px 24px">
+    <div style="font-size:44px;margin-bottom:12px">🗑</div>
+    <div style="font-size:18px;font-weight:900;margin-bottom:8px">Eliminar huella guardada</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">Tendrás que iniciar sesión con tu email y contraseña la próxima vez.</div>
+    <button onclick="clearBiometric();document.getElementById('clear-biometric-modal').classList.remove('open')" style="width:100%;padding:13px;border-radius:12px;border:none;background:#ff6b6b;color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">Sí, eliminar</button>
+    <button onclick="document.getElementById('clear-biometric-modal').classList.remove('open')" style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:inherit">Cancelar</button>
+  </div>
+</div>
+
+<!-- LOGOUT MODAL -->
+<div id="logout-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:300px;text-align:center;padding:32px 24px">
+    <div style="font-size:44px;margin-bottom:12px">🚪</div>
+    <div style="font-size:18px;font-weight:900;margin-bottom:8px">Cerrar sesión</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">¿Seguro que quieres salir?</div>
+    <button onclick="confirmLogout()" style="width:100%;padding:14px;border-radius:12px;border:none;background:#ff6b6b;color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">Sí, cerrar sesión</button>
+    <button onclick="document.getElementById('logout-modal').classList.remove('open')" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:14px;cursor:pointer;font-family:inherit">Cancelar</button>
+  </div>
+</div>
 </body>
 </html>
