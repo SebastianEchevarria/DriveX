@@ -663,7 +663,21 @@ function cargarInicio() {
       }).join('');
     });
 
+    // Antes de repintar, recordamos qué "Documentos del vehículo" tenías abiertos,
+    // para no cerrártelos solos en cada refresco automático (cada 20s).
+    var abiertos = {};
+    document.querySelectorAll('[id^="docsveh-"]').forEach(function(el){
+      if (el.style.display !== 'none') abiertos[el.id] = true;
+    });
+
     cont.innerHTML = htmlOut;
+
+    Object.keys(abiertos).forEach(function(id){
+      var el = document.getElementById(id);
+      var chev = document.getElementById(id.replace('docsveh-', 'docschev-'));
+      if (el) el.style.display = 'block';
+      if (chev) chev.style.transform = 'rotate(180deg)';
+    });
   }).catch(function(){});
 }
 
