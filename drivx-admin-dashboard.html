@@ -494,8 +494,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div style="padding:20px 22px">
 
       <div style="margin-bottom:14px">
-        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
-        <input id="ap-nombre" type="text" placeholder="Ej: María López García" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <label id="ap-lbl-nombre" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
+        <input id="ap-nombre" type="text" placeholder="Ej: María López García" oninput="marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
@@ -505,12 +505,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
-          <input id="ap-email" type="email" placeholder="correo@ejemplo.com" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+          <label id="ap-lbl-email" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
+          <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
         </div>
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono</label>
-          <input id="ap-telefono" type="tel" placeholder="600 123 456" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+          <label id="ap-lbl-telefono" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono *</label>
+          <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
         </div>
       </div>
 
@@ -526,6 +526,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
       <div style="margin-bottom:20px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Matrículas que posee *</label>
+        <input id="ap-mat-buscar" type="text" placeholder="🔍 Buscar matrícula o modelo…" oninput="buscarEnListaMatriculas(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 12px;border-radius:10px;font-size:13px;font-family:inherit;margin-bottom:8px">
         <div id="ap-matriculas-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2)"></div>
       </div>
 
@@ -2495,6 +2496,30 @@ function confirmDeletePropietario(pid) {
 }
 
 // ── Alta de propietario + invitación ──
+function marcarCampoRellenoPropietario(inputId, labelId) {
+  var val = document.getElementById(inputId).value.trim();
+  document.getElementById(labelId).style.color = val ? 'var(--text3)' : 'var(--red)';
+}
+function buscarEnListaMatriculas(term) {
+  term = (term || '').trim().toUpperCase();
+  var labels = document.querySelectorAll('#ap-matriculas-list label');
+  labels.forEach(function(lbl){
+    var texto = lbl.textContent.toUpperCase();
+    lbl.style.display = (!term || texto.indexOf(term) !== -1) ? 'flex' : 'none';
+  });
+  // También ocultamos el título de una comunidad si ninguna de sus matrículas coincide
+  var headers = document.querySelectorAll('#ap-matriculas-list > div');
+  headers.forEach(function(h){
+    var next = h.nextElementSibling;
+    var algunaVisible = false;
+    while (next && next.tagName === 'LABEL') {
+      if (next.style.display !== 'none') algunaVisible = true;
+      next = next.nextElementSibling;
+    }
+    h.style.display = algunaVisible ? 'block' : 'none';
+  });
+}
+
 function openAddPropietarioModal() {
   if (!currentUser || currentUser.role !== 'admin') return;
   document.getElementById('ap-modal-title').textContent = 'Nuevo propietario';
@@ -2507,6 +2532,10 @@ function openAddPropietarioModal() {
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '📨 Guardar y enviar invitación';
+  document.getElementById('ap-mat-buscar').value = '';
+  ['ap-lbl-nombre','ap-lbl-email','ap-lbl-telefono'].forEach(function(id){
+    document.getElementById(id).style.color = 'var(--red)';
+  });
 
   var listEl = document.getElementById('ap-matriculas-list');
   var porCcaa = {};
@@ -2554,6 +2583,7 @@ function guardarPropietario() {
   if (!nombre) { alert('Introduce el nombre completo.'); return; }
   if (!doc) { alert('Introduce el DNI, NIE o pasaporte.'); return; }
   if (!email || email.indexOf('@') === -1) { alert('Introduce un email válido.'); return; }
+  if (!telefono) { alert('Introduce un teléfono de contacto.'); return; }
   if (!matriculas.length) { alert('Selecciona al menos una matrícula.'); return; }
 
   var pid = 'prop_' + Date.now();
