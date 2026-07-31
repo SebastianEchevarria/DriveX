@@ -526,14 +526,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
       <div style="margin-bottom:20px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Matrículas que posee *</label>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-          <select id="ap-mat-ccaa-filtro" onchange="filtrarMatriculasPorCcaaYTexto()" style="background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.5);color:#fff;padding:11px 10px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;flex-shrink:0">
-            <option value="">Todas</option>
-          </select>
-          <div style="position:relative;flex:1">
-            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
-            <input id="ap-mat-buscar" type="text" placeholder="Buscar matrícula o modelo…" oninput="filtrarMatriculasPorCcaaYTexto()" style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:11px 12px 11px 34px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;box-sizing:border-box;box-shadow:0 0 0 3px rgba(0,212,255,.12);outline:none">
-          </div>
+        <select id="ap-mat-ccaa-filtro" onchange="filtrarMatriculasPorCcaaYTexto()" style="width:100%;background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.5);color:#fff;padding:11px 12px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;margin-bottom:8px">
+          <option value="">Todas las comunidades</option>
+        </select>
+        <div style="position:relative;margin-bottom:10px">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none">🔍</span>
+          <input id="ap-mat-buscar" type="text" placeholder="Buscar matrícula o modelo…" oninput="filtrarMatriculasPorCcaaYTexto()" style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:11px 12px 11px 34px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;box-sizing:border-box;box-shadow:0 0 0 3px rgba(0,212,255,.12);outline:none">
         </div>
         <div id="ap-matriculas-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2)"></div>
       </div>
@@ -2573,7 +2571,7 @@ function openAddPropietarioModal() {
   }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0">No hay vehículos en la flota todavía</div>';
 
   var filtroCcaaSel = document.getElementById('ap-mat-ccaa-filtro');
-  filtroCcaaSel.innerHTML = '<option value="">Todas</option>' + ccaasPresentes.map(function(cc){
+  filtroCcaaSel.innerHTML = '<option value="">Todas las comunidades</option>' + ccaasPresentes.map(function(cc){
     return '<option value="'+cc+'">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</option>';
   }).join('');
 
