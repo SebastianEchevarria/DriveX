@@ -395,10 +395,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 <div id="add-cita-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
-      <div style="font-size:26px">📅</div>
+      <div style="font-size:26px" id="ac-modal-icon">📅</div>
       <div style="flex:1">
-        <div style="font-size:17px;font-weight:900">Nueva cita</div>
-        <div style="font-size:12px;color:var(--text3)">Visible para todos los conductores del vehículo</div>
+        <div style="font-size:17px;font-weight:900" id="ac-modal-title">Nueva cita</div>
+        <div style="font-size:12px;color:var(--text3)" id="ac-modal-subtitle">Visible para todos los conductores del vehículo</div>
       </div>
       <button onclick="closeAddCitaModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
     </div>
@@ -445,7 +445,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nota (opcional)</label>
         <input id="ac-nota" type="text" placeholder="Ej: Llevar ficha técnica" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
-      <button onclick="guardarNuevaCitaDashboard()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar cita</button>
+      <button id="ac-save-btn" onclick="guardarNuevaCitaDashboard()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar cita</button>
     </div>
   </div>
 </div>
@@ -474,6 +474,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <div id="cd-tipo" style="font-size:17px;font-weight:900">—</div>
         <div id="cd-ccaa" style="font-size:12px;color:var(--text3)">—</div>
       </div>
+      <button id="cd-edit-btn" onclick="editarCitaDashboard()" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);color:var(--cyan);border-radius:10px;width:32px;height:32px;font-size:14px;cursor:pointer;flex-shrink:0">✏️</button>
       <button onclick="closeCitaDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
     </div>
     <div id="cd-body" style="padding:8px 22px 22px"></div>
@@ -913,45 +914,66 @@ function openItvDetalle() {
   vencidas.sort(function(a,b){ return a.dias - b.dias; });
   porVencer.sort(function(a,b){ return a.dias - b.dias; });
 
-  function fila(item) {
-    var v = item.v;
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">' + v.matricula + '</div>' +
-        '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
-      '</div>' +
-      '<div style="font-size:12px;font-weight:800;color:' + (item.dias<0?'var(--red)':'var(--amber)') + ';text-align:right;flex-shrink:0">' +
-        (item.dias<0 ? 'Vencida hace ' + Math.abs(item.dias) + ' días' : 'En ' + item.dias + ' días') +
-      '</div>' +
-    '</div>';
-  }
-  function agruparPorCcaa(lista) {
-    var porCcaa = {};
-    lista.forEach(function(item){
-      var cc = item.v.ccaa || 'Sin asignar';
-      (porCcaa[cc] = porCcaa[cc] || []).push(item);
-    });
-    var orden = getCcaaOrder();
-    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
-      var ai = orden.indexOf(a), bi = orden.indexOf(b);
-      return (ai<0?99:ai) - (bi<0?99:bi);
-    });
-    return ccaasPresentes.map(function(cc){
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:14px 0 8px;border-radius:12px;background:'+(CCAA_BG[cc]||'#0d1f35')+';border:2px solid '+(CCAA_BORDER[cc]||'#2a4a6e')+'">' +
-        '<span style="font-size:20px">'+(CCAA_ICONS[cc]||'📍')+'</span>' +
-        '<span style="font-size:14px;font-weight:900;color:#fff">'+cc+'</span>' +
-      '</div>' + porCcaa[cc].map(fila).join('');
-    }).join('');
-  }
+  document.getElementById('itv-detalle-body').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
+  document.getElementById('itv-detalle-modal').style.display = 'flex';
 
-  var body = '';
-  body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Vencidas (' + vencidas.length + ')</div>';
-  body += vencidas.length ? agruparPorCcaa(vencidas) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna vencida</div>';
-  body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por vencer, próximos 30 días (' + porVencer.length + ')</div>';
+  fetchTodasLasCitas().then(function(lista){
+    _citasCache = lista;
+    // Para cada matrícula, buscamos su próxima cita (la más cercana en el futuro, o la última si todas son pasadas)
+    var citaPorMatricula = {};
+    lista.forEach(function(c){
+      if (!c.matricula) return;
+      var existente = citaPorMatricula[c.matricula];
+      if (!existente || (c.fecha||'') < (existente.fecha||'')) citaPorMatricula[c.matricula] = c;
+    });
+
+    function fila(item) {
+      var v = item.v;
+      var cita = citaPorMatricula[v.matricula];
+      var botonCita = cita
+        ? '<button onclick="event.stopPropagation();openCitaDetail('+cita.id+')" style="background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.5);color:var(--green);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap">✓ CITA</button>'
+        : '<button onclick="event.stopPropagation();openAddCitaModal(\''+v.ccaa+'\')" style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.5);color:var(--red);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap">SIN CITA</button>';
+
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">' + v.matricula + '</div>' +
+          '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
+        '</div>' +
+        botonCita +
+        '<div style="font-size:11px;font-weight:800;color:' + (item.dias<0?'var(--red)':'var(--amber)') + ';text-align:right;flex-shrink:0;min-width:80px">' +
+          (item.dias<0 ? 'Vencida hace ' + Math.abs(item.dias) + ' días' : 'En ' + item.dias + ' días') +
+        '</div>' +
+      '</div>';
+    }
+    function agruparPorCcaa(lista2) {
+      var porCcaa = {};
+      lista2.forEach(function(item){
+        var cc = item.v.ccaa || 'Sin asignar';
+        (porCcaa[cc] = porCcaa[cc] || []).push(item);
+      });
+      var orden = getCcaaOrder();
+      var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+        var ai = orden.indexOf(a), bi = orden.indexOf(b);
+        return (ai<0?99:ai) - (bi<0?99:bi);
+      });
+      return ccaasPresentes.map(function(cc){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:14px 0 8px;border-radius:12px;background:'+(CCAA_BG[cc]||'#0d1f35')+';border:2px solid '+(CCAA_BORDER[cc]||'#2a4a6e')+'">' +
+          '<span style="font-size:20px">'+(CCAA_ICONS[cc]||'📍')+'</span>' +
+          '<span style="font-size:14px;font-weight:900;color:#fff">'+cc+'</span>' +
+        '</div>' + porCcaa[cc].map(fila).join('');
+      }).join('');
+    }
+
+    var body = '';
+    body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Vencidas (' + vencidas.length + ')</div>';
+    body += vencidas.length ? agruparPorCcaa(vencidas) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna vencida</div>';
+    body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por vencer, próximos 30 días (' + porVencer.length + ')</div>';
   body += porVencer.length ? agruparPorCcaa(porVencer) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna por vencer</div>';
 
-  document.getElementById('itv-detalle-body').innerHTML = body;
-  document.getElementById('itv-detalle-modal').style.display = 'flex';
+    document.getElementById('itv-detalle-body').innerHTML = body;
+  }).catch(function(){
+    document.getElementById('itv-detalle-body').innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo cargar el detalle.</div>';
+  });
 }
 function closeItvDetalle() {
   document.getElementById('itv-detalle-modal').style.display = 'none';
@@ -2025,9 +2047,11 @@ function buildMiniCalendar(citas, baseNow, gid, cc) {
 }
 
 // ── Modal de detalle de cita (compartido con el widget de Inicio) ──
+var _citaDetailAbiertaId = null;
 function openCitaDetail(id) {
   var cita = _citasCache.find(function(c){ return c.id === id; });
   if (!cita) return;
+  _citaDetailAbiertaId = id;
   var info = citaTipoInfo(cita.tipo);
   var v = getAllVehiculos().find(function(x){ return x.matricula === cita.matricula; });
   var nombreCond = nombreConductorCita(cita.cid);
@@ -2099,8 +2123,14 @@ function closeCitaDetail() {
   document.getElementById('cita-detail-modal').style.display = 'none';
 }
 
+var _editandoCitaId = null;
 function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
   if (!currentUser || currentUser.role !== 'admin') return;
+  _editandoCitaId = null;
+  document.getElementById('ac-modal-title').textContent = 'Nueva cita';
+  document.getElementById('ac-modal-subtitle').textContent = 'Visible para todos los conductores del vehículo';
+  document.getElementById('ac-save-btn').textContent = '✓ Guardar cita';
+
   var ccaaSel = document.getElementById('ac-ccaa');
   ccaaSel.innerHTML = getCcaaOrder().map(function(cc){
     return '<option value="'+cc+'">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</option>';
@@ -2114,6 +2144,28 @@ function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
   document.getElementById('ac-lugar').value = '';
   document.getElementById('ac-nota').value = '';
   document.getElementById('add-cita-modal').style.display = 'flex';
+}
+function editarCitaDashboard() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var cita = _citasCache.find(function(c){ return c.id === _citaDetailAbiertaId; });
+  if (!cita) return;
+
+  var v = getAllVehiculos().find(function(x){ return x.matricula === cita.matricula; });
+  openAddCitaModal(v ? v.ccaa : getCcaaOrder()[0]);
+
+  _editandoCitaId = cita.id;
+  document.getElementById('ac-modal-title').textContent = 'Editar cita';
+  document.getElementById('ac-modal-subtitle').textContent = 'Los cambios se verán también en la app del supervisor';
+  document.getElementById('ac-save-btn').textContent = '✓ Guardar cambios';
+
+  document.getElementById('ac-matricula').value = cita.matricula || '';
+  document.getElementById('ac-tipo').value = cita.tipo || 'ITV';
+  document.getElementById('ac-fecha').value = cita.fecha || '';
+  document.getElementById('ac-hora').value = cita.hora || '';
+  document.getElementById('ac-lugar').value = cita.lugar || '';
+  document.getElementById('ac-nota').value = cita.nota || '';
+
+  closeCitaDetail();
 }
 function filtrarMatriculasPorCcaa() {
   var cc = document.getElementById('ac-ccaa').value;
@@ -2138,20 +2190,29 @@ function guardarNuevaCitaDashboard() {
   if (!matricula) { alert('Elige una matrícula.'); return; }
   if (!fecha) { alert('Elige una fecha.'); return; }
 
-  var cita = {
-    id: Date.now(), cid: '', matricula: matricula, tipo: tipo,
-    fecha: fecha, hora: hora || '', lugar: lugar || '', nota: nota || '', ts: Date.now()
-  };
-
   fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
     lista = lista || [];
     if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
     lista = lista.filter(Boolean);
-    lista.push(cita);
+
+    if (_editandoCitaId) {
+      // Editamos la cita existente conservando su id y su cid original
+      lista = lista.map(function(c){
+        if (c.id !== _editandoCitaId) return c;
+        return Object.assign({}, c, { matricula:matricula, tipo:tipo, fecha:fecha, hora:hora||'', lugar:lugar||'', nota:nota||'', ts:Date.now() });
+      });
+    } else {
+      lista.push({
+        id: Date.now(), cid: '', matricula: matricula, tipo: tipo,
+        fecha: fecha, hora: hora || '', lugar: lugar || '', nota: nota || '', ts: Date.now()
+      });
+    }
+
     return fetch(FIREBASE_URL + '/citas_globales.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(lista)
     }).then(fbCheck);
   }).then(function(){
+    _editandoCitaId = null;
     closeAddCitaModal();
     renderCitas();
     renderProximasCitasInicio();
