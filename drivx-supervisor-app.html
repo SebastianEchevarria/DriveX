@@ -1165,7 +1165,7 @@ function renderHomeProximas() {
     if (seen[k]) return; seen[k]=true; allCitas.push(c);
   }
   try { JSON.parse(localStorage.getItem('drivx_citas')||'[]').forEach(addCita); } catch(e){}
-  VEHICULOS.forEach(function(v){
+  VEHICULOS.concat(VEHICULOS_EXTRA).forEach(function(v){
     v.conductores.forEach(function(cid){
       try { JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(addCita); } catch(e){}
     });
