@@ -915,23 +915,39 @@ function openItvDetalle() {
 
   function fila(item) {
     var v = item.v;
-    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">' +
-      '<span style="font-size:18px">' + (CCAA_ICONS[v.ccaa]||'📍') + '</span>' +
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">' + v.matricula + '</div>' +
-        '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ' + v.ccaa + ' · ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
       '</div>' +
       '<div style="font-size:12px;font-weight:800;color:' + (item.dias<0?'var(--red)':'var(--amber)') + ';text-align:right;flex-shrink:0">' +
         (item.dias<0 ? 'Vencida hace ' + Math.abs(item.dias) + ' días' : 'En ' + item.dias + ' días') +
       '</div>' +
     '</div>';
   }
+  function agruparPorCcaa(lista) {
+    var porCcaa = {};
+    lista.forEach(function(item){
+      var cc = item.v.ccaa || 'Sin asignar';
+      (porCcaa[cc] = porCcaa[cc] || []).push(item);
+    });
+    var orden = getCcaaOrder();
+    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+      var ai = orden.indexOf(a), bi = orden.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+    return ccaasPresentes.map(function(cc){
+      return '<div style="font-size:11px;font-weight:800;color:var(--text2);margin:12px 0 4px;display:flex;align-items:center;gap:6px">' +
+        (CCAA_ICONS[cc]||'📍') + ' ' + cc +
+      '</div>' + porCcaa[cc].map(fila).join('');
+    }).join('');
+  }
 
   var body = '';
   body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Vencidas (' + vencidas.length + ')</div>';
-  body += vencidas.length ? vencidas.map(fila).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna vencida</div>';
+  body += vencidas.length ? agruparPorCcaa(vencidas) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna vencida</div>';
   body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por vencer, próximos 30 días (' + porVencer.length + ')</div>';
-  body += porVencer.length ? porVencer.map(fila).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna por vencer</div>';
+  body += porVencer.length ? agruparPorCcaa(porVencer) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna por vencer</div>';
 
   document.getElementById('itv-detalle-body').innerHTML = body;
   document.getElementById('itv-detalle-modal').style.display = 'flex';
