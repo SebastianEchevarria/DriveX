@@ -82,7 +82,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .ccaa-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
 .veh-card{background:var(--surface2);border-radius:18px;padding:16px 18px;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 .veh-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.veh-icon{width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.veh-icon{width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);border:2px solid var(--cyan);box-shadow:0 0 10px rgba(0,212,255,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
 .veh-plate{font-size:17px;font-weight:900;font-family:var(--mono);color:var(--cyan)}
 .veh-model{font-size:12px;color:var(--text3)}
 .cond-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
@@ -352,13 +352,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 <!-- ══════════════ MODAL: FICHA DE VEHÍCULO ══════════════ -->
 <div id="vehicle-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
-      <div class="veh-icon" id="vd-icon" style="width:48px;height:48px;font-size:24px">🚗</div>
-      <div style="flex:1">
-        <div style="font-size:19px;font-weight:900;font-family:var(--mono);color:var(--cyan)" id="vd-plate">—</div>
-        <div style="font-size:12px;color:var(--text3)" id="vd-model">—</div>
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="veh-icon" id="vd-icon" style="width:48px;height:48px;font-size:24px">🚗</div>
+        <div id="vd-plate" style="flex:1">—</div>
+        <button onclick="closeVehicleDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;flex-shrink:0">✕</button>
       </div>
-      <button onclick="closeVehicleDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px;margin-left:62px" id="vd-model">—</div>
     </div>
 
     <div style="padding:20px 22px">
@@ -1269,14 +1269,14 @@ function paintFlota() {
       });
 
       html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" data-order="' + vIdx + '" style="border:2px solid ' + bc + ';cursor:pointer" onclick="openVehicleDetail(\'' + v.matricula + '\')">';
-      html += '<div class="veh-top">';
+      html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += '<div class="veh-icon">' + v.icon + '</div>';
-      html += '<div style="flex:1"><div class="veh-plate">' + v.matricula + '</div>';
-      html += '<div class="veh-model">' + v.modelo + ' · ' + v.ciudad + '</div></div>';
+      html += plateHtml(v.matricula);
       html += isAdmin
-        ? '<span class="edit-btn">Ver ficha ›</span>'
-        : '<span class="manager-lock">🔒 solo lectura</span>';
+        ? '<span class="edit-btn" style="margin-left:auto">Ver ficha ›</span>'
+        : '<span class="manager-lock" style="margin-left:auto">🔒 solo lectura</span>';
       html += '</div>';
+      html += '<div class="veh-model" style="margin:0 0 10px 58px">' + v.modelo + ' · ' + v.ciudad + '</div>';
       html += '<div style="font-size:12px;font-weight:700;color:' + itvColor + ';margin-bottom:6px">' + itvTxt + '</div>';
       html += '<div id="docbadge_' + matSlug(v.matricula) + '" style="font-size:11px;color:var(--text3);margin-bottom:8px">📄 Cargando documentos…</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
@@ -1366,6 +1366,36 @@ var DOC_TYPES = [
   { key:'itv',     label:'Informe de ITV',                icon:'🔧' }
 ];
 function matSlug(mat){ return mat.replace(/\s/g,'_'); }
+// Círculo de 12 estrellas de la UE (igual que en la app de Propietarios)
+function estrellasUE(size) {
+  size = size || 20;
+  var r = size/2 - 3;
+  var cx = size/2, cy = size/2;
+  var html = '';
+  for (var i=0;i<12;i++){
+    var angle = (i/12)*2*Math.PI - Math.PI/2;
+    var x = cx + r*Math.cos(angle);
+    var y = cy + r*Math.sin(angle);
+    html += '<span style="position:absolute;left:'+(x-3.5)+'px;top:'+(y-3.5)+'px;font-size:6px;color:#ffd700;line-height:1">★</span>';
+  }
+  return '<div style="position:relative;width:'+size+'px;height:'+size+'px">' + html + '</div>';
+}
+// Separa números y letras de la matrícula para que se vean como en una placa real
+function formatMatriculaPlaca(matricula) {
+  var m = (matricula || '').trim().match(/^(\d+)\s*([A-Za-z]+)$/);
+  if (!m) return matricula;
+  return '<span>' + m[1] + '</span><span style="margin-left:9px">' + m[2] + '</span>';
+}
+// Placa estilo matrícula real (azul francia, contorno blanco), igual en las 4 apps
+function plateHtml(matricula) {
+  return '<div style="display:inline-flex;align-items:stretch;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff">' +
+    '<div style="background:#0055a4;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:2px solid #ffffff">' +
+      estrellasUE(20) +
+      '<span style="font-weight:900;font-size:11px;margin-top:1px">E</span>' +
+    '</div>' +
+    '<div style="background:#0055a4;color:#fff;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 12px;display:flex;align-items:center">'+formatMatriculaPlaca(matricula)+'</div>' +
+  '</div>';
+}
 var _vdCurrentMat = null;
 var _vdDocsCache = {};
 
@@ -2674,7 +2704,7 @@ function openVehicleDetail(matricula) {
   _vdCurrentMat = matricula;
 
   document.getElementById('vd-icon').textContent = v.icon;
-  document.getElementById('vd-plate').textContent = v.matricula;
+  document.getElementById('vd-plate').innerHTML = plateHtml(v.matricula);
   document.getElementById('vd-model').textContent = v.modelo + ' · ' + v.ciudad + ' · ' + v.ccaa;
 
   var now = new Date();

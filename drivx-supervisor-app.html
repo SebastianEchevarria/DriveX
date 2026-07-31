@@ -653,6 +653,34 @@ function ccaaGroupBg(cc) {
 }
 var VEHICULOS_OCULTOS = {};
 function matSlugV(mat) { return mat.replace(/\s/g,'_'); }
+// Círculo de 12 estrellas de la UE (igual que en el resto de apps)
+function estrellasUE(size) {
+  size = size || 20;
+  var r = size/2 - 3;
+  var cx = size/2, cy = size/2;
+  var html = '';
+  for (var i=0;i<12;i++){
+    var angle = (i/12)*2*Math.PI - Math.PI/2;
+    var x = cx + r*Math.cos(angle);
+    var y = cy + r*Math.sin(angle);
+    html += '<span style="position:absolute;left:'+(x-3.5)+'px;top:'+(y-3.5)+'px;font-size:6px;color:#ffd700;line-height:1">★</span>';
+  }
+  return '<div style="position:relative;width:'+size+'px;height:'+size+'px">' + html + '</div>';
+}
+function formatMatriculaPlaca(matricula) {
+  var m = (matricula || '').trim().match(/^(\d+)\s*([A-Za-z]+)$/);
+  if (!m) return matricula;
+  return '<span>' + m[1] + '</span><span style="margin-left:9px">' + m[2] + '</span>';
+}
+function plateHtml(matricula) {
+  return '<div style="display:inline-flex;align-items:stretch;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff">' +
+    '<div style="background:#0055a4;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:2px solid #ffffff">' +
+      estrellasUE(20) +
+      '<span style="font-weight:900;font-size:11px;margin-top:1px">E</span>' +
+    '</div>' +
+    '<div style="background:#0055a4;color:#fff;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 12px;display:flex;align-items:center">'+formatMatriculaPlaca(matricula)+'</div>' +
+  '</div>';
+}
 function getAllVehiculos() {
   return VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlugV(v.matricula)]; });
 }
@@ -806,11 +834,12 @@ function paintVehiculosHome() {
 
       var mid = 'm' + v.matricula.replace(/[^a-zA-Z0-9]/g,'');
       html += '<div id="'+mid+'" data-matricula="'+v.matricula.replace(/\s/g,'').toUpperCase()+'" data-order="'+vIdx+'" style="background:#0d1f35;border:2px solid '+bc+';border-radius:18px;padding:16px 18px;margin-bottom:16px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.6)">';
-      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">';
-      html += '<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px">'+v.icon+'</div>';
-      html += '<div style="flex:1"><div style="font-size:18px;font-weight:900;font-family:var(--mono);color:var(--cyan)">'+v.matricula+'</div>';
-      html += '<div style="font-size:12px;color:var(--text3)">'+v.modelo+' · '+v.ciudad+'</div></div>';
-      html += '<span style="font-size:10px;color:var(--text3)">› ver</span></div>';
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">';
+      html += '<div style="width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);border:2px solid var(--cyan);box-shadow:0 0 10px rgba(0,212,255,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">'+v.icon+'</div>';
+      html += plateHtml(v.matricula);
+      html += '<span style="font-size:10px;color:var(--text3);margin-left:auto">› ver</span>';
+      html += '</div>';
+      html += '<div style="font-size:12px;color:var(--text3);margin:0 0 10px 58px">'+v.modelo+' · '+v.ciudad+'</div>';
       html += '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:8px">'+itvTxt+'</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:8px">'+condRows+'</div>';
       html += '</div>';
