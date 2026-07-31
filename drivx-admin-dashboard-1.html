@@ -298,13 +298,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <div id="fichaje-alerts"></div>
         <div id="proximas-citas-inicio"></div>
         <div class="stat-grid" id="inicio-stats"></div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px">
-          <div style="font-size:14px;font-weight:800;margin-bottom:10px">👋 Bienvenido al Panel de Administración</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.7">
-            Este panel está conectado a la <b>App Conductor</b> y a la <b>App Supervisor</b>. Todo lo que se registre allí — citas, revisiones, documentación de vehículos, fichajes — se refleja aquí automáticamente.<br><br>
-            Como <b id="inicio-role-note">administrador</b> puedes ver y editar toda la información. Iremos añadiendo más secciones progresivamente (Citas, Conductores, Facturación, Informes...).
-          </div>
-        </div>
       </div>
 
       <!-- ── FLOTA ── -->
@@ -454,6 +447,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
       </div>
       <button onclick="guardarNuevaCitaDashboard()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar cita</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: DETALLE ITV ══════════════ -->
+<div id="itv-detalle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="font-size:26px">🔧</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900">ITV urgente / vencida</div>
+        <div style="font-size:12px;color:var(--text3)">Toda la flota</div>
+      </div>
+      <button onclick="closeItvDetalle()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="itv-detalle-body" style="padding:16px 22px 22px"></div>
   </div>
 </div>
 
@@ -651,7 +659,6 @@ function enterShell() {
   document.getElementById('sb-avatar').textContent = isAdmin ? '👑' : '📊';
   document.getElementById('sb-name').textContent = currentUser.nombre;
   document.getElementById('sb-role').textContent = isAdmin ? 'Administrador' : 'Manager (solo lectura)';
-  document.getElementById('inicio-role-note').textContent = isAdmin ? 'administrador' : 'manager';
 
   renderInicioStats();
   renderFlota();
@@ -877,17 +884,76 @@ function paintInicioStats() {
 
   var allVeh = getAllVehiculos();
   var totalVeh = allVeh.length;
-  var totalCond = CONDUCTORES.length;
   var urgentes = allVeh.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; }).length;
   var ccaas = {}; allVeh.forEach(function(v){ ccaas[v.ccaa] = (ccaas[v.ccaa]||0) + 1; });
 
   var html = '';
   html += statCard('Vehículos en flota', totalVeh, Object.keys(ccaas).length + ' comunidades autónomas');
-  html += statCard('Conductores activos', totalCond, 'Repartidos en toda la flota');
-  html += statCard('ITV urgente / vencida', urgentes, urgentes > 0 ? '⚠ Requiere atención' : '✓ Todo en orden', urgentes > 0 ? 'var(--red)' : 'var(--green)');
-  html += statCard('Comunidades autónomas', Object.keys(ccaas).length, Object.keys(ccaas).join(' · '));
+  html += '<div class="stat-card" onclick="openItvDetalle()" style="cursor:pointer;position:relative">' +
+    '<div class="lbl">ITV urgente / vencida</div>' +
+    '<div class="val" style="' + (urgentes>0?'color:var(--red)':'color:var(--green)') + '">' + urgentes + '</div>' +
+    '<div class="foot">' + (urgentes>0?'⚠ Toca para ver el detalle':'✓ Todo en orden') + '</div>' +
+    '<span style="position:absolute;top:16px;right:16px;color:var(--text3);font-size:16px">›</span>' +
+  '</div>';
 
   document.getElementById('inicio-stats').innerHTML = html;
+}
+function openItvDetalle() {
+  var now = new Date();
+  function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+
+  var allVeh = getAllVehiculos();
+  var vencidas = [], porVencer = [];
+  allVeh.forEach(function(v){
+    var d = dU(v.docs.itv.fecha);
+    if (d < 0) vencidas.push({ v:v, dias:d });
+    else if (d <= 30) porVencer.push({ v:v, dias:d });
+  });
+  vencidas.sort(function(a,b){ return a.dias - b.dias; });
+  porVencer.sort(function(a,b){ return a.dias - b.dias; });
+
+  function fila(item) {
+    var v = item.v;
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">' + v.matricula + '</div>' +
+        '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
+      '</div>' +
+      '<div style="font-size:12px;font-weight:800;color:' + (item.dias<0?'var(--red)':'var(--amber)') + ';text-align:right;flex-shrink:0">' +
+        (item.dias<0 ? 'Vencida hace ' + Math.abs(item.dias) + ' días' : 'En ' + item.dias + ' días') +
+      '</div>' +
+    '</div>';
+  }
+  function agruparPorCcaa(lista) {
+    var porCcaa = {};
+    lista.forEach(function(item){
+      var cc = item.v.ccaa || 'Sin asignar';
+      (porCcaa[cc] = porCcaa[cc] || []).push(item);
+    });
+    var orden = getCcaaOrder();
+    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+      var ai = orden.indexOf(a), bi = orden.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+    return ccaasPresentes.map(function(cc){
+      return '<div style="font-size:11px;font-weight:800;color:var(--text2);margin:12px 0 4px;display:flex;align-items:center;gap:6px">' +
+        (CCAA_ICONS[cc]||'📍') + ' ' + cc +
+      '</div>' + porCcaa[cc].map(fila).join('');
+    }).join('');
+  }
+
+  var body = '';
+  body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Vencidas (' + vencidas.length + ')</div>';
+  body += vencidas.length ? agruparPorCcaa(vencidas) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna vencida</div>';
+  body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por vencer, próximos 30 días (' + porVencer.length + ')</div>';
+  body += porVencer.length ? agruparPorCcaa(porVencer) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna por vencer</div>';
+
+  document.getElementById('itv-detalle-body').innerHTML = body;
+  document.getElementById('itv-detalle-modal').style.display = 'flex';
+}
+function closeItvDetalle() {
+  document.getElementById('itv-detalle-modal').style.display = 'none';
 }
 function statCard(lbl, val, foot, color) {
   return '<div class="stat-card"><div class="lbl">' + lbl + '</div>' +
@@ -1333,7 +1399,7 @@ function paintGastos() {
       });
     });
 
-    html += '<div class="ccaa-header" style="background:'+(ccBg[cc]||'#0d1f35')+';border-color:'+(ccBorder[cc]||'#2a4a6e')+'" id="btn_'+gid+'">';
+    html += '<div class="ccaa-header" style="background:'+(ccBg[cc]||'#0d1f35')+';border-color:'+(ccBorder[cc]||'#2a4a6e')+';flex-wrap:wrap" id="btn_'+gid+'">';
     html += '<span style="font-size:22px">'+(ccaaIcons[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+mats.length+' matrícula'+(mats.length!==1?'s':'')+' con gastos · '+totalTickets+' tickets</div></div>';
@@ -1788,7 +1854,7 @@ function paintCitas() {
     citasCcaa.sort(function(a,b){ return (a.fecha+((a.hora)||'00:00')).localeCompare(b.fecha+((b.hora)||'00:00')); });
     var gid = 'cg' + cc.replace(/[^a-zA-Z0-9]/g, '');
 
-    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+'" id="btn_'+gid+'">';
+    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+';flex-wrap:wrap" id="btn_'+gid+'">';
     html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+citasCcaa.length+' cita'+(citasCcaa.length!==1?'s':'')+' programada'+(citasCcaa.length!==1?'s':'')+'</div></div>';
@@ -1836,16 +1902,13 @@ function paintCitas() {
     html += '</div>';
   });
 
-  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
-  var openSearches = {};
-  container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
-    if (el.style.display !== 'none') {
-      var input = document.getElementById(el.id.replace('searchbox_', 'searchinput_'));
-      openSearches[el.id] = input ? input.value : '';
-    }
+  // Guardamos qué comunidades tenías cerradas, y qué buscadores abiertos (con
+  // su texto), antes de reemplazar el HTML — así el refresco automático no te
+  // deshace lo que ya habías dejado así.
+  var gruposCerrados = {};
+  container.querySelectorAll('[id^="cg"]').forEach(function(el) {
+    if (el.id.indexOf('cg') === 0 && el.style.display === 'none') gruposCerrados[el.id] = true;
   });
-
-  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
   var openSearches = {};
   container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
     if (el.style.display !== 'none') {
@@ -1856,16 +1919,11 @@ function paintCitas() {
 
   container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin citas todavía</div>';
 
-  Object.keys(openSearches).forEach(function(boxId) {
-    var box = document.getElementById(boxId);
-    if (!box) return;
-    box.style.display = 'block';
-    var gid = boxId.replace('searchbox_', '');
-    var input = document.getElementById('searchinput_' + gid);
-    if (input) {
-      input.value = openSearches[boxId];
-      filterCitasPorMatricula(gid, openSearches[boxId]);
-    }
+  Object.keys(gruposCerrados).forEach(function(gidCerrado) {
+    var el = document.getElementById(gidCerrado);
+    var chev = document.getElementById('chv_' + gidCerrado);
+    if (el) el.style.display = 'none';
+    if (chev) chev.textContent = '›';
   });
 
   Object.keys(openSearches).forEach(function(boxId) {
