@@ -404,6 +404,29 @@ function getAllVehiculosOwner() { return VEHICULOS; } // + vehículos añadidos,
 var VEHICULOS_EXTRA_O = [];
 function todosLosVehiculos() { return VEHICULOS.concat(VEHICULOS_EXTRA_O); }
 
+function citasVehHtml(matricula, citasLista, now) {
+  var propias = citasLista.filter(function(c){ return c && c.matricula === matricula; });
+  if (!propias.length) return '';
+  propias.sort(function(a,b){ return (a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||'')); });
+
+  var filas = propias.map(function(c){
+    var d = new Date(c.fecha + 'T' + (c.hora||'00:00'));
+    var dias = Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);
+    var vencida = dias < 0;
+    var color = vencida ? 'var(--red)' : dias<=2 ? 'var(--amber)' : 'var(--cyan)';
+    var border = vencida ? 'rgba(255,71,87,.4)' : dias<=2 ? 'rgba(255,179,0,.4)' : 'rgba(0,212,255,.3)';
+    var fechaTxt = d.toLocaleDateString('es-ES', {weekday:'short', day:'2-digit', month:'short'});
+    return '<div onclick="event.stopPropagation();openCitaDetail('+c.id+')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1.5px solid '+border+';border-radius:10px;margin-bottom:6px;cursor:pointer;background:rgba(255,255,255,.02)">' +
+      '<div style="font-size:16px">📅</div>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800">'+c.tipo+'</div>' +
+      '<div style="font-size:10px;color:var(--text3)">'+fechaTxt+(c.hora?' · '+c.hora:'')+'</div></div>' +
+      '<div style="font-size:10px;font-weight:800;color:'+color+'">'+(vencida?'VENCIDA':dias===0?'HOY':dias===1?'MAÑANA':'en '+dias+' días')+'</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="section-title" style="margin:0 0 6px">📅 Citas programadas</div>' + filas;
+}
+
 function matSlugO(mat) { return mat.replace(/\s/g,'_'); }
 // Genera el círculo de 12 estrellas de la Unión Europea, como en las matrículas reales
 function estrellasUE(size) {
@@ -436,12 +459,17 @@ function cargarInicio() {
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/documentos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/documentos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
     var invitados = results[1] || {};
     var fichajes = results[2] || {};
     var documentos = results[3] || {};
+    var citasLista = results[4] || [];
+    if (!Array.isArray(citasLista)) citasLista = Object.keys(citasLista).map(function(k){ return citasLista[k]; });
+    citasLista = citasLista.filter(Boolean);
+    _citasCache = citasLista; // así el modal de detalle también funciona desde Inicio
     VEHICULOS_EXTRA_O = Object.keys(extra).map(function(k){ var v = extra[k]||{}; return {
       matricula: v.matricula||k, modelo: v.modelo||'Vehículo', ciudad: v.ciudad||'', ccaa: v.ccaa||'Andalucía',
       icon: v.icon||'🚗', docs: { itv: { fecha: (v.docs&&v.docs.itv&&v.docs.itv.fecha) || null } }, conductores: v.conductores||[]
@@ -532,6 +560,7 @@ function cargarInicio() {
           '</div>' +
           '<div class="veh-model" style="margin:0 0 12px 58px">'+v.modelo+' · '+v.ccaa+'</div>' +
           '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:12px">'+itvTxt+'</div>' +
+          citasVehHtml(v.matricula, citasLista, now) +
           '<div class="section-title" style="margin:0 0 6px">Conductores</div>' +
           condHtml +
           '<button onclick="toggleDocsVeh(\''+vid+'\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:14px;border-radius:12px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.12));cursor:pointer;box-shadow:0 4px 14px rgba(0,212,255,.18)">' +

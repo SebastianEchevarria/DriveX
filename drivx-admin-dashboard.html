@@ -363,7 +363,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
     <div style="padding:20px 22px">
       <div class="sb-section" style="padding:0 0 10px">Estado ITV</div>
-      <div id="vd-itv" style="font-size:13px;font-weight:700;margin-bottom:22px">—</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
+        <div id="vd-itv" style="font-size:13px;font-weight:700;flex:1">—</div>
+        <button onclick="editarFechaItv()" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0">✏️ Editar fecha</button>
+      </div>
 
       <div class="sb-section" style="padding:0 0 10px">Conductores y turnos</div>
       <div id="vd-conductores" style="margin-bottom:14px"></div>
@@ -656,6 +659,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
           <option value="diesel">⛽ Diésel</option>
         </select>
         <div style="font-size:11px;color:var(--text3);margin-top:5px">Si es eléctrico, en Gastos del conductor aparecerá "Carga" en vez de "Gasolina"</div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Fecha de vencimiento de la ITV</label>
+        <input id="av-itv-fecha" type="date" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">Se usará para avisar de la ITV en el Dashboard, Supervisor y la app de Propietarios</div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
@@ -2698,6 +2707,31 @@ function guardarPropietario() {
   });
 }
 
+function editarFechaItv() {
+  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  var mySlug = matSlug(_vdCurrentMat);
+  var actual = VEHICULOS_EXTRA.find(function(v){ return v.matricula === _vdCurrentMat; });
+  if (!actual) {
+    alert('Este vehículo es uno de los originales del sistema, y su fecha de ITV está escrita directamente en el código — no se puede editar desde aquí. Dime la matrícula y la fecha correcta, y lo actualizamos juntos.');
+    return;
+  }
+  var fechaActual = (actual.docs && actual.docs.itv && actual.docs.itv.fecha) || '';
+  var nueva = prompt('Nueva fecha de vencimiento de ITV (formato AAAA-MM-DD):', fechaActual);
+  if (nueva === null) return;
+  nueva = nueva.trim();
+  if (nueva && !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) { alert('Formato de fecha no válido. Usa AAAA-MM-DD, por ejemplo 2026-08-10.'); return; }
+
+  fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '/docs/itv.json', {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ fecha: nueva || null, ok: !!nueva })
+  }).then(fbCheck).then(function(){
+    openVehicleDetail(_vdCurrentMat);
+    renderFlota();
+  }).catch(function(err){
+    alert('No se pudo actualizar la fecha: ' + err.message);
+  });
+}
+
 function openVehicleDetail(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
@@ -2812,6 +2846,7 @@ function openAddVehicleModal(ccaa) {
   document.getElementById('av-modelo').value = '';
   document.getElementById('av-anio').value = '';
   document.getElementById('av-ciudad').value = '';
+  document.getElementById('av-itv-fecha').value = '';
   document.getElementById('av-combustible').value = 'electrico';
   var ccaaSelect = document.getElementById('av-ccaa');
   ccaaSelect.innerHTML = getCcaaOrder().map(function(cc){ return '<option value="'+cc+'">'+cc+'</option>'; }).join('');
@@ -2854,6 +2889,7 @@ function guardarNuevoVehiculo() {
   var combustible = document.getElementById('av-combustible').value;
   var ciudad = (document.getElementById('av-ciudad').value || '').trim();
   var ccaa = document.getElementById('av-ccaa').value;
+  var itvFecha = document.getElementById('av-itv-fecha').value || null;
 
   if (!matricula || !marca || !modelo || !anio) { alert('Completa matrícula, marca, modelo y año.'); return; }
   if (getAllVehiculos().some(function(v){ return v.matricula === matricula; })) { alert('Ya existe un vehículo con esa matrícula.'); return; }
@@ -2862,7 +2898,7 @@ function guardarNuevoVehiculo() {
   var vehiculo = {
     matricula: matricula, marca: marca, modelo: marca + ' ' + modelo, anio: anio,
     combustible: combustible, ciudad: ciudad, ccaa: ccaa, icon: icon,
-    docs: { itv: { fecha: null, ok: false }, seguro: { fecha: null, ok: false }, vtc: { ok: false } },
+    docs: { itv: { fecha: itvFecha, ok: !!itvFecha }, seguro: { fecha: null, ok: false }, vtc: { ok: false } },
     conductores: []
   };
 
