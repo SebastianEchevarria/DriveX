@@ -494,24 +494,24 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
     <div style="padding:20px 22px">
 
       <div style="margin-bottom:14px">
-        <label id="ap-lbl-nombre" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
+        <label id="ap-lbl-nombre" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
         <input id="ap-nombre" type="text" placeholder="Ej: María López García" oninput="marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
-        <label id="ap-lbl-doc" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
+        <label id="ap-lbl-doc" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
         <input id="ap-doc" type="text" placeholder="Ej: 12345678A" oninput="marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-        <div>
-          <label id="ap-lbl-email" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
-          <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
-        </div>
-        <div>
-          <label id="ap-lbl-telefono" style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono *</label>
-          <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
-        </div>
+      <div style="margin-bottom:14px">
+        <label id="ap-lbl-email" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Será su usuario para acceder a la futura app de Propietarios</div>
+        <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label id="ap-lbl-telefono" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono *</label>
+        <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
@@ -538,12 +538,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
         <div id="ap-matriculas-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2)"></div>
       </div>
 
-      <button onclick="guardarPropietario()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer;margin-bottom:10px" id="ap-save-btn">📨 Guardar y enviar invitación</button>
+      <button onclick="guardarPropietario()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer;margin-bottom:10px" id="ap-save-btn">📨 ENVIAR INVITACIÓN</button>
 
       <div id="ap-invite-result" style="display:none;margin-top:6px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código de invitación generado — compártelo con el propietario</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código generado — compártelo con el propietario por el medio que prefieras</div>
         <div id="ap-invite-code" style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--green);letter-spacing:1px">—</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:6px">Servirá para registrarse en la futura app de Propietarios</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px">Con este código, y el email que introdujiste, podrá darse de alta en la futura app de Propietarios</div>
         <button onclick="copiarCodigoInvitePropietario()" style="margin-top:10px;padding:7px 16px;border-radius:8px;border:1px solid rgba(0,230,118,.4);background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">📋 Copiar código</button>
       </div>
     </div>
@@ -1217,7 +1217,7 @@ function paintFlota() {
     html += urg > 0
       ? '<span style="background:rgba(255,71,87,.15);color:var(--red);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:800">' + urg + ' ⚠</span>'
       : '<span style="background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:2px 8px;font-size:10px">✓ OK</span>';
-    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\'' + gid + '\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\'' + gid + '\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3);touch-action:manipulation">🔍</button>';
     if (CCAA_BASE.indexOf(cc) === -1 && isAdmin) {
       html += '<button id="delccaa_' + gid + '" onclick="event.stopPropagation();confirmDeleteCcaa(\'' + gid + '\',\'' + cc + '\')" title="Eliminar comunidad autónoma" style="background:rgba(255,71,87,.15);border:1.5px solid rgba(255,71,87,.5);color:var(--red);width:36px;height:36px;border-radius:10px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:6px;flex-shrink:0">🗑</button>';
     }
@@ -1536,7 +1536,7 @@ function paintGastos() {
     html += '<span style="font-size:22px">'+(ccaaIcons[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+mats.length+' matrícula'+(mats.length!==1?'s':'')+' con gastos · '+totalTickets+' tickets</div></div>';
-    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3);touch-action:manipulation">🔍</button>';
     html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
     html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
       '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
@@ -1991,7 +1991,7 @@ function paintCitas() {
     html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+citasCcaa.length+' cita'+(citasCcaa.length!==1?'s':'')+' programada'+(citasCcaa.length!==1?'s':'')+'</div></div>';
-    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3);touch-action:manipulation">🔍</button>';
     html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
     html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
       '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
@@ -2402,7 +2402,7 @@ function paintPropietarios() {
     html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
     html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
     html += '<div style="font-size:11px;color:var(--text3)">'+lista.length+' propietario'+(lista.length!==1?'s':'')+'</div></div>';
-    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar propietario" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3)">🔍</button>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar propietario" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 2px 10px rgba(0,212,255,.3);touch-action:manipulation">🔍</button>';
     html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
     html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
       '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
@@ -2508,9 +2508,9 @@ function marcarCampoRellenoPropietario(inputId, labelId) {
   var input = document.getElementById(inputId);
   var val = input.value.trim();
   var lleno = !!val;
-  if (labelId) document.getElementById(labelId).style.color = lleno ? 'var(--text3)' : 'var(--red)';
-  input.style.borderColor = lleno ? 'rgba(0,230,118,.5)' : 'rgba(255,71,87,.6)';
-  input.style.background = lleno ? 'rgba(0,230,118,.06)' : 'rgba(255,71,87,.08)';
+  if (labelId) document.getElementById(labelId).style.color = lleno ? 'var(--text3)' : 'var(--amber)';
+  input.style.borderColor = lleno ? 'rgba(0,230,118,.5)' : 'rgba(255,179,0,.6)';
+  input.style.background = lleno ? 'rgba(0,230,118,.06)' : 'rgba(255,179,0,.08)';
 }
 function filtrarMatriculasPorCcaaYTexto() {
   var term = (document.getElementById('ap-mat-buscar').value || '').trim().toUpperCase();
@@ -2546,7 +2546,7 @@ function openAddPropietarioModal() {
   document.getElementById('ap-cuenta').value = '';
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
-  document.getElementById('ap-save-btn').textContent = '📨 Guardar y enviar invitación';
+  document.getElementById('ap-save-btn').textContent = '📨 ENVIAR INVITACIÓN';
   document.getElementById('ap-mat-buscar').value = '';
   marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre');
   marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc');
@@ -2628,7 +2628,7 @@ function guardarPropietario() {
   }).catch(function(err){
     alert('No se pudo guardar el propietario: ' + err.message);
     btn.disabled = false;
-    btn.textContent = '📨 Guardar y enviar invitación';
+    btn.textContent = '📨 ENVIAR INVITACIÓN';
   });
 }
 
