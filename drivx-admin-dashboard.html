@@ -937,8 +937,9 @@ function openItvDetalle() {
       return (ai<0?99:ai) - (bi<0?99:bi);
     });
     return ccaasPresentes.map(function(cc){
-      return '<div style="font-size:11px;font-weight:800;color:var(--text2);margin:12px 0 4px;display:flex;align-items:center;gap:6px">' +
-        (CCAA_ICONS[cc]||'📍') + ' ' + cc +
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:14px 0 8px;border-radius:12px;background:'+(CCAA_BG[cc]||'#0d1f35')+';border:2px solid '+(CCAA_BORDER[cc]||'#2a4a6e')+'">' +
+        '<span style="font-size:20px">'+(CCAA_ICONS[cc]||'📍')+'</span>' +
+        '<span style="font-size:14px;font-weight:900;color:#fff">'+cc+'</span>' +
       '</div>' + porCcaa[cc].map(fila).join('');
     }).join('');
   }
