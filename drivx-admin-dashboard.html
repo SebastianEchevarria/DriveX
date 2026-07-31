@@ -92,6 +92,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .manager-lock{font-size:10px;color:var(--text3);font-style:italic}
 .veh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0 16px}
 .dual-btn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mini-calendar{max-width:230px}
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:190}
 #hamburger-btn{display:none;background:transparent;border:1px solid var(--border2);color:var(--text2);width:36px;height:36px;border-radius:9px;font-size:16px;cursor:pointer;flex-shrink:0}
 
@@ -105,6 +106,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
   .veh-grid{grid-template-columns:1fr}
   .stat-grid{grid-template-columns:1fr 1fr;gap:10px}
   .dual-btn-row{grid-template-columns:1fr}
+  .mini-calendar{max-width:100%;padding:14px}
+  .mini-calendar > div:nth-child(2) > div, .mini-calendar > div:nth-child(3) > div{font-size:13px !important}
+  .mini-calendar > div:nth-child(3) > div{padding:2px 0}
   .tb-title{font-size:15px}
   .tb-sub{font-size:10px}
   .sync-pill{display:none}
@@ -2048,7 +2052,7 @@ function buildMiniCalendar(citas, baseNow, gid, cc) {
   });
 
   var mesNombre = now.toLocaleDateString('es-ES', { month:'long', year:'numeric' });
-  var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;max-width:230px">';
+  var html = '<div class="mini-calendar" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
   html += '<button onclick="cambiarMesCalendario(\''+gid+'\',\''+cc+'\',-1)" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:var(--cyan);width:20px;height:20px;border-radius:5px;font-size:10px;cursor:pointer;line-height:1;padding:0">‹</button>';
   html += '<div style="font-size:10px;font-weight:800;color:var(--text2);text-transform:capitalize">🗓️ '+mesNombre+'</div>';
