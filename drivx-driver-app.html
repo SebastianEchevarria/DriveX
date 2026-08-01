@@ -329,11 +329,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
           <div style="font-size:12px;color:var(--text3);margin-top:2px" id="conductor-modelo">—</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--surface2);border-radius:10px;padding:10px 12px">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Matrícula</div>
-          <div style="font-size:15px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--cyan)" id="conductor-matricula">—</div>
-        </div>
+      <div style="margin-bottom:10px" id="conductor-matricula-wrap"></div>
+      <div style="display:grid;grid-template-columns:1fr">
         <div style="background:var(--surface2);border-radius:10px;padding:10px 12px">
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Turno</div>
           <div style="font-size:13px;font-weight:700;color:var(--amber)" id="conductor-turno">—</div>
@@ -1450,7 +1447,7 @@ function loginAs(u) {
   document.getElementById('conductor-inicial').textContent  = u.nombre.charAt(0).toUpperCase();
   document.getElementById('conductor-nombre').textContent   = u.nombre;
   document.getElementById('conductor-modelo').textContent   = u.modelo || '—';
-  document.getElementById('conductor-matricula').textContent = u.matricula;
+  document.getElementById('conductor-matricula-wrap').innerHTML = plateHtml(u.matricula);
   document.getElementById('conductor-turno').textContent    = u.turno;
   showScreen('home');
   document.getElementById('navbar').classList.add('visible');
@@ -2890,6 +2887,34 @@ function toast(msg, color) {
 
 // ── DOCUMENTACIÓN DEL VEHÍCULO (lee lo que sube Administración/Supervisor) ──
 var FIREBASE_URL = 'https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app';
+// Círculo de 12 estrellas de la UE y placa estilo matrícula real (igual que en el resto de apps)
+function estrellasUE(size) {
+  size = size || 20;
+  var r = size/2 - 3;
+  var cx = size/2, cy = size/2;
+  var html = '';
+  for (var i=0;i<12;i++){
+    var angle = (i/12)*2*Math.PI - Math.PI/2;
+    var x = cx + r*Math.cos(angle);
+    var y = cy + r*Math.sin(angle);
+    html += '<span style="position:absolute;left:'+(x-3.5)+'px;top:'+(y-3.5)+'px;font-size:6px;color:#ffd700;line-height:1">★</span>';
+  }
+  return '<div style="position:relative;width:'+size+'px;height:'+size+'px">' + html + '</div>';
+}
+function formatMatriculaPlaca(matricula) {
+  var m = (matricula || '').trim().match(/^(\d+)\s*([A-Za-z]+)$/);
+  if (!m) return matricula;
+  return '<span>' + m[1] + '</span><span style="margin-left:9px">' + m[2] + '</span>';
+}
+function plateHtml(matricula) {
+  return '<div style="display:inline-flex;align-items:stretch;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff;flex-shrink:0;white-space:nowrap">' +
+    '<div style="background:#0055a4;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:2px solid #ffffff;flex-shrink:0;border-radius:4px 0 0 4px">' +
+      estrellasUE(20) +
+      '<span style="font-weight:900;font-size:11px;margin-top:1px">E</span>' +
+    '</div>' +
+    '<div style="background:#0055a4;color:#fff;font-family:var(--mono);font-size:16px;font-weight:900;letter-spacing:1px;padding:5px 12px;display:flex;align-items:center;border-radius:0 4px 4px 0">'+formatMatriculaPlaca(matricula)+'</div>' +
+  '</div>';
+}
 function fbGetVehicleDocs(matSlug) {
   return fetch(FIREBASE_URL + '/documentos/' + matSlug + '.json')
     .then(function(r){ return r.json(); })
