@@ -78,7 +78,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 
 /* Fichar button */
 .fichar-wrap { padding:0 0 16px; }
-.btn-fichar { width:100%; padding:20px; border-radius:20px; border:none; font-size:18px; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:12px; transition:all .2s; }
+.btn-fichar { width:100%; padding:32px; border-radius:24px; border:none; font-size:24px; font-weight:900; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:16px; transition:all .2s; }
+.btn-fichar span:first-child { font-size:28px; }
 .btn-fichar.entrada { background:linear-gradient(135deg,rgba(0,230,118,.15),rgba(0,230,118,.08)); border:2px solid rgba(0,230,118,.4); color:var(--green); }
 .btn-fichar.salida  { background:linear-gradient(135deg,rgba(255,71,87,.15),rgba(255,71,87,.08)); border:2px solid rgba(255,71,87,.4); color:var(--red); }
 
@@ -398,26 +399,6 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
         <span id="fichar-icon">🟢</span>
         <span id="fichar-text">Fichar entrada</span>
       </button>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-val" id="stat-apps" style="color:var(--green)">€ 0</div>
-        <div class="stat-lbl">Neto apps hoy</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="stat-gastos" style="color:var(--red)">€ 0</div>
-        <div class="stat-lbl">Gastos hoy</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="stat-efectivo" style="color:var(--amber)">€ 0</div>
-        <div class="stat-lbl">Efectivo</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="stat-viajes">0</div>
-        <div class="stat-lbl">Viajes</div>
-      </div>
     </div>
   </div>
 </div>
@@ -1421,6 +1402,7 @@ function finalizeRegistro() {
 function loginAs(u) {
   currentUser = u;
   localStorage.setItem('drivx_current_user', u.email || u.cid);
+  localStorage.setItem('drivx_session_user', JSON.stringify(u));
 
   // Si el conductor ya había fichado entrada y cerró la app sin fichar salida
   // (o cerró sesión por accidente), recuperamos ese estado en vez de forzarle
@@ -1792,6 +1774,9 @@ function confirmKm() {
     document.getElementById('home-status').className = 'status-badge offline';
     document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>Turno finalizado';
     toast('🔴 Salida fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
+    // Tras fichar salida, la sesión ya no se recupera sola la próxima vez que se abra la app
+    localStorage.removeItem('drivx_session_user');
+    localStorage.removeItem('drivx_current_user');
   }
   syncData();
 }
@@ -1995,7 +1980,7 @@ function registerTicket(cat, importe, nombre, fecha, hora, file) {
   document.getElementById('gastos-empty').style.display = 'none';
   var total = Object.values(gastosTotals).reduce(function(s,v){ return s+v; }, 0);
   document.getElementById('gastos-sub').textContent  = 'Hoy · € ' + total.toFixed(2).replace('.',',');
-  document.getElementById('stat-gastos').textContent = '€ ' + total.toFixed(2).replace('.',',');
+  var sgEl = document.getElementById('stat-gastos'); if (sgEl) sgEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
 
   var limitMsg = (limit && count >= limit) ? ' — límite alcanzado' : '';
   toast('✓ ' + catNames[cat] + ' · €' + importe.toFixed(2) + limitMsg);
@@ -2206,7 +2191,7 @@ function recalcBolt() {
 function updateBillingTotal() {
   var total = platData.uber.neto + platData.bolt.netoReal + platData.cabify.neto;
   document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
-  document.getElementById('stat-apps').textContent = '€ ' + total.toFixed(2).replace('.',',');
+  var saEl = document.getElementById('stat-apps'); if (saEl) saEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
 }
 
 function addPrivado() {
@@ -2223,7 +2208,7 @@ function setEfectivo() {
   if (isNaN(amt) || amt < 0) return;
   data.efectivo = amt;
   document.getElementById('billing-efectivo').textContent = '€ ' + amt.toFixed(2).replace('.',',');
-  document.getElementById('stat-efectivo').textContent = '€ ' + amt.toFixed(2).replace('.',',');
+  var seEl = document.getElementById('stat-efectivo'); if (seEl) seEl.textContent = '€ ' + amt.toFixed(2).replace('.',',');
   syncData();
 }
 
@@ -3228,12 +3213,24 @@ function confirmLogout(){
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.getElementById('screen-login').classList.add('active');
   localStorage.removeItem('drivx_current_user');
+  localStorage.removeItem('drivx_session_user');
   currentUser=null;
   document.getElementById('login-email').value='';
   document.getElementById('login-pass').value='';
   setTimeout(function(){document.getElementById('login-email').value='';document.getElementById('login-pass').value='';},100);
   showBiometricBtn();
 }
+
+// ── Restaurar sesión ──
+// Si el navegador o el sistema recarga la app (p.ej. al volver de segundo
+// plano tras un rato), no debe pedir iniciar sesión de nuevo — solo si el
+// conductor cerró sesión de verdad o ya fichó su salida.
+(function restaurarSesion(){
+  try {
+    var u = JSON.parse(localStorage.getItem('drivx_session_user') || 'null');
+    if (u) { loginAs(u); }
+  } catch(e) {}
+})();
 </script>
 <div id="toast" style="position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a2d42;border:1px solid var(--border2);color:var(--text);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:500;transition:transform .3s ease;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis"></div>
 
