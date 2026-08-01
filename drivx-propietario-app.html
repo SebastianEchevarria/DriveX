@@ -21,6 +21,7 @@
   --red:      #ff4757;
   --purple:   #7c5cfc;
   --orange:   #ff8c00;
+  --yellow-soft: #ffd54f;
   --mono:     'JetBrains Mono', monospace;
 }
 /* ── MODO CLARO (de día) ── */
@@ -34,11 +35,12 @@ html[data-theme="light"] {
   --text2:    #3c4859;
   --text3:    #6b7789;
   --green:    #0a9d54;
-  --cyan:     #0077a3;
+  --cyan:     #005f8a;
   --amber:    #b3790a;
   --red:      #d6304a;
   --purple:   #5b3fd1;
   --orange:   #c96a00;
+  --yellow-soft: #9a7c00;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; }
@@ -94,6 +96,8 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
 
 .section-title { font-size:11px; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin:18px 0 10px; }
+.docs-btn { border:2px solid rgba(0,212,255,.5); background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.12)); box-shadow:0 4px 14px rgba(0,212,255,.18); }
+html[data-theme="light"] .docs-btn { border:2px solid rgba(0,95,138,.6); background:linear-gradient(135deg,rgba(0,95,138,.16),rgba(91,63,209,.13)); box-shadow:0 4px 14px rgba(0,95,138,.15); }
 .empty-msg { text-align:center; color:var(--text3); font-size:13px; padding:30px 0; }
 
 /* ── CALENDARIO ── */
@@ -122,21 +126,21 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
 <div id="screen-login">
   <div class="login-box">
     <svg width="220" height="64" viewBox="0 0 220 64" style="display:block;margin:0 auto 4px">
-      <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+      <circle cx="28" cy="32" r="20" fill="none" stroke="var(--cyan)" stroke-width="1.2" opacity="0.55"/>
       <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
-      <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+      <circle cx="28" cy="32" r="11" fill="none" stroke="var(--cyan)" stroke-width="1.8"/>
       <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
-      <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-      <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+      <circle cx="19" cy="42" r="4" fill="#020810" stroke="var(--cyan)" stroke-width="1.5"/>
+      <circle cx="19" cy="42" r="1.6" fill="var(--cyan)"/>
       <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
-      <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+      <path d="M19,38 Q19,24 33,18" fill="none" stroke="var(--cyan)" stroke-width="1.2" stroke-dasharray="3,3"/>
       <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
-      <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+      <circle cx="33" cy="14" r="7" fill="#020810" stroke="var(--cyan)" stroke-width="1.5"/>
+      <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="var(--cyan)"/>
       <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
       <circle cx="33" cy="16" r="2.2" fill="#020810"/>
       <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
-      <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="var(--text)">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+      <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="var(--text)">DRIV</tspan><tspan fill="var(--cyan)">X</tspan></text>
     </svg>
     <div class="login-tag">App de Propietario</div>
 
@@ -200,21 +204,21 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
   <div class="screen active" id="screen-inicio">
     <div class="mini-brand">
       <svg width="160" height="46" viewBox="0 0 220 64">
-        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+        <circle cx="28" cy="32" r="20" fill="none" stroke="var(--cyan)" stroke-width="1.2" opacity="0.55"/>
         <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
-        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+        <circle cx="28" cy="32" r="11" fill="none" stroke="var(--cyan)" stroke-width="1.8"/>
         <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
-        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+        <circle cx="19" cy="42" r="4" fill="#020810" stroke="var(--cyan)" stroke-width="1.5"/>
+        <circle cx="19" cy="42" r="1.6" fill="var(--cyan)"/>
         <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
-        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="var(--cyan)" stroke-width="1.2" stroke-dasharray="3,3"/>
         <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
-        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+        <circle cx="33" cy="14" r="7" fill="#020810" stroke="var(--cyan)" stroke-width="1.5"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="var(--cyan)"/>
         <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
         <circle cx="33" cy="16" r="2.2" fill="#020810"/>
         <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
-        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="var(--text)">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="var(--text)">DRIV</tspan><tspan fill="var(--cyan)">X</tspan></text>
       </svg>
       <div class="tag">App de Propietario</div>
     </div>
@@ -234,21 +238,21 @@ html,body { height:100%; background:var(--bg); color:var(--text); font-family:'I
   <div class="screen" id="screen-citas">
     <div class="mini-brand">
       <svg width="160" height="46" viewBox="0 0 220 64">
-        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
+        <circle cx="28" cy="32" r="20" fill="none" stroke="var(--cyan)" stroke-width="1.2" opacity="0.55"/>
         <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
-        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
+        <circle cx="28" cy="32" r="11" fill="none" stroke="var(--cyan)" stroke-width="1.8"/>
         <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
-        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
+        <circle cx="19" cy="42" r="4" fill="#020810" stroke="var(--cyan)" stroke-width="1.5"/>
+        <circle cx="19" cy="42" r="1.6" fill="var(--cyan)"/>
         <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
-        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <path d="M19,38 Q19,24 33,18" fill="none" stroke="var(--cyan)" stroke-width="1.2" stroke-dasharray="3,3"/>
         <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
-        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
+        <circle cx="33" cy="14" r="7" fill="#020810" stroke="var(--cyan)" stroke-width="1.5"/>
+        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="var(--cyan)"/>
         <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
         <circle cx="33" cy="16" r="2.2" fill="#020810"/>
         <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
-        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="var(--text)">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
+        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="var(--text)">DRIV</tspan><tspan fill="var(--cyan)">X</tspan></text>
       </svg>
       <div class="tag">App de Propietario</div>
     </div>
@@ -641,7 +645,7 @@ function cargarInicio() {
         var vid = matSlugO(v.matricula);
         var d = diasItv(v.docs.itv.fecha);
         var fechaTxt = v.docs.itv.fecha ? new Date(v.docs.itv.fecha).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : null;
-        var itvColor = d===null ? 'var(--text3)' : d<0 ? 'var(--red)' : d<=30 ? 'var(--amber)' : d<=90 ? '#ffd54f' : 'var(--green)';
+        var itvColor = d===null ? 'var(--text3)' : d<0 ? 'var(--red)' : d<=30 ? 'var(--amber)' : d<=90 ? 'var(--yellow-soft)' : 'var(--green)';
         var itvTxt = d===null ? 'Sin datos de ITV' : d<0 ? '🚨 ITV vencida el '+fechaTxt : d<=30 ? '⚠ ITV vence el '+fechaTxt+' (en '+d+' días)' : d<=90 ? '⏰ ITV vence el '+fechaTxt+' (en '+d+' días)' : '✓ ITV en orden — '+fechaTxt;
         var borderColor = CCAA_BORDER_O[v.ccaa] || '#2a4a6e';
 
@@ -697,7 +701,7 @@ function cargarInicio() {
           citasVehHtml(v.matricula, citasLista, now) +
           '<div class="section-title" style="margin:0 0 6px">Conductores</div>' +
           condHtml +
-          '<button onclick="toggleDocsVeh(\''+vid+'\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:14px;border-radius:12px;border:2px solid rgba(0,212,255,.5);background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,92,252,.12));cursor:pointer;box-shadow:0 4px 14px rgba(0,212,255,.18)">' +
+          '<button class="docs-btn" onclick="toggleDocsVeh(\''+vid+'\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:14px;border-radius:12px;cursor:pointer">' +
             '<span style="font-size:18px">📁</span>' +
             '<span style="flex:1;text-align:left;font-size:13px;font-weight:800;color:var(--text)">Documentos del vehículo</span>' +
             '<span style="font-size:10px;font-weight:800;color:var(--cyan)">'+docCount+'/4</span>' +
