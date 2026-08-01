@@ -1598,7 +1598,7 @@ function updateGastosInputs() {
 }
 
 function updateNavState() {
-  var unlocked = !!(data && (data.fichado || data.horaEntrada));
+  var unlocked = !!(data && data.fichado);
   ['nav-gastos','nav-billing'].forEach(function(id) {
     var btn = document.getElementById(id);
     if (!btn) return;
@@ -1609,8 +1609,9 @@ function updateNavState() {
 
 // ── NAVIGATION ──
 function showScreen(id) {
-  // Block gastos and billing until fichado
-  if ((id === 'gastos' || id === 'billing') && (!data.fichado && !data.horaEntrada)) {
+  // Block gastos and billing until fichado — y se vuelve a bloquear en cuanto
+  // se ficha la salida, aunque queden datos antiguos de la entrada guardados.
+  if ((id === 'gastos' || id === 'billing') && !data.fichado) {
     var m = document.getElementById('fichar-alert-modal'); if(m) m.style.display='flex';
     return;
   }
