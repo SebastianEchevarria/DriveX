@@ -198,6 +198,7 @@ html[data-theme="light"] .docs-btn { border:2px solid rgba(0,95,138,.6); backgro
 
 <!-- ══════════════ APP ══════════════ -->
 <div id="app" style="display:none">
+  <button id="theme-toggle-btn" onclick="toggleTemaManual()" title="Cambiar modo día/noche" style="position:fixed;top:14px;left:14px;z-index:150;width:46px;height:46px;border-radius:50%;border:2px solid var(--cyan);background:var(--surface2);color:var(--text);font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 18px rgba(0,212,255,.45),0 4px 12px rgba(0,0,0,.3);backdrop-filter:blur(8px)">🌙</button>
   <button onclick="doLogout()" style="position:fixed;top:14px;right:14px;z-index:150;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
 
   <!-- ── INICIO ── -->
@@ -409,10 +410,29 @@ var CCAA_BORDER_O = CCAA_BORDER_LIGHT_O; // se ajusta sola según la hora del d�
 // colores de comunidad autónoma correspondientes. Se revisa cada 15 min por
 // si la app se queda abierta y cruza el amanecer/atardecer.
 function aplicarTemaSegunHora() {
-  var hora = new Date().getHours();
-  var esDeDia = hora >= 7 && hora < 20;
-  document.documentElement.setAttribute('data-theme', esDeDia ? 'light' : 'dark');
-  CCAA_BORDER_O = esDeDia ? CCAA_BORDER_LIGHT_O : CCAA_BORDER_DARK_O;
+  var manual = localStorage.getItem('drivx_tema_manual');
+  var tema;
+  if (manual === 'light' || manual === 'dark') {
+    tema = manual;
+  } else {
+    var hora = new Date().getHours();
+    tema = (hora >= 7 && hora < 20) ? 'light' : 'dark';
+  }
+  document.documentElement.setAttribute('data-theme', tema);
+  CCAA_BORDER_O = tema === 'light' ? CCAA_BORDER_LIGHT_O : CCAA_BORDER_DARK_O;
+  actualizarBotonTema();
+}
+function toggleTemaManual() {
+  var actual = document.documentElement.getAttribute('data-theme') || 'dark';
+  var nuevo = actual === 'light' ? 'dark' : 'light';
+  localStorage.setItem('drivx_tema_manual', nuevo);
+  aplicarTemaSegunHora();
+}
+function actualizarBotonTema() {
+  var btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+  var tema = document.documentElement.getAttribute('data-theme');
+  btn.textContent = tema === 'light' ? '☀️' : '🌙';
 }
 aplicarTemaSegunHora();
 setInterval(aplicarTemaSegunHora, 15 * 60000);
