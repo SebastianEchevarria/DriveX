@@ -23,6 +23,23 @@
   --orange:   #ff8c00;
   --mono:     'JetBrains Mono', monospace;
 }
+/* ── MODO CLARO (de día) ── */
+html[data-theme="light"] {
+  --bg:       #f2f5fa;
+  --surface:  #ffffff;
+  --surface2: #eef2f8;
+  --border:   #dde4ee;
+  --border2:  #c9d3e0;
+  --text:     #10151f;
+  --text2:    #3c4859;
+  --text3:    #6b7789;
+  --green:    #0a9d54;
+  --cyan:     #0077a3;
+  --amber:    #b3790a;
+  --red:      #d6304a;
+  --purple:   #5b3fd1;
+  --orange:   #c96a00;
+}
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; }
 ::-webkit-scrollbar{ display:none; }
@@ -368,13 +385,33 @@ var VEHICULOS = [
 var CONDUCTORES = [
   { cid:'test', nombre:'Test User', matricula:'0000 TST', turno:'06:00–14:00' }
 ];
-var CCAA_BORDER_O = {
+var CCAA_BORDER_LIGHT_O = {
   'Andalucía':'#c97a00', 'Comunidad Valenciana':'#945ac9', 'Castilla-La Mancha':'#5a945a',
   'Aragón':'#5f94fe', 'Asturias':'#5fc95a', 'Islas Baleares':'#5ac9fe', 'Canarias':'#fe5f5a',
   'Cantabria':'#5a94e3', 'Castilla y León':'#e3945a', 'Cataluña':'#fe5a94', 'Extremadura':'#e37a5a',
   'Galicia':'#5ac9ae', 'La Rioja':'#e35a5a', 'Comunidad de Madrid':'#c95a94', 'Región de Murcia':'#fe7a5a',
   'Comunidad Foral de Navarra':'#945ae3', 'País Vasco':'#5a7aae', 'Ceuta':'#5aaee3', 'Melilla':'#c97a5a'
 };
+var CCAA_BORDER_DARK_O = {
+  'Andalucía':'#7a4a00', 'Comunidad Valenciana':'#5a1a7a', 'Castilla-La Mancha':'#1a5a2a',
+  'Aragón':'#3a5a9a', 'Asturias':'#3a7a2a', 'Islas Baleares':'#1a7a9a', 'Canarias':'#9a3a0a',
+  'Cantabria':'#2a5a8a', 'Castilla y León':'#8a5a1a', 'Cataluña':'#9a2a5a', 'Extremadura':'#8a4a1a',
+  'Galicia':'#1a7a6a', 'La Rioja':'#8a1a2a', 'Comunidad de Madrid':'#7a1a5a', 'Región de Murcia':'#9a4a0a',
+  'Comunidad Foral de Navarra':'#5a1a8a', 'País Vasco':'#1a4a6a', 'Ceuta':'#1a6a8a', 'Melilla':'#7a4a0a'
+};
+var CCAA_BORDER_O = CCAA_BORDER_LIGHT_O; // se ajusta sola según la hora del día
+
+// Detecta si es de día (07:00–20:00) o de noche, y aplica el tema y los
+// colores de comunidad autónoma correspondientes. Se revisa cada 15 min por
+// si la app se queda abierta y cruza el amanecer/atardecer.
+function aplicarTemaSegunHora() {
+  var hora = new Date().getHours();
+  var esDeDia = hora >= 7 && hora < 20;
+  document.documentElement.setAttribute('data-theme', esDeDia ? 'light' : 'dark');
+  CCAA_BORDER_O = esDeDia ? CCAA_BORDER_LIGHT_O : CCAA_BORDER_DARK_O;
+}
+aplicarTemaSegunHora();
+setInterval(aplicarTemaSegunHora, 15 * 60000);
 var CCAA_ICONS_O = {
   'Andalucía':'🌞', 'Aragón':'🏔️', 'Asturias':'🐻', 'Islas Baleares':'🏝️', 'Canarias':'🌋',
   'Cantabria':'🐄', 'Castilla-La Mancha':'🌾', 'Castilla y León':'🏰', 'Cataluña':'🎨',
