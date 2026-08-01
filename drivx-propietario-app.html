@@ -369,11 +369,11 @@ var CONDUCTORES = [
   { cid:'test', nombre:'Test User', matricula:'0000 TST', turno:'06:00–14:00' }
 ];
 var CCAA_BORDER_O = {
-  'Andalucía':'#7a4a00', 'Comunidad Valenciana':'#5a1a7a', 'Castilla-La Mancha':'#1a5a2a',
-  'Aragón':'#3a5a9a', 'Asturias':'#3a7a2a', 'Islas Baleares':'#1a7a9a', 'Canarias':'#9a3a0a',
-  'Cantabria':'#2a5a8a', 'Castilla y León':'#8a5a1a', 'Cataluña':'#9a2a5a', 'Extremadura':'#8a4a1a',
-  'Galicia':'#1a7a6a', 'La Rioja':'#8a1a2a', 'Comunidad de Madrid':'#7a1a5a', 'Región de Murcia':'#9a4a0a',
-  'Comunidad Foral de Navarra':'#5a1a8a', 'País Vasco':'#1a4a6a', 'Ceuta':'#1a6a8a', 'Melilla':'#7a4a0a'
+  'Andalucía':'#c97a00', 'Comunidad Valenciana':'#945ac9', 'Castilla-La Mancha':'#5a945a',
+  'Aragón':'#5f94fe', 'Asturias':'#5fc95a', 'Islas Baleares':'#5ac9fe', 'Canarias':'#fe5f5a',
+  'Cantabria':'#5a94e3', 'Castilla y León':'#e3945a', 'Cataluña':'#fe5a94', 'Extremadura':'#e37a5a',
+  'Galicia':'#5ac9ae', 'La Rioja':'#e35a5a', 'Comunidad de Madrid':'#c95a94', 'Región de Murcia':'#fe7a5a',
+  'Comunidad Foral de Navarra':'#945ae3', 'País Vasco':'#5a7aae', 'Ceuta':'#5aaee3', 'Melilla':'#c97a5a'
 };
 var CCAA_ICONS_O = {
   'Andalucía':'🌞', 'Aragón':'🏔️', 'Asturias':'🐻', 'Islas Baleares':'🏝️', 'Canarias':'🌋',
@@ -594,7 +594,7 @@ function cargarInicio() {
       var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
       var iconCc = CCAA_ICONS_O[cc] || '📍';
       var n = porCcaa[cc].length;
-      htmlOut += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin:16px 0 12px;border-radius:14px;background:linear-gradient(135deg,'+borderCc+'33,'+borderCc+'11);border:2px solid '+borderCc+'">' +
+      htmlOut += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin:16px 0 12px;border-radius:14px;background:linear-gradient(135deg,'+borderCc+'33,'+borderCc+'11);border:3px solid '+borderCc+'">' +
         '<span style="font-size:26px">'+iconCc+'</span>' +
         '<div style="flex:1"><div style="font-size:15px;font-weight:900;color:#fff">'+cc+'</div>' +
         '<div style="font-size:11px;color:var(--text2)">'+n+' vehículo'+(n>1?'s':'')+'</div></div>' +
@@ -644,7 +644,7 @@ function cargarInicio() {
             '<span style="font-size:11px;color:var(--text3)">No disponible</span></div>';
         }).join('');
 
-        return '<div class="veh-card" style="border:2px solid '+borderColor+'">' +
+        return '<div class="veh-card" style="border:3px solid '+borderColor+'">' +
           '<div class="veh-top" style="align-items:center;margin-bottom:4px">' +
             '<div class="veh-icon">'+v.icon+'</div>' +
             '<div style="display:inline-flex;align-items:stretch;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff">' +
