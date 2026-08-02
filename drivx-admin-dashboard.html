@@ -50,7 +50,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
 /* ── SHELL ── */
 #shell{display:none;height:100vh;overflow:hidden}
-#sidebar{width:280px;flex-shrink:0;background:rgba(13,20,32,.7);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0}
+#sidebar{width:240px;flex-shrink:0;background:rgba(13,20,32,.7);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .sb-logo{display:flex;align-items:center;padding:8px 4px 8px;justify-content:center}
 .sb-logo .mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#000}
 .sb-logo .txt{font-size:15px;font-weight:900}
@@ -108,7 +108,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 #hamburger-btn{display:none;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.75);color:var(--cyan);width:36px;height:36px;border-radius:9px;font-size:16px;cursor:pointer;flex-shrink:0;box-shadow:0 0 8px rgba(0,212,255,.65),0 0 18px rgba(0,212,255,.45),0 0 32px rgba(0,212,255,.25),inset 0 0 8px rgba(0,212,255,.3)}
 
 @media (max-width:860px){
-  #sidebar{position:fixed;left:-280px;top:0;height:100%;z-index:200;transition:left .2s}
+  #sidebar{position:fixed;left:-240px;top:0;height:100%;z-index:200;transition:left .2s}
   #sidebar.open{left:0}
   #sidebar-overlay.open{display:block}
   #hamburger-btn{display:flex;align-items:center;justify-content:center}
@@ -1279,10 +1279,12 @@ function paintFlota() {
 
     vl.forEach(function(v, vIdx){
       var id = dU(v.docs.itv.fecha);
-      var bc = (id < 0 || id <= 30) ? 'rgba(255,71,87,.95)' : id <= 90 ? 'rgba(255,179,0,.9)' : 'var(--border)';
-      var bcGlow = '0 0 5px rgba(0,212,255,.3),0 0 10px rgba(0,212,255,.15)';
+      var bc = 'rgba(0,212,255,.5)';
+      var bcGlow = '0 0 8px rgba(0,212,255,.25),0 0 18px rgba(0,212,255,.12)';
       var itvTxt = id < 0 ? '🚨 ITV VENCIDA' : id <= 30 ? '⚠ ITV en ' + id + ' días' : id <= 90 ? '⏰ ITV en ' + id + ' días' : '✓ ITV ' + fD(v.docs.itv.fecha);
-      var itvColor = (id < 0 || id <= 30) ? 'var(--red)' : id <= 90 ? 'var(--amber)' : 'rgba(255,255,255,.75)';
+      var itvColor = (id < 0 || id <= 30) ? 'var(--red)' : id <= 90 ? 'var(--amber)' : 'var(--green)';
+      var itvRgb = (id < 0 || id <= 30) ? '255,71,87' : id <= 90 ? '255,179,0' : '0,230,118';
+      var itvBoxStyle = 'display:inline-block;font-size:12px;font-weight:700;color:' + itvColor + ';border:1.5px solid rgba(' + itvRgb + ',.6);border-radius:8px;padding:4px 10px;margin-bottom:8px;box-shadow:0 0 6px rgba(' + itvRgb + ',.5),0 0 14px rgba(' + itvRgb + ',.3)';
 
       var condRows = '';
       v.conductores.forEach(function(cid){
@@ -1297,7 +1299,7 @@ function paintFlota() {
           '</div>';
       });
 
-      html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" data-order="' + vIdx + '" style="border:3px solid ' + bc + ';box-shadow:0 4px 20px rgba(0,0,0,.4),' + bcGlow + ';cursor:pointer" onclick="openVehicleDetail(\'' + v.matricula + '\')">';
+      html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" data-order="' + vIdx + '" style="border:1.5px solid ' + bc + ';box-shadow:0 4px 20px rgba(0,0,0,.4),' + bcGlow + ';cursor:pointer" onclick="openVehicleDetail(\'' + v.matricula + '\')">';
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += '<div class="veh-icon">' + v.icon + '</div>';
       html += plateHtml(v.matricula);
@@ -1306,7 +1308,7 @@ function paintFlota() {
         : '<span class="manager-lock" style="margin-left:auto">🔒 solo lectura</span>';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 58px">' + v.modelo + ' · ' + v.ciudad + '</div>';
-      html += '<div style="font-size:12px;font-weight:700;color:' + itvColor + ';margin-bottom:6px">' + itvTxt + '</div>';
+      html += '<div style="' + itvBoxStyle + '">' + itvTxt + '</div>';
       html += '<div id="docbadge_' + matSlug(v.matricula) + '" style="font-size:11px;color:rgba(255,255,255,.92);margin-bottom:8px">📄 Cargando documentos…</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
       html += '</div>';
