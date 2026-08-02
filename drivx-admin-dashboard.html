@@ -31,20 +31,20 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 ::-webkit-scrollbar-track{background:transparent}
 
 /* ── LOGIN ── */
-#screen-login{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 20% 20%,rgba(0,212,255,.06),transparent 60%),radial-gradient(circle at 80% 80%,rgba(124,92,252,.06),transparent 60%),var(--bg)}
+#screen-login{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:transparent}
 .login-box{position:relative;z-index:1;width:100%;max-width:380px}
 .login-logo{display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .login-logo .mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000}
 .login-logo .name{font-size:20px;font-weight:900;letter-spacing:.5px}
 .login-tag{font-size:11px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-bottom:36px;margin-top:4px}
-.role-toggle{display:flex;gap:8px;margin-bottom:20px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:4px}
+.role-toggle{display:flex;gap:8px;margin-bottom:20px;background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);border-radius:12px;padding:4px;box-shadow:0 0 6px rgba(0,212,255,.2),0 0 14px rgba(0,212,255,.1)}
 .role-btn{flex:1;padding:10px;border:none;border-radius:9px;background:transparent;color:var(--text3);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:.15s}
 .role-btn.active{background:var(--cyan);color:#000}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
-.field input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:13px 14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none}
-.field input:focus{border-color:var(--cyan)}
-.btn-primary{width:100%;padding:14px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:6px}
+.field input{width:100%;background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);color:var(--text);padding:13px 14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;box-shadow:0 0 6px rgba(0,212,255,.2),0 0 14px rgba(0,212,255,.1)}
+.field input:focus{border-color:rgba(0,212,255,.7);box-shadow:0 0 8px rgba(0,212,255,.4),0 0 18px rgba(0,212,255,.25)}
+.btn-primary{width:100%;padding:14px;border-radius:12px;border:1.5px solid rgba(0,212,255,.9);background:var(--cyan);color:#000;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:6px;box-shadow:0 0 10px rgba(0,212,255,.9),0 0 22px rgba(0,212,255,.65),0 0 38px rgba(0,212,255,.4)}
 .login-error{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:14px;display:none}
 .login-hint{margin-top:20px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6}
 
@@ -138,109 +138,13 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ LOGIN ══════════════ -->
 <div id="screen-login">
-  <!-- Fondo: mapa de navegación estilo Google Maps con ruta trazada, muy tenue + viñeta oscura para que el login se lea perfecto -->
+  <!-- Viñeta oscura sobre el fondo de la app (imagen móvil/escritorio), para que el login se lea perfecto -->
   <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0">
-    <svg width="100%" height="100%" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1400 900" style="position:absolute;inset:0;opacity:.5">
-      <defs>
-        <linearGradient id="mapBg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#0a1526"/>
-          <stop offset="100%" stop-color="#0d1f35"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="1400" height="900" fill="url(#mapBg)"/>
-
-      <!-- manzanas de ciudad (bloques tipo mapa) -->
-      <g fill="#0f2038">
-        <rect x="60" y="70" width="180" height="130"/>
-        <rect x="290" y="60" width="140" height="110"/>
-        <rect x="70" y="240" width="150" height="160"/>
-        <rect x="270" y="230" width="120" height="90"/>
-        <rect x="430" y="620" width="160" height="140"/>
-        <rect x="620" y="640" width="130" height="110"/>
-        <rect x="980" y="90" width="150" height="120"/>
-        <rect x="1160" y="70" width="170" height="150"/>
-        <rect x="1000" y="260" width="130" height="100"/>
-        <rect x="1180" y="600" width="160" height="150"/>
-        <rect x="960" y="630" width="130" height="120"/>
-        <rect x="80" y="600" width="140" height="120"/>
-      </g>
-
-      <!-- rejilla de calles -->
-      <g stroke="#1c3a5c" stroke-width="3">
-        <line x1="0" y1="60" x2="1400" y2="60"/>
-        <line x1="0" y1="215" x2="1400" y2="215"/>
-        <line x1="0" y1="410" x2="1400" y2="410"/>
-        <line x1="0" y1="595" x2="1400" y2="595"/>
-        <line x1="0" y1="775" x2="1400" y2="775"/>
-        <line x1="250" y1="0" x2="250" y2="900"/>
-        <line x1="450" y1="0" x2="450" y2="900"/>
-        <line x1="700" y1="0" x2="700" y2="900"/>
-        <line x1="960" y1="0" x2="960" y2="900"/>
-        <line x1="1150" y1="0" x2="1150" y2="900"/>
-      </g>
-      <g stroke="#152c47" stroke-width="1.5">
-        <line x1="0" y1="140" x2="1400" y2="140"/>
-        <line x1="0" y1="310" x2="1400" y2="310"/>
-        <line x1="0" y1="500" x2="1400" y2="500"/>
-        <line x1="0" y1="690" x2="1400" y2="690"/>
-        <line x1="130" y1="0" x2="130" y2="900"/>
-        <line x1="360" y1="0" x2="360" y2="900"/>
-        <line x1="560" y1="0" x2="560" y2="900"/>
-        <line x1="830" y1="0" x2="830" y2="900"/>
-        <line x1="1070" y1="0" x2="1070" y2="900"/>
-        <line x1="1260" y1="0" x2="1260" y2="900"/>
-      </g>
-
-      <!-- halo de la ruta (glow) -->
-      <path d="M130,775 C250,775 250,595 450,595 C620,595 620,410 700,410 C820,410 830,215 960,215 C1080,215 1100,140 1260,140"
-            fill="none" stroke="#00d4ff" stroke-width="16" opacity=".18" stroke-linecap="round"/>
-      <!-- ruta principal (estilo Google Maps: línea azul gruesa) -->
-      <path d="M130,775 C250,775 250,595 450,595 C620,595 620,410 700,410 C820,410 830,215 960,215 C1080,215 1100,140 1260,140"
-            fill="none" stroke="#2a8fff" stroke-width="7" stroke-linecap="round"/>
-      <!-- línea central discontinua blanca, como el sentido de circulación -->
-      <path d="M130,775 C250,775 250,595 450,595 C620,595 620,410 700,410 C820,410 830,215 960,215 C1080,215 1100,140 1260,140"
-            fill="none" stroke="#e8f4ff" stroke-width="1.4" stroke-dasharray="10,10" opacity=".7"/>
-
-      <!-- punto de origen: ubicación actual (pulsante) -->
-      <circle cx="130" cy="775" r="20" fill="#2a8fff" opacity=".18"/>
-      <circle cx="130" cy="775" r="10" fill="#0a1526" stroke="#2a8fff" stroke-width="3"/>
-      <circle cx="130" cy="775" r="4" fill="#2a8fff"/>
-
-      <!-- pin de destino (estilo Google Maps) -->
-      <g>
-        <path d="M1260,90 C1284,90 1300,108 1300,131 C1300,158 1260,196 1260,196 C1260,196 1220,158 1220,131 C1220,108 1236,90 1260,90 Z" fill="#ff4757"/>
-        <circle cx="1260" cy="130" r="14" fill="#0a1526"/>
-      </g>
-
-      <!-- coche circulando por la ruta -->
-      <g transform="translate(700,410)">
-        <circle r="13" fill="#0a1526" stroke="#00d4ff" stroke-width="2.5"/>
-        <text x="0" y="5" text-anchor="middle" font-size="15">🚗</text>
-      </g>
-    </svg>
-    <!-- Viñeta oscura: garantiza contraste perfecto para el formulario -->
-    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(5,10,18,.95) 0%,rgba(5,10,18,.88) 30%,rgba(5,10,18,.55) 60%,rgba(5,10,18,.22) 100%)"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(5,10,18,.9) 0%,rgba(5,10,18,.8) 30%,rgba(5,10,18,.5) 60%,rgba(5,10,18,.2) 100%)"></div>
   </div>
   <div class="login-box">
     <div style="display:flex;justify-content:center">
-      
-      <svg width="300" height="87" viewBox="0 0 220 64" style="margin-bottom:6px">
-        <circle cx="28" cy="32" r="20" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.55"/>
-        <path d="M11,22 A18,18 0 0,1 45,22" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.2" stroke-linecap="round"/>
-        <circle cx="28" cy="32" r="11" fill="none" stroke="#00d4ff" stroke-width="1.8"/>
-        <path d="M18,25 A10,10 0 0,1 38,25" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.28" stroke-linecap="round"/>
-        <circle cx="19" cy="42" r="4" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-        <circle cx="19" cy="42" r="1.6" fill="#00d4ff"/>
-        <circle cx="19" cy="42" r="0.7" fill="#ffffff"/>
-        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#00d4ff" stroke-width="1.2" stroke-dasharray="3,3"/>
-        <path d="M19,38 Q19,24 33,18" fill="none" stroke="#ffffff" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.4"/>
-        <circle cx="33" cy="14" r="7" fill="#020810" stroke="#00d4ff" stroke-width="1.5"/>
-        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="#00d4ff"/>
-        <path d="M29,10 A4,4 0 0,1 37,17 L33,23 L29,17 A4,4 0 0,1 29,10Z" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
-        <circle cx="33" cy="16" r="2.2" fill="#020810"/>
-        <ellipse cx="30" cy="11" rx="2" ry="1.2" fill="#ffffff" opacity="0.85"/>
-        <text x="56" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="900" letter-spacing="-2"><tspan fill="#ffffff">DRIV</tspan><tspan fill="#00d4ff">X</tspan></text>
-      </svg>
+      <img id="login-logo-img" alt="DRIVX VTC Fleet" style="max-width:260px;width:100%;height:auto;margin-bottom:6px">
     </div>
     <div class="login-tag" style="text-align:center">Panel de administración</div>
 
@@ -1661,16 +1565,16 @@ function paintGastos() {
 
       html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;padding:12px 0;border-bottom:1px solid var(--border)">';
       html += '<div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Desde</label>' +
-        '<input type="date" id="fdesde_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit"></div>';
+        '<input type="date" id="fdesde_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit;box-shadow:0 0 5px rgba(0,212,255,.2),0 0 10px rgba(0,212,255,.1)"></div>';
       html += '<div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Hasta</label>' +
-        '<input type="date" id="fhasta_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit"></div>';
+        '<input type="date" id="fhasta_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit;box-shadow:0 0 5px rgba(0,212,255,.2),0 0 10px rgba(0,212,255,.1)"></div>';
       html += '<div><label style="font-size:10px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:3px">Conductor</label>' +
-        '<select id="fcond_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit">' +
+        '<select id="fcond_'+mgid+'" onchange="filtrarTicketsMatricula(\''+mgid+'\')" style="background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);color:var(--text);padding:7px 9px;border-radius:8px;font-size:12px;font-family:inherit;box-shadow:0 0 5px rgba(0,212,255,.2),0 0 10px rgba(0,212,255,.1)">' +
         '<option value="">Todos</option>' +
         conductoresList.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('') +
         '</select></div>';
-      html += '<button onclick="limpiarFiltrosMatricula(\''+mgid+'\')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;cursor:pointer">✕ Limpiar filtros</button>';
-      html += '<label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer">' +
+      html += '<button onclick="limpiarFiltrosMatricula(\''+mgid+'\')" style="padding:8px 12px;border-radius:8px;border:1.5px solid rgba(0,212,255,.3);background:rgba(0,212,255,.04);color:var(--text3);font-size:11px;cursor:pointer;box-shadow:0 0 5px rgba(0,212,255,.2),0 0 10px rgba(0,212,255,.1)">✕ Limpiar filtros</button>';
+      html += '<label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1.5px solid rgba(0,212,255,.3);background:rgba(0,212,255,.04);cursor:pointer;box-shadow:0 0 5px rgba(0,212,255,.2),0 0 10px rgba(0,212,255,.1)">' +
         '<input type="checkbox" id="selall_'+mgid+'" onchange="toggleSeleccionarTodos(\''+mgid+'\',this.checked)" style="width:15px;height:15px;accent-color:var(--cyan)">' +
         '<span style="font-size:11px;color:var(--text2);font-weight:700">Seleccionar todos</span></label>';
       html += '<div style="flex:1"></div>';
@@ -3353,8 +3257,11 @@ function deleteVehicleDoc(docType) {
 (function(){
   function copiarLogoInicio(){
     var origen = document.querySelector('.sb-logo img');
+    if (!origen || !origen.src) return;
     var destino = document.getElementById('inicio-mobile-logo-img');
-    if (origen && destino && origen.src) { destino.src = origen.src; }
+    if (destino) destino.src = origen.src;
+    var destinoLogin = document.getElementById('login-logo-img');
+    if (destinoLogin) destinoLogin.src = origen.src;
   }
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     copiarLogoInicio();
