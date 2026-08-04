@@ -2294,7 +2294,10 @@ function openCitaDetail(id) {
   var body = '';
   body += citaDetailRow('📅', 'Fecha', formatFechaCita(cita.fecha));
   body += citaDetailRow('🕐', 'Hora', cita.hora || 'No especificada');
-  body += citaDetailRow('🚗', 'Matrícula', cita.matricula || '—');
+  body += '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+    '<div style="font-size:18px;width:24px;flex-shrink:0">🚗</div>' +
+    '<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Matrícula</div>' +
+    (cita.matricula ? plateHtml(cita.matricula) : '<div style="font-size:14px;color:var(--text);font-weight:600">—</div>') + '</div></div>';
   body += citaDetailRow('👤', 'Conductor', nombreCond || 'Sin asignar / todos los conductores del vehículo');
   body += citaDetailRow('📍', 'Lugar', cita.lugar || 'No especificado');
   if (cita.nota) body += citaDetailRow('📝', 'Nota', cita.nota);
@@ -2542,26 +2545,32 @@ function paintPropietarios() {
         ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Registrado</span>'
         : '<button onclick="event.stopPropagation();verCodigoInvitePropietario(\''+item.pid+'\')" style="font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">⏳ Invitación pendiente · ver código</button>';
 
-      html += '<div class="prop-card" data-nombre="'+(p.nombre||'').toUpperCase()+'" data-matriculas="'+(p.matriculas||[]).join(',').replace(/\s/g,'').toUpperCase()+'" style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px">';
-      html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">';
+      html += '<div class="prop-card" data-nombre="'+(p.nombre||'').toUpperCase()+'" data-matriculas="'+(p.matriculas||[]).join(',').replace(/\s/g,'').toUpperCase()+'" style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1px solid rgba(0,212,255,.3);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 6px rgba(0,212,255,.18),0 0 14px rgba(0,212,255,.08)">';
+      html += '<div onclick="togglePropDetail(\''+item.pid+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer">';
       html += '<div><div style="font-size:14px;font-weight:800">'+(p.nombre||'—')+'</div>';
-      html += '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+(p.doc||'—')+'</div></div>';
+      html += '<div style="font-size:11px;color:var(--text3)">'+(p.matriculas||[]).length+' vehículo'+((p.matriculas||[]).length!==1?'s':'')+'</div></div>';
+      html += '<span id="propchev_'+item.pid+'" style="color:var(--cyan);font-size:16px;flex-shrink:0">⌄</span>';
+      html += '</div>';
+      html += '<div id="propbody_'+item.pid+'" style="display:none;margin-top:12px">';
+      html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">';
+      html += '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+(p.doc||'—')+'</div>';
       html += estadoInvite;
       html += '</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">✉️ '+(p.email||'—')+(p.telefono?' · 📱 '+p.telefono:'')+'</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📅 Alta: '+(p.fechaAlta||'—')+'</div>';
       html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">' +
         (p.matriculas||[]).map(function(m){ return '<span style="font-size:11px;font-weight:800;font-family:var(--mono);color:#fff;background:transparent;border:1.5px solid rgba(0,212,255,.65);box-shadow:0 0 6px rgba(0,212,255,.35),0 0 12px rgba(0,212,255,.18);border-radius:8px;padding:3px 8px">'+m+'</span>'; }).join('') +
-        '<button onclick="openAddVehiculoPropietario(\''+item.pid+'\')" style="font-size:11px;font-weight:800;color:var(--green);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:3px 9px;cursor:pointer;font-family:inherit">+ VEHÍCULO</button>' +
+        '<button onclick="event.stopPropagation();openAddVehiculoPropietario(\''+item.pid+'\')" style="font-size:11px;font-weight:800;color:var(--green);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:3px 9px;cursor:pointer;font-family:inherit">+ VEHÍCULO</button>' +
       '</div>';
       if (p.cuentaBancaria) {
         html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:9px 12px;margin-bottom:10px">' +
           '<span style="font-size:16px">🏦</span>' +
           '<div id="propcuenta-'+item.pid+'" style="flex:1;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.cuentaBancaria+'</div>' +
-          '<button onclick="copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
+          '<button onclick="event.stopPropagation();copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
         '</div>';
       }
-      html += '<button id="delprop_'+item.pid+'" onclick="confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';
+      html += '<button id="delprop_'+item.pid+'" onclick="event.stopPropagation();confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';
+      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
@@ -2580,6 +2589,14 @@ function paintPropietarios() {
       if (chev) chev.textContent = open ? '›' : '⌄';
     };
   });
+}
+function togglePropDetail(pid) {
+  var body = document.getElementById('propbody_'+pid);
+  var chev = document.getElementById('propchev_'+pid);
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '⌄' : '⌃';
 }
 
 function filtrarPropietarios(gid, term) {
@@ -2880,7 +2897,7 @@ function openVehicleDetail(matricula) {
 
   // Reset del formulario de invitación
   document.getElementById('vd-invite-form').style.display = 'none';
-  document.getElementById('vd-invite-mat').textContent = v.matricula;
+  document.getElementById('vd-invite-mat').innerHTML = plateHtml(v.matricula);
   document.getElementById('vd-invite-email').value = '';
   document.getElementById('vd-invite-turno').value = '06:00–14:00';
   document.getElementById('vd-invite-turno-manual').style.display = 'none';

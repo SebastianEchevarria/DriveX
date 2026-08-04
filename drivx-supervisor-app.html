@@ -958,7 +958,7 @@ function openMatModal(matricula) {
   if (!v) return;
   _currentMat = v;
 
-  document.getElementById('mat-plate').textContent = v.matricula;
+  document.getElementById('mat-plate').innerHTML = plateHtml(v.matricula);
   document.getElementById('mat-model').textContent  = v.modelo + ' · ' + v.ciudad;
   document.getElementById('mat-icon').textContent   = v.icon;
 
@@ -2103,7 +2103,7 @@ function verMatAlerta(btn) {
   var plateEl = document.getElementById('ver-mat-plate');
   var subEl   = document.getElementById('ver-mat-sub');
   if (iconEl)  iconEl.textContent  = v.icon;
-  if (plateEl) plateEl.textContent = v.matricula;
+  if (plateEl) plateEl.innerHTML = plateHtml(v.matricula);
   if (subEl)   subEl.textContent   = v.modelo + ' · ' + v.ciudad + ' · ' + v.ccaa;
 
   // ITV status
