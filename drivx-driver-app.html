@@ -2948,13 +2948,13 @@ function loadPoliza() {
       }
       if (!doc.url) return;
       count++;
-      html += '<div style="background:var(--surface2);border:1px solid rgba(0,212,255,.25);border-radius:16px;padding:14px 16px;margin-top:12px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
-        '<span style="font-size:24px">' + dt.icon + '</span>' +
-        '<div style="flex:1">' +
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="abrirDocVehiculo(\''+dt.key+'\')">' +
+        '<span style="font-size:20px;flex-shrink:0">' + dt.icon + '</span>' +
+        '<div style="flex:1;min-width:0">' +
           '<div style="font-size:13px;font-weight:800;color:var(--text)">' + dt.label + '</div>' +
-          '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + doc.nombre + ' · ' + doc.fecha + '</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + doc.fecha + '</div>' +
         '</div>' +
-        '<span style="font-size:12px;font-weight:700;color:var(--cyan);background:rgba(0,212,255,.1);padding:5px 10px;border-radius:8px">Ver →</span>' +
+        '<span style="font-size:12px;font-weight:700;color:var(--cyan);flex-shrink:0;white-space:nowrap">Ver ›</span>' +
       '</div>';
     });
     area.innerHTML = html || '<div style="font-size:12px;color:var(--text3);padding:12px 0 2px">Todavía no hay documentos subidos.</div>';
