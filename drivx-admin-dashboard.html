@@ -1100,17 +1100,26 @@ function openItvDetalle() {
       var v = item.v;
       var cita = citaPorMatricula[v.matricula];
       var botonCita = cita
-        ? '<button onclick="event.stopPropagation();openCitaDetail('+cita.id+')" style="background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.5);color:var(--green);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap">✓ CITA</button>'
-        : '<button onclick="event.stopPropagation();openAddCitaModal(\''+v.ccaa+'\')" style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.5);color:var(--red);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap">SIN CITA</button>';
+        ? '<button onclick="event.stopPropagation();openCitaDetail('+cita.id+')" style="background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.5);color:var(--green);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 0 6px rgba(0,230,118,.35),0 0 12px rgba(0,230,118,.18)">✓ CITA</button>'
+        : '<button onclick="event.stopPropagation();openAddCitaModal(\''+v.ccaa+'\')" style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.5);color:var(--red);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 0 6px rgba(255,71,87,.3),0 0 12px rgba(255,71,87,.15)">SIN CITA</button>';
 
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">' +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--cyan)">' + v.matricula + '</div>' +
-          '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
+      var diasRgb = item.dias<0 ? '255,71,87' : '255,179,0';
+      var diasColor = item.dias<0 ? 'var(--red)' : 'var(--amber)';
+      var diasTxt = item.dias<0 ? '🚨 Vencida hace ' + Math.abs(item.dias) + ' días' : '⏰ En ' + item.dias + ' días';
+
+      return '<div style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1px solid rgba(0,212,255,.3);border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 14px rgba(0,0,0,.25),0 0 6px rgba(0,212,255,.15)">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+          plateHtmlSmall(v.matricula) +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + v.modelo + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">ITV: ' + fD(v.docs.itv.fecha) + '</div>' +
+          '</div>' +
         '</div>' +
-        botonCita +
-        '<div style="font-size:11px;font-weight:800;color:' + (item.dias<0?'var(--red)':'var(--amber)') + ';text-align:right;flex-shrink:0;min-width:80px">' +
-          (item.dias<0 ? 'Vencida hace ' + Math.abs(item.dias) + ' días' : 'En ' + item.dias + ' días') +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+          botonCita +
+          '<span style="font-size:11px;font-weight:800;color:' + diasColor + ';background:rgba(' + diasRgb + ',.12);border:1px solid rgba(' + diasRgb + ',.45);border-radius:8px;padding:4px 10px;box-shadow:0 0 6px rgba(' + diasRgb + ',.3),0 0 12px rgba(' + diasRgb + ',.15)">' +
+            diasTxt +
+          '</span>' +
         '</div>' +
       '</div>';
     }
@@ -1126,9 +1135,11 @@ function openItvDetalle() {
         return (ai<0?99:ai) - (bi<0?99:bi);
       });
       return ccaasPresentes.map(function(cc){
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin:14px 0 8px;border-radius:12px;background:'+(CCAA_BG[cc]||'#0d1f35')+';border:2px solid '+(CCAA_BORDER[cc]||'#2a4a6e')+'">' +
-          '<span style="font-size:20px">'+(CCAA_ICONS[cc]||'📍')+'</span>' +
-          '<span style="font-size:14px;font-weight:900;color:#fff">'+cc+'</span>' +
+        var n = porCcaa[cc].length;
+        return '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+';box-shadow:'+ccaaGroupGlow(cc)+';margin-top:14px;cursor:default">' +
+          '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>' +
+          '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>' +
+          '<div style="font-size:11px;color:var(--text3)">'+n+' vehículo'+(n!==1?'s':'')+'</div></div>' +
         '</div>' + porCcaa[cc].map(fila).join('');
       }).join('');
     }
@@ -1458,6 +1469,17 @@ function plateHtml(matricula) {
       '<span style="font-weight:900;font-size:11px;margin-top:1px;color:#fff">E</span>' +
     '</div>' +
     '<div style="background:linear-gradient(160deg,#2a80d6 0%,#0055a4 35%,#003b73 60%,#1373c4 85%,#2a80d6 100%);color:#fff;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 14px;display:flex;align-items:center;text-shadow:0 1px 2px rgba(0,0,0,.5)">'+formatMatriculaPlaca(matricula)+'</div>' +
+    '<div style="position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.25) 45%,rgba(255,255,255,.08) 52%,transparent 62%);pointer-events:none"></div>' +
+  '</div>';
+}
+// Placa estilo matrícula real, versión compacta para móvil (listas densas)
+function plateHtmlSmall(matricula) {
+  return '<div style="position:relative;display:inline-flex;align-items:stretch;border-radius:5px;border:1.5px solid rgba(255,255,255,.55);box-shadow:0 1px 4px rgba(0,0,0,.5),0 0 4px rgba(0,212,255,.3),0 0 8px rgba(0,212,255,.15);flex-shrink:0;white-space:nowrap;overflow:hidden">' +
+    '<div style="background:linear-gradient(160deg,#2a80d6 0%,#0055a4 40%,#003b73 70%,#1373c4 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 5px;border-right:1px solid rgba(255,255,255,.3);flex-shrink:0">' +
+      estrellasUE(13) +
+      '<span style="font-weight:900;font-size:7px;margin-top:1px;color:#fff">E</span>' +
+    '</div>' +
+    '<div style="background:linear-gradient(160deg,#2a80d6 0%,#0055a4 35%,#003b73 60%,#1373c4 85%,#2a80d6 100%);color:#fff;font-family:var(--mono);font-size:12px;font-weight:900;letter-spacing:.5px;padding:3px 8px;display:flex;align-items:center;text-shadow:0 1px 2px rgba(0,0,0,.5)">'+formatMatriculaPlaca(matricula)+'</div>' +
     '<div style="position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.25) 45%,rgba(255,255,255,.08) 52%,transparent 62%);pointer-events:none"></div>' +
   '</div>';
 }
