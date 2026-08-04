@@ -83,10 +83,10 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
 .login-logo .name { font-size:26px; font-weight:900; letter-spacing:.5px; }
 .login-tag { font-size:14px; font-weight:800; color:var(--cyan); letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:36px; }
 .field { margin-bottom:16px; }
-.field label { display:block; font-size:11px; font-weight:700; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.field label { display:block; font-size:11px; font-weight:700; color:#ffffff; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 5px rgba(124,92,252,.85),0 0 10px rgba(124,92,252,.45); }
 .field input, .field select { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:13px 14px; border-radius:10px; font-size:15px; font-family:inherit; outline:none; }
 .field input:focus { border-color:var(--cyan); }
-.field input.campo-vacio { border-color:var(--orange); background:rgba(255,140,0,.08); }
+.field input.campo-vacio { border-color:var(--purple); background:rgba(124,92,252,.07); box-shadow:0 0 5px rgba(124,92,252,.5),0 0 12px rgba(124,92,252,.25); }
 .btn-primary { width:100%; padding:14px; border-radius:12px; border:none; background:var(--cyan); color:#000; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; margin-top:6px; }
 .btn-secondary { width:100%; padding:13px; border-radius:12px; border:1px solid var(--border2); background:transparent; color:var(--text2); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:10px; }
 .login-error { background:rgba(255,71,87,.1); border:1px solid rgba(255,71,87,.3); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:14px; display:none; }
@@ -132,8 +132,7 @@ html[data-theme="light"] .docs-btn { border:2px solid rgba(0,95,138,.6); backgro
 <!-- ══════════════ LOGIN / ACTIVACIÓN ══════════════ -->
 <div id="screen-login">
   <div class="login-box">
-    <img class="logo-owner-img" alt="DRIVX Owner App" style="width:100%;max-width:320px;height:auto;display:block;margin:0 auto 12px">
-    <div class="login-tag">App de Propietario</div>
+    
 
     <!-- Paso: activar cuenta con código (primera vez) -->
     <div id="step-activar">
