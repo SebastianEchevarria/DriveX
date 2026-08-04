@@ -607,6 +607,16 @@ function estaFichadoHoy(fj) {
   return new Date(fj.ts).toDateString() === new Date().toDateString();
 }
 
+// ── GASTOS — categorías de tickets subidos por los conductores (solo lectura, sin descarga) ──
+var CATEGORIAS_GASTOS_O = [
+  { key:'gasolina', label:'Gasolina / Carga', icon:'⛽' },
+  { key:'peaje',     label:'Peaje',            icon:'🛣️' },
+  { key:'parking',   label:'Parking',          icon:'🅿️' },
+  { key:'lavado',    label:'Lavado',           icon:'🚿' },
+  { key:'datafono',  label:'Datáfono',         icon:'💳' },
+  { key:'otros',     label:'Otros',            icon:'📄' }
+];
+
 // ── INICIO: vehículos propios + sus conductores con estado en vivo ──
 function cargarInicio() {
   if (!currentUser) return;
@@ -616,7 +626,8 @@ function cargarInicio() {
     fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/documentos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/propietarios/' + currentUser.pid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/propietarios/' + currentUser.pid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/gastos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
     var invitados = results[1] || {};
@@ -624,6 +635,7 @@ function cargarInicio() {
     var documentos = results[3] || {};
     var citasLista = results[4] || [];
     var propioActualizado = results[5];
+    var gastosData = results[6] || {};
     // El admin puede añadirte vehículos nuevos en cualquier momento — nos
     // aseguramos de tener siempre la lista de matrículas más reciente.
     if (propioActualizado && Array.isArray(propioActualizado.matriculas)) {
@@ -710,6 +722,36 @@ function cargarInicio() {
             '<span style="font-size:11px;color:var(--text3)">No disponible</span></div>';
         }).join('');
 
+        // GASTOS — tickets subidos por los conductores de este vehículo.
+        // Solo lectura: se pueden ver los tickets (foto), pero no descargarlos.
+        var gastosVeh = gastosData[vid] || {};
+        var gCount = 0, gTotal = 0;
+        var gastosHtmlO = CATEGORIAS_GASTOS_O.map(function(catDef){
+          var catData = gastosVeh[catDef.key];
+          var tids = catData ? Object.keys(catData) : [];
+          if (!tids.length) return '';
+          var catHtml = '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px">'+catDef.icon+' '+catDef.label+' ('+tids.length+')</div>';
+          tids.sort(function(a,b){ return (catData[b].ts||0) - (catData[a].ts||0); });
+          catHtml += tids.map(function(tid){
+            var t = catData[tid] || {};
+            gCount++; gTotal += (t.importe||0);
+            var thumb = t.url
+              ? '<img src="'+t.url+'" onclick="window.open(\''+t.url+'\',\'_blank\')" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0">'
+              : '<div style="width:42px;height:42px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text3);flex-shrink:0">🧾</div>';
+            return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">' +
+              thumb +
+              '<div style="flex:1;min-width:0">' +
+                '<div style="font-size:12px;font-weight:700">€ '+(t.importe||0).toFixed(2).replace('.',',')+' <span style="color:var(--text3);font-weight:400">· '+(t.nombre||catDef.label)+'</span></div>' +
+                '<div style="font-size:10.5px;color:var(--text3)">'+(t.fecha||'')+(t.hora?' '+t.hora:'')+(t.conductor?' · '+t.conductor:'')+'</div>' +
+              '</div>' +
+              (t.url ? '<button onclick="window.open(\''+t.url+'\',\'_blank\')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--cyan);font-size:10.5px;font-weight:700;cursor:pointer;flex-shrink:0">Ver ticket</button>' : '') +
+            '</div>';
+          }).join('');
+          return catHtml;
+        }).join('');
+        if (!gastosHtmlO) gastosHtmlO = '<div style="padding:10px 0;color:var(--text3);font-size:12px;text-align:center">Sin gastos registrados todavía</div>';
+
+
         return '<div class="veh-card" style="border:3px solid '+borderColor+'">' +
           '<div class="veh-top" style="align-items:center;margin-bottom:4px">' +
             '<div class="veh-icon">'+v.icon+'</div>' +
@@ -733,15 +775,26 @@ function cargarInicio() {
             '<span id="docschev-'+vid+'" style="color:var(--cyan);font-size:14px;transition:transform .2s">▾</span>' +
           '</button>' +
           '<div id="docsveh-'+vid+'" style="display:none;padding-top:10px">' + docsHtml + '</div>' +
+          '<button class="docs-btn" onclick="toggleGastosVeh(\''+vid+'\')" style="width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;margin-top:10px;border-radius:12px;cursor:pointer">' +
+            '<span style="font-size:18px">🧾</span>' +
+            '<span style="flex:1;text-align:left;font-size:13px;font-weight:800;color:var(--text)">Gastos</span>' +
+            '<span style="font-size:10px;font-weight:800;color:var(--cyan)">'+gCount+' · € '+gTotal.toFixed(2).replace('.',',')+'</span>' +
+            '<span id="gastoschev-'+vid+'" style="color:var(--cyan);font-size:14px;transition:transform .2s">▾</span>' +
+          '</button>' +
+          '<div id="gastosveh-'+vid+'" style="display:none;padding-top:10px">' + gastosHtmlO + '</div>' +
         '</div>';
       }).join('');
     });
 
-    // Antes de repintar, recordamos qué "Documentos del vehículo" tenías abiertos,
-    // para no cerrártelos solos en cada refresco automático (cada 20s).
+    // Antes de repintar, recordamos qué "Documentos del vehículo" y "Gastos" tenías
+    // abiertos, para no cerrártelos solos en cada refresco automático (cada 20s).
     var abiertos = {};
     document.querySelectorAll('[id^="docsveh-"]').forEach(function(el){
       if (el.style.display !== 'none') abiertos[el.id] = true;
+    });
+    var gastosAbiertos = {};
+    document.querySelectorAll('[id^="gastosveh-"]').forEach(function(el){
+      if (el.style.display !== 'none') gastosAbiertos[el.id] = true;
     });
 
     cont.innerHTML = htmlOut;
@@ -752,12 +805,27 @@ function cargarInicio() {
       if (el) el.style.display = 'block';
       if (chev) chev.style.transform = 'rotate(180deg)';
     });
+    Object.keys(gastosAbiertos).forEach(function(id){
+      var el = document.getElementById(id);
+      var chev = document.getElementById(id.replace('gastosveh-', 'gastoschev-'));
+      if (el) el.style.display = 'block';
+      if (chev) chev.style.transform = 'rotate(180deg)';
+    });
   }).catch(function(){});
 }
 
 function toggleDocsVeh(vid) {
   var el = document.getElementById('docsveh-' + vid);
   var chev = document.getElementById('docschev-' + vid);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function toggleGastosVeh(vid) {
+  var el = document.getElementById('gastosveh-' + vid);
+  var chev = document.getElementById('gastoschev-' + vid);
   if (!el) return;
   var open = el.style.display !== 'none';
   el.style.display = open ? 'none' : 'block';
