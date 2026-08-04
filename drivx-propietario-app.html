@@ -103,9 +103,9 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
 .cita-icon { width:38px; height:38px; border-radius:10px; background:rgba(0,212,255,.1); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
 
 /* ── MODAL DETALLE ── */
-.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:300; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); z-index:300; align-items:center; justify-content:center; padding:20px; }
 .modal-overlay.open { display:flex; }
-.modal-box { background:var(--surface); border:1px solid var(--border); border-radius:20px; max-width:400px; width:100%; max-height:85vh; overflow-y:auto; }
+.modal-box { background:var(--surface); border:2px solid rgba(0,212,255,.65); border-radius:20px; max-width:400px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6); }
 .modal-head { padding:20px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
 .modal-close { background:transparent; border:1px solid var(--border2); color:var(--text3); border-radius:10px; width:32px; height:32px; font-size:16px; cursor:pointer; }
 </style>
@@ -857,21 +857,19 @@ function buildCal() {
   for (var day=1; day<=daysInMonth; day++) {
     var count = porDia[day]||0;
     var isToday = day===todayNum;
-    var bg, color, boxSh, textSh, fw;
+    var border, color, boxSh, textSh, fw, dot;
     if (isToday) {
-      bg = 'var(--cyan)'; color = '#04141f'; fw = '900';
-      boxSh = '0 0 8px rgba(0,212,255,.95),0 0 18px rgba(0,212,255,.65),0 0 30px rgba(0,212,255,.4)';
-      textSh = '0 0 6px rgba(255,255,255,.85)';
-    } else if (count>0) {
-      bg = 'rgba(255,71,87,.16)'; color = 'var(--red)'; fw = '800';
-      boxSh = '0 0 6px rgba(255,71,87,.4)';
-      textSh = '0 0 5px rgba(255,71,87,.6)';
+      border = '2px solid var(--cyan)'; color = 'var(--cyan)'; fw = '900';
+      boxSh = '0 0 8px rgba(0,212,255,.85),0 0 18px rgba(0,212,255,.5),inset 0 0 8px rgba(0,212,255,.15)';
+      textSh = '0 0 6px rgba(0,212,255,.9)';
     } else {
-      bg = 'transparent'; color = 'var(--text2)'; fw = '700';
+      border = '2px solid transparent'; color = 'var(--text2)'; fw = '700';
       boxSh = 'none';
       textSh = '0 0 3px rgba(0,212,255,.4)';
     }
-    html += '<div class="mini-cal-day" style="background:'+bg+';color:'+color+';font-weight:'+fw+';box-shadow:'+boxSh+';text-shadow:'+textSh+'">'+day+'</div>';
+    dot = count>0 ? '<span style="position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 5px rgba(255,179,0,.9),0 0 9px rgba(255,179,0,.6)"></span>' : '';
+    if (count>0 && !isToday) { color = 'var(--amber)'; fw = '800'; textSh = '0 0 5px rgba(255,179,0,.65)'; }
+    html += '<div class="mini-cal-day" style="position:relative;background:transparent;border:'+border+';color:'+color+';font-weight:'+fw+';box-shadow:'+boxSh+';text-shadow:'+textSh+'">'+day+dot+'</div>';
   }
   html += '</div></div>';
   return html;
