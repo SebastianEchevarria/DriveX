@@ -82,6 +82,7 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
 .login-logo .mark { width:60px; height:60px; border-radius:16px; background:linear-gradient(135deg,var(--cyan),var(--purple)); display:flex; align-items:center; justify-content:center; font-size:30px; font-weight:900; color:#000; box-shadow:0 6px 24px rgba(0,212,255,.4); }
 .login-logo .name { font-size:26px; font-weight:900; letter-spacing:.5px; }
 .login-tag { font-size:14px; font-weight:800; color:var(--cyan); letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:36px; }
+.login-logo-img { display:block; width:100%; max-width:220px; height:auto; margin:0 auto 34px; filter:drop-shadow(0 6px 26px rgba(124,92,252,.45)); }
 .field { margin-bottom:16px; }
 .field label { display:block; font-size:11px; font-weight:700; color:#ffffff; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; text-shadow:0 0 5px rgba(124,92,252,.85),0 0 10px rgba(124,92,252,.45); }
 .field input, .field select { width:100%; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:13px 14px; border-radius:10px; font-size:15px; font-family:inherit; outline:none; }
@@ -132,7 +133,8 @@ html[data-theme="light"] .docs-btn { border:2px solid rgba(0,95,138,.6); backgro
 <!-- ══════════════ LOGIN / ACTIVACIÓN ══════════════ -->
 <div id="screen-login">
   <div class="login-box">
-    
+
+    <img class="logo-owner-img login-logo-img" alt="DRIVX Owner App">
 
     <!-- Paso: activar cuenta con código (primera vez) -->
     <div id="step-activar">
@@ -191,7 +193,6 @@ html[data-theme="light"] .docs-btn { border:2px solid rgba(0,95,138,.6); backgro
   <div class="screen active" id="screen-inicio">
     <div class="mini-brand">
       <img class="logo-owner-img" alt="DRIVX Owner App" style="width:100%;max-width:150px;height:auto;display:block;margin:0 auto">
-      <div class="tag">App de Propietario</div>
     </div>
     <div class="header">
       <div>
@@ -209,7 +210,6 @@ html[data-theme="light"] .docs-btn { border:2px solid rgba(0,95,138,.6); backgro
   <div class="screen" id="screen-citas">
     <div class="mini-brand">
       <img class="logo-owner-img" alt="DRIVX Owner App" style="width:100%;max-width:150px;height:auto;display:block;margin:0 auto">
-      <div class="tag">App de Propietario</div>
     </div>
     <div class="header">
       <div>
