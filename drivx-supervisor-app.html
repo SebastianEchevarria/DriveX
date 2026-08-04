@@ -1236,7 +1236,7 @@ function renderHomeProximas() {
     var bg  = d===0?'rgba(255,71,87,.08)':d<=3?'rgba(255,71,87,.05)':d<=7?'rgba(255,179,0,.05)':'rgba(0,212,255,.04)';
     var lbl = d===0?'HOY':d===1?'MAÑANA':d+' días';
     var dateStr = new Date(c.fecha+'T00:00').toLocaleDateString('es-ES',{weekday:'short',day:'2-digit',month:'short'});
-    var v   = VEHICULOS.find(function(x){return x.matricula===c.matricula;});
+    var v   = getAllVehiculos().find(function(x){return x.matricula===c.matricula;});
     var did = 'cpd-'+i;
 
     // Card summary
@@ -2275,19 +2275,19 @@ function calPrev() { _calMonth--; if(_calMonth<0){_calMonth=11;_calYear--;} rend
 function calNext() { _calMonth++; if(_calMonth>11){_calMonth=0;_calYear++;} renderCalendar(); }
 
 function getAllCitas() {
+  // Fuente única de verdad: la lista global sincronizada directamente desde
+  // Firebase (drivx_citas). Antes esto se reconstruía recorriendo solo el
+  // array VEHICULOS (fijo), por lo que las citas de vehículos añadidos desde
+  // el Dashboard (VEHICULOS_EXTRA) nunca aparecían en el calendario del
+  // Supervisor aunque sí estuvieran sincronizadas correctamente.
   var all = [];
   var seen = {};
-  VEHICULOS.forEach(function(v) {
-    v.conductores.forEach(function(cid) {
-      try {
-        JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
-          // Deduplicate by content: same matricula+tipo+fecha+hora = same cita
-          var key = (c.matricula||'') + '|' + (c.tipo||'') + '|' + (c.fecha||'') + '|' + (c.hora||'');
-          if (!seen[key]) { seen[key]=true; all.push(c); }
-        });
-      } catch(e){}
+  try {
+    JSON.parse(localStorage.getItem('drivx_citas')||'[]').forEach(function(c) {
+      var key = (c.matricula||'') + '|' + (c.tipo||'') + '|' + (c.fecha||'') + '|' + (c.hora||'');
+      if (!seen[key]) { seen[key]=true; all.push(c); }
     });
-  });
+  } catch(e){}
   return all;
 }
 
@@ -2427,7 +2427,7 @@ function selectCalDay(day) {
   } else {
     var h = '';
     Object.keys(byMat).forEach(function(mat) {
-      var v = VEHICULOS.find(function(x){ return x.matricula===mat; });
+      var v = getAllVehiculos().find(function(x){ return x.matricula===mat; });
       h += '<div style="padding:10px 14px;border-bottom:1px solid var(--border)">';
       h += '<div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:6px">'+(v?v.icon+' ':'')+mat+(v?' · '+v.modelo:'')+'</div>';
       byMat[mat].forEach(function(c) {
@@ -2479,18 +2479,16 @@ var _pendingHomeDelHora  = null;
 function editCitaFromCal(key) {
   var parts = key.split('|');
   var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3];
+  // Buscamos directamente en la lista global sincronizada (drivx_citas), no
+  // solo entre los conductores de VEHICULOS: así también encuentra citas de
+  // vehículos añadidos desde el Dashboard (VEHICULOS_EXTRA).
   var cita = null;
-  VEHICULOS.forEach(function(v) {
-    if (v.matricula !== mat) return;
-    v.conductores.forEach(function(cid) {
-      try {
-        JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
-          if (!cita && c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||''))
-            cita = c;
-        });
-      } catch(e){}
+  try {
+    JSON.parse(localStorage.getItem('drivx_citas')||'[]').forEach(function(c) {
+      if (!cita && (c.matricula||'')===mat && (c.tipo||'')===tipo && (c.fecha||'')===fecha && (c.hora||'')===(hora||''))
+        cita = c;
     });
-  });
+  } catch(e){}
   if (!cita) { console.log('cita not found for key:', key); return; }
   _pendingEditKey = key;
   var el;
@@ -2517,7 +2515,7 @@ function saveEditCita() {
   var newLugar = (document.getElementById('edit-lugar').value||'').trim();
   var newNota  = (document.getElementById('edit-nota').value||'').trim();
   if (!newFecha) { toast('⚠ Selecciona una fecha'); return; }
-  VEHICULOS.forEach(function(v) {
+  getAllVehiculos().forEach(function(v) {
     if (v.matricula !== mat) return;
     v.conductores.forEach(function(cid) {
       var k='drivx_citas_'+cid, citas=[];
@@ -2565,8 +2563,10 @@ function confirmDelCita() {
     mat=parts[0]; tipo=parts[1]; fecha=parts[2]; hora=parts[3]||'';
   }
 
-  // Delete from ALL conductor keys (match by matricula+tipo+fecha, hora optional)
-  VEHICULOS.forEach(function(v) {
+  // Delete from ALL conductor keys (match by matricula+tipo+fecha, hora optional).
+  // Usamos getAllVehiculos() (VEHICULOS + VEHICULOS_EXTRA) para que también se
+  // limpie la caché local de conductores de vehículos añadidos desde el Dashboard.
+  getAllVehiculos().forEach(function(v) {
     v.conductores.forEach(function(cid) {
       var k='drivx_citas_'+cid, citas=[];
       try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
@@ -3005,70 +3005,4 @@ function offerBiometricRegister(email,pass){
   </div>
 </div>
 </body>
-</htmlfunction editCitaFromCal(key) {
-  var parts = key.split('|');
-  var mat=parts[0], tipo=parts[1], fecha=parts[2], hora=parts[3];
-  var cita = null;
-  VEHICULOS.forEach(function(v) {
-    if (v.matricula !== mat) return;
-    v.conductores.forEach(function(cid) {
-      try {
-        JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(function(c) {
-          if (c.matricula===mat && c.tipo===tipo && c.fecha===fecha && (c.hora||'')===(hora||'')) cita=c;
-        });
-      } catch(e){}
-    });
-  });
-  if (!cita) return;
-  _pendingEditKey = key;
-  document.getElementById('edit-tipo').value  = cita.tipo  || '';
-  document.getElementById('edit-fecha').value = cita.fecha || '';
-  document.getElementById('edit-hora').value  = cita.hora  || '';
-  document.getElementById('edit-lugar').value = cita.lugar || '';
-  document.getElementById('edit-nota').value  = cita.nota  || '';
-  document.getElementById('edit-mat-label').textContent = mat;
-  document.getElementById('cal-edit-modal').style.display = 'flex';
-}
-
-var _pendingEditKey = null;
-
-function saveEditCita() {
-  if (!_pendingEditKey) return;
-  var parts = _pendingEditKey.split('|');
-  var mat=parts[0], oldTipo=parts[1], oldFecha=parts[2], oldHora=parts[3];
-  var newTipo  = document.getElementById('edit-tipo').value;
-  var newFecha = document.getElementById('edit-fecha').value;
-  var newHora  = document.getElementById('edit-hora').value;
-  var newLugar = document.getElementById('edit-lugar').value.trim();
-  var newNota  = document.getElementById('edit-nota').value.trim();
-  if (!newFecha) { toast('\u26a0 Selecciona una fecha'); return; }
-
-  VEHICULOS.forEach(function(v) {
-    if (v.matricula !== mat) return;
-    v.conductores.forEach(function(cid) {
-      var k='drivx_citas_'+cid, citas=[];
-      try{citas=JSON.parse(localStorage.getItem(k)||'[]');}catch(e){}
-      citas=citas.map(function(c){
-        if(c.matricula===mat&&c.tipo===oldTipo&&c.fecha===oldFecha&&(c.hora||'')===(oldHora||''))
-          return Object.assign({},c,{tipo:newTipo,fecha:newFecha,hora:newHora,lugar:newLugar,nota:newNota});
-        return c;
-      });
-      localStorage.setItem(k,JSON.stringify(citas));
-    });
-  });
-  var all=[];
-  try{all=JSON.parse(localStorage.getItem('drivx_citas')||'[]');}catch(e){}
-  all=all.map(function(c){
-    if(c.matricula===mat&&c.tipo===oldTipo&&c.fecha===oldFecha&&(c.hora||'')===(oldHora||''))
-      return Object.assign({},c,{tipo:newTipo,fecha:newFecha,hora:newHora,lugar:newLugar,nota:newNota});
-    return c;
-  });
-  localStorage.setItem('drivx_citas',JSON.stringify(all));
-  syncAllCitasToFirebase(all);
-  document.getElementById('cal-edit-modal').style.display='none';
-  _pendingEditKey=null;
-  toast('\u2705 Cita actualizada');
-  renderVehiculosHome(); renderNotifCitas(); renderHomeProximas(); renderCalendar();
-}
-
->
+</html>
