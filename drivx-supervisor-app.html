@@ -1011,13 +1011,16 @@ function openMatModal(matricula) {
 }
 
 function renderMatCitas(v) {
+  // Antes se buscaba en la caché local por conductor (drivx_citas_<cid>), que
+  // puede no estar poblada a tiempo o para todos los conductores. Ahora se
+  // filtra directamente de la lista global sincronizada (drivx_citas) por
+  // matrícula, la misma fuente única de verdad que usa "Próximas citas".
   var allCitas = [];
-  v.conductores.forEach(function(cid) {
-    try {
-      var c = JSON.parse(localStorage.getItem('drivx_citas_' + cid)||'[]');
-      allCitas = allCitas.concat(c);
-    } catch(e){}
-  });
+  try {
+    JSON.parse(localStorage.getItem('drivx_citas')||'[]').forEach(function(c) {
+      if ((c.matricula||'') === v.matricula) allCitas.push(c);
+    });
+  } catch(e){}
 
   allCitas.sort(function(a, b){ return new Date(a.fecha+'T'+(a.hora||'00:00')) - new Date(b.fecha+'T'+(b.hora||'00:00')); });
 
