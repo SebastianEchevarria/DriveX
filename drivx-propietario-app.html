@@ -173,7 +173,7 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
   <div class="screen active" id="screen-inicio">
     <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
       <img class="logo-owner-img" alt="DRIVX Owner App" style="width:auto;max-width:150px;height:auto;display:block;margin:0">
-      <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
+      <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,71,87,.95);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 14px rgba(255,71,87,.9),0 0 30px rgba(255,71,87,.6),0 0 50px rgba(255,71,87,.35)">Salir</button>
     </div>
     <div class="header">
       <div>
@@ -191,7 +191,7 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
   <div class="screen" id="screen-citas">
     <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
       <img class="logo-owner-img" alt="DRIVX Owner App" style="width:auto;max-width:150px;height:auto;display:block;margin:0">
-      <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
+      <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,71,87,.95);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 14px rgba(255,71,87,.9),0 0 30px rgba(255,71,87,.6),0 0 50px rgba(255,71,87,.35)">Salir</button>
     </div>
     <div class="header">
       <div>
@@ -516,9 +516,10 @@ function citasVehHtml(matricula, citasLista, now) {
     var dias = Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);
     var vencida = dias < 0;
     var color = vencida ? 'var(--red)' : dias<=2 ? 'var(--amber)' : 'var(--cyan)';
-    var border = vencida ? 'rgba(255,71,87,.4)' : dias<=2 ? 'rgba(255,179,0,.4)' : 'rgba(0,212,255,.3)';
+    var border = vencida ? 'rgba(255,71,87,.9)' : dias<=2 ? 'rgba(255,179,0,.9)' : 'rgba(0,212,255,.9)';
+    var glow = vencida ? '0 0 12px rgba(255,71,87,.85),0 0 26px rgba(255,71,87,.55),0 0 44px rgba(255,71,87,.3)' : dias<=2 ? '0 0 12px rgba(255,179,0,.85),0 0 26px rgba(255,179,0,.55),0 0 44px rgba(255,179,0,.3)' : '0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.55),0 0 44px rgba(0,212,255,.3)';
     var fechaTxt = d.toLocaleDateString('es-ES', {weekday:'short', day:'2-digit', month:'short'});
-    return '<div onclick="event.stopPropagation();openCitaDetail('+c.id+')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1.5px solid '+border+';border-radius:10px;margin-bottom:6px;cursor:pointer;background:rgba(255,255,255,.02)">' +
+    return '<div onclick="event.stopPropagation();openCitaDetail('+c.id+')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1.5px solid '+border+';box-shadow:'+glow+';border-radius:10px;margin-bottom:6px;cursor:pointer;background:rgba(255,255,255,.02)">' +
       '<div style="font-size:16px">'+(c.tipo==='ITV'?itvIconImg(20,4):'📅')+'</div>' +
       '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800">'+c.tipo+'</div>' +
       '<div style="font-size:10px;color:var(--text3)">'+fechaTxt+(c.hora?' · '+c.hora:'')+'</div></div>' +
@@ -526,7 +527,7 @@ function citasVehHtml(matricula, citasLista, now) {
     '</div>';
   }).join('');
 
-  return '<div class="section-title" style="margin:0 0 6px">📅 Citas programadas</div>' + filas;
+  return '<div class="section-title" style="margin:0 0 6px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">📅 Citas programadas</div>' + filas;
 }
 
 function matSlugO(mat) { return mat.replace(/\s/g,'_'); }
