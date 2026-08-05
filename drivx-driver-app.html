@@ -160,23 +160,33 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 .empty-state { text-align:center; padding:32px 16px; color:#fff; font-size:13px; text-shadow:0 0 5px rgba(255,255,255,.8),0 0 10px rgba(0,212,255,.35); }
 
 /* ── FACTURACIÓN ── */
-.plat-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
+.plat-card { background:var(--surface); border-radius:16px; padding:16px; margin-bottom:12px; }
+.plat-card.uber-card { border:2px solid rgba(255,255,255,.9); box-shadow:0 0 14px rgba(255,255,255,.75),0 0 30px rgba(255,255,255,.45),0 0 50px rgba(255,255,255,.22); }
+.plat-card.bolt-card { border:2px solid rgba(0,230,118,.9); box-shadow:0 0 14px rgba(0,230,118,.75),0 0 30px rgba(0,230,118,.45),0 0 50px rgba(0,230,118,.22); }
+.plat-card.cabify-card { border:2px solid rgba(124,92,252,.9); box-shadow:0 0 14px rgba(124,92,252,.75),0 0 30px rgba(124,92,252,.45),0 0 50px rgba(124,92,252,.22); }
 .plat-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
 .plat-logo { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; }
-.plat-name { font-size:15px; font-weight:800; }
-.plat-sub { font-size:11px; color:var(--text2); margin-top:1px; }
+.plat-name { font-size:15px; font-weight:800; color:#fff; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.4); }
+.plat-sub { font-size:11px; color:#e8f6ff; margin-top:1px; text-shadow:0 0 4px rgba(255,255,255,.5); }
 .plat-amounts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
-.plat-amt { background:var(--surface2); border-radius:10px; padding:10px 12px; }
-.plat-amt-val { font-family:var(--mono); font-size:17px; font-weight:700; }
-.plat-amt-lbl { font-size:10px; color:var(--text2); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
-.btn-upload { width:100%; padding:11px; border-radius:10px; border:1px solid var(--border2); background:var(--surface2); color:var(--text2); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; }
+.plat-amt { border-radius:10px; padding:10px 12px; }
+.plat-card.uber-card .plat-amt { background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.5); box-shadow:0 0 8px rgba(255,255,255,.35),0 0 16px rgba(255,255,255,.18); }
+.plat-card.bolt-card .plat-amt { background:rgba(0,230,118,.06); border:1.5px solid rgba(0,230,118,.5); box-shadow:0 0 8px rgba(0,230,118,.35),0 0 16px rgba(0,230,118,.18); }
+.plat-card.cabify-card .plat-amt { background:rgba(124,92,252,.06); border:1.5px solid rgba(124,92,252,.5); box-shadow:0 0 8px rgba(124,92,252,.35),0 0 16px rgba(124,92,252,.18); }
+.plat-amt-val { font-family:var(--mono); font-size:17px; font-weight:700; color:#fff; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.4); }
+.plat-amt-lbl { font-size:10px; color:#e8f6ff; margin-top:2px; text-transform:uppercase; letter-spacing:.5px; text-shadow:0 0 4px rgba(255,255,255,.5); }
+.btn-upload { width:100%; padding:11px; border-radius:10px; color:#fff; text-shadow:0 0 5px rgba(255,255,255,.85); font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; }
+.plat-card.uber-card .btn-upload { border:1.5px solid rgba(255,255,255,.5); background:rgba(255,255,255,.06); box-shadow:0 0 8px rgba(255,255,255,.35),0 0 16px rgba(255,255,255,.18); }
+.plat-card.bolt-card .btn-upload { border:1.5px solid rgba(0,230,118,.5); background:rgba(0,230,118,.06); box-shadow:0 0 8px rgba(0,230,118,.35),0 0 16px rgba(0,230,118,.18); }
+.plat-card.cabify-card .btn-upload { border:1.5px solid rgba(124,92,252,.5); background:rgba(124,92,252,.06); box-shadow:0 0 8px rgba(124,92,252,.35),0 0 16px rgba(124,92,252,.18); }
 .btn-upload:active { background:var(--border); }
 
 /* Bolt campanyas */
-.campanyas-row { background:rgba(0,212,255,.05); border:1px solid rgba(0,212,255,.15); border-radius:10px; padding:10px 12px; margin-top:8px; display:none; }
+.campanyas-row { border-radius:10px; padding:10px 12px; margin-top:8px; display:none; }
+.plat-card.bolt-card .campanyas-row { background:rgba(0,230,118,.06); border:1.5px solid rgba(0,230,118,.5); box-shadow:0 0 8px rgba(0,230,118,.35),0 0 16px rgba(0,230,118,.18); }
 .campanyas-row.visible { display:block; }
-.campanyas-row label { font-size:10px; color:var(--text2); font-family:var(--mono); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
-.campanyas-row input { width:100%; background:var(--surface); border:1px solid var(--border2); color:var(--text); padding:8px 10px; border-radius:8px; font-size:16px; font-family:var(--mono); font-weight:700; outline:none; }
+.campanyas-row label { font-size:10px; color:#e8f6ff; font-family:var(--mono); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; text-shadow:0 0 4px rgba(255,255,255,.5); }
+.campanyas-row input { width:100%; background:var(--surface); border:1px solid var(--border2); color:#fff; padding:8px 10px; border-radius:8px; font-size:16px; font-family:var(--mono); font-weight:700; outline:none; }
 
 /* Total bar */
 .total-bar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
@@ -508,66 +518,66 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     </div>
 
     <!-- UBER -->
-    <div class="plat-card">
+    <div class="plat-card uber-card">
       <div class="plat-header">
         <div class="plat-logo" style="background:#fff;color:#000">U</div>
         <div><div class="plat-name">Uber</div><div class="plat-sub">Earnings · hoy</div></div>
       </div>
       <div class="plat-amounts">
-        <div class="plat-amt"><div class="plat-amt-val" id="uber-neto" style="color:var(--green)">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="uber-propinas" style="color:var(--amber)">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="uber-neto">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="uber-propinas">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
       </div>
       <input type="file" id="input-uber" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'uber')">
       <button class="btn-upload" onclick="document.getElementById('input-uber').click()">📸 Subir captura Uber</button>
     </div>
 
     <!-- BOLT -->
-    <div class="plat-card">
+    <div class="plat-card bolt-card">
       <div class="plat-header">
         <div class="plat-logo" style="background:#34d186;color:#fff">B</div>
         <div><div class="plat-name">Bolt</div><div class="plat-sub">Desglose completo · hoy</div></div>
       </div>
 
       <!-- Main result -->
-      <div style="background:rgba(52,209,134,0.08);border:1px solid rgba(52,209,134,0.2);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:13px;font-weight:700;color:var(--text2)">💰 Tus ganancias</span>
-        <span id="bolt-ganancias" style="font-family:var(--mono);font-size:20px;font-weight:800;color:var(--green)">—</span>
+      <div style="background:rgba(0,230,118,.06);border:1.5px solid rgba(0,230,118,.5);box-shadow:0 0 8px rgba(0,230,118,.35),0 0 16px rgba(0,230,118,.18);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">💰 Tus ganancias</span>
+        <span id="bolt-ganancias" style="font-family:var(--mono);font-size:20px;font-weight:800;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(0,230,118,.6)">—</span>
       </div>
 
       <!-- Desglose app -->
-      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px">INGRESOS APP</div>
+      <div style="font-size:10px;color:#e8f6ff;font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;text-shadow:0 0 4px rgba(255,255,255,.5)">INGRESOS APP</div>
       <div class="plat-amounts" style="grid-template-columns:1fr 1fr;margin-bottom:8px">
-        <div class="plat-amt"><div class="plat-amt-val" id="bolt-pagos-app" style="color:var(--text)">—</div><div class="plat-amt-lbl">Pagos viajes</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="bolt-propinas" style="color:var(--amber)">—</div><div class="plat-amt-lbl">Propinas</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="bolt-pagos-app">—</div><div class="plat-amt-lbl">Pagos viajes</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="bolt-propinas">—</div><div class="plat-amt-lbl">Propinas</div></div>
       </div>
 
       <!-- Campañas (aparece solo si > 0) -->
       <div id="bolt-camp-row" class="campanyas-row" style="margin-bottom:8px">
         <label>🎯 CAMPAÑAS</label>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;color:var(--text2)">Campañas / Bonos</span>
-          <span id="bolt-campanyas-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--cyan)">—</span>
+          <span style="font-size:12px;color:#e8f6ff;text-shadow:0 0 4px rgba(255,255,255,.5)">Campañas / Bonos</span>
+          <span id="bolt-campanyas-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,230,118,.5)">—</span>
         </div>
       </div>
 
       <!-- Compensaciones (aparece solo si > 0) -->
-      <div id="bolt-comp-row" class="campanyas-row" style="margin-bottom:8px;border-color:rgba(124,92,252,0.3);background:rgba(124,92,252,0.06)">
-        <label style="color:var(--text3)">🔄 COMPENSACIONES</label>
+      <div id="bolt-comp-row" class="campanyas-row" style="margin-bottom:8px">
+        <label>🔄 COMPENSACIONES</label>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;color:var(--text2)">Compensaciones</span>
-          <span id="bolt-compensaciones-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--purple)">—</span>
+          <span style="font-size:12px;color:#e8f6ff;text-shadow:0 0 4px rgba(255,255,255,.5)">Compensaciones</span>
+          <span id="bolt-compensaciones-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,230,118,.5)">—</span>
         </div>
       </div>
 
       <!-- Efectivo -->
-      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px">INGRESOS EN EFECTIVO</div>
+      <div style="font-size:10px;color:#e8f6ff;font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;text-shadow:0 0 4px rgba(255,255,255,.5)">INGRESOS EN EFECTIVO</div>
       <div class="plat-amounts" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
         <div class="plat-amt">
-          <div class="plat-amt-val" id="bolt-efectivo-suma" style="color:var(--text)">—</div>
+          <div class="plat-amt-val" id="bolt-efectivo-suma">—</div>
           <div class="plat-amt-lbl">Viajes + Tasas</div>
         </div>
         <div class="plat-amt">
-          <div class="plat-amt-val" id="bolt-efectivo-mano" style="color:var(--amber)">—</div>
+          <div class="plat-amt-val" id="bolt-efectivo-mano">—</div>
           <div class="plat-amt-lbl">Efectivo en mano</div>
         </div>
       </div>
@@ -577,14 +587,14 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     </div>
 
     <!-- CABIFY -->
-    <div class="plat-card">
+    <div class="plat-card cabify-card">
       <div class="plat-header">
         <div class="plat-logo" style="background:var(--purple);color:#fff">C</div>
         <div><div class="plat-name">Cabify</div><div class="plat-sub">Earnings · hoy</div></div>
       </div>
       <div class="plat-amounts">
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto" style="color:var(--green)">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas" style="color:var(--amber)">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
       </div>
       <input type="file" id="input-cabify" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'cabify')">
       <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
