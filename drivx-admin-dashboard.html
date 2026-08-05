@@ -1028,11 +1028,11 @@ function renderFichajeAlerts() {
     ccaasPresentes.forEach(function(cc){
       html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">' + (ccaaIcons[cc]||'📍') + ' ' + cc + '</div>';
       groups[cc].forEach(function(l){
-        html += '<div id="alert_'+l.cid+'" style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.08);border:2px solid rgba(255,71,87,.45);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(255,71,87,.12)">' +
+        html += '<div id="alert_'+l.cid+'" style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.06);backdrop-filter:blur(6px);border:1.5px solid rgba(255,71,87,.6);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.3),0 0 10px rgba(255,71,87,.55),0 0 22px rgba(255,71,87,.3),0 0 38px rgba(255,71,87,.15)">' +
           '<div style="font-size:26px">⚠️</div>' +
           '<div style="flex:1;min-width:0">' +
             '<div style="font-size:14px;font-weight:900;color:#fff">' + l.nombre + '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-top:2px">🕐 ' + l.turno + ' · 🚗 <span style="font-family:var(--mono);color:var(--cyan);font-weight:700">' + l.matricula + '</span></div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">🕐 ' + l.turno + ' · <span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlSmall(l.matricula) + '</span></div>' +
             (l.telefono ? '<div style="font-size:12px;color:var(--text2);margin-top:2px">📱 ' + l.telefono + '</div>' : '') +
           '</div>' +
           '<div style="text-align:right;flex-shrink:0">' +
