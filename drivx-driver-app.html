@@ -91,8 +91,8 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 .fichar-wrap { padding:0 0 16px; }
 .btn-fichar { width:100%; padding:32px; border-radius:24px; border:none; font-size:24px; font-weight:900; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:16px; transition:all .2s; }
 .btn-fichar span:first-child { font-size:28px; }
-.btn-fichar.entrada { background:linear-gradient(135deg,rgba(0,230,118,.15),rgba(0,230,118,.08)); border:2px solid rgba(0,230,118,.4); color:var(--green); }
-.btn-fichar.salida  { background:linear-gradient(135deg,rgba(255,71,87,.15),rgba(255,71,87,.08)); border:2px solid rgba(255,71,87,.4); color:var(--red); }
+.btn-fichar.entrada { background:linear-gradient(135deg,rgba(0,230,118,.15),rgba(0,230,118,.08)); border:2.5px solid rgba(0,230,118,.9); color:var(--green); box-shadow:0 0 16px rgba(0,230,118,.8),0 0 34px rgba(0,230,118,.55),0 0 60px rgba(0,230,118,.3); }
+.btn-fichar.salida  { background:linear-gradient(135deg,rgba(255,71,87,.15),rgba(255,71,87,.08)); border:2.5px solid rgba(255,71,87,.9); color:var(--red); box-shadow:0 0 16px rgba(255,71,87,.8),0 0 34px rgba(255,71,87,.55),0 0 60px rgba(255,71,87,.3); }
 
 /* KM panel */
 .km-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px; display:none; }
@@ -293,17 +293,25 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ HOME ══════════════ -->
 <div id="screen-home" class="screen">
-  <div class="mini-brand">
-    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:100%;max-width:180px;height:auto;display:block;margin:0 auto">
+  <div class="mini-brand" style="text-align:left;padding-left:20px">
+    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:230px;height:auto;display:block;margin:0">
   </div>
 
   <div class="scroll">
     <div class="header">
       <div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div>
     </div>
-    <button onclick="doLogout()" style="position:fixed;top:14px;right:14px;z-index:400;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
+    <button id="btn-salir-home" onclick="doLogout()" style="position:fixed;top:14px;right:14px;z-index:400;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
 
-    <!-- KM panel -->
+    <!-- Fichar button -->
+    <div class="fichar-wrap">
+      <button class="btn-fichar entrada" id="btn-fichar" onclick="openKmModal()">
+        <span id="fichar-icon">🟢</span>
+        <span id="fichar-text">Fichar entrada</span>
+      </button>
+    </div>
+
+    <!-- KM panel (debajo del botón de fichar) -->
     <div class="km-panel" id="km-panel">
       <div class="km-row">
         <div class="km-item"><div class="km-val" id="km-entrada-val">—</div><div class="km-lbl">Entrada</div></div>
@@ -312,35 +320,38 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       </div>
     </div>
 
-    <!-- Conductor card -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
-        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.3);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:var(--cyan)" id="conductor-inicial">—</div>
-        <div>
+    <!-- Conductor card (botón plegable, incluye matrícula, turno y documentación) -->
+    <div style="background:rgba(0,212,255,.05);backdrop-filter:blur(6px);border:2px solid rgba(0,212,255,.85);border-radius:18px;margin-bottom:14px;overflow:hidden;box-shadow:0 0 14px rgba(0,212,255,.7),0 0 30px rgba(0,212,255,.45),0 0 50px rgba(0,212,255,.22)">
+      <div onclick="toggleConductorDetail()" style="padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+        <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(0,212,255,0.05));border:1px solid rgba(0,212,255,0.3);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:var(--cyan);flex-shrink:0" id="conductor-inicial">—</div>
+        <div style="flex:1;min-width:0">
           <div style="font-size:17px;font-weight:800;color:var(--text)" id="conductor-nombre">—</div>
           <div style="font-size:12px;color:var(--text3);margin-top:2px" id="conductor-modelo">—</div>
         </div>
+        <span id="conductor-chevron" style="color:var(--cyan);font-size:14px;transition:transform .2s ease;display:inline-block;flex-shrink:0">▾</span>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div id="conductor-matricula-wrap"></div>
-        <div style="background:var(--surface2);border-radius:10px;padding:10px 12px;flex:1">
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Turno</div>
-          <div style="font-size:13px;font-weight:700;color:var(--amber)" id="conductor-turno">—</div>
+      <div id="conductor-detail-body" style="display:none;padding:0 20px 18px;border-top:1px solid rgba(0,212,255,.25)">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:14px;margin-bottom:14px">
+          <div id="conductor-matricula-wrap"></div>
+          <div style="background:rgba(255,179,0,.08);border:1.5px solid rgba(255,179,0,.6);box-shadow:0 0 8px rgba(255,179,0,.4),0 0 16px rgba(255,179,0,.2);border-radius:10px;padding:10px 12px;flex:1">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Turno</div>
+            <div style="font-size:15px;font-weight:900;color:var(--amber)" id="conductor-turno">—</div>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Documentación del vehículo (subida por Administración/Supervisor) -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:14px;overflow:hidden">
-      <div id="doc-coche-header" onclick="toggleDocCoche()" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent">
-        <span style="font-size:22px">📁</span>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:800;color:var(--text)">DOCUMENTACIÓN COCHE</div>
-          <div id="doc-coche-sub" style="font-size:11px;color:var(--text3);margin-top:1px">Cargando…</div>
+        <!-- Documentación del vehículo (anidada dentro de la tarjeta del conductor) -->
+        <div style="background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.5);border-radius:14px;overflow:hidden">
+          <div id="doc-coche-header" onclick="event.stopPropagation();toggleDocCoche()" style="padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <span style="font-size:20px">📁</span>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:800;color:var(--text)">DOCUMENTACIÓN COCHE</div>
+              <div id="doc-coche-sub" style="font-size:11px;color:var(--text3);margin-top:1px">Cargando…</div>
+            </div>
+            <span id="doc-coche-chevron" style="color:var(--cyan);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
+          </div>
+          <div id="doc-vehiculo-area" style="display:none;padding:0 14px 14px;border-top:1px solid rgba(0,212,255,.2)"></div>
         </div>
-        <span id="doc-coche-chevron" style="color:var(--text3);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
       </div>
-      <div id="doc-vehiculo-area" style="display:none;padding:0 16px 14px;border-top:1px solid var(--border)"></div>
     </div>
 
     <!-- Próxima cita -->
@@ -382,14 +393,6 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <a id="cita-maps-btn" style="display:none;margin-top:10px;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:12px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:13px;font-weight:800;text-decoration:none;cursor:pointer">
         🗺️ IR · Abrir en Google Maps
       </a>
-    </div>
-
-    <!-- Fichar button -->
-    <div class="fichar-wrap">
-      <button class="btn-fichar entrada" id="btn-fichar" onclick="openKmModal()">
-        <span id="fichar-icon">🟢</span>
-        <span id="fichar-text">Fichar entrada</span>
-      </button>
     </div>
   </div>
 </div>
@@ -622,7 +625,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
     <div style="display:flex;gap:10px">
       <button id="km-confirm-btn" class="btn-primary" disabled onclick="confirmKm()" style="opacity:.4;cursor:not-allowed">Confirmar km</button>
-      <button onclick="closeKmModal()" style="padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer">Cancelar</button>
+      <button onclick="closeKmModal()" style="padding:14px 20px;border-radius:12px;border:2px solid rgba(255,71,87,.85);background:rgba(255,71,87,.15);color:#ff6b6b;font-weight:800;box-shadow:0 0 8px rgba(255,71,87,.5),0 0 16px rgba(255,71,87,.28);cursor:pointer">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1119,7 +1122,7 @@ function doLogin() {
     if (u.pass !== pass) { err.style.display='block'; return; }
     err.style.display='none';
     var _hasStored = (function(){var s=null;try{s=JSON.parse(localStorage.getItem("drivx_webauthn_cred_driver")||"null");}catch(e){}return !!(s&&s.email&&s.registered===true);})();
-    if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 10000); } else { loginAs(u); }
+    if(!_hasStored){ window._pendingUser=u; offerBiometricRegister(email, pass); setTimeout(function(){if(document.getElementById("biometric-offer-modal").style.display!=="none"){document.getElementById("biometric-offer-modal").style.display="none";loginAs(u);}}, 45000); } else { loginAs(u); }
     return;
   }
   // ¿Es un conductor activado por invitación? (email + contraseña creada al registrarse)
@@ -1393,7 +1396,7 @@ function finalizeRegistro() {
       setTimeout(function(){
         var m = document.getElementById('biometric-offer-modal');
         if (m && m.style.display !== 'none') { m.style.display = 'none'; loginAs(u); }
-      }, 10000);
+      }, 45000);
     } else {
       loginAs(u);
     }
@@ -1646,9 +1649,15 @@ function openKmModal() {
   document.getElementById('km-camera-input').value = '';
   updateGastosInputs();
   document.getElementById('km-modal').classList.add('open');
+  var salirBtn = document.getElementById('btn-salir-home');
+  if (salirBtn) salirBtn.style.display = 'none';
 }
 
-function closeKmModal() { document.getElementById('km-modal').classList.remove('open'); }
+function closeKmModal() {
+  document.getElementById('km-modal').classList.remove('open');
+  var salirBtn = document.getElementById('btn-salir-home');
+  if (salirBtn) salirBtn.style.display = '';
+}
 
 function onKmPhoto(input) {
   if (!input.files[0]) return;
@@ -2925,11 +2934,32 @@ var VEHICULO_DOC_TYPES = [
 ];
 var _vehiculoDocsCache = {};
 
+var _docCocheAutoCloseTimer = null;
 function toggleDocCoche() {
   var area = document.getElementById('doc-vehiculo-area');
   var chev = document.getElementById('doc-coche-chevron');
   var isOpen = area.style.display !== 'none';
   area.style.display = isOpen ? 'none' : 'block';
+  chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  if (_docCocheAutoCloseTimer) { clearTimeout(_docCocheAutoCloseTimer); _docCocheAutoCloseTimer = null; }
+  if (!isOpen) {
+    // se acaba de abrir: si el usuario no lo cierra antes, se cierra solo a los 30s
+    _docCocheAutoCloseTimer = setTimeout(function(){
+      var a = document.getElementById('doc-vehiculo-area');
+      var c = document.getElementById('doc-coche-chevron');
+      if (a && a.style.display !== 'none') {
+        a.style.display = 'none';
+        if (c) c.style.transform = 'rotate(0deg)';
+      }
+      _docCocheAutoCloseTimer = null;
+    }, 30000);
+  }
+}
+function toggleConductorDetail() {
+  var body = document.getElementById('conductor-detail-body');
+  var chev = document.getElementById('conductor-chevron');
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
   chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
@@ -3225,7 +3255,7 @@ function offerBiometricRegister(email,pass){
   var modal=document.getElementById('biometric-offer-modal');
   var yesBtn=document.getElementById('biometric-offer-yes');
   if(!modal||!yesBtn)return;
-  yesBtn.onclick=function(){modal.style.display='none';registerBiometric(email,pass);};
+  yesBtn.onclick=function(){modal.style.display='none';registerBiometric(email,pass).finally(function(){loginAs(window._pendingUser);});};
   var skipBtn=document.getElementById('biometric-skip-btn');
   if(skipBtn) skipBtn.onclick=function(){modal.style.display='none';loginAs(window._pendingUser);};
   modal.style.display='flex';
