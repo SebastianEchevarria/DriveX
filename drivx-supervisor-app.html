@@ -1485,7 +1485,9 @@ function uploadToCloudinary(file) {
         try { resolve(JSON.parse(xhr.responseText)); }
         catch(e) { reject(new Error('Respuesta inválida de Cloudinary')); }
       } else {
-        reject(new Error('Error al subir el archivo (' + xhr.status + ')'));
+        var msg = 'Error al subir el archivo (' + xhr.status + ')';
+        try { var errBody = JSON.parse(xhr.responseText); if (errBody && errBody.error && errBody.error.message) msg = errBody.error.message; } catch(e){}
+        reject(new Error(msg));
       }
     };
     xhr.onerror = function() { reject(new Error('Error de red al subir el archivo')); };

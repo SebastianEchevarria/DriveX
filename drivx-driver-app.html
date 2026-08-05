@@ -1167,7 +1167,11 @@ function uploadToCloudinary(file) {
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
         try { resolve(JSON.parse(xhr.responseText)); } catch(e){ reject(new Error('Respuesta inválida')); }
-      } else reject(new Error('Error al subir (' + xhr.status + ')'));
+      } else {
+        var msg = 'Error al subir (' + xhr.status + ')';
+        try { var errBody = JSON.parse(xhr.responseText); if (errBody && errBody.error && errBody.error.message) msg = errBody.error.message; } catch(e){}
+        reject(new Error(msg));
+      }
     };
     xhr.onerror = function(){ reject(new Error('Error de red')); };
     xhr.send(fd);
