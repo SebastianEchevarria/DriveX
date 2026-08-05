@@ -214,10 +214,10 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
 <div id="cita-detail-modal" class="modal-overlay">
   <div class="modal-box">
     <div class="modal-head">
-      <div id="cd-icon" style="font-size:28px">📅</div>
+      <div id="cd-icon" style="font-size:28px"></div>
       <div style="flex:1">
-        <div id="cd-tipo" style="font-size:16px;font-weight:900">—</div>
-        <div id="cd-matricula" style="font-size:12px;color:var(--text3);font-family:var(--mono)">—</div>
+        <div id="cd-tipo" style="font-size:16px;font-weight:900;margin-bottom:6px">—</div>
+        <div id="cd-matricula"></div>
       </div>
       <button class="modal-close" onclick="closeCitaDetail()">✕</button>
     </div>
@@ -896,8 +896,9 @@ function buildListaCitas(now) {
 function openCitaDetail(id) {
   var c = _citasCache.find(function(x){ return x.id === id; });
   if (!c) return;
+  document.getElementById('cd-icon').innerHTML = c.tipo === 'ITV' ? itvIconImg(30,6) : '📅';
   document.getElementById('cd-tipo').textContent = c.tipo;
-  document.getElementById('cd-matricula').textContent = c.matricula;
+  document.getElementById('cd-matricula').innerHTML = '<span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlO(c.matricula) + '</span>';
   var d = new Date(c.fecha + 'T00:00:00');
   var body = '';
   function row(icon, label, val) {
