@@ -949,7 +949,7 @@ function renderProximasCitasInicio() {
         '<div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0'+(esITV?';border:2px solid rgba(0,212,255,.9);box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45)':'')+'">'+(esITV?itvIconImg(30,6):info.icon)+'</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:14px;font-weight:900;color:#fff">'+cita.tipo+'</div>' +
-          '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="font-family:var(--mono);color:var(--cyan);font-weight:700">'+cita.matricula+'</span></div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="display:inline-flex;transform:scale(.9);transform-origin:left center">'+plateHtmlSmall(cita.matricula)+'</span></div>' +
           '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+(CCAA_ICONS[ccaa]||'📍')+' '+ccaa+'</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0">' +
@@ -2567,7 +2567,7 @@ function paintPropietarios() {
         ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Registrado</span>'
         : '<button onclick="event.stopPropagation();verCodigoInvitePropietario(\''+item.pid+'\')" style="font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">⏳ Invitación pendiente · ver código</button>';
 
-      html += '<div class="prop-card" data-nombre="'+(p.nombre||'').toUpperCase()+'" data-matriculas="'+(p.matriculas||[]).join(',').replace(/\s/g,'').toUpperCase()+'" style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1px solid rgba(0,212,255,.3);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 6px rgba(0,212,255,.18),0 0 14px rgba(0,212,255,.08)">';
+      html += '<div class="prop-card" data-nombre="'+(p.nombre||'').toUpperCase()+'" data-matriculas="'+(p.matriculas||[]).join(',').replace(/\s/g,'').toUpperCase()+'" style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1.5px solid rgba(0,212,255,.65);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 10px rgba(0,212,255,.55),0 0 22px rgba(0,212,255,.32)">';
       html += '<div onclick="togglePropDetail(\''+item.pid+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer">';
       html += '<div><div style="font-size:14px;font-weight:800">'+(p.nombre||'—')+'</div>';
       html += '<div style="font-size:11px;color:var(--text3)">'+(p.matriculas||[]).length+' vehículo'+((p.matriculas||[]).length!==1?'s':'')+'</div></div>';
