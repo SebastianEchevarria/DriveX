@@ -214,10 +214,12 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
 <div id="cita-detail-modal" class="modal-overlay">
   <div class="modal-box">
     <div class="modal-head">
-      <div id="cd-icon" style="font-size:28px"></div>
       <div style="flex:1">
         <div id="cd-tipo" style="font-size:16px;font-weight:900;margin-bottom:6px">—</div>
-        <div id="cd-matricula"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="cd-icon" style="font-size:28px;flex-shrink:0"></div>
+          <div id="cd-matricula"></div>
+        </div>
       </div>
       <button class="modal-close" onclick="closeCitaDetail()">✕</button>
     </div>
@@ -896,8 +898,11 @@ function buildListaCitas(now) {
 function openCitaDetail(id) {
   var c = _citasCache.find(function(x){ return x.id === id; });
   if (!c) return;
-  document.getElementById('cd-icon').innerHTML = c.tipo === 'ITV' ? itvIconImg(30,6) : '📅';
-  document.getElementById('cd-tipo').textContent = c.tipo;
+  var esITV = c.tipo === 'ITV';
+  document.getElementById('cd-icon').innerHTML = esITV ? itvIconImg(30,6) : '📅';
+  var tipoEl = document.getElementById('cd-tipo');
+  tipoEl.textContent = c.tipo;
+  tipoEl.style.display = esITV ? 'none' : 'block';
   document.getElementById('cd-matricula').innerHTML = '<span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlO(c.matricula) + '</span>';
   var d = new Date(c.fecha + 'T00:00:00');
   var body = '';
