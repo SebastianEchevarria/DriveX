@@ -91,8 +91,8 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 .fichar-wrap { padding:0 0 16px; }
 .btn-fichar { width:100%; padding:32px; border-radius:24px; border:none; font-size:24px; font-weight:900; cursor:pointer; font-family:'Inter',sans-serif; display:flex; align-items:center; justify-content:center; gap:16px; transition:all .2s; }
 .btn-fichar span:first-child { font-size:28px; }
-.btn-fichar.entrada { background:linear-gradient(135deg,rgba(0,230,118,.15),rgba(0,230,118,.08)); border:2.5px solid rgba(0,230,118,.9); color:var(--green); box-shadow:0 0 16px rgba(0,230,118,.8),0 0 34px rgba(0,230,118,.55),0 0 60px rgba(0,230,118,.3); }
-.btn-fichar.salida  { background:linear-gradient(135deg,rgba(255,71,87,.15),rgba(255,71,87,.08)); border:2.5px solid rgba(255,71,87,.9); color:var(--red); box-shadow:0 0 16px rgba(255,71,87,.8),0 0 34px rgba(255,71,87,.55),0 0 60px rgba(255,71,87,.3); }
+.btn-fichar.entrada { background:rgba(255,255,255,.03); backdrop-filter:blur(6px); border:2.5px solid rgba(0,230,118,.9); color:var(--green); box-shadow:0 0 16px rgba(0,230,118,.8),0 0 34px rgba(0,230,118,.55),0 0 60px rgba(0,230,118,.3); }
+.btn-fichar.salida  { background:rgba(255,255,255,.03); backdrop-filter:blur(6px); border:2.5px solid rgba(255,71,87,.9); color:var(--red); box-shadow:0 0 16px rgba(255,71,87,.8),0 0 34px rgba(255,71,87,.55),0 0 60px rgba(255,71,87,.3); }
 
 /* KM panel */
 .km-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px; display:none; }
@@ -207,12 +207,12 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 #admin-modal.open { display:flex; }
 
 /* ── AYUDA ── */
-.ayuda-btn { width:100%; display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px; border:1px solid var(--border); background:var(--surface); cursor:pointer; text-align:left; transition:background .15s; }
+.ayuda-btn { width:100%; display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px; border:1.5px solid rgba(0,212,255,.7); background:rgba(255,255,255,.02); backdrop-filter:blur(6px); cursor:pointer; text-align:left; transition:background .15s; box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(0,212,255,.32); }
 .ayuda-btn:active { background:var(--surface2); }
 .ayuda-icon { font-size:24px; flex-shrink:0; }
 .ayuda-info { flex:1; }
-.ayuda-title { font-size:14px; font-weight:700; color:var(--text); }
-.ayuda-sub { font-size:12px; color:var(--text2); margin-top:2px; }
+.ayuda-title { font-size:14px; font-weight:800; color:#fff; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.45); }
+.ayuda-sub { font-size:12px; color:#e8f6ff; margin-top:2px; text-shadow:0 0 4px rgba(255,255,255,.5); }
 /* ── CITA CARD ── */
 #proxima-cita-card.urgente { border-color:rgba(255,71,87,.5); }
 #proxima-cita-card.urgente #cita-tipo-txt { color:var(--red); }
@@ -293,15 +293,15 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ HOME ══════════════ -->
 <div id="screen-home" class="screen">
-  <div class="mini-brand" style="text-align:left;padding-left:20px">
-    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:230px;height:auto;display:block;margin:0">
+  <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:200px;height:auto;display:block;margin:0">
+    <button id="btn-salir-home" onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 12px rgba(255,71,87,.8),0 0 26px rgba(255,71,87,.55),0 0 44px rgba(255,71,87,.3)">Salir</button>
   </div>
 
   <div class="scroll">
     <div class="header">
       <div id="home-status" class="status-badge offline"><span class="status-dot"></span>Fuera de turno</div>
     </div>
-    <button id="btn-salir-home" onclick="doLogout()" style="position:fixed;top:14px;right:14px;z-index:400;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,107,107,.6);background:rgba(255,107,107,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px)">Salir</button>
 
     <!-- Fichar button -->
     <div class="fichar-wrap">
@@ -333,14 +333,14 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <div id="conductor-detail-body" style="display:none;padding:0 20px 18px;border-top:1px solid rgba(0,212,255,.25)">
         <div style="display:flex;align-items:center;gap:10px;margin-top:14px;margin-bottom:14px">
           <div id="conductor-matricula-wrap"></div>
-          <div style="background:rgba(255,179,0,.08);border:1.5px solid rgba(255,179,0,.6);box-shadow:0 0 8px rgba(255,179,0,.4),0 0 16px rgba(255,179,0,.2);border-radius:10px;padding:10px 12px;flex:1">
+          <div style="background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.85);box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.5),0 0 44px rgba(255,179,0,.28);border-radius:10px;padding:10px 12px;flex:1">
             <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Turno</div>
             <div style="font-size:15px;font-weight:900;color:var(--amber)" id="conductor-turno">—</div>
           </div>
         </div>
 
         <!-- Documentación del vehículo (anidada dentro de la tarjeta del conductor) -->
-        <div style="background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.5);border-radius:14px;overflow:hidden">
+        <div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,.85);box-shadow:0 0 12px rgba(0,212,255,.75),0 0 26px rgba(0,212,255,.5),0 0 44px rgba(0,212,255,.28);border-radius:14px;overflow:hidden">
           <div id="doc-coche-header" onclick="event.stopPropagation();toggleDocCoche()" style="padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent">
             <span style="font-size:20px">📁</span>
             <div style="flex:1">
@@ -399,8 +399,9 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ GASTOS ══════════════ -->
 <div id="screen-gastos" class="screen">
-  <div class="mini-brand">
-    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:100%;max-width:180px;height:auto;display:block;margin:0 auto">
+  <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:200px;height:auto;display:block;margin:0">
+    <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 12px rgba(255,71,87,.8),0 0 26px rgba(255,71,87,.55),0 0 44px rgba(255,71,87,.3)">Salir</button>
   </div>
 
   <div class="scroll">
@@ -483,8 +484,9 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ FACTURACIÓN ══════════════ -->
 <div id="screen-billing" class="screen">
-  <div class="mini-brand">
-    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:100%;max-width:180px;height:auto;display:block;margin:0 auto">
+  <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:200px;height:auto;display:block;margin:0">
+    <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 12px rgba(255,71,87,.8),0 0 26px rgba(255,71,87,.55),0 0 44px rgba(255,71,87,.3)">Salir</button>
   </div>
 
   <div class="scroll">
@@ -781,8 +783,9 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ AYUDA ══════════════ -->
 <div id="screen-chatbot" class="screen">
-  <div class="mini-brand">
-    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:100%;max-width:180px;height:auto;display:block;margin:0 auto">
+  <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:200px;height:auto;display:block;margin:0">
+    <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 12px rgba(255,71,87,.8),0 0 26px rgba(255,71,87,.55),0 0 44px rgba(255,71,87,.3)">Salir</button>
   </div>
 
 
@@ -791,16 +794,16 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     <div style="padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,212,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">📚</div>
       <div>
-        <div style="font-size:16px;font-weight:800">Centro de Ayuda</div>
-        <div style="font-size:11px;color:var(--text3)">Normas y procedimientos VTC Infinity</div>
+        <div style="font-size:16px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.45)">Centro de Ayuda</div>
+        <div style="font-size:11px;color:#e8f6ff;text-shadow:0 0 4px rgba(255,255,255,.5)">Normas y procedimientos VTC Infinity</div>
       </div>
     </div>
     <div id="ayuda-list" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 24px 140px 16px;display:flex;flex-direction:column;gap:10px">
 
       <!-- Chat IA — arriba siempre visible -->
-      <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,0.4);background:rgba(0,212,255,0.07);margin-bottom:4px">
+      <button class="ayuda-btn" onclick="openTema('chat')" style="border-color:rgba(0,212,255,.9);background:rgba(0,212,255,.08);box-shadow:0 0 14px rgba(0,212,255,.8),0 0 30px rgba(0,212,255,.5),0 0 50px rgba(0,212,255,.28);margin-bottom:4px">
         <span class="ayuda-icon">💬</span>
-        <div class="ayuda-info"><div class="ayuda-title" style="color:var(--cyan)">Preguntar al asistente IA</div><div class="ayuda-sub">Haz cualquier pregunta sobre VTC Infinity</div></div>
+        <div class="ayuda-info"><div class="ayuda-title" style="color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9),0 0 14px rgba(0,212,255,.6)">Preguntar al asistente IA</div><div class="ayuda-sub">Haz cualquier pregunta sobre VTC Infinity</div></div>
         <span style="color:var(--cyan)">›</span>
       </button>
 
@@ -819,7 +822,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       </button>
 
       <!-- TESLA SECTION (plegable) -->
-      <div style="background:rgba(255,179,0,.06);border:2px solid rgba(255,179,0,.3);border-radius:14px;overflow:hidden;flex-shrink:0">
+      <div style="background:rgba(255,179,0,.06);border:2px solid rgba(255,179,0,.85);box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.5),0 0 44px rgba(255,179,0,.28);border-radius:14px;overflow:hidden;flex-shrink:0">
         <div id="tesla-submenu-header" onclick="toggleTeslaSubmenu()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;flex-shrink:0">
           <span style="font-size:22px">⚡</span>
           <div style="flex:1">
@@ -2912,12 +2915,13 @@ function formatMatriculaPlaca(matricula) {
   return '<span>' + m[1] + '</span><span style="margin-left:9px">' + m[2] + '</span>';
 }
 function plateHtml(matricula) {
-  return '<div style="display:inline-flex;align-items:stretch;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.4);border:2px solid #ffffff;flex-shrink:0;white-space:nowrap">' +
-    '<div style="background:#0055a4;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:2px solid #ffffff;flex-shrink:0;border-radius:4px 0 0 4px">' +
+  return '<div style="position:relative;display:inline-flex;align-items:stretch;border-radius:6px;border:2px solid rgba(255,255,255,.55);box-shadow:0 2px 6px rgba(0,0,0,.5),0 0 6px rgba(0,212,255,.3),0 0 12px rgba(0,212,255,.15),inset 0 1px 1px rgba(255,255,255,.35);flex-shrink:0;white-space:nowrap;overflow:hidden">' +
+    '<div style="background:linear-gradient(160deg,#2a80d6 0%,#0055a4 40%,#003b73 70%,#1373c4 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 7px;border-right:1px solid rgba(255,255,255,.3);flex-shrink:0">' +
       estrellasUE(20) +
-      '<span style="font-weight:900;font-size:11px;margin-top:1px">E</span>' +
+      '<span style="font-weight:900;font-size:11px;margin-top:1px;color:#fff">E</span>' +
     '</div>' +
-    '<div style="background:#0055a4;color:#fff;font-family:var(--mono);font-size:16px;font-weight:900;letter-spacing:1px;padding:5px 12px;display:flex;align-items:center;border-radius:0 4px 4px 0">'+formatMatriculaPlaca(matricula)+'</div>' +
+    '<div style="background:linear-gradient(160deg,#2a80d6 0%,#0055a4 35%,#003b73 60%,#1373c4 85%,#2a80d6 100%);color:#fff;font-family:var(--mono);font-size:18px;font-weight:900;letter-spacing:1px;padding:5px 14px;display:flex;align-items:center;text-shadow:0 1px 2px rgba(0,0,0,.5)">'+formatMatriculaPlaca(matricula)+'</div>' +
+    '<div style="position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.25) 45%,rgba(255,255,255,.08) 52%,transparent 62%);pointer-events:none"></div>' +
   '</div>';
 }
 function fbGetVehicleDocs(matSlug) {
