@@ -56,8 +56,8 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 /* ── HEADER ── */
 .header { padding:16px 16px 12px; display:flex; align-items:center; justify-content:space-between; }
-.header-title { font-size:20px; font-weight:800; }
-.header-sub { font-size:12px; color:var(--text2); margin-top:1px; }
+.header-title { font-size:20px; font-weight:800; color:#fff; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.4); }
+.header-sub { font-size:12px; color:#e8f6ff; margin-top:1px; text-shadow:0 0 4px rgba(255,255,255,.5); }
 
 /* ── LOGIN ── */
 #screen-login { background:transparent; align-items:center; justify-content:center; padding:32px 24px; }
@@ -132,10 +132,11 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
 /* ── GASTOS ── */
 .cat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
-.cat-btn { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 8px; text-align:center; cursor:pointer; transition:all .15s; position:relative; }
+.cat-btn { background:rgba(255,255,255,.02); backdrop-filter:blur(6px); border:1.5px solid rgba(0,212,255,.85); box-shadow:0 0 10px rgba(0,212,255,.7),0 0 22px rgba(0,212,255,.45),0 0 38px rgba(0,212,255,.22); border-radius:14px; padding:16px 8px; text-align:center; cursor:pointer; transition:all .15s; position:relative; }
+#cat-lavado { border:1.5px solid rgba(124,92,252,.9); box-shadow:0 0 10px rgba(124,92,252,.75),0 0 22px rgba(124,92,252,.5),0 0 38px rgba(124,92,252,.25); }
 .cat-btn:active { transform:scale(.97); }
 .cat-btn .cat-icon { font-size:26px; margin-bottom:6px; }
-.cat-btn .cat-name { font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+.cat-btn .cat-name { font-size:11px; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.5px; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 10px rgba(0,212,255,.4); }
 .cat-btn .cat-total { font-size:12px; font-family:var(--mono); font-weight:700; margin-top:4px; }
 .cat-btn .cat-count { position:absolute; top:8px; right:8px; background:var(--cyan); color:#000; font-size:9px; font-weight:800; border-radius:10px; padding:2px 6px; font-family:var(--mono); display:none; }
 .cat-btn .cat-count.visible { display:block; }
@@ -144,7 +145,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 .breakdown { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:10px; display:none; }
 .breakdown.visible { display:block; }
 .breakdown-header { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; }
-.breakdown-header .bh-left { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+.breakdown-header .bh-left { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:#fff; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 10px rgba(0,212,255,.4); }
 .breakdown-header .bh-right { display:flex; align-items:center; gap:8px; }
 .breakdown-total { font-family:var(--mono); font-size:13px; font-weight:700; }
 .breakdown-list { border-top:1px solid var(--border); display:none; }
@@ -152,10 +153,10 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 .ticket-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); }
 .ticket-item:last-child { border-bottom:none; }
 .ticket-info { display:flex; flex-direction:column; gap:2px; }
-.ticket-name { font-size:13px; font-weight:600; }
-.ticket-meta { font-size:11px; color:var(--text2); font-family:var(--mono); }
+.ticket-name { font-size:13px; font-weight:600; color:#fff; text-shadow:0 0 4px rgba(255,255,255,.75),0 0 9px rgba(0,212,255,.35); }
+.ticket-meta { font-size:11px; color:#e8f6ff; font-family:var(--mono); text-shadow:0 0 3px rgba(255,255,255,.45); }
 .ticket-amt { font-family:var(--mono); font-size:14px; font-weight:700; }
-.empty-state { text-align:center; padding:32px 16px; color:var(--text2); font-size:13px; }
+.empty-state { text-align:center; padding:32px 16px; color:#fff; font-size:13px; text-shadow:0 0 5px rgba(255,255,255,.8),0 0 10px rgba(0,212,255,.35); }
 
 /* ── FACTURACIÓN ── */
 .plat-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
@@ -232,7 +233,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 .quick-btn { padding:6px 12px; border-radius:20px; border:1px solid var(--border2); background:var(--surface2); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
 .quick-btn:active { background:rgba(0,212,255,.1); border-color:var(--cyan); color:var(--cyan); }
 
-.section-title { font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:1.5px; margin:20px 0 12px; }
+.section-title { font-size:12px; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:1.5px; margin:20px 0 12px; text-shadow:0 0 5px rgba(255,255,255,.85),0 0 10px rgba(0,212,255,.4); }
 #screen-chatbot { overflow:hidden; position:relative; }
 #ayuda-menu, #ayuda-detail, #ayuda-chat { height:100%; }
 
@@ -466,7 +467,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     </div>
 
     <!-- Lavado manual button (separate, below grid) -->
-    <button onclick="openLavadoManual()" style="width:100%;padding:12px;border-radius:12px;border:1px dashed rgba(124,92,252,0.4);background:rgba(124,92,252,0.06);color:var(--purple);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <button onclick="openLavadoManual()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid rgba(124,92,252,.9);background:rgba(124,92,252,.1);box-shadow:0 0 10px rgba(124,92,252,.75),0 0 22px rgba(124,92,252,.5),0 0 38px rgba(124,92,252,.25);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 10px rgba(124,92,252,.5);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">
       <span>🚿</span> Añadir lavado manual (sin ticket)
     </button>
 
