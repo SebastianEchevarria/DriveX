@@ -2265,13 +2265,13 @@ function buildMiniCalendar(citas, baseNow, gid, cc) {
   });
 
   var mesNombre = now.toLocaleDateString('es-ES', { month:'long', year:'numeric' });
-  var html = '<div class="mini-calendar" style="background:var(--surface);border:1px solid rgba(0,212,255,.5);border-radius:12px;padding:10px;box-shadow:0 0 8px rgba(0,212,255,.25),0 0 18px rgba(0,212,255,.12)">';
+  var html = '<div class="mini-calendar" style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1.5px solid rgba(0,212,255,.7);border-radius:12px;padding:10px;box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(0,212,255,.35),0 0 38px rgba(0,212,255,.18)">';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
   html += '<button onclick="cambiarMesCalendario(\''+gid+'\',\''+cc+'\',-1)" style="background:rgba(0,212,255,.12);border:1.5px solid rgba(0,212,255,.75);color:var(--cyan);width:20px;height:20px;border-radius:5px;font-size:10px;cursor:pointer;line-height:1;padding:0;box-shadow:0 0 5px rgba(0,212,255,.6),0 0 10px rgba(0,212,255,.35)">‹</button>';
   html += '<div style="font-size:10px;font-weight:800;color:var(--text2);text-transform:capitalize">🗓️ '+mesNombre+'</div>';
   html += '<button onclick="cambiarMesCalendario(\''+gid+'\',\''+cc+'\',1)" style="background:rgba(0,212,255,.12);border:1.5px solid rgba(0,212,255,.75);color:var(--cyan);width:20px;height:20px;border-radius:5px;font-size:10px;cursor:pointer;line-height:1;padding:0;box-shadow:0 0 5px rgba(0,212,255,.6),0 0 10px rgba(0,212,255,.35)">›</button>';
   html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:8px;color:var(--text3);text-align:center;margin-bottom:3px">';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:8px;color:var(--cyan);text-align:center;margin-bottom:3px;text-shadow:0 0 4px rgba(0,212,255,.6),0 0 8px rgba(0,212,255,.3)">';
   ['L','M','X','J','V','S','D'].forEach(function(d){ html += '<div>'+d+'</div>'; });
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
@@ -2279,13 +2279,20 @@ function buildMiniCalendar(citas, baseNow, gid, cc) {
   for (var day=1; day<=daysInMonth; day++) {
     var count = citasPorDia[day] || 0;
     var isToday = day === todayNum;
-    var bg = count > 0 ? (isToday ? 'var(--red)' : 'rgba(0,212,255,.3)') : (isToday ? 'rgba(0,212,255,.14)' : 'transparent');
-    var border = count > 0 ? '1px solid rgba(0,212,255,.6)' : (isToday ? '1.5px solid rgba(0,212,255,.85)' : 'none');
-    var color = count > 0 ? '#fff' : (isToday ? '#fff' : 'rgba(255,255,255,.88)');
-    var glow = isToday ? (count > 0 ? ';box-shadow:0 0 8px rgba(255,71,87,.85),0 0 16px rgba(255,71,87,.6),0 0 26px rgba(255,71,87,.35)' : ';box-shadow:0 0 8px rgba(0,212,255,.85),0 0 16px rgba(0,212,255,.6),0 0 26px rgba(0,212,255,.35)') : '';
+    var border, color, textSh, boxSh;
+    if (isToday) {
+      border = '1.5px solid rgba(0,212,255,.95)'; color = 'var(--cyan)';
+      textSh = '0 0 5px rgba(0,212,255,.9)';
+      boxSh = ';box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45)';
+    } else {
+      border = '1.5px solid transparent'; color = 'rgba(255,255,255,.88)';
+      textSh = 'none';
+      boxSh = '';
+    }
+    var dot = count > 0 ? '<span style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--amber);box-shadow:0 0 4px rgba(255,179,0,.9),0 0 8px rgba(255,179,0,.6)"></span>' : '';
     var fechaDia = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
-    html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="'+(count>0 ? count+' cita(s) el '+day+' — toca para añadir otra' : 'Añadir cita el '+day)+'" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:'+bg+';border:'+border+';color:'+color+';font-size:9px;font-weight:'+(count>0||isToday?'800':'400')+';cursor:pointer;line-height:1;box-sizing:border-box'+glow+'">' +
-      day +
+    html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="'+(count>0 ? count+' cita(s) el '+day+' — toca para añadir otra' : 'Añadir cita el '+day)+'" style="position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:transparent;border:'+border+';color:'+color+';font-size:9px;font-weight:'+(isToday?'800':'400')+';cursor:pointer;line-height:1;box-sizing:border-box;text-shadow:'+textSh+boxSh+'">' +
+      day + dot +
     '</div>';
   }
   html += '</div></div>';
