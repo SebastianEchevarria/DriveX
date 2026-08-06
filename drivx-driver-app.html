@@ -529,9 +529,10 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div class="plat-logo" style="background:#fff;color:#000">U</div>
         <div><div class="plat-name">Uber</div><div class="plat-sub">Earnings · hoy</div></div>
       </div>
-      <div class="plat-amounts">
+      <div class="plat-amounts" style="grid-template-columns:1fr 1fr 1fr">
         <div class="plat-amt"><div class="plat-amt-val" id="uber-neto">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
         <div class="plat-amt"><div class="plat-amt-val" id="uber-propinas">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="uber-efectivo">€ —</div><div class="plat-amt-lbl">Efectivo en mano</div></div>
       </div>
       <input type="file" id="input-uber" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'uber')">
       <button class="btn-upload" onclick="document.getElementById('input-uber').click()">📸 Subir captura Uber</button>
@@ -577,11 +578,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 
       <!-- Efectivo -->
       <div style="font-size:10px;color:#e8f6ff;font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;text-shadow:0 0 4px rgba(255,255,255,.5)">INGRESOS EN EFECTIVO</div>
-      <div class="plat-amounts" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
-        <div class="plat-amt">
-          <div class="plat-amt-val" id="bolt-efectivo-suma">—</div>
-          <div class="plat-amt-lbl">Viajes + Tasas</div>
-        </div>
+      <div class="plat-amounts" style="grid-template-columns:1fr;margin-bottom:10px">
         <div class="plat-amt">
           <div class="plat-amt-val" id="bolt-efectivo-mano">—</div>
           <div class="plat-amt-lbl">Efectivo en mano</div>
@@ -598,9 +595,10 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div class="plat-logo" style="background:var(--purple);color:#fff">C</div>
         <div><div class="plat-name">Cabify</div><div class="plat-sub">Earnings · hoy</div></div>
       </div>
-      <div class="plat-amounts">
+      <div class="plat-amounts" style="grid-template-columns:1fr 1fr 1fr">
         <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
         <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-efectivo">€ —</div><div class="plat-amt-lbl">Efectivo en mano</div></div>
       </div>
       <input type="file" id="input-cabify" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'cabify')">
       <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
@@ -632,20 +630,6 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <div style="background:rgba(255,140,0,.08);border:1.5px solid rgba(255,140,0,.65);box-shadow:0 0 10px rgba(255,140,0,.6),0 0 20px rgba(255,140,0,.35);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
         <span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">💰 Tu 40% de los viajes privados</span>
         <span id="hojaruta-total" style="font-family:var(--mono);font-size:19px;font-weight:900;color:#ff9500;text-shadow:0 0 6px rgba(255,149,0,.95),0 0 14px rgba(255,149,0,.6);flex-shrink:0">€ 0,00</span>
-      </div>
-    </div>
-
-    <!-- Privados + Efectivo -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-val" id="billing-privados" style="color:var(--cyan)">€ 0</div>
-        <div class="stat-lbl">Privados</div>
-        <button style="margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:11px;cursor:pointer" onclick="addPrivado()">+ Añadir</button>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="billing-efectivo" style="color:var(--amber)">€ 0</div>
-        <div class="stat-lbl">Efectivo en poder</div>
-        <button style="margin-top:8px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:11px;cursor:pointer" onclick="setEfectivo()">Editar</button>
       </div>
     </div>
   </div>
@@ -2282,7 +2266,7 @@ function confirmParking() {
 
 
 // ── FACTURACIÓN ──
-var platData = { uber:{neto:0,propinas:0}, bolt:{neto:0,propinas:0,campanyas:0,netoReal:0}, cabify:{neto:0,propinas:0} };
+var platData = { uber:{neto:0,propinas:0,efectivo:0}, bolt:{neto:0,propinas:0,campanyas:0,netoReal:0}, cabify:{neto:0,propinas:0,efectivo:0} };
 
 function onPlatFile(input, plat) {
   if (!input.files[0]) return;
@@ -2301,6 +2285,9 @@ function onPlatFile(input, plat) {
     var prompt;
     if (plat === 'bolt') {
       prompt = 'Captura de la app Bolt de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"tus_ganancias":NUMERO,"campanyas":NUMERO,"compensaciones":NUMERO,"propinas":NUMERO,"efectivo_suma":NUMERO,"efectivo_mano":NUMERO,"confianza":0.0}. INSTRUCCIONES: tus_ganancias = campo Tus ganancias/Castigurile tale/Your earnings (el total final). campanyas = Campañas/Campanii/Campaigns/Bonus, si no hay pon 0. compensaciones = Compensaciones/Compensatii, si no hay pon 0. propinas = Propinas/Bacsif/Tips, si no hay pon 0. efectivo_suma = suma de PAGOS POR VIAJES + TASAS DE SERVICIO que estan dentro de la seccion INGRESOS EN EFECTIVO (Venituri in numerar / Cash earnings) UNICAMENTE — no incluyas los pagos por viaje de la seccion app. En imagen 1 ejemplo: 208,03 + 3,07 = 211,10. efectivo_mano = Efectivo en mano/Numerar in mana. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
+    } else {
+      var platNombre = plat === 'uber' ? 'Uber' : 'Cabify';
+      prompt = 'Captura de la app ' + platNombre + ' de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"neto":NUMERO,"propinas":NUMERO,"efectivo_mano":NUMERO,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: neto = ganancias netas totales del periodo (Earnings/Ganancias/Ganancias netas). propinas = importe de propinas (Tips), si no aparece pon 0. efectivo_mano = dinero en efectivo cobrado a pasajeros (Cash/Efectivo/Cash trips/Efectivo en mano), si no aparece pon 0. viajes = número de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     }
 
     analyzeImage(b64, mt, prompt).then(function(text) {
@@ -2310,7 +2297,7 @@ function onPlatFile(input, plat) {
       if (plat === 'bolt') {
         applyBoltData(parsed);
       } else {
-        applyPlatData(plat, parseFloat(parsed.neto)||0, parseFloat(parsed.propinas)||0, 0, parseInt(parsed.viajes)||0);
+        applyPlatData(plat, parseFloat(parsed.neto)||0, parseFloat(parsed.propinas)||0, 0, parseInt(parsed.viajes)||0, parseFloat(parsed.efectivo_mano)||0);
       }
     }).catch(function() { proc.classList.remove('visible'); toast('❌ Error leyendo captura'); });
   };
@@ -2336,7 +2323,6 @@ function applyBoltData(parsed) {
   setEl('bolt-campanyas-val',      d.campanyas);
   setEl('bolt-compensaciones-val', d.compensaciones);
   setEl('bolt-propinas',           d.propinas);
-  setEl('bolt-efectivo-suma',      d.efectivo_suma);
   setEl('bolt-efectivo-mano',      d.efectivo_mano);
 
   var campRow = document.getElementById('bolt-camp-row');
@@ -2352,8 +2338,9 @@ function applyBoltData(parsed) {
   syncData();
 }
 
-function applyPlatData(plat, neto, propinas, campanyas, viajes) {
+function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
   platData[plat].neto = neto; platData[plat].propinas = propinas;
+  if (typeof efectivoMano === 'number') platData[plat].efectivo = efectivoMano;
 
   if (plat === 'bolt') {
     platData.bolt.campanyas = campanyas;
@@ -2368,6 +2355,8 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes) {
   } else {
     document.getElementById(plat+'-neto').textContent = '€ ' + neto.toFixed(2).replace('.',',');
     document.getElementById(plat+'-propinas').textContent = '€ ' + propinas.toFixed(2).replace('.',',');
+    var efEl = document.getElementById(plat+'-efectivo');
+    if (efEl) efEl.textContent = '€ ' + (efectivoMano||0).toFixed(2).replace('.',',');
     toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Neto €'+neto.toFixed(2));
   }
 
