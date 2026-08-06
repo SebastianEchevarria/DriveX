@@ -406,6 +406,12 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         🗺️ IR · Abrir en Google Maps
       </a>
     </div>
+
+    <!-- Próximas citas (solo si hay más de una cita) -->
+    <div id="mas-citas-section" style="display:none;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.6);margin-bottom:10px">📅 Próximas citas</div>
+      <div id="mas-citas-list"></div>
+    </div>
   </div>
 </div>
 
@@ -3064,6 +3070,8 @@ function pintarProximaCita(citas) {
 
   if (!citas.length) {
     card.style.display = 'none';
+    var masCitasSectionEmpty = document.getElementById('mas-citas-section');
+    if (masCitasSectionEmpty) masCitasSectionEmpty.style.display = 'none';
     if (_citaInterval) { clearInterval(_citaInterval); _citaInterval = null; }
     return;
   }
@@ -3090,6 +3098,34 @@ function pintarProximaCita(citas) {
   document.getElementById('cita-tipo-txt').textContent = cita.tipo;
   document.getElementById('cita-lugar-txt').textContent = cita.lugar || 'Sin dirección';
   document.getElementById('cita-fecha-txt').textContent = citaDate.toLocaleDateString('es-ES', {weekday:'short',day:'2-digit',month:'short'}) + (cita.hora ? ' · ' + cita.hora : '');
+
+  // Próximas citas siguientes (solo si hay más de una)
+  var masCitasSection = document.getElementById('mas-citas-section');
+  var masCitasList = document.getElementById('mas-citas-list');
+  if (masCitasSection && masCitasList) {
+    if (citas.length > 1) {
+      var restoHtml = citas.slice(1).map(function(c){
+        var d = new Date(c.fecha + 'T' + (c.hora || '09:00'));
+        var fechaTxt = d.toLocaleDateString('es-ES', {weekday:'short',day:'2-digit',month:'short'}) + (c.hora ? ' · ' + c.hora : '');
+        var esITVc = (c.tipo === 'ITV');
+        var iconoHtml = esITVc
+          ? '<div style="width:100%;height:100%;overflow:hidden;border-radius:8px"><img src="data:image/png;base64,'+ITV_ICON_B64+'" alt="ITV" style="width:100%;height:100%;object-fit:contain;display:block;padding:3px;box-sizing:border-box"></div>'
+          : (icons[c.tipo] || '📅');
+        return '<div style="display:flex;align-items:center;gap:12px;background:rgba(10,16,26,.32);backdrop-filter:blur(6px);border:1.5px solid rgba(0,212,255,.45);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 0 6px rgba(0,212,255,.35),0 0 14px rgba(0,212,255,.18)">' +
+          '<div style="width:34px;height:34px;border-radius:9px;background:'+(esITVc?'#0a1830':'rgba(0,212,255,0.12)')+';display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0'+(esITVc?';border:2px solid rgba(0,212,255,.9);box-shadow:0 0 5px rgba(0,212,255,.6),0 0 12px rgba(0,212,255,.35)':'')+'">'+iconoHtml+'</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:13px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85)">'+c.tipo+'</div>' +
+            '<div style="font-size:11px;color:#e8f6ff;text-shadow:0 1px 3px rgba(0,0,0,.7);margin-top:1px">'+fechaTxt+(c.lugar?' · '+c.lugar:'')+'</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      masCitasList.innerHTML = restoHtml;
+      masCitasSection.style.display = 'block';
+    } else {
+      masCitasSection.style.display = 'none';
+      masCitasList.innerHTML = '';
+    }
+  }
 
   // Maps button
   var mapsBtn = document.getElementById('cita-maps-btn');
