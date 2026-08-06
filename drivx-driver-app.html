@@ -814,7 +814,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:11px;color:#e8f6ff;text-shadow:0 0 4px rgba(255,255,255,.5)">Normas y procedimientos VTC Infinity</div>
       </div>
     </div>
-    <div id="ayuda-list" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 24px 140px 16px;display:flex;flex-direction:column;gap:10px">
+    <div id="ayuda-list" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 24px calc(140px + env(safe-area-inset-bottom)) 16px;display:flex;flex-direction:column;gap:10px">
 
       <!-- Chat IA — arriba siempre visible -->
       <button class="ayuda-btn" onclick="openTema('chat')" style="border-width:2.5px;border-color:rgba(0,212,255,1);background:rgba(0,212,255,.1);box-shadow:0 0 18px rgba(0,212,255,1),0 0 36px rgba(0,212,255,.75),0 0 60px rgba(0,212,255,.5),0 0 90px rgba(0,212,255,.25);margin-bottom:4px">
@@ -923,7 +923,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <button onclick="closeTema()" style="width:34px;height:34px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">‹</button>
       <div style="font-size:16px;font-weight:800" id="ayuda-detail-title"></div>
     </div>
-    <div id="ayuda-detail-body" style="flex:1;overflow-y:auto;padding:20px 16px;font-size:14px;line-height:1.7;color:var(--text2)"></div>
+    <div id="ayuda-detail-body" style="flex:1;overflow-y:auto;padding:20px 16px calc(120px + env(safe-area-inset-bottom)) 16px;font-size:14px;line-height:1.7;color:var(--text2)"></div>
   </div>
 
   <!-- CHAT VIEW -->
