@@ -606,6 +606,35 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
     </div>
 
+    <!-- Separador: apps vs viajes privados -->
+    <div style="text-align:center;margin:22px 0 16px;font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,140,0,.55);letter-spacing:1.5px;display:flex;align-items:center;gap:10px">
+      <span style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(255,140,0,.6))"></span>
+      VIAJES PRIVADOS
+      <span style="flex:1;height:1px;background:linear-gradient(to left,transparent,rgba(255,140,0,.6))"></span>
+    </div>
+
+    <!-- Hoja de ruta -->
+    <div style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:2px solid rgba(255,140,0,1);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,140,0,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🧾</div>
+        <div><div style="font-size:15px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">Hoja de ruta</div><div style="font-size:11px;color:#e8f6ff">Viajes privados con hoja de ruta de Fomento</div></div>
+      </div>
+
+      <a href="https://sede.transportes.gob.es/regvtc/gestion/" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.14);color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95);font-size:14px;font-weight:900;text-decoration:none;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);margin-bottom:10px;font-family:inherit">
+        🌐 CREAR HOJA DE RUTA
+      </a>
+
+      <input type="file" id="input-hojaruta" accept="image/*,application/pdf" style="display:none" onchange="onHojaRutaFile(this)">
+      <button onclick="document.getElementById('input-hojaruta').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.14);color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);margin-bottom:14px">
+        📤 SUBIR HOJA DE RUTA
+      </button>
+
+      <div style="background:rgba(255,140,0,.08);border:1.5px solid rgba(255,140,0,.65);box-shadow:0 0 10px rgba(255,140,0,.6),0 0 20px rgba(255,140,0,.35);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">💰 Tu 40% de los viajes privados</span>
+        <span id="hojaruta-total" style="font-family:var(--mono);font-size:19px;font-weight:900;color:#ff9500;text-shadow:0 0 6px rgba(255,149,0,.95),0 0 14px rgba(255,149,0,.6);flex-shrink:0">€ 0,00</span>
+      </div>
+    </div>
+
     <!-- Privados + Efectivo -->
     <div class="stats-grid">
       <div class="stat-card">
@@ -1056,6 +1085,7 @@ var data = {
   bolt:   { neto:0, propinas:0, campanyas:0, netoReal:0 },
   cabify: { neto:0, propinas:0 },
   privados: 0, efectivo: 0,
+  hojaRutaTotal: 0, hojasRuta: [],
   gastos: { gasolina:[], peaje:[], parking:[], lavado:[], datafono:[], otros:[] },
 };
 
@@ -1460,8 +1490,13 @@ function loginAs(u) {
       if (saved.cabify) data.cabify = saved.cabify;
       if (typeof saved.privados === 'number') data.privados = saved.privados;
       if (typeof saved.efectivo === 'number') data.efectivo = saved.efectivo;
+      if (typeof saved.hojaRutaTotal === 'number') data.hojaRutaTotal = saved.hojaRutaTotal;
+      if (saved.hojasRuta) data.hojasRuta = saved.hojasRuta;
     }
   } catch (e) {}
+
+  var hrEl = document.getElementById('hojaruta-total');
+  if (hrEl) hrEl.textContent = '€ ' + (data.hojaRutaTotal || 0).toFixed(2).replace('.',',');
 
   var hn = document.getElementById('home-name'); if(hn) hn.textContent = u.nombre;
   var hm = document.getElementById('home-meta'); if(hm) hm.textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
@@ -2356,6 +2391,59 @@ function updateBillingTotal() {
   var total = platData.uber.neto + platData.bolt.netoReal + platData.cabify.neto;
   document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
   var saEl = document.getElementById('stat-apps'); if (saEl) saEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
+}
+
+// ── HOJA DE RUTA (viajes privados con Fomento) ──
+function onHojaRutaFile(input) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  toast('⏳ Subiendo hoja de ruta...');
+  uploadToCloudinary(file).then(function(res){
+    input.value = '';
+    var url = res && res.secure_url ? res.secure_url : null;
+    setTimeout(function(){
+      var precio = parseFloat(prompt('Hoja de ruta subida ✓\n\nIntroduce el precio TOTAL del viaje (€):'));
+      if (!precio || precio <= 0) { toast('⚠ No se ha guardado el importe — hoja de ruta subida sin importe'); registrarHojaRuta(url, 0); return; }
+      registrarHojaRuta(url, precio);
+    }, 150);
+  }).catch(function(){
+    input.value = '';
+    toast('❌ No se pudo subir la hoja de ruta. Inténtalo de nuevo.');
+  });
+}
+
+function registrarHojaRuta(url, precioTotal) {
+  var cut = Math.round(precioTotal * 0.40 * 100) / 100;
+  data.hojasRuta = data.hojasRuta || [];
+  data.hojasRuta.push({ url: url, precioTotal: precioTotal, cutConductor: cut, fecha: new Date().toISOString().slice(0,10), ts: Date.now() });
+  data.hojaRutaTotal = Math.round(((data.hojaRutaTotal || 0) + cut) * 100) / 100;
+  var totalEl = document.getElementById('hojaruta-total');
+  if (totalEl) totalEl.textContent = '€ ' + data.hojaRutaTotal.toFixed(2).replace('.',',');
+  if (cut > 0) toast('✓ Hoja de ruta guardada · tu 40% = €' + cut.toFixed(2).replace('.',','));
+  uploadHojaRutaToFirebase(url, precioTotal, cut);
+  syncData();
+}
+
+// Guarda el registro en Firebase organizado por matrícula, para que el
+// Dashboard pueda verlo en la sección de facturación de cada conductor.
+function uploadHojaRutaToFirebase(url, precioTotal, cut) {
+  if (!currentUser) return;
+  var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  var id = 'hr_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+  fetch(FIREBASE_URL + '/hojasruta/' + matSlug + '/' + id + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      url: url || null,
+      precioTotal: precioTotal,
+      cutConductor: cut,
+      porcentaje: 40,
+      fecha: new Date().toISOString().slice(0,10),
+      ts: Date.now(),
+      matricula: currentUser.matricula,
+      conductor: currentUser.nombre || '',
+      cid: currentUser.cid || ''
+    })
+  }).catch(function(){});
 }
 
 function addPrivado() {
