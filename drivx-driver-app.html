@@ -622,6 +622,17 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ AVISO: OTRO CONDUCTOR SIGUE CONECTADO ══════════════ -->
+<div class="modal-overlay" id="relevo-modal" style="z-index:9999">
+  <div style="background:var(--surface);border:2px solid rgba(255,179,0,.9);border-radius:24px;padding:28px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 0 18px rgba(255,179,0,.6),0 0 40px rgba(255,179,0,.35),0 20px 50px rgba(0,0,0,.6)">
+    <div style="font-size:44px;margin-bottom:10px">⚠️</div>
+    <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:10px">Otro conductor sigue conectado</div>
+    <div id="relevo-modal-texto" style="font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.6">—</div>
+    <button onclick="continuarRelevo()" style="width:100%;padding:15px;border-radius:12px;border:2.5px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9);font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px;box-shadow:0 0 16px rgba(0,230,118,.9),0 0 34px rgba(0,230,118,.6),0 0 58px rgba(0,230,118,.32)">✓ Continuar</button>
+    <button onclick="cancelarRelevo()" style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:inherit">Cancelar</button>
+  </div>
+</div>
+
 <!-- ══════════════ KM MODAL ══════════════ -->
 <div class="modal-overlay" id="km-modal">
   <div class="modal-sheet">
@@ -1468,13 +1479,71 @@ function loginAs(u) {
   loadProximaCita();
   loadPoliza();
   refreshGastosFromFirebase();
+  comprobarRelevoAutomatico();
+  setInterval(comprobarRelevoAutomatico, 30000);
   setInterval(loadProximaCita, 30000);
   setInterval(loadPoliza, 30000);
   setInterval(refreshGastosFromFirebase, 20000);
   updateFuelButton();
 }
 
-// Refleja en el botón/estado de fichar lo que haya en `data` — se usa tanto al
+// ── RELEVO AUTOMÁTICO DE TURNO ──
+// Si otro conductor del MISMO vehículo se quedó fichado (olvidó fichar salida),
+// al fichar entrada el siguiente conductor lo cerramos automáticamente usando
+// los km que este acaba de introducir como km de entrada (y km de salida del anterior).
+function cerrarTurnosAnterioresMismoVehiculo(kmNuevaEntrada, timeStr, conductorConocido) {
+  if (!currentUser || !currentUser.matricula) return;
+  function cerrarUno(c) {
+    fetch(FIREBASE_URL + '/fichajes/' + c.cid + '.json').then(function(r){ return r.json(); }).then(function(fj){
+      if (fj && fj.fichado) {
+        fetch(FIREBASE_URL + '/fichajes/' + c.cid + '.json', {
+          method: 'PATCH', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            fichado: false,
+            horaSalida: timeStr,
+            kmSalida: kmNuevaEntrada,
+            cerradoAutomaticamente: true,
+            cerradoPorRelevo: currentUser.nombre || currentUser.cid,
+            ts: Date.now()
+          })
+        }).then(function(){
+          toast('🔁 Turno de ' + (c.nombre || 'otro conductor') + ' cerrado automáticamente al hacer el relevo');
+        }).catch(function(){});
+      }
+    }).catch(function(){});
+  }
+  if (conductorConocido) { cerrarUno(conductorConocido); return; }
+  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var otros = Object.keys(all).map(function(k){ return all[k]; }).filter(function(c){
+      return c && c.matricula === currentUser.matricula && c.cid !== currentUser.cid;
+    });
+    otros.forEach(cerrarUno);
+  }).catch(function(){});
+}
+
+// Al iniciar sesión, comprueba si Firebase dice que el turno ya fue cerrado
+// (por ejemplo, por el relevo automático de arriba) aunque localmente aún
+// pareciera que seguíamos fichados — Firebase manda como estado real.
+function comprobarRelevoAutomatico() {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/fichajes/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(fj){
+    if (fj && fj.cerradoAutomaticamente && data.fichado && fj.fichado === false) {
+      data.fichado = false;
+      data.horaSalida = fj.horaSalida || data.horaSalida;
+      data.kmSalida = fj.kmSalida || data.kmSalida;
+      localStorage.setItem('drivx_conductor_' + currentUser.cid, JSON.stringify(Object.assign({}, data, { ts: Date.now() })));
+      localStorage.removeItem('drivx_session_user');
+      localStorage.removeItem('drivx_current_user');
+      refreshFicharUI();
+      updateNavState();
+      var total = (fj.kmSalida && data.kmEntrada) ? (fj.kmSalida - data.kmEntrada) : null;
+      toast('ℹ️ Tu turno se cerró automáticamente cuando fichó entrada ' + (fj.cerradoPorRelevo || 'el siguiente conductor') + (total ? ' · ' + total.toLocaleString('es-ES') + ' km' : ''));
+    }
+  }).catch(function(){});
+}
+
+
 // fichar en el momento como al recuperar el estado guardado tras reabrir la app.
 function refreshFicharUI() {
   var btn = document.getElementById('btn-fichar');
@@ -1780,41 +1849,100 @@ function confirmKm() {
   var km = parseInt(document.getElementById('km-input').value);
   if (!km || km <= 0) { toast('⚠ Introduce los km'); document.getElementById('km-input').focus(); return; }
 
-  closeKmModal();
+  if (pendingFichar === 'entrada') {
+    // Antes de fichar, comprobamos si otro conductor del mismo vehículo sigue conectado
+    buscarConductorActivoMismoVehiculo().then(function(otro){
+      if (otro) {
+        _relevoPendiente = { otro: otro, km: km };
+        var texto = '<b style="color:#fff">' + (otro.nombre || 'Otro conductor') + '</b> todavía tiene el turno abierto en este vehículo.<br><br>' +
+          'Si continúas, se le fichará la salida automáticamente con estos ' + km.toLocaleString('es-ES') + ' km. Si prefieres avisarle antes, pulsa Cancelar.';
+        document.getElementById('relevo-modal-texto').innerHTML = texto;
+        document.getElementById('relevo-modal').classList.add('open');
+      } else {
+        closeKmModal();
+        finalizarFicharEntrada(km);
+      }
+    });
+  } else {
+    closeKmModal();
+    finalizarFicharSalida(km);
+  }
+}
 
+var _relevoPendiente = null;
+
+function continuarRelevo() {
+  document.getElementById('relevo-modal').classList.remove('open');
+  closeKmModal();
+  if (_relevoPendiente) {
+    finalizarFicharEntrada(_relevoPendiente.km, _relevoPendiente.otro);
+    _relevoPendiente = null;
+  }
+}
+
+function cancelarRelevo() {
+  document.getElementById('relevo-modal').classList.remove('open');
+  _relevoPendiente = null;
+  toast('Fichaje cancelado — avisa al otro conductor y vuelve a intentarlo');
+}
+
+function finalizarFicharEntrada(km, otroConductorConocido) {
   var now = new Date();
   var timeStr = now.toTimeString().slice(0,5);
 
-  if (pendingFichar === 'entrada') {
-    data.fichado = true; data.horaEntrada = timeStr; data.kmEntrada = km; kmEntrada = km;
-    data.horaSalida = null; data.kmSalida = null; // limpiamos el turno anterior, si lo hubiera
-    document.getElementById('km-entrada-val').textContent = km.toLocaleString('es-ES');
-    document.getElementById('km-salida-val').textContent  = '—';
-    document.getElementById('km-total-val').textContent   = '—';
-    document.getElementById('km-panel').style.display = 'block';
-    document.getElementById('btn-fichar').className = 'btn-fichar salida';
-    document.getElementById('fichar-icon').textContent = '🔴';
-    document.getElementById('fichar-text').textContent = 'Fichar salida';
-    document.getElementById('home-status').className = 'status-badge online';
-    document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>En turno · '+timeStr;
-    toast('🟢 Entrada fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
-    updateNavState();
-  } else {
-    data.fichado = false; data.horaSalida = timeStr; data.kmSalida = km;
-    var total = kmEntrada ? km - kmEntrada : 0;
-    document.getElementById('km-salida-val').textContent = km.toLocaleString('es-ES');
-    document.getElementById('km-total-val').textContent  = total > 0 ? total.toLocaleString('es-ES') + ' km' : '—';
-    document.getElementById('btn-fichar').className = 'btn-fichar entrada';
-    document.getElementById('fichar-icon').textContent = '🟢';
-    document.getElementById('fichar-text').textContent = 'Fichar entrada';
-    document.getElementById('home-status').className = 'status-badge offline';
-    document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>Turno finalizado';
-    toast('🔴 Salida fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
-    // Tras fichar salida, la sesión ya no se recupera sola la próxima vez que se abra la app
-    localStorage.removeItem('drivx_session_user');
-    localStorage.removeItem('drivx_current_user');
-  }
+  data.fichado = true; data.horaEntrada = timeStr; data.kmEntrada = km; kmEntrada = km;
+  data.horaSalida = null; data.kmSalida = null; // limpiamos el turno anterior, si lo hubiera
+  document.getElementById('km-entrada-val').textContent = km.toLocaleString('es-ES');
+  document.getElementById('km-salida-val').textContent  = '—';
+  document.getElementById('km-total-val').textContent   = '—';
+  document.getElementById('km-panel').style.display = 'block';
+  document.getElementById('btn-fichar').className = 'btn-fichar salida';
+  document.getElementById('fichar-icon').textContent = '🔴';
+  document.getElementById('fichar-text').textContent = 'Fichar salida';
+  document.getElementById('home-status').className = 'status-badge online';
+  document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>En turno · '+timeStr;
+  toast('🟢 Entrada fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
+  updateNavState();
+  cerrarTurnosAnterioresMismoVehiculo(km, timeStr, otroConductorConocido);
   syncData();
+}
+
+function finalizarFicharSalida(km) {
+  var now = new Date();
+  var timeStr = now.toTimeString().slice(0,5);
+
+  data.fichado = false; data.horaSalida = timeStr; data.kmSalida = km;
+  var total = kmEntrada ? km - kmEntrada : 0;
+  document.getElementById('km-salida-val').textContent = km.toLocaleString('es-ES');
+  document.getElementById('km-total-val').textContent  = total > 0 ? total.toLocaleString('es-ES') + ' km' : '—';
+  document.getElementById('btn-fichar').className = 'btn-fichar entrada';
+  document.getElementById('fichar-icon').textContent = '🟢';
+  document.getElementById('fichar-text').textContent = 'Fichar entrada';
+  document.getElementById('home-status').className = 'status-badge offline';
+  document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>Turno finalizado';
+  toast('🔴 Salida fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
+  // Tras fichar salida, la sesión ya no se recupera sola la próxima vez que se abra la app
+  localStorage.removeItem('drivx_session_user');
+  localStorage.removeItem('drivx_current_user');
+  syncData();
+}
+
+// Busca si otro conductor del mismo vehículo sigue con el turno abierto.
+// Devuelve una Promise que resuelve con ese conductor (o null si no hay ninguno).
+function buscarConductorActivoMismoVehiculo() {
+  if (!currentUser || !currentUser.matricula) return Promise.resolve(null);
+  return fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var otros = Object.keys(all).map(function(k){ return all[k]; }).filter(function(c){
+      return c && c.matricula === currentUser.matricula && c.cid !== currentUser.cid;
+    });
+    if (!otros.length) return null;
+    return Promise.all(otros.map(function(c){
+      return fetch(FIREBASE_URL + '/fichajes/' + c.cid + '.json').then(function(r){ return r.json(); }).then(function(fj){
+        return (fj && fj.fichado) ? c : null;
+      }).catch(function(){ return null; });
+    })).then(function(results){ return results.find(function(x){ return x; }) || null; });
+  }).catch(function(){ return null; });
 }
 
 // ── GASTOS ──
@@ -2266,6 +2394,8 @@ function syncData() {
       fichado: !!data.fichado,
       horaEntrada: data.horaEntrada || null,
       horaSalida: data.horaSalida || null,
+      kmEntrada: data.kmEntrada || null,
+      kmSalida: data.kmSalida || null,
       nombre: currentUser.nombre || '',
       matricula: currentUser.matricula || '',
       turno: currentUser.turno || '',
