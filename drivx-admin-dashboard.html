@@ -294,7 +294,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <button onclick="editarFechaItv()" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0">✏️ Editar fecha</button>
       </div>
 
-      <div class="sb-section" style="padding:0 0 10px">Conductores y turnos</div>
+      <div class="sb-section" style="padding:0 0 10px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Conductores y turnos</div>
       <div id="vd-conductores" style="margin-bottom:14px"></div>
 
       <button id="vd-invite-btn" onclick="toggleInviteForm()" style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(124,92,252,.15));border:2px solid rgba(0,212,255,.45);color:var(--cyan);font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px">
@@ -327,20 +327,20 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </div>
       </div>
 
-      <div id="docscond-section" style="background:rgba(0,212,255,.03);border:2px solid var(--border2);border-radius:14px;overflow:hidden;margin-bottom:16px">
-        <div id="docscond-header" onclick="toggleDocsConductores()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent">
-          <span style="font-size:20px">📁</span>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:800;color:var(--text)">Documentación conductores</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:1px">DNI y carnet de conducir de cada conductor invitado</div>
-          </div>
-          <span id="docscond-chevron" style="color:var(--text3);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
-        </div>
-        <div id="vd-conductores-invitados" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border2)"><div style="font-size:12px;color:var(--text3);padding-top:12px">Cargando…</div></div>
+      <div id="docscond-section" style="display:none">
+        <div id="vd-conductores-invitados"></div>
       </div>
 
-      <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo</div>
-      <div id="vd-docs"></div>
+      <div style="background:rgba(0,212,255,.04);border:2px solid rgba(0,212,255,1);border-radius:14px;overflow:hidden;margin-bottom:16px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35)">
+        <div id="vddocs-header" onclick="toggleVdDocs()" style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <span style="font-size:20px">📁</span>
+          <div style="flex:1;font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:1.5px;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Documentación del vehículo</div>
+          <span id="vddocs-chevron" style="color:var(--cyan);font-size:14px;transition:transform .2s ease;display:inline-block">▾</span>
+        </div>
+        <div id="vddocs-body" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(0,212,255,.25)">
+          <div id="vd-docs" style="margin-top:14px"></div>
+        </div>
+      </div>
 
       <div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--border)">
         <div class="sb-section" style="padding:0 0 10px;color:var(--red)">Zona de peligro</div>
@@ -2952,6 +2952,14 @@ function openVehicleDetail(matricula) {
   document.getElementById('vehicle-detail-modal').style.display = 'flex';
 }
 
+function toggleVdDocs() {
+  var body = document.getElementById('vddocs-body');
+  var chev = document.getElementById('vddocs-chevron');
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
 function toggleDocsConductores() {
   var body = document.getElementById('vd-conductores-invitados');
   var chev = document.getElementById('docscond-chevron');
@@ -2966,27 +2974,75 @@ function cloudinaryDownloadUrl(url) {
 }
 
 function renderConductoresYTurnos(v) {
-  var condHtml = '';
+  var html = '';
+
   v.conductores.forEach(function(cid){
     var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
     if (!c) return;
+    if (_vdInvitadosCache[cid] && _vdInvitadosCache[cid].matricula === v.matricula) return; // ya se pinta más abajo con su documentación completa
     var fichado = false;
     try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_' + cid) || '{}').fichado); } catch(e){}
-    condHtml += '<div class="cond-row" style="padding:9px 0">' +
-      '<div><span style="font-weight:700">' + c.nombre + '</span>' +
-      '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + c.turno + '</span></div>' +
-      '<span style="font-size:11px;font-weight:700;color:' + (fichado?'var(--green)':'var(--text3)') + '">' + (fichado?'● Activo':'○ Inactivo') + '</span></div>';
+    html += '<div style="border:2px solid var(--border2);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
+    html += '<div onclick="toggleConductorInvitado(\'' + cid + '\')" style="padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">' + c.nombre + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + c.turno + '</div></div>';
+    html += '<span style="font-size:11px;font-weight:700;color:' + (fichado?'var(--green)':'var(--text3)') + '">' + (fichado?'● Activo':'○ Inactivo') + '</span>';
+    html += '<span id="condchev_' + cid + '" style="color:var(--text3);font-size:14px;margin-left:6px;transition:transform .2s">▾</span>';
+    html += '</div>';
+    html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
+    html += '<div style="padding-top:12px;font-size:12px;color:var(--text3)">Este conductor no tiene documentación registrada por invitación.</div>';
+    html += '</div></div>';
   });
-  // Conductores registrados por invitación — aparecen aquí también, con su nombre completo y turno
+
+  // Conductores registrados por invitación — con toda su documentación (DNI, carnet, cuenta bancaria...)
   Object.keys(_vdInvitadosCache).forEach(function(cid){
     var r = _vdInvitadosCache[cid];
     if (r.matricula !== v.matricula) return;
-    condHtml += '<div class="cond-row" style="padding:9px 0">' +
-      '<div><span style="font-weight:700">' + (r.nombre || 'Conductor') + '</span>' +
-      '<span style="font-size:11px;color:var(--text3);margin-left:8px">' + r.turno + '</span></div>' +
-      '<span style="font-size:10px;font-weight:700;color:var(--cyan)">✉ invitado</span></div>';
+    var borderColor = r.apto ? 'rgba(0,230,118,.35)' : 'rgba(255,71,87,.35)';
+    var aptoDot = r.apto
+      ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Apto</span>'
+      : '<span style="font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:3px 8px">⚠ Revisar</span>';
+
+    function docThumb(url, label) {
+      if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
+      return '<a href="' + cloudinaryDownloadUrl(url) + '" download style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
+        '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
+        '<span style="font-size:10px;color:var(--cyan)">⬇ ' + label + '</span></a>';
+    }
+
+    html += '<div style="border:2px solid ' + borderColor + ';border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
+    html += '<div onclick="toggleConductorInvitado(\'' + cid + '\')" style="padding:13px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">' + (r.nombre || 'Conductor') + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + r.turno + '</div></div>';
+    html += aptoDot;
+    html += '<span id="condchev_' + cid + '" style="color:var(--text3);font-size:14px;margin-left:6px;transition:transform .2s">▾</span>';
+    html += '</div>';
+
+    html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
+    html += '<div style="padding-top:12px;font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <b>Email:</b> ' + (r.email || '—') + '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">🕐 <b>Turno:</b> ' + r.turno + '</div>';
+
+    html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
+      '<span style="font-size:20px">🏦</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cuenta bancaria</div>' +
+        '<div id="cuenta-' + cid + '" style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (r.cuentaBancaria || 'No proporcionada') + '</div>' +
+      '</div>' +
+      (r.cuentaBancaria ? '<button onclick="copiarCuenta(\'' + cid + '\',event)" class="edit-btn" style="flex-shrink:0">📋 Copiar</button>' : '') +
+    '</div>';
+
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
+    html += '<div style="margin-bottom:12px">' + docThumb(r.dniFrenteUrl, 'Frontal') + docThumb(r.dniDorsoUrl, 'Dorso') + '</div>';
+
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🪪 Carnet de conducir</div>';
+    html += '<div style="margin-bottom:14px">' + docThumb(r.carnetFrenteUrl, 'Frontal') + docThumb(r.carnetDorsoUrl, 'Dorso') + '</div>';
+
+    html += '<button id="del-cond-' + cid + '" onclick="confirmDeleteConductor(\'' + cid + '\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3);width:100%;text-align:center">🗑 Eliminar conductor</button>';
+    html += '</div></div>';
   });
-  document.getElementById('vd-conductores').innerHTML = condHtml || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
+
+  document.getElementById('vd-conductores').innerHTML = html || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
 }
 
 // ══ AGREGAR COMUNIDAD AUTÓNOMA ══
@@ -3206,17 +3262,14 @@ function copyInviteCode() {
 // ══ CONDUCTORES REGISTRADOS POR INVITACIÓN ══
 var _vdInvitadosCache = {};
 function renderConductoresInvitados(v) {
-  var el = document.getElementById('vd-conductores-invitados');
-  el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Cargando…</div>';
   fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
     all = all || {};
     var mios = {};
     Object.keys(all).forEach(function(cid){ if (all[cid] && all[cid].matricula === v.matricula) mios[cid] = all[cid]; });
     _vdInvitadosCache = mios;
-    paintConductoresInvitados();
     renderConductoresYTurnos(v);
   }).catch(function(){
-    el.innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
+    document.getElementById('vd-conductores').innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
   });
 }
 function paintConductoresInvitados() {
