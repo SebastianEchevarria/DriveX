@@ -3076,10 +3076,12 @@ function pintarProximaCita(citas) {
   var icon = icons[cita.tipo] || '📅';
   var iconBox = document.getElementById('cita-icon');
   if (cita.tipo === 'ITV') {
-    iconBox.innerHTML = '<img src="data:image/png;base64,' + ITV_ICON_B64 + '" alt="ITV" style="width:100%;height:100%;object-fit:cover;display:block">';
+    iconBox.innerHTML = '<img src="data:image/png;base64,' + ITV_ICON_B64 + '" alt="ITV" style="width:100%;height:100%;object-fit:contain;display:block">';
+    iconBox.style.background = '#0a1830';
     iconBox.style.border = '2px solid rgba(0,212,255,.9)';
     iconBox.style.boxShadow = '0 0 6px rgba(0,212,255,.7),0 0 14px rgba(0,212,255,.4)';
-    iconBox.style.padding = '0';
+    iconBox.style.padding = '4px';
+    iconBox.style.boxSizing = 'border-box';
   } else {
     iconBox.textContent = icon;
     iconBox.style.border = 'none';
@@ -3163,9 +3165,9 @@ function updateCountdown(citaDate) {
   var tipoEl = document.getElementById('cita-tipo-txt');
   if (tipoEl) tipoEl.style.color = color;
 
-  // Update icon bg
+  // Update icon bg — pero no lo tocamos si es ITV (mantiene su fondo azul oscuro fijo)
   var iconEl = document.getElementById('cita-icon');
-  if (iconEl) iconEl.style.background = 'rgba('+
+  if (iconEl && !iconEl.querySelector('img')) iconEl.style.background = 'rgba('+
     (diff < 7*86400000 ? (diff < 3*86400000 ? '255,71,87' : '255,179,0') : '0,212,255') + ',.12)';
 
   // Update countdown numbers color
