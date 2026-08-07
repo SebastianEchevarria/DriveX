@@ -281,6 +281,20 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ MODAL: CONDUCTOR EN FACTURACIÓN ══════════════ -->
+<div id="fact-conductor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
+      <div style="flex:1;min-width:0">
+        <div id="fact-modal-nombre" style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55)">—</div>
+        <div id="fact-modal-turno" style="font-size:12px;color:var(--text3);margin-top:2px">—</div>
+      </div>
+      <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
+    </div>
+    <div id="fact-modal-body" style="padding:20px 22px 22px"></div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: FICHA DE VEHÍCULO ══════════════ -->
 <div id="vehicle-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:560px;width:100%;max-height:88vh;overflow-y:auto">
@@ -1416,38 +1430,185 @@ function renderFacturacion() {
     paintFacturacion();
   });
 }
-// Fila de conductor en Facturación: al pulsarla se despliegan sus 3 apartados
-// independientes (Uber, Bolt, Cabify), cada uno con el color de su app —
-// listos para ir metiendo los datos de facturación de cada uno.
-function facturacionConductorRow(cid, nombre, turno, esInvitado) {
+// Fila de conductor en Facturación: LED azul de intensidad media en el
+// contorno y el nombre. Al pulsarla se abre un modal con sus 3 apartados
+// independientes (Uber, Bolt, Cabify), cada uno con el color de su app.
+var _facturacionConductoresIndex = {};
+function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula) {
   var uid = 'fact_' + cid;
-  return '<div style="border:2px solid var(--border2);border-radius:12px;margin-bottom:8px;overflow:hidden;background:var(--surface2)">' +
-    '<div onclick="toggleFacturacionConductor(\'' + uid + '\')" style="padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer">' +
-      '<div style="flex:1;min-width:0"><span style="font-weight:700">' + nombre + '</span>' +
+  _facturacionConductoresIndex[uid] = { cid: cid, nombre: nombre, turno: turno, esInvitado: esInvitado, matricula: matricula };
+  return '<div onclick="openFacturacionConductorModal(\'' + uid + '\')" style="border:1.5px solid rgba(0,212,255,.65);border-radius:12px;margin-bottom:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2);box-shadow:0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)">' +
+      '<div style="flex:1;min-width:0"><span style="font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.75),0 0 12px rgba(0,212,255,.55)">' + nombre + '</span>' +
       '<span style="font-size:11px;color:rgba(255,255,255,.75);margin-left:8px">' + turno + '</span></div>' +
       (esInvitado ? '<span style="font-size:10px;font-weight:700;color:var(--cyan);flex-shrink:0">✉ invitado</span>' : '') +
-      '<span id="factchev_' + uid + '" style="color:var(--text3);font-size:14px;margin-left:6px;flex-shrink:0;transition:transform .2s ease">▾</span>' +
-    '</div>' +
-    '<div id="factbody_' + uid + '" style="display:none;padding:0 13px 13px;border-top:1px solid var(--border)">' +
-      '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:12px 14px;margin:12px 0 10px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
-        '<div style="font-size:13px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Uber</div>' +
-      '</div>' +
-      '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.85);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 0 10px rgba(0,230,118,.55),0 0 22px rgba(0,230,118,.3)">' +
-        '<div style="font-size:13px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Bolt</div>' +
-      '</div>' +
-      '<div style="background:rgba(124,92,252,.05);border:2px solid rgba(124,92,252,.85);border-radius:12px;padding:12px 14px;box-shadow:0 0 10px rgba(124,92,252,.55),0 0 22px rgba(124,92,252,.3)">' +
-        '<div style="font-size:13px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Cabify</div>' +
-      '</div>' +
-    '</div>' +
-  '</div>';
+      '<span style="color:var(--cyan);font-size:14px;margin-left:6px;flex-shrink:0">›</span>' +
+    '</div>';
 }
-function toggleFacturacionConductor(uid) {
-  var body = document.getElementById('factbody_' + uid);
-  var chev = document.getElementById('factchev_' + uid);
-  if (!body) return;
-  var open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'block';
-  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+
+function openFacturacionConductorModal(uid) {
+  var info = _facturacionConductoresIndex[uid];
+  if (!info) return;
+  document.getElementById('fact-modal-nombre').textContent = info.nombre;
+  document.getElementById('fact-modal-turno').textContent = info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
+  document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
+  document.getElementById('fact-conductor-modal').style.display = 'flex';
+  pintarBoltCsvGuardado(info.cid);
+}
+function closeFacturacionConductorModal() {
+  document.getElementById('fact-conductor-modal').style.display = 'none';
+}
+function facturacionModalBodyHtml(info) {
+  var uid = 'fact_' + info.cid;
+  return '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:4px">Uber</div>' +
+    '</div>' +
+    '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(0,230,118,.55),0 0 22px rgba(0,230,118,.3)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">Bolt</div>' +
+      '<input type="file" id="boltcsv_' + uid + '" accept=".csv,text/csv" style="display:none" onchange="onBoltCsvFile(this,\'' + info.cid + '\',\'' + (info.nombre||'').replace(/'/g,"\\'") + '\')">' +
+      '<button onclick="document.getElementById(\'boltcsv_' + uid + '\').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);margin-bottom:12px">📤 SUBIR CSV DE BOLT</button>' +
+      '<div id="boltcsv_body_' + uid + '"></div>' +
+    '</div>' +
+    '<div style="background:rgba(124,92,252,.05);border:2px solid rgba(124,92,252,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(124,92,252,.55),0 0 22px rgba(124,92,252,.3)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:4px">Cabify</div>' +
+    '</div>';
+}
+
+// ── CSV de Bolt: parseo, búsqueda del conductor por apellido y guardado ──
+function normalizarTexto(s) {
+  return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+// Parser de CSV sencillo pero robusto: detecta ; o , como separador y respeta
+// campos entre comillas (con comas/punto y coma dentro).
+function parseCsvTexto(texto) {
+  var sepCandidate = texto.indexOf(';') !== -1 && texto.indexOf(';') < texto.indexOf('\n', 0) + 200 ? ';' : ',';
+  var primeraLinea = texto.split(/\r?\n/)[0] || '';
+  var sep = (primeraLinea.split(';').length > primeraLinea.split(',').length) ? ';' : ',';
+  var filas = [];
+  var lineas = texto.split(/\r?\n/);
+  for (var i = 0; i < lineas.length; i++) {
+    if (!lineas[i].trim()) continue;
+    var linea = lineas[i];
+    var campos = [];
+    var actual = '';
+    var enComillas = false;
+    for (var j = 0; j < linea.length; j++) {
+      var ch = linea[j];
+      if (ch === '"') { enComillas = !enComillas; continue; }
+      if (ch === sep && !enComillas) { campos.push(actual); actual = ''; continue; }
+      actual += ch;
+    }
+    campos.push(actual);
+    filas.push(campos.map(function(c){ return c.trim(); }));
+  }
+  return filas;
+}
+
+function encontrarColumna(headers, candidatos) {
+  for (var i = 0; i < headers.length; i++) {
+    var h = normalizarTexto(headers[i]);
+    for (var c = 0; c < candidatos.length; c++) {
+      if (h.indexOf(candidatos[c]) !== -1) return i;
+    }
+  }
+  return -1;
+}
+
+function parseNumeroCsv(v) {
+  if (!v) return 0;
+  v = v.toString().replace(/[€\s]/g, '');
+  // admite tanto 1.234,56 como 1,234.56
+  if (v.indexOf(',') !== -1 && v.indexOf('.') !== -1) {
+    if (v.lastIndexOf(',') > v.lastIndexOf('.')) v = v.replace(/\./g,'').replace(',', '.');
+    else v = v.replace(/,/g,'');
+  } else if (v.indexOf(',') !== -1) {
+    v = v.replace(',', '.');
+  }
+  var n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function onBoltCsvFile(input, cid, nombreConductor) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    input.value = '';
+    var filas = parseCsvTexto(e.target.result);
+    if (!filas.length) { toast('⚠ El CSV está vacío'); return; }
+    var headers = filas[0];
+    var colNombre = encontrarColumna(headers, ['nombre', 'name', 'nume', 'driver', 'conductor']);
+    var colNeto   = encontrarColumna(headers, ['ingresos netos', 'net earning', 'castig net', 'ganancias netas', 'neto']);
+    var colPeajes = encontrarColumna(headers, ['peaje', 'toll']);
+    var colCamp   = encontrarColumna(headers, ['campa', 'campaign', 'bonus']);
+    var colProp   = encontrarColumna(headers, ['propina', 'tip', 'bacsis']);
+    var colEfec   = encontrarColumna(headers, ['efectivo', 'cash', 'numerar']);
+
+    // Buscamos la fila del conductor por apellido (probamos cada palabra del
+    // nombre completo, para no fallar si el nombre no coincide exactamente)
+    var palabras = normalizarTexto(nombreConductor).split(/\s+/).filter(function(w){ return w.length > 2; });
+    var filaEncontrada = null;
+    for (var f = 1; f < filas.length; f++) {
+      var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f][colNombre]) : normalizarTexto(filas[f].join(' '));
+      for (var p = 0; p < palabras.length; p++) {
+        if (celdaNombre.indexOf(palabras[p]) !== -1) { filaEncontrada = filas[f]; break; }
+      }
+      if (filaEncontrada) break;
+    }
+
+    if (!filaEncontrada) {
+      toast('⚠ No se encontró a "' + nombreConductor + '" en el CSV (comprueba el apellido)');
+      return;
+    }
+
+    var datos = {
+      nombreCsv: colNombre !== -1 ? filaEncontrada[colNombre] : '',
+      ingresosNetos:      colNeto   !== -1 ? parseNumeroCsv(filaEncontrada[colNeto])   : 0,
+      peajes:              colPeajes !== -1 ? parseNumeroCsv(filaEncontrada[colPeajes]) : 0,
+      ingresosCampanas:    colCamp   !== -1 ? parseNumeroCsv(filaEncontrada[colCamp])   : 0,
+      propinas:            colProp   !== -1 ? parseNumeroCsv(filaEncontrada[colProp])   : 0,
+      efectivoRecaudado:   colEfec   !== -1 ? parseNumeroCsv(filaEncontrada[colEfec])   : 0,
+      fecha: new Date().toISOString().slice(0,10),
+      ts: Date.now()
+    };
+
+    guardarBoltCsvFirebase(cid, datos);
+    pintarBoltCsvBox('fact_' + cid, datos);
+    toast('✓ CSV de Bolt leído para ' + nombreConductor);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function guardarBoltCsvFirebase(cid, datos) {
+  fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(datos)
+  }).catch(function(){});
+}
+
+function pintarBoltCsvGuardado(cid) {
+  var uid = 'fact_' + cid;
+  fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+    if (datos) pintarBoltCsvBox(uid, datos);
+  }).catch(function(){});
+}
+
+function pintarBoltCsvBox(uid, datos) {
+  var cont = document.getElementById('boltcsv_body_' + uid);
+  if (!cont) return;
+  function casilla(label, valor) {
+    return '<div style="background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.75);border-radius:10px;padding:9px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--green);text-shadow:0 0 5px rgba(0,230,118,.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+  cont.innerHTML =
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Coincidencia en el CSV: <b style="color:#fff">' + (datos.nombreCsv || '—') + '</b> · ' + (datos.fecha || '') + '</div>' +
+    casilla('Ingresos netos', datos.ingresosNetos) +
+    casilla('Peajes', datos.peajes) +
+    casilla('Ingresos de campañas', datos.ingresosCampanas) +
+    casilla('Propinas de pasajeros', datos.propinas) +
+    casilla('Efectivo recaudado', datos.efectivoRecaudado);
 }
 
 function paintFacturacion() {
@@ -1499,12 +1660,12 @@ function paintFacturacion() {
       v.conductores.forEach(function(cid){
         var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
         if (!c) return;
-        condRows += facturacionConductorRow(cid, c.nombre, c.turno, false);
+        condRows += facturacionConductorRow(cid, c.nombre, c.turno, false, v.matricula);
       });
       Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
         var r = _vdInvitadosCacheGlobal[cid];
         if (r.matricula !== v.matricula) return;
-        condRows += facturacionConductorRow(cid, r.nombre || 'Conductor', r.turno, true);
+        condRows += facturacionConductorRow(cid, r.nombre || 'Conductor', r.turno, true, v.matricula);
       });
       if (!condRows) condRows = '<div style="font-size:12px;color:var(--text3);padding:6px 0">Sin conductores asignados</div>';
 
