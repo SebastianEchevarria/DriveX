@@ -1433,12 +1433,32 @@ function loginAs(u) {
       if (saved.uber)   data.uber   = saved.uber;
       if (saved.bolt)   data.bolt   = saved.bolt;
       if (saved.cabify) data.cabify = saved.cabify;
+      if (saved.platData) {
+        platData.uber   = Object.assign(platData.uber,   saved.platData.uber   || {});
+        platData.bolt   = Object.assign(platData.bolt,   saved.platData.bolt   || {});
+        platData.cabify = Object.assign(platData.cabify, saved.platData.cabify || {});
+      }
       if (typeof saved.privados === 'number') data.privados = saved.privados;
       if (typeof saved.efectivo === 'number') data.efectivo = saved.efectivo;
       if (typeof saved.hojaRutaTotal === 'number') data.hojaRutaTotal = saved.hojaRutaTotal;
       if (saved.hojasRuta) data.hojasRuta = saved.hojasRuta;
     }
   } catch (e) {}
+
+  // Repintamos en pantalla lo que recuperamos de Uber/Cabify, para que no
+  // parezca que se ha "borrado" al volver a entrar en la app.
+  ['uber','cabify'].forEach(function(plat){
+    var d = platData[plat];
+    if (!d) return;
+    var netoEl = document.getElementById(plat+'-neto');
+    if (netoEl && d.neto)     netoEl.textContent = '€ ' + d.neto.toFixed(2).replace('.',',');
+    var propEl = document.getElementById(plat+'-propinas');
+    if (propEl && d.propinas) propEl.textContent = '€ ' + d.propinas.toFixed(2).replace('.',',');
+    var efEl = document.getElementById(plat+'-efectivo');
+    if (efEl && d.efectivo)   efEl.textContent = '€ ' + d.efectivo.toFixed(2).replace('.',',');
+    var promoEl = document.getElementById(plat+'-promos');
+    if (promoEl && d.promociones) promoEl.textContent = '€ ' + d.promociones.toFixed(2).replace('.',',');
+  });
 
   var hrEl = document.getElementById('hojaruta-total');
   if (hrEl) hrEl.textContent = '€ ' + (data.hojaRutaTotal || 0).toFixed(2).replace('.',',');
