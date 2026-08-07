@@ -1537,9 +1537,13 @@ function parseCsvTexto(texto) {
 }
 
 function encontrarColumna(headers, candidatos) {
-  for (var i = 0; i < headers.length; i++) {
-    var h = normalizarTexto(headers[i]);
-    for (var c = 0; c < candidatos.length; c++) {
+  // Probamos cada candidato (del más específico al más genérico) contra
+  // TODAS las columnas, para no quedarnos con la primera coincidencia parcial
+  // que aparezca por orden en el CSV (p.ej. "Ingresos brutos (efectivo)" antes
+  // de "Efectivo recaudado").
+  for (var c = 0; c < candidatos.length; c++) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = normalizarTexto(headers[i]);
       if (h.indexOf(candidatos[c]) !== -1) return i;
     }
   }
@@ -1574,7 +1578,7 @@ function onBoltCsvFile(input, cid, nombreConductor) {
     var colPeajes = encontrarColumna(headers, ['peaje', 'toll']);
     var colCamp   = encontrarColumna(headers, ['campa', 'campaign', 'bonus']);
     var colProp   = encontrarColumna(headers, ['propina', 'tip', 'bacsis']);
-    var colEfec   = encontrarColumna(headers, ['efectivo', 'cash', 'numerar']);
+    var colEfec   = encontrarColumna(headers, ['efectivo recaudado', 'cash collected', 'efectivo cobrado', 'numerar colectat', 'efectivo', 'cash', 'numerar']);
 
     // Buscamos la fila del conductor por apellido (probamos cada palabra del
     // nombre completo, para no fallar si el nombre no coincide exactamente)
