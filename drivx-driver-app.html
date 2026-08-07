@@ -543,51 +543,11 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     <div class="plat-card bolt-card">
       <div class="plat-header">
         <div class="plat-logo" style="background:#34d186;color:#fff">B</div>
-        <div><div class="plat-name">Bolt</div><div class="plat-sub">Desglose completo · hoy</div></div>
+        <div><div class="plat-name">Bolt</div><div class="plat-sub">Subido por tu administrador</div></div>
       </div>
-
-      <!-- Main result -->
-      <div style="background:rgba(0,230,118,.06);border:1.5px solid rgba(0,230,118,.5);box-shadow:0 0 8px rgba(0,230,118,.35),0 0 16px rgba(0,230,118,.18);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:13px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">💰 Tus ganancias</span>
-        <span id="bolt-ganancias" style="font-family:var(--mono);font-size:20px;font-weight:800;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(0,230,118,.6)">—</span>
+      <div id="bolt-admin-body">
+        <div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>
       </div>
-
-      <!-- Desglose app -->
-      <div style="font-size:10px;color:#e8f6ff;font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;text-shadow:0 0 4px rgba(255,255,255,.5)">INGRESOS APP</div>
-      <div class="plat-amounts" style="grid-template-columns:1fr 1fr;margin-bottom:8px">
-        <div class="plat-amt"><div class="plat-amt-val" id="bolt-pagos-app">—</div><div class="plat-amt-lbl">Pagos viajes</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="bolt-propinas">—</div><div class="plat-amt-lbl">Propinas</div></div>
-      </div>
-
-      <!-- Campañas (aparece solo si > 0) -->
-      <div id="bolt-camp-row" class="campanyas-row" style="margin-bottom:8px">
-        <label>🎯 CAMPAÑAS</label>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;color:#e8f6ff;text-shadow:0 0 4px rgba(255,255,255,.5)">Campañas / Bonos</span>
-          <span id="bolt-campanyas-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,230,118,.5)">—</span>
-        </div>
-      </div>
-
-      <!-- Compensaciones (aparece solo si > 0) -->
-      <div id="bolt-comp-row" class="campanyas-row" style="margin-bottom:8px">
-        <label>🔄 COMPENSACIONES</label>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;color:#e8f6ff;text-shadow:0 0 4px rgba(255,255,255,.5)">Compensaciones</span>
-          <span id="bolt-compensaciones-val" style="font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,230,118,.5)">—</span>
-        </div>
-      </div>
-
-      <!-- Efectivo -->
-      <div style="font-size:10px;color:#e8f6ff;font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;text-shadow:0 0 4px rgba(255,255,255,.5)">INGRESOS EN EFECTIVO</div>
-      <div class="plat-amounts" style="grid-template-columns:1fr;margin-bottom:10px">
-        <div class="plat-amt">
-          <div class="plat-amt-val" id="bolt-efectivo-mano">—</div>
-          <div class="plat-amt-lbl">Efectivo en mano</div>
-        </div>
-      </div>
-
-      <input type="file" id="input-bolt" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'bolt')">
-      <button class="btn-upload" onclick="document.getElementById('input-bolt').click()">📸 Subir captura Bolt</button>
     </div>
 
     <!-- CABIFY -->
@@ -1502,6 +1462,8 @@ function loginAs(u) {
   comprobarRelevoAutomatico();
   setInterval(comprobarRelevoAutomatico, 30000);
   setInterval(loadProximaCita, 30000);
+  cargarBoltDesdeAdmin();
+  setInterval(cargarBoltDesdeAdmin, 30000);
   setInterval(loadPoliza, 30000);
   setInterval(refreshGastosFromFirebase, 20000);
   updateFuelButton();
@@ -2364,10 +2326,25 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
     var promoEl = document.getElementById(plat+'-promos');
     if (promoEl) { promoEl.textContent = '€ ' + (campanyas||0).toFixed(2).replace('.',','); platData[plat].promociones = campanyas||0; }
     toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Ganancias €'+neto.toFixed(2));
+    pushUberCabifyFirebase(plat, neto, propinas, campanyas||0, efectivoMano||0);
   }
 
   updateBillingTotal();
   syncData();
+}
+
+// Manda a Firebase lo que el conductor sube de Uber/Cabify, para que el
+// Dashboard (Facturación) lo vea reflejado en la ficha de ese conductor.
+function pushUberCabifyFirebase(plat, neto, propinas, promociones, efectivo) {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + currentUser.cid + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      neto: neto, propinas: propinas, promociones: promociones, efectivo: efectivo,
+      matricula: currentUser.matricula || '', nombre: currentUser.nombre || '',
+      fecha: new Date().toISOString().slice(0,10), ts: Date.now()
+    })
+  }).catch(function(){});
 }
 
 function recalcBolt() {
@@ -3248,6 +3225,30 @@ function abrirDocVehiculo(docType) {
 
 // ── CITAS (lee lo que escribe la supervisor app) ──
 var _citaInterval = null;
+
+// Datos de Bolt que sube tu administrador desde el Dashboard (CSV semanal) —
+// ya no hace falta que subas tú la captura de Bolt, se refleja aquí sola.
+function cargarBoltDesdeAdmin() {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/facturacion_bolt/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+    var cont = document.getElementById('bolt-admin-body');
+    if (!cont) return;
+    if (!datos) { cont.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>'; return; }
+    function casilla(label, valor) {
+      return '<div style="background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.75);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);display:flex;justify-content:space-between;align-items:center">' +
+        '<span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">' + label + '</span>' +
+        '<span style="font-family:var(--mono);font-size:15px;font-weight:800;color:var(--green);text-shadow:0 0 5px rgba(0,230,118,.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
+    }
+    cont.innerHTML =
+      '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Actualizado por tu administrador · ' + (datos.fecha || '') + '</div>' +
+      casilla('Ingresos netos', datos.ingresosNetos) +
+      casilla('Peajes', datos.peajes) +
+      casilla('Ingresos de campañas', datos.ingresosCampanas) +
+      casilla('Propinas de pasajeros', datos.propinas) +
+      casilla('Efectivo recaudado', datos.efectivoRecaudado);
+  }).catch(function(){});
+}
 
 function loadProximaCita() {
   if (!currentUser) return;

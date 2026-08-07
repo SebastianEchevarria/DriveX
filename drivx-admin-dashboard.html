@@ -287,7 +287,8 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
       <div style="flex:1;min-width:0">
         <div id="fact-modal-nombre" style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55)">—</div>
-        <div id="fact-modal-turno" style="font-size:12px;color:var(--text3);margin-top:2px">—</div>
+        <div id="fact-modal-plate" style="margin:8px 0 6px"></div>
+        <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
       <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
     </div>
@@ -1449,10 +1450,12 @@ function openFacturacionConductorModal(uid) {
   var info = _facturacionConductoresIndex[uid];
   if (!info) return;
   document.getElementById('fact-modal-nombre').textContent = info.nombre;
-  document.getElementById('fact-modal-turno').textContent = info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
+  document.getElementById('fact-modal-plate').innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
+  document.getElementById('fact-modal-turno').innerHTML = '🕐 ' + info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
   document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   pintarBoltCsvGuardado(info.cid);
+  pintarUberCabifyGuardado(info.cid);
 }
 function closeFacturacionConductorModal() {
   document.getElementById('fact-conductor-modal').style.display = 'none';
@@ -1461,6 +1464,7 @@ function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
   return '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
       '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:4px">Uber</div>' +
+      '<div id="uber_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
     '</div>' +
     '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(0,230,118,.55),0 0 22px rgba(0,230,118,.3)">' +
       '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">Bolt</div>' +
@@ -1470,7 +1474,35 @@ function facturacionModalBodyHtml(info) {
     '</div>' +
     '<div style="background:rgba(124,92,252,.05);border:2px solid rgba(124,92,252,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(124,92,252,.55),0 0 22px rgba(124,92,252,.3)">' +
       '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:4px">Cabify</div>' +
+      '<div id="cabify_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
     '</div>';
+}
+
+// Datos que el propio conductor ya subió desde su app (capturas de Uber/Cabify,
+// sincronizadas vía Firebase) — se muestran aquí en modo lectura.
+function pintarUberCabifyGuardado(cid) {
+  var uid = 'fact_' + cid;
+  ['uber','cabify'].forEach(function(plat){
+    fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+      var cont = document.getElementById(plat + '_body_' + uid);
+      if (!cont) return;
+      if (!datos) { cont.innerHTML = '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ninguna captura.</div>'; return; }
+      var color = plat === 'uber' ? '255,255,255' : '124,92,252';
+      var textColor = plat === 'uber' ? '#fff' : 'var(--purple)';
+      function casilla(label, valor) {
+        return '<div style="background:rgba(' + color + ',.08);border:1.5px solid rgba(' + color + ',.75);border-radius:10px;padding:9px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(' + color + ',.55),0 0 16px rgba(' + color + ',.3);display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">' + label + '</span>' +
+          '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:' + textColor + ';text-shadow:0 0 5px rgba(' + color + ',.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+        '</div>';
+      }
+      cont.innerHTML =
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Subido por el conductor · ' + (datos.fecha || '') + '</div>' +
+        casilla('Ganancias / neto', datos.neto) +
+        casilla('Propinas', datos.propinas) +
+        (plat === 'uber' ? casilla('Promociones/Campañas', datos.promociones) : '') +
+        casilla('Efectivo cobrado', datos.efectivo);
+    }).catch(function(){});
+  });
 }
 
 // ── CSV de Bolt: parseo, búsqueda del conductor por apellido y guardado ──
