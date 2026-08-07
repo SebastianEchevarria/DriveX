@@ -1852,8 +1852,17 @@ function confirmKm() {
   if (!km || km <= 0) { toast('⚠ Introduce los km'); document.getElementById('km-input').focus(); return; }
 
   if (pendingFichar === 'entrada') {
-    // Antes de fichar, comprobamos si otro conductor del mismo vehículo sigue conectado
+    // Comprobamos si otro conductor del mismo vehículo sigue conectado —
+    // con aviso visual mientras se comprueba, y sin dejar el botón colgado
+    // si la comprobación falla o tarda (siempre se ficha la entrada igual).
+    var btn = document.getElementById('km-confirm-btn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.textContent = 'Comprobando…'; }
+    function restaurarBoton() {
+      if (!btn) return;
+      btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.textContent = 'Confirmar km';
+    }
     buscarConductorActivoMismoVehiculo().then(function(otro){
+      restaurarBoton();
       if (otro) {
         _relevoPendiente = { otro: otro, km: km };
         var texto = '<b style="color:#fff">' + (otro.nombre || 'Otro conductor') + '</b> todavía tiene el turno abierto en este vehículo.<br><br>' +
@@ -1864,6 +1873,10 @@ function confirmKm() {
         closeKmModal();
         finalizarFicharEntrada(km);
       }
+    }).catch(function(){
+      restaurarBoton();
+      closeKmModal();
+      finalizarFicharEntrada(km);
     });
   } else {
     closeKmModal();
@@ -1931,9 +1944,10 @@ function finalizarFicharSalida(km) {
 
 // Busca si otro conductor del mismo vehículo sigue con el turno abierto.
 // Devuelve una Promise que resuelve con ese conductor (o null si no hay ninguno).
+// Nunca tarda más de 6s: si la red va lenta, se sigue con el fichaje igualmente.
 function buscarConductorActivoMismoVehiculo() {
   if (!currentUser || !currentUser.matricula) return Promise.resolve(null);
-  return fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+  var busqueda = fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
     all = all || {};
     var otros = Object.keys(all).map(function(k){ return all[k]; }).filter(function(c){
       return c && c.matricula === currentUser.matricula && c.cid !== currentUser.cid;
@@ -1945,6 +1959,9 @@ function buscarConductorActivoMismoVehiculo() {
       }).catch(function(){ return null; });
     })).then(function(results){ return results.find(function(x){ return x; }) || null; });
   }).catch(function(){ return null; });
+
+  var timeout = new Promise(function(resolve){ setTimeout(function(){ resolve(null); }, 6000); });
+  return Promise.race([busqueda, timeout]);
 }
 
 // ── GASTOS ──
