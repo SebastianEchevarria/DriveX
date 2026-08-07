@@ -1656,6 +1656,7 @@ function onBoltCsvFile(input, cid, nombreConductor) {
       fecha: new Date().toISOString().slice(0,10),
       ts: Date.now()
     };
+    datos.netoReal = datos.ingresosNetos - datos.peajes - datos.ingresosCampanas - datos.propinas;
 
     // De momento NO se manda al conductor: se queda pendiente de revisión
     // hasta que el admin pulse "Enviar al conductor".
@@ -1709,7 +1710,7 @@ function pintarBoltCsvBox(uid, datos, cid, estado) {
       '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--green);text-shadow:0 0 5px rgba(0,230,118,.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
     '</div>';
   }
-  var netoReal = Number(datos.ingresosNetos||0) - Number(datos.peajes||0) - Number(datos.ingresosCampanas||0) - Number(datos.propinas||0);
+  var netoReal = (typeof datos.netoReal === 'number') ? datos.netoReal : (Number(datos.ingresosNetos||0) - Number(datos.peajes||0) - Number(datos.ingresosCampanas||0) - Number(datos.propinas||0));
 
   var html =
     '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Coincidencia en el CSV: <b style="color:#fff">' + (datos.nombreCsv || '—') + '</b> · ' + (datos.fecha || '') + '</div>' +
