@@ -1709,13 +1709,20 @@ function pintarBoltCsvBox(uid, datos, cid, estado) {
       '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--green);text-shadow:0 0 5px rgba(0,230,118,.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
     '</div>';
   }
+  var netoReal = Number(datos.ingresosNetos||0) - Number(datos.peajes||0) - Number(datos.ingresosCampanas||0) - Number(datos.propinas||0);
+
   var html =
     '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Coincidencia en el CSV: <b style="color:#fff">' + (datos.nombreCsv || '—') + '</b> · ' + (datos.fecha || '') + '</div>' +
-    casilla('Ingresos netos', datos.ingresosNetos) +
     casilla('Peajes', datos.peajes) +
     casilla('Ingresos de campañas', datos.ingresosCampanas) +
     casilla('Propinas de pasajeros', datos.propinas) +
-    casilla('Efectivo recaudado', datos.efectivoRecaudado);
+    casilla('Efectivo recaudado', datos.efectivoRecaudado) +
+    casilla('Ingresos netos', datos.ingresosNetos) +
+    '<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ingresos netos − Peajes − Campañas − Propinas</div>' +
+    '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+      '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoReal.toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
 
   if (estado === 'pendiente') {
     html += '<button onclick="enviarBoltAlConductor(\'' + cid + '\',\'' + uid + '\')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);margin-top:6px">📤 ENVIAR AL CONDUCTOR</button>';
