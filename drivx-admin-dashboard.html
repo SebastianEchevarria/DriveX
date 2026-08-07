@@ -213,7 +213,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <button class="sb-item" id="nav-citas" onclick="showDashScreen('citas')">Citas y revisiones</button>
     <button class="sb-item" id="nav-propietarios" onclick="showDashScreen('propietarios')">Propietarios</button>
     <button class="sb-item disabled">Conductores <span class="sb-soon">PRÓXIMAMENTE</span></button>
-    <button class="sb-item disabled">Facturación <span class="sb-soon">PRÓXIMAMENTE</span></button>
+    <button class="sb-item" id="nav-facturacion" onclick="showDashScreen('facturacion')">Facturación</button>
     <button class="sb-item disabled">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
     <button class="sb-item disabled">Configuración <span class="sb-soon">PRÓXIMAMENTE</span></button>
 
@@ -270,6 +270,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <!-- ── PROPIETARIOS ── -->
       <div class="dash-screen" id="dash-propietarios">
         <div id="propietarios-list"></div>
+      </div>
+
+      <!-- ── FACTURACIÓN ── -->
+      <div class="dash-screen" id="dash-facturacion">
+        <div id="facturacion-list"></div>
       </div>
 
     </div>
@@ -849,13 +854,15 @@ function showDashScreen(id) {
     flota:  ['Flota', 'Vehículos por comunidad autónoma'],
     gastos: ['Gastos', 'Tickets subidos por los conductores, por comunidad autónoma'],
     citas:  ['Citas y revisiones', 'Calendario y detalle por comunidad autónoma'],
-    propietarios: ['Propietarios', 'Titulares de los vehículos, por comunidad autónoma']
+    propietarios: ['Propietarios', 'Titulares de los vehículos, por comunidad autónoma'],
+    facturacion: ['Facturación', 'Vehículos y conductores por comunidad autónoma']
   };
   document.getElementById('tb-title').textContent = titles[id][0];
   document.getElementById('tb-sub').textContent = titles[id][1];
   if (id === 'gastos') renderGastos();
   if (id === 'citas') renderCitas();
   if (id === 'propietarios') renderPropietarios();
+  if (id === 'facturacion') renderFacturacion();
 }
 
 // ══ INICIO — ESTADÍSTICAS RÁPIDAS ══
@@ -1395,6 +1402,115 @@ function paintFlota() {
       if (chev) chev.textContent = open ? '›' : '⌄';
     };
   });
+}
+
+// ══ FACTURACIÓN — por comunidad autónoma, vehículos y sus conductores ══
+var _vdInvitadosCacheGlobal = {};
+function renderFacturacion() {
+  var container = document.getElementById('facturacion-list');
+  if (container && !container.innerHTML) container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
+  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    _vdInvitadosCacheGlobal = all || {};
+    paintFacturacion();
+  }).catch(function(){
+    paintFacturacion();
+  });
+}
+function paintFacturacion() {
+  var container = document.getElementById('facturacion-list');
+  if (!container) return;
+
+  var ccaaOrder = getCcaaOrder();
+  var allVehiculos = getAllVehiculos();
+  var groups = {};
+  ccaaOrder.forEach(function(cc){ groups[cc] = []; });
+  allVehiculos.forEach(function(v){
+    var cc = v.ccaa || 'Otras';
+    if (!groups[cc]) groups[cc] = [];
+    groups[cc].push(v);
+  });
+  Object.keys(groups).forEach(function(cc){
+    groups[cc].sort(function(a,b){ return a.matricula.localeCompare(b.matricula); });
+  });
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+  });
+
+  var ccaaIcons = CCAA_ICONS;
+  var ccBg      = CCAA_BG;
+  var ccBorder  = CCAA_BORDER;
+
+  var html = '';
+  ccaas.forEach(function(cc){
+    var vl = groups[cc] || [];
+    var gid = 'fg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+
+    html += '<div class="ccaa-header" style="background:' + (ccBg[cc]||'#0d1f35') + ';border-color:' + (ccBorder[cc]||'#2a4a6e') + ';box-shadow:' + ccaaGroupGlow(cc) + '" id="btn_' + gid + '">';
+    html += '<span style="font-size:22px">' + (ccaaIcons[cc]||'📍') + '</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">' + cc + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">' + vl.length + ' vehículo' + (vl.length !== 1 ? 's' : '') + '</div></div>';
+    html += '<span id="chv_' + gid + '" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
+    html += '</div>';
+
+    html += '<div id="' + gid + '" style="display:block;background:' + ccaaGroupBg(cc) + ';border-radius:12px;padding:8px 0 2px;margin-bottom:14px">';
+    html += '<div class="veh-grid">';
+
+    if (!vl.length) {
+      html += '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Sin vehículos todavía en esta comunidad</div>';
+    }
+
+    vl.forEach(function(v){
+      var condRows = '';
+      v.conductores.forEach(function(cid){
+        var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+        if (!c) return;
+        condRows += '<div class="cond-row">' +
+          '<div><span style="font-weight:700">' + c.nombre + '</span>' +
+          '<span style="font-size:11px;color:rgba(255,255,255,.92);margin-left:8px">' + c.turno + '</span></div>' +
+          '</div>';
+      });
+      Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+        var r = _vdInvitadosCacheGlobal[cid];
+        if (r.matricula !== v.matricula) return;
+        condRows += '<div class="cond-row">' +
+          '<div><span style="font-weight:700">' + (r.nombre || 'Conductor') + '</span>' +
+          '<span style="font-size:11px;color:rgba(255,255,255,.92);margin-left:8px">' + r.turno + '</span></div>' +
+          '<span style="font-size:10px;font-weight:700;color:var(--cyan)">✉ invitado</span>' +
+          '</div>';
+      });
+      if (!condRows) condRows = '<div style="font-size:12px;color:var(--text3);padding:6px 0">Sin conductores asignados</div>';
+
+      html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" style="border:1px solid rgba(255,140,0,.5);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 8px rgba(255,140,0,.35),0 0 18px rgba(255,140,0,.18)">';
+      html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
+      html += plateHtml(v.matricula);
+      if (v.icon === '⚡') html += evBadgeHtml(44);
+      html += '</div>';
+      html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>';
+      html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
+      html += '</div>';
+    });
+
+    html += '</div></div>';
+  });
+
+  container.innerHTML = html;
+
+  ccaas.forEach(function(cc){
+    var gid = 'fg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var btn = document.getElementById('btn_' + gid);
+    if (btn) btn.onclick = function(){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_' + gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
+
+  // Cargamos también los conductores registrados por invitación (para mostrarlos
+  // igual que en Flota); se hace desde renderFacturacion() antes de pintar.
 }
 
 // ══ FIREBASE (base de datos compartida real, entre cualquier dispositivo) ══
