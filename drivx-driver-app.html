@@ -607,6 +607,16 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ AVISO: HOJA DE RUTA NO VÁLIDA ══════════════ -->
+<div id="hojaruta-invalid-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(255,71,87,.9);border-radius:24px;padding:28px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 0 18px rgba(255,71,87,.6),0 0 40px rgba(255,71,87,.35),0 20px 50px rgba(0,0,0,.6)">
+    <div style="font-size:44px;margin-bottom:10px">🚫</div>
+    <div style="font-size:17px;font-weight:900;color:var(--red);margin-bottom:10px">Hoja de ruta no válida</div>
+    <div id="hojaruta-invalid-texto" style="font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.6">—</div>
+    <button onclick="cerrarHojaRutaInvalida()" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(255,71,87,.85);background:rgba(255,71,87,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">Entendido</button>
+  </div>
+</div>
+
 <!-- ══════════════ KM MODAL ══════════════ -->
 <div class="modal-overlay" id="km-modal">
   <div class="modal-sheet">
@@ -2406,9 +2416,43 @@ function updateBillingTotal() {
 function onHojaRutaFile(input) {
   if (!input.files[0]) return;
   var file = input.files[0];
-  toast('⏳ Subiendo hoja de ruta...');
+  toast('⏳ Comprobando la fecha de la hoja de ruta...');
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var prompt = 'Esta imagen es una hoja de ruta / albarán de un viaje VTC. Dentro de la sección "Solicitud de viaje" hay un campo llamado "Hora de inicio" con una fecha y hora, por ejemplo "18/07/2026 17:11:18". Responde SOLO con JSON sin markdown: {"fecha":"DD/MM/AAAA","encontrada":true} si la encuentras, o {"encontrada":false} si no la encuentras. No incluyas la hora, solo la fecha en formato DD/MM/AAAA.';
+
+    analyzeImage(b64, file.type || 'image/jpeg', prompt).then(function(text){
+      var parsed = parseJSON(text);
+      var hoy = new Date();
+      var hoyStr = String(hoy.getDate()).padStart(2,'0') + '/' + String(hoy.getMonth()+1).padStart(2,'0') + '/' + hoy.getFullYear();
+
+      if (!parsed || !parsed.encontrada || !parsed.fecha) {
+        mostrarHojaRutaInvalida('No se ha podido leer la fecha de "Hora de inicio" en la hoja de ruta. Asegúrate de que la foto se ve nítida y completa, e inténtalo de nuevo.');
+        input.value = '';
+        return;
+      }
+      if (parsed.fecha !== hoyStr) {
+        mostrarHojaRutaInvalida('Esta hoja de ruta es del <b>' + parsed.fecha + '</b>, pero hoy es <b>' + hoyStr + '</b>. Solo se pueden subir hojas de ruta del día en curso.');
+        input.value = '';
+        return;
+      }
+
+      // Fecha válida — seguimos con la subida normal
+      subirHojaRutaValidada(file, input);
+    }).catch(function(){
+      mostrarHojaRutaInvalida('No se ha podido verificar la fecha de la hoja de ruta (fallo de conexión). Inténtalo de nuevo.');
+      input.value = '';
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function subirHojaRutaValidada(file, input) {
+  toast('⏳ Fecha correcta · subiendo hoja de ruta...');
   uploadToCloudinary(file).then(function(res){
-    input.value = '';
+    if (input) input.value = '';
     var url = res && res.secure_url ? res.secure_url : null;
     setTimeout(function(){
       var precio = parseFloat(prompt('Hoja de ruta subida ✓\n\nIntroduce el precio TOTAL del viaje (€):'));
@@ -2416,9 +2460,17 @@ function onHojaRutaFile(input) {
       registrarHojaRuta(url, precio);
     }, 150);
   }).catch(function(){
-    input.value = '';
+    if (input) input.value = '';
     toast('❌ No se pudo subir la hoja de ruta. Inténtalo de nuevo.');
   });
+}
+
+function mostrarHojaRutaInvalida(mensaje) {
+  document.getElementById('hojaruta-invalid-texto').innerHTML = mensaje;
+  document.getElementById('hojaruta-invalid-modal').style.display = 'flex';
+}
+function cerrarHojaRutaInvalida() {
+  document.getElementById('hojaruta-invalid-modal').style.display = 'none';
 }
 
 function registrarHojaRuta(url, precioTotal) {
@@ -2431,6 +2483,7 @@ function registrarHojaRuta(url, precioTotal) {
   if (cut > 0) toast('✓ Hoja de ruta guardada · tu 40% = €' + cut.toFixed(2).replace('.',','));
   uploadHojaRutaToFirebase(url, precioTotal, cut);
   syncData();
+  cargarBoltDesdeAdmin(); // recalcula el Neto Real de Bolt + este 40% y el total de arriba
 }
 
 // Guarda el registro en Firebase organizado por matrícula, para que el
@@ -3270,14 +3323,24 @@ function cargarBoltDesdeAdmin() {
   fetch(FIREBASE_URL + '/facturacion_bolt/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
     var cont = document.getElementById('bolt-admin-body');
     if (!cont) return;
-    if (!datos) { cont.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>'; return; }
+    if (!datos) {
+      cont.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
+      platData.bolt.netoReal = data.hojaRutaTotal || 0;
+      updateBillingTotal();
+      return;
+    }
     function casilla(label, valor) {
       return '<div style="background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.75);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);display:flex;justify-content:space-between;align-items:center">' +
         '<span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">' + label + '</span>' +
         '<span style="font-family:var(--mono);font-size:15px;font-weight:800;color:var(--green);text-shadow:0 0 5px rgba(0,230,118,.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
       '</div>';
     }
-    var netoReal = (typeof datos.netoReal === 'number') ? datos.netoReal : (Number(datos.ingresosNetos||0) - Number(datos.peajes||0) - Number(datos.ingresosCampanas||0) - Number(datos.propinas||0));
+    var netoRealCsv = (typeof datos.netoReal === 'number') ? datos.netoReal : (Number(datos.ingresosNetos||0) - Number(datos.peajes||0) - Number(datos.ingresosCampanas||0) - Number(datos.propinas||0));
+    var privados = data.hojaRutaTotal || 0;
+    var netoRealFinal = netoRealCsv + privados;
+    platData.bolt.netoReal = netoRealFinal;
+    updateBillingTotal();
+
     cont.innerHTML =
       '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Actualizado por tu administrador · ' + (datos.fecha || '') + '</div>' +
       casilla('Peajes', datos.peajes) +
@@ -3285,10 +3348,11 @@ function cargarBoltDesdeAdmin() {
       casilla('Propinas de pasajeros', datos.propinas) +
       casilla('Efectivo recaudado', datos.efectivoRecaudado) +
       casilla('Ingresos netos', datos.ingresosNetos) +
-      '<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ingresos netos − Peajes − Campañas − Propinas</div>' +
+      '<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ingresos netos − Peajes − Campañas − Propinas' + (privados > 0 ? ' + 40% viajes privados' : '') + '</div>' +
+      (privados > 0 ? casilla('40% viajes privados (hoja de ruta)', privados) : '') +
       '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
         '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
-        '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoReal.toFixed(2).replace('.',',') + '</span>' +
+        '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoRealFinal.toFixed(2).replace('.',',') + '</span>' +
       '</div>';
   }).catch(function(){});
 }
