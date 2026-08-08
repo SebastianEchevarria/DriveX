@@ -1450,6 +1450,36 @@ function loginAs(u) {
   localStorage.setItem('drivx_current_user', u.email || u.cid);
   localStorage.setItem('drivx_session_user', JSON.stringify(u));
 
+  // IMPORTANTE: antes de nada, reiniciamos todo a cero. Si no se hace esto,
+  // cuando un conductor cierra sesión y otro distinto entra en el mismo
+  // dispositivo, los datos del anterior (tickets subidos, km, etc.) se
+  // quedaban en memoria y aparecían también en la cuenta del nuevo.
+  data.fichado = false; data.horaEntrada = null; data.horaSalida = null;
+  data.kmEntrada = null; data.kmSalida = null;
+  data.uber = { neto:0, propinas:0 };
+  data.bolt = { neto:0, propinas:0, campanyas:0, netoReal:0 };
+  data.cabify = { neto:0, propinas:0 };
+  data.privados = 0; data.efectivo = 0;
+  data.hojaRutaTotal = 0; data.hojasRuta = [];
+  data.gastos = { gasolina:[], peaje:[], parking:[], lavado:[], datafono:[], otros:[] };
+  kmEntrada = null;
+  platData.uber   = { neto:0, propinas:0, efectivo:0, promociones:0, netoReal:0 };
+  platData.bolt   = { neto:0, propinas:0, campanyas:0, netoReal:0 };
+  platData.cabify = { neto:0, propinas:0, efectivo:0 };
+
+  // Dejamos también la pantalla en su estado "vacío" antes de repintar nada
+  // del nuevo usuario, para que no se vea ni un instante lo del anterior.
+  ['uber','cabify'].forEach(function(plat){
+    ['neto','propinas','efectivo','promos'].forEach(function(campo){
+      var el = document.getElementById(plat + '-' + campo);
+      if (el) el.textContent = '€ —';
+    });
+  });
+  var nrElInicial = document.getElementById('uber-netoreal'); if (nrElInicial) nrElInicial.textContent = '€ —';
+  var hrElInicial = document.getElementById('hojaruta-total'); if (hrElInicial) hrElInicial.textContent = '€ 0,00';
+  var boltBodyInicial = document.getElementById('bolt-admin-body');
+  if (boltBodyInicial) boltBodyInicial.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
+
   // Si el conductor ya había fichado entrada y cerró la app sin fichar salida
   // (o cerró sesión por accidente), recuperamos ese estado en vez de forzarle
   // a fichar entrada otra vez. La salida solo se ficha manualmente (foto de km).
@@ -1461,6 +1491,7 @@ function loginAs(u) {
       data.horaSalida  = saved.horaSalida  || null;
       data.kmEntrada   = saved.kmEntrada   || null;
       data.kmSalida    = saved.kmSalida    || null;
+      kmEntrada = saved.kmEntrada || null;
       if (saved.uber)   data.uber   = saved.uber;
       if (saved.bolt)   data.bolt   = saved.bolt;
       if (saved.cabify) data.cabify = saved.cabify;
