@@ -304,6 +304,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 <!-- ══════════════ MODAL: TODOS LOS CONDUCTORES DEL VEHÍCULO (solo PC) ══════════════ -->
 <div id="fact-multi-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9998;align-items:flex-start;justify-content:center;padding:70px 24px 30px;overflow:auto">
   <button onclick="closeFacturacionMultiModal()" style="position:fixed;top:20px;right:24px;padding:10px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.85);background:rgba(255,71,87,.15);color:#fff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.6),0 0 20px rgba(255,71,87,.35);z-index:1">✕ Cerrar todo</button>
+  <button id="fact-multi-enviar-btn" onclick="enviarBoltATodos()" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 26px;border-radius:20px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);z-index:1">📤 ENVIAR A LOS CONDUCTORES</button>
   <div id="fact-multi-modal-inner" style="display:flex;gap:24px;align-items:flex-start;margin:0 auto"></div>
 </div>
 
@@ -1794,6 +1795,28 @@ var _factModalRefreshTimer = null;
 // conductor concreto), se abren TODAS sus ventanas de conductor a la vez,
 // una al lado de otra. En móvil, la tarjeta no hace nada — se sigue
 // entrando conductor por conductor como hasta ahora.
+var _facturacionMultiListaActual = [];
+function enviarBoltATodos() {
+  var btn = document.getElementById('fact-multi-enviar-btn');
+  var enviados = 0;
+  _facturacionMultiListaActual.forEach(function(info){
+    if (_boltCsvPendiente[info.cid]) {
+      enviarBoltAlConductor(info.cid, 'fact_' + info.cid, true);
+      enviados++;
+    }
+  });
+  if (!enviados) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '✓ Enviado';
+    btn.style.borderColor = 'rgba(0,230,118,1)';
+    btn.style.background = 'rgba(0,230,118,.16)';
+    btn.style.boxShadow = '0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.65),0 0 58px rgba(0,230,118,.35)';
+    btn.style.cursor = 'default';
+  }
+  toast('📤 Datos de Bolt enviados a ' + enviados + ' conductor' + (enviados !== 1 ? 'es' : ''));
+}
+
 function abrirTodosConductoresVehiculo(matricula) {
   if (window.innerWidth < 900) return;
 
@@ -1835,8 +1858,26 @@ function abrirTodosConductoresVehiculo(matricula) {
 
   document.getElementById('fact-multi-modal').style.display = 'flex';
 
+  _facturacionMultiListaActual = lista;
+
+  var hayPendientes = lista.some(function(info){ return !!_boltCsvPendiente[info.cid]; });
+  var btnEnviarTodos = document.getElementById('fact-multi-enviar-btn');
+  if (btnEnviarTodos) {
+    btnEnviarTodos.style.display = hayPendientes ? 'block' : 'none';
+    btnEnviarTodos.disabled = false;
+    btnEnviarTodos.textContent = '📤 ENVIAR A LOS CONDUCTORES';
+    btnEnviarTodos.style.borderColor = 'rgba(255,140,0,1)';
+    btnEnviarTodos.style.background = 'rgba(255,140,0,.16)';
+    btnEnviarTodos.style.boxShadow = '0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35)';
+    btnEnviarTodos.style.cursor = 'pointer';
+  }
+
   lista.forEach(function(info){
-    pintarBoltCsvGuardado(info.cid);
+    if (_boltCsvPendiente[info.cid]) {
+      pintarBoltCsvBox('fact_' + info.cid, _boltCsvPendiente[info.cid], info.cid, 'pendiente');
+    } else {
+      pintarBoltCsvGuardado(info.cid);
+    }
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
   });
@@ -1860,7 +1901,11 @@ function openFacturacionConductorModal(uid) {
   document.getElementById('fact-modal-turno').innerHTML = '🕐 ' + info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
   document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
   document.getElementById('fact-conductor-modal').style.display = 'flex';
-  pintarBoltCsvGuardado(info.cid);
+  if (_boltCsvPendiente[info.cid]) {
+    pintarBoltCsvBox('fact_' + info.cid, _boltCsvPendiente[info.cid], info.cid, 'pendiente');
+  } else {
+    pintarBoltCsvGuardado(info.cid);
+  }
   pintarUberCabifyGuardado(info.cid);
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
 
@@ -2179,12 +2224,20 @@ function onBoltCsvFileVehiculo(input, matricula) {
       };
       datos.netoReal = datos.ingresosNetos - datos.peajes - datos.ingresosCampanas - datos.propinas;
 
-      guardarBoltCsvFirebase(cond.cid, datos);
+      // No se manda todavía: se queda pendiente hasta que se pulse el botón
+      // de "Enviar a los conductores" (arriba, al abrir todos a la vez).
+      _boltCsvPendiente[cond.cid] = datos;
       encontrados.push(cond.nombre);
     });
 
-    if (encontrados.length) toast('✓ Bolt guardado para: ' + encontrados.join(', '));
+    if (encontrados.length) toast('✓ CSV leído para: ' + encontrados.join(', ') + ' — revisa y pulsa "Enviar a los conductores"');
     if (noEncontrados.length) toast('⚠ No se encontró en el CSV a: ' + noEncontrados.join(', '));
+
+    // Si ya están abiertas las ventanas de este vehículo, las refrescamos
+    // para que se vea el aviso pendiente y el botón naranja de arriba.
+    if (document.getElementById('fact-multi-modal').style.display === 'flex') {
+      abrirTodosConductoresVehiculo(matricula);
+    }
   };
   reader.readAsText(file, 'UTF-8');
 }
@@ -2237,13 +2290,13 @@ function onBoltCsvFile(input, cid, nombreConductor) {
 }
 
 var _boltCsvPendiente = {};
-function enviarBoltAlConductor(cid, uid) {
+function enviarBoltAlConductor(cid, uid, silencioso) {
   var datos = _boltCsvPendiente[cid];
   if (!datos) return;
   guardarBoltCsvFirebase(cid, datos);
   delete _boltCsvPendiente[cid];
   pintarBoltCsvBox(uid, datos, cid, 'enviado');
-  toast('📤 Datos de Bolt enviados al conductor');
+  if (!silencioso) toast('📤 Datos de Bolt enviados al conductor');
 }
 
 function guardarBoltCsvFirebase(cid, datos) {
