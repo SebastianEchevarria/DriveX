@@ -552,6 +552,15 @@ function formatMatriculaPlaca(matricula) {
   if (!m) return matricula;
   return '<span>' + m[1] + '</span><span style="margin-left:9px">' + m[2] + '</span>';
 }
+function toggleCondDocsO(cuid) {
+  var body = document.getElementById('body_' + cuid);
+  var chev = document.getElementById('chev_' + cuid);
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '▾' : '▴';
+}
+
 function estaFichadoHoy(fj) {
   if (!fj || !fj.fichado || !fj.ts) return false;
   return new Date(fj.ts).toDateString() === new Date().toDateString();
@@ -645,14 +654,39 @@ function cargarInicio() {
         CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre, turno:c.turno}); });
         Object.keys(invitados).forEach(function(cid){
           var r = invitados[cid];
-          if (r && r.matricula === v.matricula) conductoresVeh.push({cid:cid, nombre:r.nombre||'Conductor', turno:r.turno||''});
+          if (r && r.matricula === v.matricula) conductoresVeh.push({
+            cid:cid, nombre:r.nombre||'Conductor', turno:r.turno||'',
+            dniFrenteUrl:r.dniFrenteUrl, dniDorsoUrl:r.dniDorsoUrl,
+            carnetFrenteUrl:r.carnetFrenteUrl, carnetDorsoUrl:r.carnetDorsoUrl
+          });
         });
+
+        function docThumbO(url, label) {
+          if (!url) return '<div style="font-size:11px;color:var(--text3)">'+label+': no disponible</div>';
+          return '<a href="'+url+'" target="_blank" style="display:inline-block;text-align:center;margin:0 8px 8px 0;text-decoration:none">' +
+            '<img src="'+url+'" style="width:80px;height:54px;object-fit:cover;border-radius:8px;border:1.5px solid rgba(0,212,255,.5);display:block;margin-bottom:3px">' +
+            '<span style="font-size:10px;color:var(--cyan)">👁 '+label+'</span></a>';
+        }
 
         var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
           var online = estaFichadoHoy(fichajes[c.cid]);
-          return '<div class="cond-row"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div>' +
+          var tieneDoc = c.dniFrenteUrl || c.dniDorsoUrl || c.carnetFrenteUrl || c.carnetDorsoUrl;
+          var cuid = 'ocond_' + c.cid;
+          var docsBody = tieneDoc
+            ? '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px">🆔 DNI</div>' +
+              docThumbO(c.dniFrenteUrl,'Frontal') + docThumbO(c.dniDorsoUrl,'Dorso') +
+              '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px">🪪 Carnet de conducir</div>' +
+              docThumbO(c.carnetFrenteUrl,'Frontal') + docThumbO(c.carnetDorsoUrl,'Dorso')
+            : '<div style="font-size:11px;color:var(--text3);padding:8px 0">Este conductor no tiene documentación registrada.</div>';
+          return '<div style="border:1.5px solid rgba(0,212,255,.4);border-radius:12px;margin-bottom:8px;overflow:hidden;background:rgba(255,255,255,.02)">' +
+            '<div onclick="toggleCondDocsO(\''+cuid+'\')" class="cond-row" style="cursor:pointer;margin:0;padding:10px 12px;border-bottom:none"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div>' +
             '<div style="font-size:11px;color:var(--text3)">'+c.turno+'</div></div>' +
-            '<div style="font-size:11px;font-weight:700;color:'+(online?'var(--green)':'var(--text3)')+'"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div></div>';
+            '<div style="display:flex;align-items:center;gap:8px">' +
+            '<div style="font-size:11px;font-weight:700;color:'+(online?'var(--green)':'var(--text3)')+'"><span class="status-dot" style="background:'+(online?'var(--green)':'var(--text3)')+'"></span>'+(online?'En turno':'Fuera de turno')+'</div>' +
+            '<span id="chev_'+cuid+'" style="color:var(--cyan);font-size:13px">▾</span>' +
+            '</div></div>' +
+            '<div id="body_'+cuid+'" style="display:none;padding:0 12px 12px;border-top:1px solid var(--border)">'+docsBody+'</div>' +
+          '</div>';
         }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
 
         var docsVeh = documentos[vid] || {};
