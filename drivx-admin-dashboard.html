@@ -2116,14 +2116,17 @@ function onBoltCsvFileVehiculo(input, matricula) {
 
     conductoresVeh.forEach(function(cond){
       var palabras = normalizarTexto(cond.nombre).split(/\s+/).filter(function(w){ return w.length > 2; });
-      var filaEncontrada = null;
+      var mejorFila = null, mejorScore = 0;
       for (var f = 1; f < filas.length; f++) {
         var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f][colNombre]) : normalizarTexto(filas[f].join(' '));
-        for (var p = 0; p < palabras.length; p++) {
-          if (celdaNombre.indexOf(palabras[p]) !== -1) { filaEncontrada = filas[f]; break; }
-        }
-        if (filaEncontrada) break;
+        var celdaPalabras = celdaNombre.split(/\s+/);
+        var score = palabras.filter(function(w){ return celdaPalabras.indexOf(w) !== -1; }).length;
+        if (score > mejorScore) { mejorScore = score; mejorFila = filas[f]; }
       }
+      // Exigimos al menos 2 palabras coincidiendo exactamente (p.ej. nombre +
+      // apellido, o dos apellidos) para evitar confundir a alguien por un
+      // apellido común compartido con otra persona del CSV.
+      var filaEncontrada = (mejorScore >= 2) ? mejorFila : null;
 
       if (!filaEncontrada) { noEncontrados.push(cond.nombre); return; }
 
@@ -2165,20 +2168,22 @@ function onBoltCsvFile(input, cid, nombreConductor) {
     var colProp   = encontrarColumna(headers, ['propina', 'tip', 'bacsis']);
     var colEfec   = encontrarColumna(headers, ['efectivo recaudado', 'cash collected', 'efectivo cobrado', 'numerar colectat', 'efectivo', 'cash', 'numerar']);
 
-    // Buscamos la fila del conductor por apellido (probamos cada palabra del
-    // nombre completo, para no fallar si el nombre no coincide exactamente)
+    // Buscamos la fila del conductor por nombre y apellidos: exigimos al
+    // menos 2 palabras coincidiendo exactamente (no solo una, para no
+    // confundirlo con otra persona que comparta un apellido común), y nos
+    // quedamos con la fila que mejor coincide de todo el CSV.
     var palabras = normalizarTexto(nombreConductor).split(/\s+/).filter(function(w){ return w.length > 2; });
-    var filaEncontrada = null;
+    var mejorFila = null, mejorScore = 0;
     for (var f = 1; f < filas.length; f++) {
       var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f][colNombre]) : normalizarTexto(filas[f].join(' '));
-      for (var p = 0; p < palabras.length; p++) {
-        if (celdaNombre.indexOf(palabras[p]) !== -1) { filaEncontrada = filas[f]; break; }
-      }
-      if (filaEncontrada) break;
+      var celdaPalabras = celdaNombre.split(/\s+/);
+      var score = palabras.filter(function(w){ return celdaPalabras.indexOf(w) !== -1; }).length;
+      if (score > mejorScore) { mejorScore = score; mejorFila = filas[f]; }
     }
+    var filaEncontrada = (mejorScore >= 2) ? mejorFila : null;
 
     if (!filaEncontrada) {
-      toast('⚠ No se encontró a "' + nombreConductor + '" en el CSV (comprueba el apellido)');
+      toast('⚠ No se encontró a "' + nombreConductor + '" en el CSV (comprueba nombre y apellidos)');
       return;
     }
 
