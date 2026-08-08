@@ -92,7 +92,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 /* ── FLOTA ── */
 .ccaa-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;margin-bottom:8px;cursor:pointer;border:2px solid transparent}
 .veh-card{background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border-radius:18px;padding:16px 18px;margin-bottom:14px}
-.veh-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.veh-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .veh-icon{width:44px;height:44px;border-radius:12px;background:rgba(0,212,255,.1);border:2px solid var(--cyan);box-shadow:0 0 10px rgba(0,212,255,.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
 .veh-plate{font-size:17px;font-weight:900;font-family:var(--mono);color:var(--cyan)}
 .veh-model{font-size:12px;color:rgba(255,255,255,.95)}
@@ -2336,7 +2336,7 @@ function paintFacturacion() {
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
       html += '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">' +
-        '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
+        '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
       html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>';
