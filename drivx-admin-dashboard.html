@@ -1812,6 +1812,14 @@ function abrirTodosConductoresVehiculo(matricula) {
 
   if (!lista.length) { toast('Este vehículo no tiene conductores asignados'); return; }
 
+  // Cerramos y VACIAMOS el modal individual antes de abrir el múltiple: si
+  // antes se había abierto a alguno de estos conductores por separado, sus
+  // elementos (con el mismo id) se quedaban ocultos en la página y los
+  // nuevos datos se actualizaban ahí en vez de en la ventana visible.
+  document.getElementById('fact-conductor-modal').style.display = 'none';
+  document.getElementById('fact-modal-body').innerHTML = '';
+  if (_factModalRefreshTimer) { clearInterval(_factModalRefreshTimer); _factModalRefreshTimer = null; }
+
   var inner = document.getElementById('fact-multi-modal-inner');
   inner.innerHTML = lista.map(function(info){
     var uid = 'fact_' + info.cid;
@@ -1840,6 +1848,13 @@ function closeFacturacionMultiModal() {
 function openFacturacionConductorModal(uid) {
   var info = _facturacionConductoresIndex[uid];
   if (!info) return;
+
+  // Igual que al revés: si el modal múltiple estaba (o había estado) abierto,
+  // vaciamos su contenido para que no queden elementos duplicados con el
+  // mismo id compitiendo por recibir la actualización de datos.
+  document.getElementById('fact-multi-modal').style.display = 'none';
+  document.getElementById('fact-multi-modal-inner').innerHTML = '';
+
   document.getElementById('fact-modal-nombre').textContent = info.nombre;
   document.getElementById('fact-modal-plate').innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
   document.getElementById('fact-modal-turno').innerHTML = '🕐 ' + info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
