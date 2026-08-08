@@ -1945,9 +1945,31 @@ function onKmPhoto(input) {
         st.textContent = '⚠ No detectado — escribe los km manualmente';
         st.className = 'km-status warn';
       }
+    }).catch(function(){
+      inp.disabled = false;
+      inp.placeholder = 'Escribe los km aquí';
+      inp.focus();
+      st.textContent = '⚠ No se pudo leer — escribe los km manualmente';
+      st.className = 'km-status warn';
     });
   };
   reader.readAsDataURL(file);
+}
+
+// Cuando la IA no devuelve un JSON limpio (p.ej. si se usó el respaldo de
+// OCR, que solo da texto plano), esto busca el importe en euros dentro del
+// texto reconocido, para no perder el ticket por eso.
+function extractAmount(text) {
+  if (!text) return 0;
+  // Prioriza importes con símbolo de euro o palabras como total/importe
+  var conEuro = text.match(/(?:total|importe|a pagar)[^\d]{0,15}(\d{1,4}[.,]\d{2})\s*€?/i) ||
+                text.match(/(\d{1,4}[.,]\d{2})\s*€/) ||
+                text.match(/€\s*(\d{1,4}[.,]\d{2})/);
+  if (conEuro) return parseFloat(conEuro[1].replace(',', '.'));
+  // Si no, coge el número con decimales más grande que aparezca (suele ser el total)
+  var todos = (text.match(/\d{1,4}[.,]\d{2}/g) || []).map(function(n){ return parseFloat(n.replace(',', '.')); });
+  if (todos.length) return Math.max.apply(null, todos);
+  return 0;
 }
 
 function ocrParseKm(text) {
@@ -2118,8 +2140,6 @@ function triggerCat(cat) {
 var catNames  = { gasolina:'Gasolina', peaje:'Peaje', parking:'Parking', lavado:'Lavado', datafono:'Datáfono', otros:'Otros' };
 var catColors  = { gasolina:'var(--amber)', peaje:'var(--cyan)', parking:'var(--cyan)', lavado:'var(--purple)', datafono:'var(--purple)', otros:'var(--red)' };
 var catLimits  = { gasolina:2 };
-var gastosHashes = {};
-var gastosTotals = { gasolina:0, peaje:0, parking:0, lavado:0, datafono:0, otros:0 };
 
 function imageHash(b64) {
   if (!b64) return '';
@@ -2132,30 +2152,6 @@ function imageHash(b64) {
   }
   return h.toString(36) + '_' + len;
 }
-
-function isDuplicate(cat, importe, hora, hash) {
-  // 1. Same image hash = definitely same ticket
-  if (hash && gastosHashes[hash]) {
-    return '⚠ Ticket ya registrado (misma imagen)';
-  }
-  // 2. Same category + same amount + same hour = duplicate
-  if (importe > 0 && hora) {
-    var existing = data.gastos[cat] || [];
-    for (var i = 0; i < existing.length; i++) {
-      if (Math.abs(existing[i].importe - importe) < 0.01 && existing[i].hora === hora) {
-        return '⚠ Ticket duplicado (mismo importe y hora)';
-      }
-    }
-  }
-  // 3. Check category limit
-  var limit = catLimits[cat];
-  if (limit && (data.gastos[cat]||[]).length >= limit) {
-    return '⚠ Límite de ' + limit + ' ticket' + (limit>1?'s':'') + ' para ' + catNames[cat];
-  }
-  return null; // valid
-}
-
-function triggerCat(cat) { document.getElementById('input-'+cat).click(); }
 
 function onCatFile(input, cat) {
   if (!input.files[0]) return;
