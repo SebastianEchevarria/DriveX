@@ -1503,6 +1503,8 @@ function loginAs(u) {
   setInterval(loadProximaCita, 30000);
   cargarBoltDesdeAdmin();
   setInterval(cargarBoltDesdeAdmin, 12000);
+  sincronizarUberCabifyDesdeServidor();
+  setInterval(sincronizarUberCabifyDesdeServidor, 12000);
   setInterval(loadPoliza, 30000);
   setInterval(refreshGastosFromFirebase, 20000);
   updateFuelButton();
@@ -3336,6 +3338,32 @@ var _citaInterval = null;
 
 // Datos de Bolt que sube tu administrador desde el Dashboard (CSV semanal) —
 // ya no hace falta que subas tú la captura de Bolt, se refleja aquí sola.
+// Si el admin borra los datos de Uber/Cabify desde el Dashboard, esta función
+// se encarga de reflejarlo también aquí (igual que ya pasa con Bolt).
+function sincronizarUberCabifyDesdeServidor() {
+  if (!currentUser) return;
+  ['uber','cabify'].forEach(function(plat){
+    fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+      if (datos) return; // sigue existiendo en el servidor, no hay nada que limpiar
+      var habiaAlgoLocal = platData[plat].neto || platData[plat].propinas || platData[plat].efectivo || platData[plat].promociones;
+      if (!habiaAlgoLocal) return;
+      platData[plat] = plat === 'uber'
+        ? { neto:0, propinas:0, efectivo:0, promociones:0, netoReal:0 }
+        : { neto:0, propinas:0, efectivo:0 };
+      ['neto','propinas','efectivo','promos'].forEach(function(campo){
+        var el = document.getElementById(plat + '-' + campo);
+        if (el) el.textContent = '€ —';
+      });
+      if (plat === 'uber') {
+        var nrEl = document.getElementById('uber-netoreal');
+        if (nrEl) nrEl.textContent = '€ —';
+      }
+      updateBillingTotal();
+      syncData();
+    }).catch(function(){});
+  });
+}
+
 function cargarBoltDesdeAdmin() {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/facturacion_bolt/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
