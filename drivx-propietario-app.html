@@ -42,7 +42,7 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
 .scroll { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 16px calc(100px + env(safe-area-inset-bottom, 0px)); }
 
 /* ── NAV BAR ── */
-#navbar { display:none; position:fixed; bottom:0; left:0; right:0; background:rgba(7,11,18,0.95); border-top:1px solid var(--border); backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom)); z-index:100; grid-template-columns:repeat(2,1fr); }
+#navbar { display:none; position:fixed; bottom:0; left:0; right:0; background:rgba(7,11,18,0.95); border-top:1px solid var(--border); backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom)); z-index:100; grid-template-columns:repeat(4,1fr); }
 #navbar.visible { display:grid; }
 .nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text2); cursor:pointer; }
 .nav-btn.active { color:var(--cyan); }
@@ -204,8 +204,44 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
     </div>
   </div>
 
+  <!-- ── GASTOS ── -->
+  <div class="screen" id="screen-gastos">
+    <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+      <img class="logo-owner-img" alt="DRIVX Owner App" style="width:auto;max-width:150px;height:auto;display:block;margin:0">
+      <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,71,87,.95);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 14px rgba(255,71,87,.9),0 0 30px rgba(255,71,87,.6),0 0 50px rgba(255,71,87,.35)">Salir</button>
+    </div>
+    <div class="header">
+      <div>
+        <div class="header-title">Gastos</div>
+        <div class="header-sub">De tus vehículos y conductores</div>
+      </div>
+    </div>
+    <div class="scroll" id="gastos-content-o">
+      <div class="empty-msg">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── FACTURACIÓN ── -->
+  <div class="screen" id="screen-facturacion">
+    <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+      <img class="logo-owner-img" alt="DRIVX Owner App" style="width:auto;max-width:150px;height:auto;display:block;margin:0">
+      <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 16px;border-radius:20px;border:2px solid rgba(255,71,87,.95);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 14px rgba(255,71,87,.9),0 0 30px rgba(255,71,87,.6),0 0 50px rgba(255,71,87,.35)">Salir</button>
+    </div>
+    <div class="header">
+      <div>
+        <div class="header-title">Facturación</div>
+        <div class="header-sub">Uber, Bolt, Cabify y viajes privados de tus conductores</div>
+      </div>
+    </div>
+    <div class="scroll" id="facturacion-content-o">
+      <div class="empty-msg">Cargando…</div>
+    </div>
+  </div>
+
   <div id="navbar">
     <button class="nav-btn active" id="nav-inicio" onclick="showScreen('inicio')"><span>🏠</span><small>Inicio</small></button>
+    <button class="nav-btn" id="nav-gastos" onclick="showScreen('gastos')"><span>🧾</span><small>Gastos</small></button>
+    <button class="nav-btn" id="nav-facturacion" onclick="showScreen('facturacion')"><span>💰</span><small>Facturación</small></button>
     <button class="nav-btn" id="nav-citas" onclick="showScreen('citas')"><span>📅</span><small>Citas</small></button>
   </div>
 </div>
@@ -491,8 +527,12 @@ function entrarApp() {
   document.getElementById('navbar').classList.add('visible');
   document.getElementById('home-nombre').textContent = (currentUser.nombre || '').split(' ')[0];
   cargarInicio();
+  cargarGastosO();
+  cargarFacturacionO();
   cargarCitas();
   setInterval(cargarInicio, 20000);
+  setInterval(cargarGastosO, 25000);
+  setInterval(cargarFacturacionO, 25000);
   setInterval(cargarCitas, 30000);
 }
 
@@ -853,6 +893,249 @@ function cargarConductores() {
 
 // ── CITAS: calendario + listado, de solo lectura ──
 var _citaCalOffset = 0;
+// ── GASTOS: vehículos propios, con el total de todos los conductores y el
+// desglose de cada uno al pulsarlo ──
+function cargarGastosO() {
+  if (!currentUser) return;
+  Promise.all([
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/gastos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var extra = results[0] || {};
+    var invitados = results[1] || {};
+    var gastosData = results[2] || {};
+    VEHICULOS_EXTRA_O = Object.keys(extra).map(function(k){ var v = extra[k]||{}; return {
+      matricula: v.matricula||k, modelo: v.modelo||'Vehículo', ciudad: v.ciudad||'', ccaa: v.ccaa||'Andalucía',
+      icon: v.icon||'🚗', docs: { itv: { fecha: (v.docs&&v.docs.itv&&v.docs.itv.fecha) || null } }, conductores: v.conductores||[]
+    };});
+
+    var misVehiculos = todosLosVehiculos().filter(function(v){ return currentUser.matriculas.indexOf(v.matricula) !== -1; });
+    var cont = document.getElementById('gastos-content-o');
+    if (!misVehiculos.length) { cont.innerHTML = '<div class="empty-msg">No tienes vehículos asignados todavía.</div>'; return; }
+
+    var porCcaa = {};
+    misVehiculos.forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
+    var ccaaOrderO = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+      var ai = ccaaOrderO.indexOf(a), bi = ccaaOrderO.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+
+    var htmlOut = '';
+    ccaasPresentes.forEach(function(cc){
+      var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
+      var iconCc = CCAA_ICONS_O[cc] || '📍';
+      htmlOut += '<div class="ccaa-header" style="background:'+ccaaGroupBgO(cc)+';backdrop-filter:blur(6px);border-color:'+borderCc+';box-shadow:'+ccaaGroupGlowO(cc)+'">' +
+        '<span style="font-size:22px">'+iconCc+'</span>' +
+        '<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">'+cc+'</div>' +
+        '<div style="font-size:11px;color:var(--text3)">'+porCcaa[cc].length+' vehículo'+(porCcaa[cc].length>1?'s':'')+'</div></div>' +
+      '</div>';
+
+      htmlOut += porCcaa[cc].map(function(v){
+        var vid = matSlugO(v.matricula);
+        var gastosVeh = gastosData[vid] || {};
+
+        var conductoresVeh = [];
+        CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre}); });
+        Object.keys(invitados).forEach(function(cid){
+          var r = invitados[cid];
+          if (r && r.matricula === v.matricula) conductoresVeh.push({cid:cid, nombre:r.nombre||'Conductor'});
+        });
+
+        // Recogemos TODOS los tickets del vehículo (para el total conjunto) y
+        // los indexamos también por nombre de conductor (para el desglose).
+        var todosLosTickets = [];
+        CATEGORIAS_GASTOS_O.forEach(function(catDef){
+          var catData = gastosVeh[catDef.key];
+          if (!catData) return;
+          Object.keys(catData).forEach(function(tid){
+            var t = catData[tid] || {};
+            todosLosTickets.push({ cat: catDef, importe: t.importe||0, nombre: t.nombre, fecha: t.fecha, hora: t.hora, conductor: t.conductor, url: t.url, ts: t.ts||0 });
+          });
+        });
+        var totalVeh = todosLosTickets.reduce(function(s,t){ return s + t.importe; }, 0);
+
+        var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
+          var cuid = 'gcond_' + c.cid;
+          var propios = todosLosTickets.filter(function(t){ return t.conductor === c.nombre; }).sort(function(a,b){ return b.ts - a.ts; });
+          var totalCond = propios.reduce(function(s,t){ return s + t.importe; }, 0);
+          var ticketsHtml = propios.length ? propios.map(function(t){
+            var thumb = t.url
+              ? '<img src="'+t.url+'" onclick="window.open(\''+t.url+'\',\'_blank\')" style="width:38px;height:38px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0">'
+              : '<div style="width:38px;height:38px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">'+t.cat.icon+'</div>';
+            return '<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)">' + thumb +
+              '<div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:700">€ '+t.importe.toFixed(2).replace('.',',')+' <span style="color:var(--text3);font-weight:400">· '+t.cat.label+'</span></div>' +
+              '<div style="font-size:10px;color:var(--text3)">'+(t.fecha||'')+(t.hora?' '+t.hora:'')+'</div></div>' +
+            '</div>';
+          }).join('') : '<div style="padding:8px 0;color:var(--text3);font-size:11px">Sin gastos registrados</div>';
+
+          return '<div style="border:1.5px solid rgba(0,212,255,.4);border-radius:12px;margin-bottom:8px;overflow:hidden;background:rgba(255,255,255,.02)">' +
+            '<div onclick="toggleCondDocsO(\''+cuid+'\')" class="cond-row" style="cursor:pointer;margin:0;padding:10px 12px;border-bottom:none"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div></div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+            '<span style="font-size:12px;font-weight:800;color:var(--cyan)">€ '+totalCond.toFixed(2).replace('.',',')+'</span>' +
+            '<span id="chev_'+cuid+'" style="color:var(--cyan);font-size:13px">▾</span>' +
+            '</div></div>' +
+            '<div id="body_'+cuid+'" style="display:none;padding:0 12px 12px;border-top:1px solid var(--border)">'+ticketsHtml+'</div>' +
+          '</div>';
+        }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
+
+        return '<div class="veh-card" style="border:1.5px solid rgba(255,140,0,.75);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 12px rgba(255,140,0,.55),0 0 26px rgba(255,140,0,.35),0 0 44px rgba(255,140,0,.18)">' +
+          '<div class="veh-top" style="align-items:center;margin-bottom:4px">' + plateHtmlO(v.matricula) + '</div>' +
+          '<div class="veh-model" style="margin:0 0 10px 0">'+v.modelo+' · '+v.ccaa+'</div>' +
+          '<div style="background:rgba(255,140,0,.08);border:1.5px solid rgba(255,140,0,.65);box-shadow:0 0 8px rgba(255,140,0,.5),0 0 16px rgba(255,140,0,.28);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">' +
+            '<span style="font-size:12px;font-weight:800;color:#fff">Gastos totales (todos los conductores)</span>' +
+            '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--amber)">€ '+totalVeh.toFixed(2).replace('.',',')+'</span>' +
+          '</div>' +
+          '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>' +
+          condHtml +
+        '</div>';
+      }).join('');
+    });
+
+    cont.innerHTML = htmlOut;
+  }).catch(function(){
+    document.getElementById('gastos-content-o').innerHTML = '<div class="empty-msg">No se pudo cargar. Comprueba tu conexión.</div>';
+  });
+}
+
+// ── FACTURACIÓN: vehículos propios; cada conductor muestra su Uber, Bolt,
+// Cabify y viajes privados, en modo solo lectura ──
+function cargarFacturacionO() {
+  if (!currentUser) return;
+  Promise.all([
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var extra = results[0] || {};
+    var invitados = results[1] || {};
+    VEHICULOS_EXTRA_O = Object.keys(extra).map(function(k){ var v = extra[k]||{}; return {
+      matricula: v.matricula||k, modelo: v.modelo||'Vehículo', ciudad: v.ciudad||'', ccaa: v.ccaa||'Andalucía',
+      icon: v.icon||'🚗', docs: { itv: { fecha: (v.docs&&v.docs.itv&&v.docs.itv.fecha) || null } }, conductores: v.conductores||[]
+    };});
+
+    var misVehiculos = todosLosVehiculos().filter(function(v){ return currentUser.matriculas.indexOf(v.matricula) !== -1; });
+    var cont = document.getElementById('facturacion-content-o');
+    if (!misVehiculos.length) { cont.innerHTML = '<div class="empty-msg">No tienes vehículos asignados todavía.</div>'; return; }
+
+    var porCcaa = {};
+    misVehiculos.forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
+    var ccaaOrderO = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
+    var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
+      var ai = ccaaOrderO.indexOf(a), bi = ccaaOrderO.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+
+    var htmlOut = '';
+    ccaasPresentes.forEach(function(cc){
+      var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
+      var iconCc = CCAA_ICONS_O[cc] || '📍';
+      htmlOut += '<div class="ccaa-header" style="background:'+ccaaGroupBgO(cc)+';backdrop-filter:blur(6px);border-color:'+borderCc+';box-shadow:'+ccaaGroupGlowO(cc)+'">' +
+        '<span style="font-size:22px">'+iconCc+'</span>' +
+        '<div style="flex:1"><div style="font-size:14px;font-weight:800;color:var(--text)">'+cc+'</div>' +
+        '<div style="font-size:11px;color:var(--text3)">'+porCcaa[cc].length+' vehículo'+(porCcaa[cc].length>1?'s':'')+'</div></div>' +
+      '</div>';
+
+      htmlOut += porCcaa[cc].map(function(v){
+        var conductoresVeh = [];
+        CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) conductoresVeh.push({cid:c.cid, nombre:c.nombre}); });
+        Object.keys(invitados).forEach(function(cid){
+          var r = invitados[cid];
+          if (r && r.matricula === v.matricula) conductoresVeh.push({cid:cid, nombre:r.nombre||'Conductor'});
+        });
+
+        var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
+          var fuid = 'ofact_' + c.cid;
+          return '<div style="border:1.5px solid rgba(0,212,255,.4);border-radius:12px;margin-bottom:8px;overflow:hidden;background:rgba(255,255,255,.02)">' +
+            '<div onclick="toggleFacturacionCondO(\''+fuid+'\',\''+c.cid+'\',\''+v.matricula+'\')" class="cond-row" style="cursor:pointer;margin:0;padding:10px 12px;border-bottom:none"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div></div>' +
+            '<span id="chev_'+fuid+'" style="color:var(--cyan);font-size:13px">▾</span></div>' +
+            '<div id="body_'+fuid+'" style="display:none;padding:0 12px 12px;border-top:1px solid var(--border)"><div style="padding:10px 0;color:var(--text3);font-size:11px">Cargando…</div></div>' +
+          '</div>';
+        }).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Sin conductor asignado</div>';
+
+        return '<div class="veh-card" style="border:1.5px solid rgba(0,212,255,.75);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 12px rgba(0,212,255,.55),0 0 26px rgba(0,212,255,.35),0 0 44px rgba(0,212,255,.18)">' +
+          '<div class="veh-top" style="align-items:center;margin-bottom:4px">' + plateHtmlO(v.matricula) + '</div>' +
+          '<div class="veh-model" style="margin:0 0 12px 0">'+v.modelo+' · '+v.ccaa+'</div>' +
+          '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>' +
+          condHtml +
+        '</div>';
+      }).join('');
+    });
+
+    cont.innerHTML = htmlOut;
+  }).catch(function(){
+    document.getElementById('facturacion-content-o').innerHTML = '<div class="empty-msg">No se pudo cargar. Comprueba tu conexión.</div>';
+  });
+}
+
+function casillaFactO(color, textColor, label, valor) {
+  return '<div style="background:rgba('+color+',.08);border:1.5px solid rgba('+color+',.75);border-radius:10px;padding:9px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba('+color+',.55),0 0 16px rgba('+color+',.3);display:flex;justify-content:space-between;align-items:center">' +
+    '<span style="font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">'+label+'</span>' +
+    '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:'+textColor+';text-shadow:0 0 5px rgba('+color+',.9)">€ '+Number(valor||0).toFixed(2).replace('.',',')+'</span>' +
+  '</div>';
+}
+
+function toggleFacturacionCondO(fuid, cid, matricula) {
+  var body = document.getElementById('body_' + fuid);
+  var chev = document.getElementById('chev_' + fuid);
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '▾' : '▴';
+  if (open) return; // se cierra, no hace falta recargar
+
+  body.innerHTML = '<div style="padding:10px 0;color:var(--text3);font-size:11px">Cargando…</div>';
+  Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var uber = results[0], bolt = results[1], cabify = results[2], hojas = results[3] || {};
+
+    var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var privadosTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
+
+    var uberNetoReal = uber ? Number((typeof uber.netoReal === 'number' ? uber.netoReal : uber.neto)||0) : 0;
+    var boltNetoReal = bolt ? Number((typeof bolt.netoReal === 'number' ? bolt.netoReal : 0)) : 0;
+    var cabifyNeto = cabify ? Number(cabify.neto||0) : 0;
+    var totalGeneral = uberNetoReal + boltNetoReal + cabifyNeto + privadosTotal;
+
+    var html = '';
+    html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:12px 0;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff">FACTURACIÓN NETO TOTAL</span>' +
+      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ '+totalGeneral.toFixed(2).replace('.',',')+'</span>' +
+    '</div>';
+
+    html += '<div style="background:rgba(255,255,255,.03);border:1.5px solid rgba(255,255,255,.7);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">Uber</div>' +
+      (uber ? (casillaFactO('255,255,255','#fff','Ganancias/neto', uber.neto) + casillaFactO('255,255,255','#fff','Propinas', uber.propinas) + (uber.promociones?casillaFactO('255,255,255','#fff','Promociones', uber.promociones):'') + casillaFactO('255,255,255','#fff','Efectivo cobrado', uber.efectivo))
+        : '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ninguna captura.</div>') +
+    '</div>';
+
+    html += '<div style="background:rgba(0,230,118,.05);border:1.5px solid rgba(0,230,118,.7);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">Bolt</div>' +
+      (bolt ? (casillaFactO('0,230,118','var(--green)','Peajes', bolt.peajes) + casillaFactO('0,230,118','var(--green)','Campañas', bolt.ingresosCampanas) + casillaFactO('0,230,118','var(--green)','Propinas', bolt.propinas) + casillaFactO('0,230,118','var(--green)','Efectivo recaudado', bolt.efectivoRecaudado) + casillaFactO('0,230,118','var(--green)','Ingresos netos', bolt.ingresosNetos))
+        : '<div style="font-size:11px;color:var(--text3)">Tu administrador todavía no ha subido datos de Bolt.</div>') +
+    '</div>';
+
+    html += '<div style="background:rgba(124,92,252,.05);border:1.5px solid rgba(124,92,252,.7);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">Cabify</div>' +
+      (cabify ? (casillaFactO('124,92,252','var(--purple)','Ganancias/neto', cabify.neto) + casillaFactO('124,92,252','var(--purple)','Propinas', cabify.propinas) + casillaFactO('124,92,252','var(--purple)','Efectivo cobrado', cabify.efectivo))
+        : '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ninguna captura.</div>') +
+    '</div>';
+
+    html += '<div style="background:rgba(255,140,0,.05);border:1.5px solid rgba(255,140,0,.7);border-radius:10px;padding:10px 12px">' +
+      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">🧾 Viajes privados</div>' +
+      (privadosPropios.length ? casillaFactO('255,140,0','var(--amber)','40% del conductor', privadosTotal) : '<div style="font-size:11px;color:var(--text3)">Sin hojas de ruta registradas.</div>') +
+    '</div>';
+
+    body.innerHTML = html;
+  }).catch(function(){
+    body.innerHTML = '<div style="padding:10px 0;color:var(--red);font-size:11px">No se pudo cargar.</div>';
+  });
+}
+
 function cargarCitas() {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
