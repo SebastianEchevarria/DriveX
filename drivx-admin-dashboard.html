@@ -3536,16 +3536,24 @@ function renderConductoresYTurnos(v) {
 
     html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
     html += '<div style="padding-top:12px;font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <b>Email:</b> ' + (r.email || '—') + '</div>';
-    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
-    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">🕐 <b>Turno:</b> ' + r.turno + '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
+
+    html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
+      '<span style="font-size:18px;flex-shrink:0">🕐</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Turno</div>' +
+        '<input id="turno-' + cid + '" value="' + (r.turno || '').replace(/"/g,'&quot;') + '" onclick="event.stopPropagation()" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,179,0,.4);color:var(--amber);font-size:13px;font-weight:700;padding:2px 0;font-family:inherit">' +
+      '</div>' +
+      '<button onclick="event.stopPropagation();guardarTurnoConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
+    '</div>';
 
     html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
-      '<span style="font-size:20px">🏦</span>' +
+      '<span style="font-size:20px;flex-shrink:0">🏦</span>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cuenta bancaria</div>' +
-        '<div id="cuenta-' + cid + '" style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (r.cuentaBancaria || 'No proporcionada') + '</div>' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Cuenta bancaria</div>' +
+        '<input id="cuenta-' + cid + '" value="' + (r.cuentaBancaria || '').replace(/"/g,'&quot;') + '" placeholder="No proporcionada" onclick="event.stopPropagation()" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(0,212,255,.4);color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 0">' +
       '</div>' +
-      (r.cuentaBancaria ? '<button onclick="copiarCuenta(\'' + cid + '\',event)" class="edit-btn" style="flex-shrink:0">📋 Copiar</button>' : '') +
+      '<button onclick="event.stopPropagation();guardarCuentaConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
     '</div>';
 
     html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
@@ -3818,16 +3826,24 @@ function paintConductoresInvitados() {
 
     html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
     html += '<div style="padding-top:12px;font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <b>Email:</b> ' + (r.email || '—') + '</div>';
-    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
-    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">🕐 <b>Turno:</b> ' + r.turno + '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
+
+    html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
+      '<span style="font-size:18px;flex-shrink:0">🕐</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Turno</div>' +
+        '<input id="turno-' + cid + '" value="' + (r.turno || '').replace(/"/g,'&quot;') + '" onclick="event.stopPropagation()" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,179,0,.4);color:var(--amber);font-size:13px;font-weight:700;padding:2px 0;font-family:inherit">' +
+      '</div>' +
+      '<button onclick="event.stopPropagation();guardarTurnoConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
+    '</div>';
 
     html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
-      '<span style="font-size:20px">🏦</span>' +
+      '<span style="font-size:20px;flex-shrink:0">🏦</span>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Cuenta bancaria</div>' +
-        '<div id="cuenta-' + cid + '" style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (r.cuentaBancaria || 'No proporcionada') + '</div>' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Cuenta bancaria</div>' +
+        '<input id="cuenta-' + cid + '" value="' + (r.cuentaBancaria || '').replace(/"/g,'&quot;') + '" placeholder="No proporcionada" onclick="event.stopPropagation()" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(0,212,255,.4);color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 0">' +
       '</div>' +
-      (r.cuentaBancaria ? '<button onclick="copiarCuenta(\'' + cid + '\',event)" class="edit-btn" style="flex-shrink:0">📋 Copiar</button>' : '') +
+      '<button onclick="event.stopPropagation();guardarCuentaConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
     '</div>';
 
     html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
@@ -3841,6 +3857,35 @@ function paintConductoresInvitados() {
   });
   el.innerHTML = html;
 }
+function guardarTurnoConductor(cid) {
+  var input = document.getElementById('turno-' + cid);
+  if (!input) return;
+  var nuevoTurno = input.value.trim();
+  if (!nuevoTurno) { toast('⚠ El turno no puede quedar vacío'); return; }
+  fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/turno.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(nuevoTurno)
+  }).then(function(){
+    if (_vdInvitadosCache[cid]) _vdInvitadosCache[cid].turno = nuevoTurno;
+    if (_vdInvitadosCacheGlobal[cid]) _vdInvitadosCacheGlobal[cid].turno = nuevoTurno;
+    toast('✓ Turno actualizado');
+  }).catch(function(){ toast('❌ No se pudo guardar el turno'); });
+}
+
+function guardarCuentaConductor(cid) {
+  var input = document.getElementById('cuenta-' + cid);
+  if (!input) return;
+  var nuevaCuenta = input.value.trim();
+  fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/cuentaBancaria.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(nuevaCuenta)
+  }).then(function(){
+    if (_vdInvitadosCache[cid]) _vdInvitadosCache[cid].cuentaBancaria = nuevaCuenta;
+    if (_vdInvitadosCacheGlobal[cid]) _vdInvitadosCacheGlobal[cid].cuentaBancaria = nuevaCuenta;
+    toast('✓ Cuenta bancaria actualizada');
+  }).catch(function(){ toast('❌ No se pudo guardar la cuenta bancaria'); });
+}
+
 function copiarCuenta(cid, evt) {
   var el = document.getElementById('cuenta-' + cid);
   if (!el) return;

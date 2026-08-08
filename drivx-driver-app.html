@@ -46,7 +46,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   display:none; position:fixed; bottom:0; left:0; right:0;
   background:rgba(7,11,18,0.95); border-top:1px solid var(--border);
   backdrop-filter:blur(20px); padding:8px 0 max(8px,env(safe-area-inset-bottom));
-  z-index:100; grid-template-columns:repeat(4,1fr);
+  z-index:100; grid-template-columns:repeat(5,1fr);
 }
 #navbar.visible { display:grid; }
 .nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px; border:none; background:none; color:var(--text2); cursor:pointer; transition:color .15s; }
@@ -691,6 +691,10 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <div id="inv-vehiculo-info" style="font-size:13px;color:var(--cyan);font-family:var(--mono);margin-bottom:6px">—</div>
       <div id="inv-email-info" style="font-size:12px;color:var(--text3);margin-bottom:16px">—</div>
       <div class="field">
+        <label>Nombre y apellidos (igual que en tu DNI/NIE)</label>
+        <input id="inv-nombre" type="text" placeholder="Ej: Juan Pérez García" style="font-size:16px" oninput="checkRegPasswordMatch()">
+      </div>
+      <div class="field">
         <label>Teléfono</label>
         <input id="inv-telefono" type="tel" placeholder="600 123 456" style="font-size:16px" oninput="checkRegPasswordMatch()">
       </div>
@@ -798,6 +802,49 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 </div>
 
 <!-- ══════════════ AYUDA ══════════════ -->
+<div id="screen-driver" class="screen">
+  <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
+    <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:200px;height:auto;display:block;margin:0">
+    <button onclick="doLogout()" style="flex-shrink:0;margin-left:10px;padding:8px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.15);color:#ff6b6b;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap;backdrop-filter:blur(8px);box-shadow:0 0 12px rgba(255,71,87,.8),0 0 26px rgba(255,71,87,.55),0 0 44px rgba(255,71,87,.3)">Salir</button>
+  </div>
+
+  <div class="scroll">
+    <div class="header">
+      <div class="header-title">🪪 Mi perfil</div>
+    </div>
+
+    <!-- Datos fijos (no editables) -->
+    <div style="background:var(--surface); border:1.5px solid var(--border2); border-radius:16px; padding:16px 18px; margin-bottom:16px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Nombre y apellidos</div>
+      <div id="driver-nombre" style="font-size:16px;font-weight:800;margin-bottom:14px">—</div>
+
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Matrícula</div>
+      <div id="driver-matricula-wrap" style="margin-bottom:14px"></div>
+
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Turno asignado</div>
+      <div id="driver-turno" style="font-size:14px;font-weight:700;color:var(--amber)">—</div>
+    </div>
+
+    <div style="font-size:11px;color:var(--text3);margin:0 4px 10px">Estos datos los gestiona tu administrador desde el Dashboard.</div>
+
+    <!-- Datos editables -->
+    <div style="background:rgba(0,212,255,.04); border:2px solid rgba(0,212,255,.75); border-radius:16px; padding:16px 18px; margin-bottom:16px; box-shadow:0 0 10px rgba(0,212,255,.5),0 0 22px rgba(0,212,255,.28)">
+      <div style="font-size:13px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85);margin-bottom:14px">✏️ Puedes editar estos datos</div>
+
+      <div class="field">
+        <label>Teléfono</label>
+        <input id="driver-telefono-input" type="tel" placeholder="600 123 456">
+      </div>
+      <div class="field" style="margin-bottom:6px">
+        <label>Cuenta bancaria (IBAN)</label>
+        <input id="driver-cuenta-input" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
+      </div>
+
+      <button class="btn-primary" onclick="guardarPerfilDriver()" style="margin-top:10px">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div id="screen-chatbot" class="screen">
   <div class="mini-brand" style="display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 16px 12px 6px">
     <img class="logo-driver-img" alt="DRIVX Driver App" style="width:auto;max-width:200px;height:auto;display:block;margin:0">
@@ -954,6 +1001,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   <button class="nav-btn active" id="nav-home" onclick="showScreen('home')"><span>🏠</span><small>Inicio</small></button>
   <button class="nav-btn" id="nav-gastos" onclick="showScreen('gastos')"><span>🧾</span><small>Gastos</small></button>
   <button class="nav-btn" id="nav-billing" onclick="showScreen('billing')"><span>💰</span><small>Facturación</small></button>
+  <button class="nav-btn" id="nav-driver" onclick="showScreen('driver')"><span>🪪</span><small>Driver</small></button>
   <button class="nav-btn" id="nav-chatbot" onclick="showScreen('chatbot')"><span>💬</span><small>Ayuda</small></button>
 </nav>
 
@@ -1208,6 +1256,7 @@ function goRegStep(stepId) {
 }
 
 function checkRegPasswordMatch() {
+  var nombre = (document.getElementById('inv-nombre').value || '').trim();
   var tel   = (document.getElementById('inv-telefono').value || '').trim();
   var p1    = document.getElementById('inv-pass1').value || '';
   var p2    = document.getElementById('inv-pass2').value || '';
@@ -1229,17 +1278,21 @@ function checkRegPasswordMatch() {
     ok = true;
   }
 
-  var allOk = tel.length >= 6 && ok;
+  var nombreOk = nombre.trim().split(/\s+/).filter(function(w){ return w.length>1; }).length >= 2;
+  var allOk = nombreOk && tel.length >= 6 && ok;
   btn.disabled = !allOk;
   btn.style.opacity = allOk ? '1' : '.4';
 }
 
 function goToCarnetStep() {
+  var nombre = (document.getElementById('inv-nombre').value || '').trim();
   var tel = (document.getElementById('inv-telefono').value || '').trim();
   var p1  = document.getElementById('inv-pass1').value || '';
   var p2  = document.getElementById('inv-pass2').value || '';
+  if (nombre.split(/\s+/).filter(function(w){ return w.length>1; }).length < 2) { toast('⚠ Escribe tu nombre y al menos un apellido, igual que en tu DNI/NIE'); return; }
   if (tel.length < 6) { toast('⚠ Introduce un teléfono válido'); return; }
   if (p1.length < 4 || p1 !== p2) { toast('⚠ Revisa la contraseña'); return; }
+  _inviteData.nombreManual = nombre;
   goRegStep('inv-step-carnet');
 }
 
@@ -1335,6 +1388,9 @@ function startRegVerification() {
     });
 }
 
+function normalizarNombreReg(s) {
+  return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g,' ');
+}
 function showRegResult(aiCarnet, aiDni) {
   _inviteData.aiCarnet = aiCarnet;
   _inviteData.aiDni = aiDni;
@@ -1351,6 +1407,20 @@ function showRegResult(aiCarnet, aiDni) {
     (!aiDni.legible ? '<span style="color:var(--amber)">no se pudo leer con certeza</span>' :
      aiDni.vencido ? '<span style="color:var(--red)">VENCIDO' + (aiDni.fechaCaducidad ? ' (' + aiDni.fechaCaducidad + ')' : '') + '</span>' :
      '<span style="color:var(--green)">vigente' + (aiDni.fechaCaducidad ? ' hasta ' + aiDni.fechaCaducidad : '') + '</span>') + '</div>';
+
+  // Comparamos el nombre escrito por el conductor con el que la IA detecta en
+  // el DNI/carnet, como aviso adicional (no bloquea la activación).
+  var nombreManual = normalizarNombreReg(_inviteData.nombreManual || '');
+  var nombreIA = normalizarNombreReg(_inviteData.nombreDetectado || '');
+  var coincideNombre = true;
+  if (nombreIA) {
+    var palabrasManual = nombreManual.split(' ').filter(function(w){ return w.length>1; });
+    var algunaCoincide = palabrasManual.some(function(w){ return nombreIA.indexOf(w) !== -1; });
+    coincideNombre = algunaCoincide;
+  }
+  if (!coincideNombre) {
+    lines += '<div style="font-size:12px;margin-top:8px;color:var(--amber)">⚠ El nombre que escribiste no coincide claramente con el que aparece en tus documentos. Revisa que lo hayas escrito igual que en tu DNI/NIE.</div>';
+  }
 
   if (apto) {
     box.style.background = 'rgba(0,230,118,.08)';
@@ -1370,7 +1440,7 @@ function finalizeRegistro() {
   var pass     = document.getElementById('inv-pass1').value || '';
   var inv = _inviteData;
   var cid = 'inv_' + inv.code.replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
-  var nombre = inv.nombreDetectado || 'Conductor nuevo';
+  var nombre = inv.nombreManual || inv.nombreDetectado || 'Conductor nuevo';
 
   var registro = {
     telefono: telefono,
@@ -1742,6 +1812,41 @@ function showScreen(id) {
   var nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
   if (id === 'chatbot') { setTimeout(updateAyudaScrollbar, 60); setTimeout(updateAyudaScrollbar, 300); }
+  if (id === 'driver') { pintarPerfilDriver(); }
+}
+
+// ── PERFIL DEL CONDUCTOR (pestaña "Driver") ──
+function pintarPerfilDriver() {
+  if (!currentUser) return;
+  document.getElementById('driver-nombre').textContent = currentUser.nombre || '—';
+  document.getElementById('driver-matricula-wrap').innerHTML = currentUser.matricula ? plateHtml(currentUser.matricula) : '—';
+  document.getElementById('driver-turno').textContent = currentUser.turno || '—';
+  document.getElementById('driver-telefono-input').value = currentUser.telefono || '';
+
+  fetch(FIREBASE_URL + '/conductores_registro/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(reg){
+    if (reg) {
+      if (reg.telefono) document.getElementById('driver-telefono-input').value = reg.telefono;
+      document.getElementById('driver-cuenta-input').value = reg.cuentaBancaria || '';
+    }
+  }).catch(function(){});
+}
+
+function guardarPerfilDriver() {
+  if (!currentUser) return;
+  var telefono = (document.getElementById('driver-telefono-input').value || '').trim();
+  var cuenta   = (document.getElementById('driver-cuenta-input').value || '').trim();
+  if (telefono.length < 6) { toast('⚠ Introduce un teléfono válido'); return; }
+  if (cuenta.replace(/\s/g,'').length < 10) { toast('⚠ Introduce una cuenta bancaria válida'); return; }
+
+  currentUser.telefono = telefono;
+  fetch(FIREBASE_URL + '/conductores_registro/' + currentUser.cid + '.json', {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ telefono: telefono, cuentaBancaria: cuenta })
+  }).then(function(){
+    toast('✓ Datos guardados');
+  }).catch(function(){
+    toast('❌ No se pudo guardar — revisa tu conexión');
+  });
 }
 
 function showMore() { showScreen('chatbot'); }
