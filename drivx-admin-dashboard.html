@@ -301,6 +301,12 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ MODAL: TODOS LOS CONDUCTORES DEL VEHÍCULO (solo PC) ══════════════ -->
+<div id="fact-multi-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9998;align-items:flex-start;justify-content:center;padding:70px 24px 30px;overflow:auto">
+  <button onclick="closeFacturacionMultiModal()" style="position:fixed;top:20px;right:24px;padding:10px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.85);background:rgba(255,71,87,.15);color:#fff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.6),0 0 20px rgba(255,71,87,.35);z-index:1">✕ Cerrar todo</button>
+  <div id="fact-multi-modal-inner" style="display:flex;gap:24px;align-items:flex-start;margin:0 auto"></div>
+</div>
+
 <!-- ══════════════ MODAL: DOBLE CONFIRMACIÓN DE BORRADO (FACTURACIÓN) ══════════════ -->
 <div id="fact-delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10000;align-items:center;justify-content:center;padding:24px">
   <div style="background:var(--surface);border:2px solid rgba(255,71,87,.65);border-radius:24px;padding:28px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 0 18px rgba(255,71,87,.5),0 0 40px rgba(255,71,87,.25),0 20px 50px rgba(0,0,0,.6)">
@@ -1775,7 +1781,7 @@ var _facturacionConductoresIndex = {};
 function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula) {
   var uid = 'fact_' + cid;
   _facturacionConductoresIndex[uid] = { cid: cid, nombre: nombre, turno: turno, esInvitado: esInvitado, matricula: matricula };
-  return '<div onclick="openFacturacionConductorModal(\'' + uid + '\')" style="border:1.5px solid rgba(0,212,255,.65);border-radius:12px;margin-bottom:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2);box-shadow:0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)">' +
+  return '<div onclick="event.stopPropagation();openFacturacionConductorModal(\'' + uid + '\')" style="border:1.5px solid rgba(0,212,255,.65);border-radius:12px;margin-bottom:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2);box-shadow:0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)">' +
       '<div style="flex:1;min-width:0"><span style="font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.75),0 0 12px rgba(0,212,255,.55)">' + nombre + '</span>' +
       '<span style="font-size:11px;color:rgba(255,255,255,.75);margin-left:8px">' + turno + '</span></div>' +
       (esInvitado ? '<span style="font-size:10px;font-weight:700;color:var(--cyan);flex-shrink:0">✉ invitado</span>' : '') +
@@ -1784,6 +1790,53 @@ function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula) {
 }
 
 var _factModalRefreshTimer = null;
+// Solo en PC (pantallas anchas): al tocar la tarjeta del vehículo (no un
+// conductor concreto), se abren TODAS sus ventanas de conductor a la vez,
+// una al lado de otra. En móvil, la tarjeta no hace nada — se sigue
+// entrando conductor por conductor como hasta ahora.
+function abrirTodosConductoresVehiculo(matricula) {
+  if (window.innerWidth < 900) return;
+
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+
+  var lista = [];
+  v.conductores.forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (c) lista.push({ cid: c.cid, nombre: c.nombre, turno: c.turno, esInvitado: false, matricula: v.matricula });
+  });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula === matricula) lista.push({ cid: cid, nombre: r.nombre || 'Conductor', turno: r.turno, esInvitado: true, matricula: matricula });
+  });
+
+  if (!lista.length) { toast('Este vehículo no tiene conductores asignados'); return; }
+
+  var inner = document.getElementById('fact-multi-modal-inner');
+  inner.innerHTML = lista.map(function(info){
+    var uid = 'fact_' + info.cid;
+    _facturacionConductoresIndex[uid] = info;
+    return '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;width:400px;flex-shrink:0;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3)">' +
+      '<div style="padding:18px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0">' +
+        '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55);margin-bottom:8px">' + (info.nombre||'Conductor') + '</div>' +
+        plateHtmlSmall(info.matricula) +
+      '</div>' +
+      '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('fact-multi-modal').style.display = 'flex';
+
+  lista.forEach(function(info){
+    pintarBoltCsvGuardado(info.cid);
+    pintarUberCabifyGuardado(info.cid);
+    pintarViajesPrivadosGuardado(info.cid, info.matricula);
+  });
+}
+function closeFacturacionMultiModal() {
+  document.getElementById('fact-multi-modal').style.display = 'none';
+}
+
 function openFacturacionConductorModal(uid) {
   var info = _facturacionConductoresIndex[uid];
   if (!info) return;
@@ -2208,7 +2261,7 @@ function paintFacturacion() {
       });
       if (!condRows) condRows = '<div style="font-size:12px;color:var(--text3);padding:6px 0">Sin conductores asignados</div>';
 
-      html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" style="border:1px solid rgba(255,140,0,.5);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 8px rgba(255,140,0,.35),0 0 18px rgba(255,140,0,.18)">';
+      html += '<div class="veh-card" data-matricula="' + v.matricula.replace(/\s/g,'').toUpperCase() + '" onclick="abrirTodosConductoresVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="border:1px solid rgba(255,140,0,.5);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 8px rgba(255,140,0,.35),0 0 18px rgba(255,140,0,.18);cursor:pointer">';
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
