@@ -1456,6 +1456,7 @@ function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula) {
     '</div>';
 }
 
+var _factModalRefreshTimer = null;
 function openFacturacionConductorModal(uid) {
   var info = _facturacionConductoresIndex[uid];
   if (!info) return;
@@ -1466,9 +1467,18 @@ function openFacturacionConductorModal(uid) {
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   pintarBoltCsvGuardado(info.cid);
   pintarUberCabifyGuardado(info.cid);
+
+  // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
+  // así se ve al instante lo que el conductor vaya subiendo desde su app.
+  if (_factModalRefreshTimer) clearInterval(_factModalRefreshTimer);
+  _factModalRefreshTimer = setInterval(function(){
+    pintarBoltCsvGuardado(info.cid);
+    pintarUberCabifyGuardado(info.cid);
+  }, 8000);
 }
 function closeFacturacionConductorModal() {
   document.getElementById('fact-conductor-modal').style.display = 'none';
+  if (_factModalRefreshTimer) { clearInterval(_factModalRefreshTimer); _factModalRefreshTimer = null; }
 }
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
@@ -1511,6 +1521,11 @@ function pintarUberCabifyGuardado(cid) {
         casilla('Propinas', datos.propinas) +
         (plat === 'uber' ? casilla('Promociones/Campañas', datos.promociones) : '') +
         casilla('Efectivo cobrado', datos.efectivo) +
+        (plat === 'uber' ? ('<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ganancias totales − Propina − Promociones/Campañas</div>' +
+          '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
+            '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+            '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + Number((typeof datos.netoReal === 'number' ? datos.netoReal : datos.neto)||0).toFixed(2).replace('.',',') + '</span>' +
+          '</div>') : '') +
         '<button onclick="pedirBorrarPlat(\'' + plat + '\',\'' + cid + '\',\'' + uid + '\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px">🗑 Eliminar datos</button>';
     }).catch(function(){});
   });

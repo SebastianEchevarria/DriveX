@@ -1502,7 +1502,7 @@ function loginAs(u) {
   setInterval(comprobarRelevoAutomatico, 30000);
   setInterval(loadProximaCita, 30000);
   cargarBoltDesdeAdmin();
-  setInterval(cargarBoltDesdeAdmin, 30000);
+  setInterval(cargarBoltDesdeAdmin, 12000);
   setInterval(loadPoliza, 30000);
   setInterval(refreshGastosFromFirebase, 20000);
   updateFuelButton();
@@ -2388,7 +2388,8 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
       if (nrEl) nrEl.textContent = '€ ' + netoRealUber.toFixed(2).replace('.',',');
     }
     toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Ganancias €'+neto.toFixed(2));
-    pushUberCabifyFirebase(plat, neto, propinas, campanyas||0, efectivoMano||0);
+    var netoRealParaEnviar = plat === 'uber' ? (neto - propinas - (campanyas||0)) : neto;
+    pushUberCabifyFirebase(plat, neto, propinas, campanyas||0, efectivoMano||0, netoRealParaEnviar);
   }
 
   updateBillingTotal();
@@ -2397,12 +2398,13 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
 
 // Manda a Firebase lo que el conductor sube de Uber/Cabify, para que el
 // Dashboard (Facturación) lo vea reflejado en la ficha de ese conductor.
-function pushUberCabifyFirebase(plat, neto, propinas, promociones, efectivo) {
+function pushUberCabifyFirebase(plat, neto, propinas, promociones, efectivo, netoReal) {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + currentUser.cid + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({
       neto: neto, propinas: propinas, promociones: promociones, efectivo: efectivo,
+      netoReal: (typeof netoReal === 'number') ? netoReal : neto,
       matricula: currentUser.matricula || '', nombre: currentUser.nombre || '',
       fecha: new Date().toISOString().slice(0,10), ts: Date.now()
     })
