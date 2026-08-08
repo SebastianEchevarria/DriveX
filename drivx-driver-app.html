@@ -519,7 +519,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     </div>
 
     <div class="total-bar">
-      <span class="total-bar-label">Total apps neto</span>
+      <span class="total-bar-label">Facturación neto total</span>
       <span class="total-bar-val" id="billing-total">€ 0,00</span>
     </div>
 
@@ -534,6 +534,11 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div class="plat-amt"><div class="plat-amt-val" id="uber-propinas">€ —</div><div class="plat-amt-lbl">Propina</div></div>
         <div class="plat-amt"><div class="plat-amt-val" id="uber-promos">€ —</div><div class="plat-amt-lbl">Promociones/Campañas</div></div>
         <div class="plat-amt"><div class="plat-amt-val" id="uber-efectivo">€ —</div><div class="plat-amt-lbl">Efectivo cobrado</div></div>
+      </div>
+      <div style="font-size:10px;color:#e8f6ff;margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ganancias totales − Propina − Promociones/Campañas</div>
+      <div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:12px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>
+        <span id="uber-netoreal" style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ —</span>
       </div>
       <input type="file" id="input-uber" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'uber')">
       <button class="btn-upload" onclick="document.getElementById('input-uber').click()">📸 Subir captura Uber</button>
@@ -1468,6 +1473,10 @@ function loginAs(u) {
     if (efEl && d.efectivo)   efEl.textContent = '€ ' + d.efectivo.toFixed(2).replace('.',',');
     var promoEl = document.getElementById(plat+'-promos');
     if (promoEl && d.promociones) promoEl.textContent = '€ ' + d.promociones.toFixed(2).replace('.',',');
+    if (plat === 'uber') {
+      var nrEl = document.getElementById('uber-netoreal');
+      if (nrEl && typeof d.netoReal === 'number') nrEl.textContent = '€ ' + d.netoReal.toFixed(2).replace('.',',');
+    }
   });
 
   var hrEl = document.getElementById('hojaruta-total');
@@ -2372,6 +2381,12 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
     if (efEl) efEl.textContent = '€ ' + (efectivoMano||0).toFixed(2).replace('.',',');
     var promoEl = document.getElementById(plat+'-promos');
     if (promoEl) { promoEl.textContent = '€ ' + (campanyas||0).toFixed(2).replace('.',','); platData[plat].promociones = campanyas||0; }
+    if (plat === 'uber') {
+      var netoRealUber = neto - propinas - (campanyas||0);
+      platData.uber.netoReal = netoRealUber;
+      var nrEl = document.getElementById('uber-netoreal');
+      if (nrEl) nrEl.textContent = '€ ' + netoRealUber.toFixed(2).replace('.',',');
+    }
     toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Ganancias €'+neto.toFixed(2));
     pushUberCabifyFirebase(plat, neto, propinas, campanyas||0, efectivoMano||0);
   }
@@ -2407,7 +2422,8 @@ function recalcBolt() {
 }
 
 function updateBillingTotal() {
-  var total = platData.uber.neto + platData.bolt.netoReal + platData.cabify.neto;
+  var netoRealUber = (typeof platData.uber.netoReal === 'number') ? platData.uber.netoReal : platData.uber.neto;
+  var total = netoRealUber + platData.bolt.netoReal + platData.cabify.neto;
   document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
   var saEl = document.getElementById('stat-apps'); if (saEl) saEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
 }
