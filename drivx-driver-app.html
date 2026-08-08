@@ -769,11 +769,11 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <button class="btn-primary" onclick="startRegVerification()" style="width:100%">Verificar documentos →</button>
     </div>
 
-    <!-- Paso 5: verificando -->
+    <!-- Paso 5: subiendo documentos -->
     <div id="inv-step-verifying" style="display:none;text-align:center;padding:20px 0">
-      <div style="font-size:40px;margin-bottom:12px">🤖</div>
-      <div style="font-size:15px;font-weight:800;margin-bottom:6px">Verificando documentos con IA...</div>
-      <div id="inv-verifying-status" style="font-size:12px;color:var(--text3)">Analizando carnet de conducir…</div>
+      <div style="font-size:40px;margin-bottom:12px">📤</div>
+      <div style="font-size:15px;font-weight:800;margin-bottom:6px">Subiendo tus documentos...</div>
+      <div id="inv-verifying-status" style="font-size:12px;color:var(--text3)">Subiendo documentos…</div>
     </div>
 
     <!-- Paso 5: resultado -->
@@ -1357,30 +1357,13 @@ function startRegVerification() {
 
   goRegStep('inv-step-verifying');
   var statusEl = document.getElementById('inv-verifying-status');
+  statusEl.textContent = 'Subiendo documentos…';
 
-  var promptCarnet = 'Analiza esta imagen de un carnet de conducir español (cara frontal). Devuelve SOLO JSON sin markdown ni texto adicional: {"nombre":"nombre y apellidos completos si son visibles, o null","fechaCaducidad":"YYYY-MM-DD si es visible, o null","vencido":true o false,"legible":true o false}. Si hoy es posterior a la fecha de caducidad, vencido debe ser true.';
-  var promptDni    = 'Analiza esta imagen de un DNI/NIE español (cara frontal). Devuelve SOLO JSON sin markdown ni texto adicional: {"nombre":"nombre y apellidos completos si son visibles, o null","fechaCaducidad":"YYYY-MM-DD si es visible, o null","vencido":true o false,"legible":true o false}. Si hoy es posterior a la fecha de caducidad, vencido debe ser true.';
-
-  var aiCarnet = null, aiDni = null;
-
-  statusEl.textContent = 'Analizando carnet de conducir…';
-  analyzeImage(_regPhotos.carnetFrente.base64, _regPhotos.carnetFrente.file.type, promptCarnet)
-    .then(function(text){ aiCarnet = parseJSON(text) || { legible:false, vencido:false, nombre:null }; })
-    .catch(function(){ aiCarnet = { legible:false, vencido:false, nombre:null }; })
-    .then(function(){
-      statusEl.textContent = 'Analizando DNI…';
-      return analyzeImage(_regPhotos.dniFrente.base64, _regPhotos.dniFrente.file.type, promptDni);
-    })
-    .then(function(text){ aiDni = parseJSON(text) || { legible:false, vencido:false, nombre:null }; })
-    .catch(function(){ aiDni = { legible:false, vencido:false, nombre:null }; })
-    .then(function(){
-      statusEl.textContent = 'Subiendo documentos…';
-      var uploads = required.map(function(k){ return uploadToCloudinary(_regPhotos[k].file); });
-      return Promise.all(uploads);
-    })
+  var uploads = required.map(function(k){ return uploadToCloudinary(_regPhotos[k].file); });
+  Promise.all(uploads)
     .then(function(results){
       required.forEach(function(k, i){ _regPhotos[k].url = results[i].secure_url; });
-      showRegResult(aiCarnet, aiDni);
+      showRegResult();
     })
     .catch(function(err){
       toast('❌ Error al subir los documentos: ' + err.message);
@@ -1391,47 +1374,12 @@ function startRegVerification() {
 function normalizarNombreReg(s) {
   return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g,' ');
 }
-function showRegResult(aiCarnet, aiDni) {
-  _inviteData.aiCarnet = aiCarnet;
-  _inviteData.aiDni = aiDni;
-  _inviteData.nombreDetectado = (aiDni && aiDni.nombre) || (aiCarnet && aiCarnet.nombre) || null;
-
-  var apto = !(aiCarnet.vencido) && !(aiDni.vencido);
+function showRegResult() {
   var box = document.getElementById('inv-result-box');
-  var lines = '';
-  lines += '<div style="font-size:13px;margin-bottom:8px"><b>🪪 Carnet de conducir:</b> ' +
-    (!aiCarnet.legible ? '<span style="color:var(--amber)">no se pudo leer con certeza</span>' :
-     aiCarnet.vencido ? '<span style="color:var(--red)">VENCIDO' + (aiCarnet.fechaCaducidad ? ' (' + aiCarnet.fechaCaducidad + ')' : '') + '</span>' :
-     '<span style="color:var(--green)">vigente' + (aiCarnet.fechaCaducidad ? ' hasta ' + aiCarnet.fechaCaducidad : '') + '</span>') + '</div>';
-  lines += '<div style="font-size:13px;margin-bottom:0"><b>🆔 DNI:</b> ' +
-    (!aiDni.legible ? '<span style="color:var(--amber)">no se pudo leer con certeza</span>' :
-     aiDni.vencido ? '<span style="color:var(--red)">VENCIDO' + (aiDni.fechaCaducidad ? ' (' + aiDni.fechaCaducidad + ')' : '') + '</span>' :
-     '<span style="color:var(--green)">vigente' + (aiDni.fechaCaducidad ? ' hasta ' + aiDni.fechaCaducidad : '') + '</span>') + '</div>';
-
-  // Comparamos el nombre escrito por el conductor con el que la IA detecta en
-  // el DNI/carnet, como aviso adicional (no bloquea la activación).
-  var nombreManual = normalizarNombreReg(_inviteData.nombreManual || '');
-  var nombreIA = normalizarNombreReg(_inviteData.nombreDetectado || '');
-  var coincideNombre = true;
-  if (nombreIA) {
-    var palabrasManual = nombreManual.split(' ').filter(function(w){ return w.length>1; });
-    var algunaCoincide = palabrasManual.some(function(w){ return nombreIA.indexOf(w) !== -1; });
-    coincideNombre = algunaCoincide;
-  }
-  if (!coincideNombre) {
-    lines += '<div style="font-size:12px;margin-top:8px;color:var(--amber)">⚠ El nombre que escribiste no coincide claramente con el que aparece en tus documentos. Revisa que lo hayas escrito igual que en tu DNI/NIE.</div>';
-  }
-
-  if (apto) {
-    box.style.background = 'rgba(0,230,118,.08)';
-    box.style.border = '1px solid rgba(0,230,118,.3)';
-    box.innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--green);margin-bottom:10px">✅ Documentación apta</div>' + lines;
-  } else {
-    box.style.background = 'rgba(255,71,87,.08)';
-    box.style.border = '1px solid rgba(255,71,87,.3)';
-    box.innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--red);margin-bottom:10px">⚠ Revisión necesaria</div>' + lines +
-      '<div style="font-size:11px;color:var(--text3);margin-top:10px">Puedes finalizar igualmente — quedará marcado para que administración lo revise.</div>';
-  }
+  box.style.background = 'rgba(0,230,118,.08)';
+  box.style.border = '1px solid rgba(0,230,118,.3)';
+  box.innerHTML = '<div style="font-size:15px;font-weight:800;color:var(--green);margin-bottom:10px">✅ Documentos subidos correctamente</div>' +
+    '<div style="font-size:13px;color:var(--text2)">Tu carnet de conducir y tu DNI/NIE ya quedan registrados. Tu administrador podrá consultarlos desde el Dashboard.</div>';
   goRegStep('inv-step-result');
 }
 
@@ -1457,9 +1405,7 @@ function finalizeRegistro() {
     carnetDorsoUrl:  _regPhotos.carnetDorso.url,
     dniFrenteUrl:    _regPhotos.dniFrente.url,
     dniDorsoUrl:     _regPhotos.dniDorso.url,
-    aiCarnet: inv.aiCarnet,
-    aiDni: inv.aiDni,
-    apto: !(inv.aiCarnet.vencido) && !(inv.aiDni.vencido),
+    apto: true,
     fechaRegistro: new Date().toLocaleDateString('es-ES'),
     ts: Date.now(),
     code: inv.code,

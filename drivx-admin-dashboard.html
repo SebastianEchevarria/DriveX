@@ -3521,9 +3521,15 @@ function renderConductoresYTurnos(v) {
 
     function docThumb(url, label) {
       if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
-      return '<a href="' + cloudinaryDownloadUrl(url) + '" download style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
-        '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
-        '<span style="font-size:10px;color:var(--cyan)">⬇ ' + label + '</span></a>';
+      return '<div style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
+        '<a href="' + url + '" target="_blank" style="display:block;cursor:pointer">' +
+          '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
+        '</a>' +
+        '<div style="display:flex;align-items:center;justify-content:center;gap:8px">' +
+          '<a href="' + url + '" target="_blank" style="font-size:10px;color:var(--cyan);text-decoration:none">👁 ' + label + '</a>' +
+          '<a href="' + cloudinaryDownloadUrl(url) + '" download style="font-size:10px;color:var(--text3);text-decoration:none">⬇</a>' +
+        '</div>' +
+      '</div>';
     }
 
     html += '<div style="border:2px solid ' + borderColor + ';border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
@@ -3811,9 +3817,15 @@ function paintConductoresInvitados() {
 
     function docThumb(url, label) {
       if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
-      return '<a href="' + cloudinaryDownloadUrl(url) + '" download style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
-        '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
-        '<span style="font-size:10px;color:var(--cyan)">⬇ ' + label + '</span></a>';
+      return '<div style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
+        '<a href="' + url + '" target="_blank" style="display:block;cursor:pointer">' +
+          '<img src="' + url + '" style="width:84px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);display:block;margin-bottom:3px">' +
+        '</a>' +
+        '<div style="display:flex;align-items:center;justify-content:center;gap:8px">' +
+          '<a href="' + url + '" target="_blank" style="font-size:10px;color:var(--cyan);text-decoration:none">👁 ' + label + '</a>' +
+          '<a href="' + cloudinaryDownloadUrl(url) + '" download style="font-size:10px;color:var(--text3);text-decoration:none">⬇</a>' +
+        '</div>' +
+      '</div>';
     }
 
     html += '<div style="border:2px solid ' + borderColor + ';border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
