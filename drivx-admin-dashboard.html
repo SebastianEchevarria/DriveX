@@ -2025,6 +2025,39 @@ function normalizarTexto(s) {
   return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+// Busca en las filas del CSV la que corresponde a un conductor por su nombre
+// completo. Primero intenta un match EXACTO (nombre completo idéntico,
+// ignorando el orden de las palabras); si no lo encuentra, cae en un match
+// por puntuación (cuántas palabras del nombre coinciden exactamente en la
+// celda), exigiendo al menos 2 para evitar confundirlo con otra persona que
+// solo comparta un nombre o un apellido.
+function buscarFilaConductorCsv(filas, colNombre, nombreConductor) {
+  var palabras = normalizarTexto(nombreConductor).split(/\s+/).filter(function(w){ return w.length > 1; });
+  if (!palabras.length) return null;
+  var palabrasSet = palabras.slice().sort().join(' ');
+
+  // 1) Match exacto de nombre completo (mismas palabras, cualquier orden)
+  for (var f = 1; f < filas.length; f++) {
+    var celdaNombreExacta = colNombre !== -1 ? normalizarTexto(filas[f][colNombre]) : normalizarTexto(filas[f].join(' '));
+    var celdaPalabrasExacta = celdaNombreExacta.split(/\s+/).filter(function(w){ return w.length > 1; });
+    if (celdaPalabrasExacta.slice().sort().join(' ') === palabrasSet) return filas[f];
+  }
+
+  // 2) Match por puntuación: la fila con más palabras coincidiendo, mínimo 2
+  var mejorFila = null, mejorScore = 0, empatado = false;
+  for (var f2 = 1; f2 < filas.length; f2++) {
+    var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f2][colNombre]) : normalizarTexto(filas[f2].join(' '));
+    var celdaPalabras = celdaNombre.split(/\s+/);
+    var score = palabras.filter(function(w){ return celdaPalabras.indexOf(w) !== -1; }).length;
+    if (score > mejorScore) { mejorScore = score; mejorFila = filas[f2]; empatado = false; }
+    else if (score === mejorScore && score > 0 && filas[f2] !== mejorFila) { empatado = true; }
+  }
+  // Si dos filas distintas empatan con la misma puntuación, es ambiguo —
+  // mejor no adivinar y que se revise a mano en vez de arriesgar el nombre equivocado.
+  if (empatado) return null;
+  return (mejorScore >= 2) ? mejorFila : null;
+}
+
 // Parser de CSV sencillo pero robusto: detecta ; o , como separador y respeta
 // campos entre comillas (con comas/punto y coma dentro).
 function parseCsvTexto(texto) {
@@ -2115,18 +2148,7 @@ function onBoltCsvFileVehiculo(input, matricula) {
     var encontrados = [], noEncontrados = [];
 
     conductoresVeh.forEach(function(cond){
-      var palabras = normalizarTexto(cond.nombre).split(/\s+/).filter(function(w){ return w.length > 2; });
-      var mejorFila = null, mejorScore = 0;
-      for (var f = 1; f < filas.length; f++) {
-        var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f][colNombre]) : normalizarTexto(filas[f].join(' '));
-        var celdaPalabras = celdaNombre.split(/\s+/);
-        var score = palabras.filter(function(w){ return celdaPalabras.indexOf(w) !== -1; }).length;
-        if (score > mejorScore) { mejorScore = score; mejorFila = filas[f]; }
-      }
-      // Exigimos al menos 2 palabras coincidiendo exactamente (p.ej. nombre +
-      // apellido, o dos apellidos) para evitar confundir a alguien por un
-      // apellido común compartido con otra persona del CSV.
-      var filaEncontrada = (mejorScore >= 2) ? mejorFila : null;
+      var filaEncontrada = buscarFilaConductorCsv(filas, colNombre, cond.nombre);
 
       if (!filaEncontrada) { noEncontrados.push(cond.nombre); return; }
 
@@ -2168,19 +2190,10 @@ function onBoltCsvFile(input, cid, nombreConductor) {
     var colProp   = encontrarColumna(headers, ['propina', 'tip', 'bacsis']);
     var colEfec   = encontrarColumna(headers, ['efectivo recaudado', 'cash collected', 'efectivo cobrado', 'numerar colectat', 'efectivo', 'cash', 'numerar']);
 
-    // Buscamos la fila del conductor por nombre y apellidos: exigimos al
-    // menos 2 palabras coincidiendo exactamente (no solo una, para no
-    // confundirlo con otra persona que comparta un apellido común), y nos
-    // quedamos con la fila que mejor coincide de todo el CSV.
-    var palabras = normalizarTexto(nombreConductor).split(/\s+/).filter(function(w){ return w.length > 2; });
-    var mejorFila = null, mejorScore = 0;
-    for (var f = 1; f < filas.length; f++) {
-      var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f][colNombre]) : normalizarTexto(filas[f].join(' '));
-      var celdaPalabras = celdaNombre.split(/\s+/);
-      var score = palabras.filter(function(w){ return celdaPalabras.indexOf(w) !== -1; }).length;
-      if (score > mejorScore) { mejorScore = score; mejorFila = filas[f]; }
-    }
-    var filaEncontrada = (mejorScore >= 2) ? mejorFila : null;
+    // Buscamos primero el nombre completo exacto; si no aparece así, caemos
+    // en la coincidencia por palabras (mínimo nombre + apellido) de toda la
+    // función buscarFilaConductorCsv, evitando confundirlo con otra persona.
+    var filaEncontrada = buscarFilaConductorCsv(filas, colNombre, nombreConductor);
 
     if (!filaEncontrada) {
       toast('⚠ No se encontró a "' + nombreConductor + '" en el CSV (comprueba nombre y apellidos)');
