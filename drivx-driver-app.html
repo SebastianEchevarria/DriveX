@@ -1516,6 +1516,8 @@ function loginAs(u) {
   refreshGastosFromFirebase();
   comprobarRelevoAutomatico();
   setInterval(comprobarRelevoAutomatico, 30000);
+  sincronizarVehiculoAsignado();
+  setInterval(sincronizarVehiculoAsignado, 30000);
   setInterval(loadProximaCita, 30000);
   cargarBoltDesdeAdmin();
   setInterval(cargarBoltDesdeAdmin, 12000);
@@ -1578,6 +1580,38 @@ function comprobarRelevoAutomatico() {
       updateNavState();
       var total = (fj.kmSalida && data.kmEntrada) ? (fj.kmSalida - data.kmEntrada) : null;
       toast('ℹ️ Tu turno se cerró automáticamente cuando fichó entrada ' + (fj.cerradoPorRelevo || 'el siguiente conductor') + (total ? ' · ' + total.toLocaleString('es-ES') + ' km' : ''));
+    }
+  }).catch(function(){});
+}
+
+// Si el admin te cambia de vehículo o de turno desde el Dashboard, esto lo
+// refleja aquí en cuanto se abre o refresca la app.
+function sincronizarVehiculoAsignado() {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/conductores_registro/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(reg){
+    if (!reg) return;
+    var cambioMatricula = reg.matricula && reg.matricula !== currentUser.matricula;
+    var cambioTurno = reg.turno && reg.turno !== currentUser.turno;
+    if (!cambioMatricula && !cambioTurno) return;
+
+    var matriculaAnterior = currentUser.matricula;
+    if (cambioMatricula) currentUser.matricula = reg.matricula;
+    if (cambioTurno) currentUser.turno = reg.turno;
+
+    localStorage.setItem('drivx_session_user', JSON.stringify(currentUser));
+    localStorage.setItem('drivx_dynamic_user_' + currentUser.cid, JSON.stringify(currentUser));
+
+    var modeloEl = document.getElementById('conductor-modelo');
+    var matEl = document.getElementById('conductor-matricula-wrap');
+    var turnoEl = document.getElementById('conductor-turno');
+    if (matEl) matEl.innerHTML = plateHtml(currentUser.matricula);
+    if (turnoEl) turnoEl.textContent = currentUser.turno;
+    if (modeloEl && reg.modelo) { currentUser.modelo = reg.modelo; modeloEl.textContent = reg.modelo; }
+
+    if (cambioMatricula) {
+      toast('🔄 Tu administrador te ha cambiado de vehículo: ahora ' + currentUser.matricula);
+    } else {
+      toast('🔄 Tu administrador ha actualizado tu turno: ' + currentUser.turno);
     }
   }).catch(function(){});
 }
