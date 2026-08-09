@@ -1206,15 +1206,26 @@ function ocrFallback(base64, mediaType) {
 }
 
 // ── ANALYZE IMAGE ──
+var _lastAIDebugInfo = {};
 function analyzeImage(base64, mediaType, prompt) {
-  return callAI(base64, mediaType, prompt).catch(function(e) {
+  _lastAIDebugInfo = {};
+  return callAI(base64, mediaType, prompt).then(function(text){
+    _lastAIDebugInfo.fuente = 'IA directa (sin problemas)';
+    _lastAIDebugInfo.longitudTexto = (text||'').length;
+    return text;
+  }).catch(function(e) {
+    _lastAIDebugInfo.errorIA = (e && e.message) || String(e);
     console.warn('[AI] failed:', e.message, '— using OCR fallback');
     // Update status in UI to show OCR is being used
     var st = document.getElementById('km-status');
     if (st && st.textContent.includes('IA')) {
       st.textContent = '🔍 OCR leyendo...';
     }
-    return ocrFallback(base64, mediaType);
+    return ocrFallback(base64, mediaType).then(function(text){
+      _lastAIDebugInfo.fuente = 'OCR de respaldo (la IA principal falló)';
+      _lastAIDebugInfo.longitudTexto = (text||'').length;
+      return text;
+    });
   });
 }
 
@@ -2192,7 +2203,9 @@ function imageHash(b64) {
 }
 
 function mostrarDebugIA(text, parsed) {
-  var contenido = 'Respuesta cruda de la IA:\n' + (text || '(vacío)');
+  var contenido = 'Fuente: ' + (_lastAIDebugInfo.fuente || 'desconocida') + '\n';
+  if (_lastAIDebugInfo.errorIA) contenido += 'Error de la IA principal: ' + _lastAIDebugInfo.errorIA + '\n';
+  contenido += '\nRespuesta cruda:\n' + (text || '(vacío)');
   if (parsed) contenido += '\n\nJSON interpretado:\n' + JSON.stringify(parsed, null, 2);
   else contenido += '\n\n(No se pudo interpretar como JSON)';
   var el = document.getElementById('debug-ia-texto');
