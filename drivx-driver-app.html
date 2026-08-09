@@ -622,15 +622,6 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
-<!-- ══════════════ DEPURACIÓN: LO QUE HA RESPONDIDO LA IA ══════════════ -->
-<div id="debug-ia-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:24px">
-  <div style="background:var(--surface);border:2px solid rgba(255,179,0,.9);border-radius:20px;padding:24px 20px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto;box-shadow:0 0 18px rgba(255,179,0,.6),0 0 40px rgba(255,179,0,.35),0 20px 50px rgba(0,0,0,.6)">
-    <div style="font-size:15px;font-weight:900;color:var(--amber);margin-bottom:6px">⚠ No se detectó el importe</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Esto es lo que ha devuelto la IA al leer tu ticket. Haz una captura de pantalla y envíasela a soporte para que lo revisen:</div>
-    <div id="debug-ia-texto" style="font-size:12px;font-family:var(--mono);color:var(--text2);background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-word;margin-bottom:18px">—</div>
-    <button onclick="document.getElementById('debug-ia-modal').style.display='none'" style="width:100%;padding:13px;border-radius:12px;border:2px solid rgba(255,179,0,.85);background:rgba(255,179,0,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">Entendido</button>
-  </div>
-</div>
 
 <!-- ══════════════ KM MODAL ══════════════ -->
 <div class="modal-overlay" id="km-modal">
@@ -2258,17 +2249,6 @@ function imageHash(b64) {
   return h.toString(36) + '_' + len;
 }
 
-function mostrarDebugIA(text, parsed) {
-  var contenido = 'Fuente: ' + (_lastAIDebugInfo.fuente || 'desconocida') + '\n';
-  if (_lastAIDebugInfo.errorIA) contenido += 'Error de la IA principal: ' + _lastAIDebugInfo.errorIA + '\n';
-  contenido += '\nRespuesta cruda:\n' + (text || '(vacío)');
-  if (parsed) contenido += '\n\nJSON interpretado:\n' + JSON.stringify(parsed, null, 2);
-  else contenido += '\n\n(No se pudo interpretar como JSON)';
-  var el = document.getElementById('debug-ia-texto');
-  if (el) el.textContent = contenido;
-  var modal = document.getElementById('debug-ia-modal');
-  if (modal) modal.style.display = 'flex';
-}
 
 function onCatFile(input, cat) {
   if (!input.files[0]) return;
@@ -2304,7 +2284,7 @@ function onCatFile(input, cat) {
       toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
     }
 
-    var prompt = 'Clasifica este ticket. Responde SOLO con JSON sin markdown: {"categoria":"gasolina|peaje|parking|datafono|lavado|otros","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. REGLAS: peaje=si ves AUTOPISTA/autovia/estacion de peaje/via/cobr/CESA/Abertis/factura simplificada autopista/clase ligero/IVA 21 incluido. gasolina=si ves gasolina/diesel/litros/precio litro/PLENERGY/Repsol/kWh/recarga. parking=si ves QR/aparcamiento/parking/plaza/ticket salida. datafono=si ves VISA/Mastercard/contactless/VENTA/TPV/Comercia/Payments/nombre cliente. lavado=si ves lavado/car wash/limpieza vehiculo. otros=cualquier otro caso.' + (cat === 'gasolina' ? ' EXTRA: si hay tres totales (cobrado/suministrado/devuelto) usa SOLO el suministrado.' : '');
+    var prompt = 'Clasifica este ticket. Responde SOLO con JSON sin markdown: {"categoria":"gasolina|peaje|parking|datafono|lavado|otros","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. REGLAS: peaje=si ves AUTOPISTA/autovia/estacion de peaje/via/cobr/CESA/Abertis/factura simplificada autopista/clase ligero/IVA 21 incluido. gasolina=si ves gasolina/diesel/litros/precio litro/PLENERGY/Repsol/kWh/recarga. parking=si ves QR/aparcamiento/parking/plaza/ticket salida. datafono=si ves VISA/Mastercard/contactless/VENTA/TPV/Comercia/Payments/nombre cliente/recibo de la app SumUp (Productos, Subtotal, Total, Desglose de IVA, Pago con Visa/tarjeta, dominio sales-receipt.sumup.com). lavado=si ves lavado/car wash/limpieza vehiculo. otros=cualquier otro caso. IMPORTANTE PARA DATAFONO/SUMUP: el importe es el campo "Total" (el número en negrita al final, después de Subtotal) — NUNCA el Subtotal ni el desglose de IVA.' + (cat === 'gasolina' ? ' EXTRA: si hay tres totales (cobrado/suministrado/devuelto) usa SOLO el suministrado.' : '');
 
     analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
@@ -2342,12 +2322,10 @@ function onCatFile(input, cat) {
       gastosHashes[hash] = true;
       registerTicket(cat, importe, nombre, fecha, hora, file);
       toast((importe > 0 ? '✓' : '⚠') + ' ' + catNames[cat] + ' registrado · € ' + importe.toFixed(2).replace('.',',') + (importe <= 0 ? ' — revisa el importe, parece que no se leyó bien' : ''));
-      if (importe <= 0) mostrarDebugIA(text, parsed);
     }).catch(function(e) {
       proc.classList.remove('visible');
       console.error('[Gastos IA] error:', e);
       toast('❌ Error analizando ticket: ' + (e && e.message ? e.message : 'inténtalo de nuevo'));
-      mostrarDebugIA('ERROR: ' + (e && e.message ? e.message : String(e)), null);
     });
     }); // fin comprimirImagenBase64
   };
