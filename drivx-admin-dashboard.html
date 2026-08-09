@@ -248,6 +248,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
           <img id="inicio-mobile-logo-img" alt="DRIVX VTC Fleet" style="max-width:190px;width:100%;height:auto">
         </div>
         <div id="fichaje-alerts"></div>
+        <div id="uber-efectivo-alerts"></div>
         <div id="proximas-citas-inicio"></div>
         <div class="stat-grid" id="inicio-stats"></div>
       </div>
@@ -878,8 +879,10 @@ function enterShell() {
   renderInicioStats();
   renderFlota();
   renderFichajeAlerts();
+  renderUberEfectivoAlerts();
   renderProximasCitasInicio();
   setInterval(renderFichajeAlerts, 60000);
+  setInterval(renderUberEfectivoAlerts, 60000);
   setInterval(renderProximasCitasInicio, 60000);
   setInterval(function(){ if (document.getElementById('dash-citas').classList.contains('active')) renderCitas(); }, 8000);
 }
@@ -1020,6 +1023,42 @@ function renderProximasCitasInicio() {
     });
     html += '</div>';
     container.innerHTML = html;
+  }).catch(function(){});
+}
+
+// Aviso cuando una captura de Uber subida por un conductor no mostraba el
+// campo "Efectivo cobrado" — con la imagen adjunta para poder comprobarlo.
+function renderUberEfectivoAlerts() {
+  var container = document.getElementById('uber-efectivo-alerts');
+  if (!container) return;
+
+  fetch(FIREBASE_URL + '/alertas_uber_efectivo.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var alertas = Object.keys(data).map(function(cid){ var a = data[cid] || {}; a.cid = cid; return a; }).filter(function(a){ return a.url; });
+    if (!alertas.length) { container.innerHTML = ''; return; }
+    alertas.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+
+    var html = '<div style="margin-bottom:24px">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">⚠️ Uber: falta "Efectivo cobrado" (' + alertas.length + ')</div>';
+    html += alertas.map(function(a){
+      return '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;margin-bottom:10px;border-radius:14px;background:rgba(255,255,255,.03);border:1.5px solid rgba(255,255,255,.5);box-shadow:0 0 8px rgba(255,255,255,.35),0 0 16px rgba(255,255,255,.18)">' +
+        '<div style="flex:1;min-width:180px">' +
+          '<div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px">' + (a.conductor || 'Conductor') + '</div>' +
+          (a.matricula ? plateHtml(a.matricula) : '<span style="font-size:12px;color:var(--text3)">Vehículo sin asignar</span>') +
+          '<div style="font-size:11px;color:var(--text3);margin-top:6px">' + (a.fecha||'') + (a.hora?' · '+a.hora:'') + '</div>' +
+        '</div>' +
+        '<a href="' + a.url + '" target="_blank" style="flex-shrink:0;padding:11px 18px;border-radius:10px;border:2px solid rgba(255,255,255,1);background:rgba(255,255,255,.12);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 0 10px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.55),0 0 38px rgba(255,255,255,.3)">👁 VER IMAGEN UBER</a>' +
+        '<button onclick="descartarAlertaUberEfectivo(\'' + a.cid + '\')" title="Descartar aviso" style="flex-shrink:0;background:transparent;border:1px solid var(--border2);color:var(--text3);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px">✕</button>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function(){});
+}
+
+function descartarAlertaUberEfectivo(cid) {
+  fetch(FIREBASE_URL + '/alertas_uber_efectivo/' + cid + '.json', { method: 'DELETE' }).then(function(){
+    renderUberEfectivoAlerts();
   }).catch(function(){});
 }
 

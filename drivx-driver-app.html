@@ -622,6 +622,16 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ AVISO: TICKET DUPLICADO ══════════════ -->
+<div id="ticket-duplicado-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(255,179,0,.9);border-radius:24px;padding:28px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 0 18px rgba(255,179,0,.6),0 0 40px rgba(255,179,0,.35),0 20px 50px rgba(0,0,0,.6)">
+    <div style="font-size:44px;margin-bottom:10px">📋</div>
+    <div style="font-size:17px;font-weight:900;color:var(--amber);margin-bottom:10px">Ticket duplicado</div>
+    <div id="ticket-duplicado-texto" style="font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.6">—</div>
+    <button onclick="document.getElementById('ticket-duplicado-modal').style.display='none'" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(255,179,0,.85);background:rgba(255,179,0,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">Entendido</button>
+  </div>
+</div>
+
 
 <!-- ══════════════ KM MODAL ══════════════ -->
 <div class="modal-overlay" id="km-modal">
@@ -2250,6 +2260,13 @@ function imageHash(b64) {
 }
 
 
+function mostrarTicketDuplicado(mensaje) {
+  var el = document.getElementById('ticket-duplicado-texto');
+  if (el) el.textContent = mensaje;
+  var modal = document.getElementById('ticket-duplicado-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
 function onCatFile(input, cat) {
   if (!input.files[0]) return;
   if (cat === 'parking') { onParkingFile(input); return; }
@@ -2281,7 +2298,9 @@ function onCatFile(input, cat) {
 
     if (gastosHashes[hash]) {
       proc.classList.remove('visible');
-      toast('⚠ Este ticket ya fue registrado (imagen idéntica)'); return;
+      toast('⚠ Este ticket ya fue registrado (imagen idéntica)');
+      mostrarTicketDuplicado('Ya has subido este mismo ticket antes — es la misma imagen. No se ha vuelto a registrar.');
+      return;
     }
 
     var prompt = 'Clasifica este ticket. Responde SOLO con JSON sin markdown: {"categoria":"gasolina|peaje|parking|datafono|lavado|otros","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. REGLAS: peaje=si ves AUTOPISTA/autovia/estacion de peaje/via/cobr/CESA/Abertis/factura simplificada autopista/clase ligero/IVA 21 incluido. gasolina=si ves gasolina/diesel/litros/precio litro/PLENERGY/Repsol/kWh/recarga. parking=si ves QR/aparcamiento/parking/plaza/ticket salida. datafono=si ves VISA/Mastercard/contactless/VENTA/TPV/Comercia/Payments/nombre cliente/recibo de la app SumUp (Productos, Subtotal, Total, Desglose de IVA, Pago con Visa/tarjeta, dominio sales-receipt.sumup.com). lavado=si ves lavado/car wash/limpieza vehiculo. otros=cualquier otro caso. IMPORTANTE PARA DATAFONO/SUMUP: el importe es el campo "Total" (el número en negrita al final, después de Subtotal) — NUNCA el Subtotal ni el desglose de IVA.' + (cat === 'gasolina' ? ' EXTRA: si hay tres totales (cobrado/suministrado/devuelto) usa SOLO el suministrado.' : '');
@@ -2313,7 +2332,11 @@ function onCatFile(input, cat) {
         if (!hora || !t.hora) return false;
         return t.hora === hora;
       });
-      if (isDup) { toast('⚠ Duplicado — mismo importe y hora ya registrados'); return; }
+      if (isDup) {
+        toast('⚠ Duplicado — mismo importe y hora ya registrados');
+        mostrarTicketDuplicado('Ya tienes un ticket de ' + catNames[cat] + ' registrado con el mismo importe (€ ' + importe.toFixed(2).replace('.',',') + ') y la misma hora (' + hora + '). No se ha vuelto a registrar.');
+        return;
+      }
 
       if (limit && data.gastos[cat].length >= limit) {
         toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
@@ -2531,7 +2554,7 @@ function onPlatFile(input, plat) {
     if (plat === 'bolt') {
       prompt = 'Captura de la app Bolt de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"tus_ganancias":NUMERO,"campanyas":NUMERO,"compensaciones":NUMERO,"propinas":NUMERO,"efectivo_suma":NUMERO,"efectivo_mano":NUMERO,"confianza":0.0}. INSTRUCCIONES: tus_ganancias = campo Tus ganancias/Castigurile tale/Your earnings (el total final). campanyas = Campañas/Campanii/Campaigns/Bonus, si no hay pon 0. compensaciones = Compensaciones/Compensatii, si no hay pon 0. propinas = Propinas/Bacsif/Tips, si no hay pon 0. efectivo_suma = suma de PAGOS POR VIAJES + TASAS DE SERVICIO que estan dentro de la seccion INGRESOS EN EFECTIVO (Venituri in numerar / Cash earnings) UNICAMENTE — no incluyas los pagos por viaje de la seccion app. En imagen 1 ejemplo: 208,03 + 3,07 = 211,10. efectivo_mano = Efectivo en mano/Numerar in mana. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     } else if (plat === 'uber') {
-      prompt = 'Captura de la app Uber Driver de un conductor VTC (pantalla de Ganancias, Estadisticas o Desglose). Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"ganancias_totales":NUMERO,"propina":NUMERO,"promociones":NUMERO,"efectivo_cobrado":NUMERO,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: ganancias_totales = campo "Ganancias totales" (el total final del desglose — NO uses "Precio neto", que es solo un subtotal parcial). propina = campo "Propina"/"Propinas", si no aparece pon 0. promociones = SOLO el campo cuyo nombre contenga literalmente la palabra "Promoción"/"Promociones"/"Campaña"/"Campañas"/"Bonus" — IMPORTANTE: el campo "Otras ganancias" NO es una promoción ni una campaña, es un concepto distinto; si el único campo disponible es "Otras ganancias" y no hay ningún campo con la palabra "Promoción" o "Campaña", pon promociones en 0. efectivo_cobrado = campo "Efectivo cobrado"/"Efectivo recibido" (suele estar dentro de "Otros importes"; puede aparecer en negativo, en ese caso usa el valor absoluto), si no aparece pon 0. viajes = numero de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
+      prompt = 'Captura de la app Uber Driver de un conductor VTC (pantalla de Ganancias, Estadisticas o Desglose). Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"ganancias_totales":NUMERO,"propina":NUMERO,"promociones":NUMERO,"efectivo_cobrado":NUMERO,"efectivo_encontrado":true_o_false,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: ganancias_totales = campo "Ganancias totales" (el total final del desglose — NO uses "Precio neto", que es solo un subtotal parcial). propina = campo "Propina"/"Propinas", si no aparece pon 0. promociones = SOLO el campo cuyo nombre contenga literalmente la palabra "Promoción"/"Promociones"/"Campaña"/"Campañas"/"Bonus" — IMPORTANTE: el campo "Otras ganancias" NO es una promoción ni una campaña, es un concepto distinto; si el único campo disponible es "Otras ganancias" y no hay ningún campo con la palabra "Promoción" o "Campaña", pon promociones en 0. efectivo_cobrado = campo "Efectivo cobrado"/"Efectivo recibido" (suele estar dentro de "Otros importes"; puede aparecer en negativo, en ese caso usa el valor absoluto). efectivo_encontrado = true SOLO si ese campo "Efectivo cobrado"/"Efectivo recibido" aparece literalmente visible en la captura (aunque su valor sea 0), o false si esa captura NO muestra ese campo en absoluto (por ejemplo, porque el conductor no llegó a bajar hasta "Otros importes" o hizo la foto de otra pantalla). Si efectivo_encontrado es false, pon efectivo_cobrado en 0. viajes = numero de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     } else {
       prompt = 'Captura de la app Cabify de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"neto":NUMERO,"propinas":NUMERO,"efectivo_mano":NUMERO,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: neto = ganancias netas totales del periodo (Earnings/Ganancias/Ganancias netas). propinas = importe de propinas (Tips), si no aparece pon 0. efectivo_mano = dinero en efectivo cobrado a pasajeros (Cash/Efectivo/Cash trips/Efectivo en mano), si no aparece pon 0. viajes = número de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     }
@@ -2548,6 +2571,9 @@ function onPlatFile(input, plat) {
         applyBoltData(parsed);
       } else if (plat === 'uber') {
         applyPlatData('uber', parseFloat(parsed.ganancias_totales)||0, parseFloat(parsed.propina)||0, parseFloat(parsed.promociones)||0, parseInt(parsed.viajes)||0, parseFloat(parsed.efectivo_cobrado)||0);
+        if (parsed.efectivo_encontrado === false) {
+          avisarEfectivoNoEncontradoUber(file);
+        }
       } else {
         applyPlatData(plat, parseFloat(parsed.neto)||0, parseFloat(parsed.propinas)||0, 0, parseInt(parsed.viajes)||0, parseFloat(parsed.efectivo_mano)||0);
       }
@@ -2589,6 +2615,29 @@ function applyBoltData(parsed) {
   if (d.compensaciones > 0) msg += ' · Comp €' + d.compensaciones.toFixed(2);
   toast(msg);
   syncData();
+}
+
+// Si la captura de Uber no muestra el campo "Efectivo cobrado" (por ejemplo,
+// porque el conductor no bajó hasta esa sección), avisamos al Dashboard con
+// la imagen adjunta, para que el admin pueda pedirle una captura completa.
+function avisarEfectivoNoEncontradoUber(file) {
+  if (!currentUser) return;
+  uploadToCloudinary(file).then(function(res){
+    var url = res && res.secure_url ? res.secure_url : null;
+    if (!url) return;
+    fetch(FIREBASE_URL + '/alertas_uber_efectivo/' + currentUser.cid + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        cid: currentUser.cid,
+        conductor: currentUser.nombre || '',
+        matricula: currentUser.matricula || '',
+        url: url,
+        fecha: new Date().toISOString().slice(0,10),
+        hora: new Date().toTimeString().slice(0,5),
+        ts: Date.now()
+      })
+    }).catch(function(){});
+  }).catch(function(){});
 }
 
 function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
