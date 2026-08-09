@@ -1118,32 +1118,39 @@ function callAI(base64, mediaType, prompt) {
   var useProxy = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
   var endpoint = useProxy ? '/api/ai' : 'https://api.anthropic.com/v1/messages';
 
+  // Si la llamada tarda más de 20s (red lenta, servidor caído...), pasamos al
+  // respaldo de OCR en vez de dejar al conductor esperando indefinidamente.
+  var timeout = new Promise(function(_, reject){ setTimeout(function(){ reject(new Error('timeout_ia')); }, 20000); });
+
+  var llamada;
   if (useProxy) {
-    return fetch('/api/ai', {
+    llamada = fetch('/api/ai', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ base64:base64, mediaType:mt, prompt:prompt })
     }).then(function(r){ return r.json(); }).then(function(d){ return d.text || ''; });
+  } else {
+    // Direct API (file:// or localhost)
+    var content = mt.startsWith('image/')
+      ? [{ type:'image', source:{ type:'base64', media_type:mt, data:base64 }}, { type:'text', text:prompt }]
+      : [{ type:'text', text:prompt }];
+
+    llamada = fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:400, messages:[{ role:'user', content:content }]})
+    }).then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(d){ return d.content&&d.content[0]&&d.content[0].text || ''; });
   }
 
-  // Direct API (file:// or localhost)
-  var content = mt.startsWith('image/')
-    ? [{ type:'image', source:{ type:'base64', media_type:mt, data:base64 }}, { type:'text', text:prompt }]
-    : [{ type:'text', text:prompt }];
-
-  return fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': key,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:400, messages:[{ role:'user', content:content }]})
-  }).then(function(r){
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  }).then(function(d){ return d.content&&d.content[0]&&d.content[0].text || ''; });
+  return Promise.race([llamada, timeout]);
 }
 
 function parseJSON(text) {
@@ -1156,14 +1163,22 @@ function ocrFallback(base64, mediaType) {
   return new Promise(function(resolve) {
     if (typeof Tesseract === 'undefined') { resolve(''); return; }
     var dataUrl = 'data:'+(mediaType||'image/jpeg')+';base64,'+base64;
+
+    // Si cargar el lector de texto o leer la imagen tarda más de 15s (por
+    // ejemplo, descargando sus recursos con mala conexión), nos rendimos y
+    // devolvemos vacío en vez de dejar la pantalla colgada para siempre.
+    var yaResuelto = false;
+    var resolverUnaVez = function(v){ if (!yaResuelto) { yaResuelto = true; resolve(v); } };
+    setTimeout(function(){ resolverUnaVez(''); }, 15000);
+
     if (_ocrWorker) {
-      _ocrWorker.recognize(dataUrl).then(function(r){ resolve(r.data.text||''); }).catch(function(){ resolve(''); });
+      _ocrWorker.recognize(dataUrl).then(function(r){ resolverUnaVez(r.data.text||''); }).catch(function(){ resolverUnaVez(''); });
       return;
     }
     Tesseract.createWorker('eng').then(function(w){
       _ocrWorker = w;
       return w.recognize(dataUrl);
-    }).then(function(r){ resolve(r.data.text||''); }).catch(function(){ resolve(''); });
+    }).then(function(r){ resolverUnaVez(r.data.text||''); }).catch(function(){ resolverUnaVez(''); });
   });
 }
 
