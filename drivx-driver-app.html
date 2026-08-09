@@ -1529,6 +1529,22 @@ function loginAs(u) {
   var boltBodyInicial = document.getElementById('bolt-admin-body');
   if (boltBodyInicial) boltBodyInicial.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
 
+  // Reiniciamos también la pantalla de Gastos a cero — igual que con
+  // platData, si no se hace esto se ven un instante los tickets del
+  // conductor anterior hasta que llegue la respuesta del servidor.
+  ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
+    var cEl = document.getElementById('count-'+cat); if (cEl) { cEl.textContent = '0'; cEl.classList.remove('visible'); }
+    var tEl = document.getElementById('total-'+cat); if (tEl) tEl.textContent = '€ 0';
+    var catBtn = document.getElementById('cat-'+cat); if (catBtn) { catBtn.style.opacity=''; catBtn.style.pointerEvents=''; catBtn.title=''; }
+    var bd = document.getElementById('bd-'+cat); if (bd) bd.classList.remove('visible');
+    var bdTotalEl = document.getElementById('bd-total-'+cat); if (bdTotalEl) bdTotalEl.textContent = '€ 0';
+    var li = document.getElementById('bd-list-'+cat); if (li) li.innerHTML = '';
+  });
+  var gastosEmptyInicial = document.getElementById('gastos-empty'); if (gastosEmptyInicial) gastosEmptyInicial.style.display = '';
+  var gastosSubInicial = document.getElementById('gastos-sub'); if (gastosSubInicial) gastosSubInicial.textContent = 'Hoy · € 0,00';
+  gastosTotals = { gasolina:0, peaje:0, parking:0, lavado:0, datafono:0, otros:0 };
+  gastosHashes = {};
+
   // Si el conductor ya había fichado entrada y cerró la app sin fichar salida
   // (o cerró sesión por accidente), recuperamos ese estado en vez de forzarle
   // a fichar entrada otra vez. La salida solo se ficha manualmente (foto de km).
@@ -1731,6 +1747,7 @@ function refreshFicharUI() {
 function refreshGastosFromFirebase() {
   if (!currentUser) return;
   var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  var miNombre = currentUser.nombre || '';
   fetch(FIREBASE_URL + '/gastos/' + matSlug + '.json').then(function(r){ return r.json(); }).then(function(remote){
     remote = remote || {};
     var cats = ['gasolina','peaje','parking','lavado','datafono','otros'];
@@ -1738,7 +1755,12 @@ function refreshGastosFromFirebase() {
 
     cats.forEach(function(cat){
       var catObj = remote[cat] || {};
-      var tickets = Object.keys(catObj).map(function(tid){ return catObj[tid]; });
+      // Los gastos se guardan por vehículo, no por conductor — así que aquí
+      // nos quedamos SOLO con los tickets que subió el conductor que ha
+      // iniciado sesión ahora, para no ver los de otro compañero que use
+      // el mismo coche en otro turno.
+      var tickets = Object.keys(catObj).map(function(tid){ return catObj[tid]; })
+        .filter(function(t){ return (t.conductor || '') === miNombre; });
       tickets.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
 
       data.gastos[cat] = tickets.map(function(t){ return { importe:t.importe, nombre:t.nombre, fecha:t.fecha, hora:t.hora }; });
