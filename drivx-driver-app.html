@@ -1128,7 +1128,20 @@ function callAI(base64, mediaType, prompt) {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ base64:base64, mediaType:mt, prompt:prompt })
-    }).then(function(r){ return r.json(); }).then(function(d){ return d.text || ''; });
+    }).then(function(r){
+      return r.json().then(function(d){
+        if (!r.ok) throw new Error((d && (d.error || d.message)) || ('HTTP ' + r.status));
+        return d;
+      });
+    }).then(function(d){
+      // La respuesta del proxy puede venir en distintas formas según cómo la
+      // sirva el servidor — probamos las más habituales antes de rendirnos.
+      if (typeof d === 'string') return d;
+      if (d.text) return d.text;
+      if (d.content && d.content[0] && d.content[0].text) return d.content[0].text;
+      if (d.completion) return d.completion;
+      throw new Error('respuesta_ia_sin_texto');
+    });
   } else {
     // Direct API (file:// or localhost)
     var content = mt.startsWith('image/')
@@ -2199,7 +2212,9 @@ function onCatFile(input, cat) {
 
     analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
+      console.log('[Gastos IA] respuesta cruda:', text);
       var parsed = parseJSON(text);
+      if (!parsed) console.warn('[Gastos IA] no se pudo parsear como JSON, usando extractAmount de respaldo');
 
       if (parsed && parsed.categoria && parsed.categoria !== cat) {
         var correctCat = parsed.categoria;
@@ -2230,7 +2245,11 @@ function onCatFile(input, cat) {
 
       gastosHashes[hash] = true;
       registerTicket(cat, importe, nombre, fecha, hora, file);
-    }).catch(function() { proc.classList.remove('visible'); toast('❌ Error analizando ticket'); });
+    }).catch(function(e) {
+      proc.classList.remove('visible');
+      console.error('[Gastos IA] error:', e);
+      toast('❌ Error analizando ticket: ' + (e && e.message ? e.message : 'inténtalo de nuevo'));
+    });
   };
   reader.readAsDataURL(file);
 }
