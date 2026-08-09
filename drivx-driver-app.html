@@ -1969,13 +1969,18 @@ function onKmPhoto(input) {
     inp.placeholder = 'Leyendo con IA...';
 
     var st = document.getElementById('km-status');
-    st.textContent = '🤖 IA leyendo odómetro...';
+    st.textContent = '🤖 Preparando imagen...';
     st.className = 'km-status';
 
     // Call AI
     var prompt = 'Foto del cuadro de instrumentos. Necesito SOLO el total del odómetro en km (el número grande acumulado, no la autonomía). Ignora fechas (DD.MM.AAAA). Responde SOLO: {"km":NUMERO,"confianza":0.0-1.0}';
 
-    analyzeImage(kmPhotoBase64, kmPhotoType, prompt).then(function(text) {
+    comprimirImagenBase64(kmPhotoBase64, kmPhotoType, 1500, 0.72).then(function(img){
+      kmPhotoBase64 = img.base64; kmPhotoType = img.mediaType;
+      st.textContent = '🤖 IA leyendo odómetro...';
+
+      return analyzeImage(kmPhotoBase64, kmPhotoType, prompt);
+    }).then(function(text) {
       var parsed = parseJSON(text);
       var km = parsed ? parseInt(parsed.km) : null;
 
@@ -2190,6 +2195,35 @@ var catNames  = { gasolina:'Gasolina', peaje:'Peaje', parking:'Parking', lavado:
 var catColors  = { gasolina:'var(--amber)', peaje:'var(--cyan)', parking:'var(--cyan)', lavado:'var(--purple)', datafono:'var(--purple)', otros:'var(--red)' };
 var catLimits  = { gasolina:2 };
 
+// Comprime/redimensiona la foto antes de mandarla a la IA. Las fotos hechas
+// con la cámara del móvil pueden pesar varios MB, y el servidor rechaza
+// peticiones demasiado grandes ("Request Entity Too Large") — por eso a
+// veces la IA no leía nada. Con esto se queda en un tamaño razonable siempre.
+function comprimirImagenBase64(base64, mediaType, maxDim, calidad) {
+  return new Promise(function(resolve){
+    try {
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        var maxLado = maxDim || 1500;
+        var scale = Math.min(1, maxLado / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL('image/jpeg', calidad || 0.72);
+        resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+      };
+      img.onerror = function(){ resolve({ base64: base64, mediaType: mediaType }); };
+      img.src = 'data:' + (mediaType || 'image/jpeg') + ';base64,' + base64;
+    } catch (e) {
+      resolve({ base64: base64, mediaType: mediaType });
+    }
+  });
+}
+
 function imageHash(b64) {
   if (!b64) return '';
   // Sample 800 chars spread across the full image for reliable hash
@@ -2232,9 +2266,16 @@ function onCatFile(input, cat) {
 
   var reader = new FileReader();
   reader.onload = function(e) {
-    var b64  = e.target.result.split(',')[1];
-    var mt   = file.type || 'image/jpeg';
+    var b64raw = e.target.result.split(',')[1];
+    var mtraw  = file.type || 'image/jpeg';
+    procTxt.textContent = '🤖 Preparando imagen...';
+
+    comprimirImagenBase64(b64raw, mtraw, 1500, 0.72).then(function(img){
+    var b64 = img.base64;
+    var mt  = img.mediaType;
     var hash = imageHash(b64);
+
+    procTxt.textContent = '🤖 IA verificando ticket de ' + catNames[cat] + '...';
 
     if (gastosHashes[hash]) {
       proc.classList.remove('visible');
@@ -2286,6 +2327,7 @@ function onCatFile(input, cat) {
       toast('❌ Error analizando ticket: ' + (e && e.message ? e.message : 'inténtalo de nuevo'));
       mostrarDebugIA('ERROR: ' + (e && e.message ? e.message : String(e)), null);
     });
+    }); // fin comprimirImagenBase64
   };
   reader.readAsDataURL(file);
 }
@@ -2482,8 +2524,8 @@ function onPlatFile(input, plat) {
 
   var reader = new FileReader();
   reader.onload = function(e) {
-    var b64 = e.target.result.split(',')[1];
-    var mt  = file.type || 'image/jpeg';
+    var b64raw = e.target.result.split(',')[1];
+    var mtraw  = file.type || 'image/jpeg';
 
     var prompt;
     if (plat === 'bolt') {
@@ -2493,6 +2535,10 @@ function onPlatFile(input, plat) {
     } else {
       prompt = 'Captura de la app Cabify de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"neto":NUMERO,"propinas":NUMERO,"efectivo_mano":NUMERO,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: neto = ganancias netas totales del periodo (Earnings/Ganancias/Ganancias netas). propinas = importe de propinas (Tips), si no aparece pon 0. efectivo_mano = dinero en efectivo cobrado a pasajeros (Cash/Efectivo/Cash trips/Efectivo en mano), si no aparece pon 0. viajes = número de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     }
+
+    comprimirImagenBase64(b64raw, mtraw, 1500, 0.72).then(function(img){
+    var b64 = img.base64;
+    var mt  = img.mediaType;
 
     analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
@@ -2506,6 +2552,7 @@ function onPlatFile(input, plat) {
         applyPlatData(plat, parseFloat(parsed.neto)||0, parseFloat(parsed.propinas)||0, 0, parseInt(parsed.viajes)||0, parseFloat(parsed.efectivo_mano)||0);
       }
     }).catch(function() { proc.classList.remove('visible'); toast('❌ Error leyendo captura'); });
+    }); // fin comprimirImagenBase64
   };
   reader.readAsDataURL(file);
 }
@@ -2622,10 +2669,12 @@ function onHojaRutaFile(input) {
 
   var reader = new FileReader();
   reader.onload = function(e) {
-    var b64 = e.target.result.split(',')[1];
+    var b64raw = e.target.result.split(',')[1];
+    var mtraw = file.type || 'image/jpeg';
     var prompt = 'Esta imagen es una hoja de ruta / albarán de un viaje VTC. Dentro de la sección "Solicitud de viaje" hay un campo llamado "Hora de inicio" con una fecha y hora, por ejemplo "18/07/2026 17:11:18". Responde SOLO con JSON sin markdown: {"fecha":"DD/MM/AAAA","encontrada":true} si la encuentras, o {"encontrada":false} si no la encuentras. No incluyas la hora, solo la fecha en formato DD/MM/AAAA.';
 
-    analyzeImage(b64, file.type || 'image/jpeg', prompt).then(function(text){
+    comprimirImagenBase64(b64raw, mtraw, 1500, 0.72).then(function(img){
+    analyzeImage(img.base64, img.mediaType, prompt).then(function(text){
       var parsed = parseJSON(text);
       var hoy = new Date();
       var hoyStr = String(hoy.getDate()).padStart(2,'0') + '/' + String(hoy.getMonth()+1).padStart(2,'0') + '/' + hoy.getFullYear();
@@ -2647,6 +2696,7 @@ function onHojaRutaFile(input) {
       mostrarHojaRutaInvalida('No se ha podido verificar la fecha de la hoja de ruta (fallo de conexión). Inténtalo de nuevo.');
       input.value = '';
     });
+    }); // fin comprimirImagenBase64
   };
   reader.readAsDataURL(file);
 }
