@@ -2245,6 +2245,7 @@ function onCatFile(input, cat) {
 
       gastosHashes[hash] = true;
       registerTicket(cat, importe, nombre, fecha, hora, file);
+      toast((importe > 0 ? '✓' : '⚠') + ' ' + catNames[cat] + ' registrado · € ' + importe.toFixed(2).replace('.',',') + (importe <= 0 ? ' — revisa el importe, parece que no se leyó bien' : ''));
     }).catch(function(e) {
       proc.classList.remove('visible');
       console.error('[Gastos IA] error:', e);
