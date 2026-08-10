@@ -1098,8 +1098,8 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
 
     var uberNetoReal = uber ? Number((typeof uber.netoReal === 'number' ? uber.netoReal : uber.neto)||0) : 0;
     var boltNetoReal = bolt ? Number((typeof bolt.netoReal === 'number' ? bolt.netoReal : 0)) : 0;
-    var cabifyNeto = cabify ? Number(cabify.neto||0) : 0;
-    var totalGeneral = uberNetoReal + boltNetoReal + cabifyNeto + privadosTotal;
+    var cabifyNetoReal = cabify ? Number((typeof cabify.netoReal === 'number' ? cabify.netoReal : cabify.neto)||0) : 0;
+    var totalGeneral = uberNetoReal + boltNetoReal + cabifyNetoReal + privadosTotal;
 
     var html = '';
     html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:12px 0;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
@@ -1121,7 +1121,7 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
 
     html += '<div style="background:rgba(124,92,252,.05);border:1.5px solid rgba(124,92,252,.7);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
       '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">Cabify</div>' +
-      (cabify ? (casillaFactO('124,92,252','var(--purple)','Ganancias/neto', cabify.neto) + casillaFactO('124,92,252','var(--purple)','Propinas', cabify.propinas) + casillaFactO('124,92,252','var(--purple)','Efectivo cobrado', cabify.efectivo))
+      (cabify ? (casillaFactO('124,92,252','var(--purple)','Ganancias/neto', cabify.neto) + casillaFactO('124,92,252','var(--purple)','Propinas', cabify.propinas) + (cabify.promociones?casillaFactO('124,92,252','var(--purple)','Promociones', cabify.promociones):'') + casillaFactO('124,92,252','var(--purple)','Efectivo cobrado', cabify.efectivo) + casillaFactO('0,212,255','var(--cyan)','Neto real', cabifyNetoReal))
         : '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ninguna captura.</div>') +
     '</div>';
 

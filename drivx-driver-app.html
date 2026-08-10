@@ -561,10 +561,16 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div class="plat-logo" style="background:var(--purple);color:#fff">C</div>
         <div><div class="plat-name">Cabify</div><div class="plat-sub">Earnings · hoy</div></div>
       </div>
-      <div class="plat-amounts" style="grid-template-columns:1fr 1fr 1fr">
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Neto viajes</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas">€ —</div><div class="plat-amt-lbl">Propinas</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-efectivo">€ —</div><div class="plat-amt-lbl">Efectivo en mano</div></div>
+      <div class="plat-amounts" style="grid-template-columns:1fr 1fr">
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Ganancias totales</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas">€ —</div><div class="plat-amt-lbl">Propina</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-promos">€ —</div><div class="plat-amt-lbl">Promociones/Campañas</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-efectivo">€ —</div><div class="plat-amt-lbl">Efectivo cobrado</div></div>
+      </div>
+      <div style="font-size:10px;color:#e8f6ff;margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ganancias totales − Propina − Promociones/Campañas</div>
+      <div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:12px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>
+        <span id="cabify-netoreal" style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ —</span>
       </div>
       <input type="file" id="input-cabify" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'cabify')">
       <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
@@ -1526,6 +1532,7 @@ function loginAs(u) {
     });
   });
   var nrElInicial = document.getElementById('uber-netoreal'); if (nrElInicial) nrElInicial.textContent = '€ —';
+  var nrElInicialCabify = document.getElementById('cabify-netoreal'); if (nrElInicialCabify) nrElInicialCabify.textContent = '€ —';
   var hrElInicial = document.getElementById('hojaruta-total'); if (hrElInicial) hrElInicial.textContent = '€ 0,00';
   var boltBodyInicial = document.getElementById('bolt-admin-body');
   if (boltBodyInicial) boltBodyInicial.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
@@ -1586,10 +1593,8 @@ function loginAs(u) {
     if (efEl && d.efectivo)   efEl.textContent = '€ ' + d.efectivo.toFixed(2).replace('.',',');
     var promoEl = document.getElementById(plat+'-promos');
     if (promoEl && d.promociones) promoEl.textContent = '€ ' + d.promociones.toFixed(2).replace('.',',');
-    if (plat === 'uber') {
-      var nrEl = document.getElementById('uber-netoreal');
-      if (nrEl && typeof d.netoReal === 'number') nrEl.textContent = '€ ' + d.netoReal.toFixed(2).replace('.',',');
-    }
+    var nrEl = document.getElementById(plat+'-netoreal');
+    if (nrEl && typeof d.netoReal === 'number') nrEl.textContent = '€ ' + d.netoReal.toFixed(2).replace('.',',');
   });
 
   var hrEl = document.getElementById('hojaruta-total');
@@ -1618,6 +1623,8 @@ function loginAs(u) {
   setInterval(loadProximaCita, 30000);
   cargarBoltDesdeAdmin();
   setInterval(cargarBoltDesdeAdmin, 12000);
+  cargarCabifyDesdeAdmin();
+  setInterval(cargarCabifyDesdeAdmin, 12000);
   sincronizarUberCabifyDesdeServidor();
   setInterval(sincronizarUberCabifyDesdeServidor, 12000);
   setInterval(loadPoliza, 30000);
@@ -2534,7 +2541,7 @@ function confirmParking() {
 
 
 // ── FACTURACIÓN ──
-var platData = { uber:{neto:0,propinas:0,efectivo:0,promociones:0}, bolt:{neto:0,propinas:0,campanyas:0,netoReal:0}, cabify:{neto:0,propinas:0,efectivo:0} };
+var platData = { uber:{neto:0,propinas:0,efectivo:0,promociones:0,netoReal:0}, bolt:{neto:0,propinas:0,campanyas:0,netoReal:0}, cabify:{neto:0,propinas:0,efectivo:0,promociones:0,netoReal:0} };
 
 function onPlatFile(input, plat) {
   if (!input.files[0]) return;
@@ -2661,14 +2668,14 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
     if (efEl) efEl.textContent = '€ ' + (efectivoMano||0).toFixed(2).replace('.',',');
     var promoEl = document.getElementById(plat+'-promos');
     if (promoEl) { promoEl.textContent = '€ ' + (campanyas||0).toFixed(2).replace('.',','); platData[plat].promociones = campanyas||0; }
-    if (plat === 'uber') {
-      var netoRealUber = neto - propinas - (campanyas||0);
-      platData.uber.netoReal = netoRealUber;
-      var nrEl = document.getElementById('uber-netoreal');
-      if (nrEl) nrEl.textContent = '€ ' + netoRealUber.toFixed(2).replace('.',',');
+    if (plat === 'uber' || plat === 'cabify') {
+      var netoRealCalc = neto - propinas - (campanyas||0);
+      platData[plat].netoReal = netoRealCalc;
+      var nrEl = document.getElementById(plat+'-netoreal');
+      if (nrEl) nrEl.textContent = '€ ' + netoRealCalc.toFixed(2).replace('.',',');
     }
     toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Ganancias €'+neto.toFixed(2));
-    var netoRealParaEnviar = plat === 'uber' ? (neto - propinas - (campanyas||0)) : neto;
+    var netoRealParaEnviar = (plat === 'uber' || plat === 'cabify') ? (neto - propinas - (campanyas||0)) : neto;
     pushUberCabifyFirebase(plat, neto, propinas, campanyas||0, efectivoMano||0, netoRealParaEnviar);
   }
 
@@ -2705,7 +2712,8 @@ function recalcBolt() {
 
 function updateBillingTotal() {
   var netoRealUber = (typeof platData.uber.netoReal === 'number') ? platData.uber.netoReal : platData.uber.neto;
-  var total = netoRealUber + platData.bolt.netoReal + platData.cabify.neto;
+  var netoRealCabify = (typeof platData.cabify.netoReal === 'number') ? platData.cabify.netoReal : platData.cabify.neto;
+  var total = netoRealUber + platData.bolt.netoReal + netoRealCabify;
   document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
   var saEl = document.getElementById('stat-apps'); if (saEl) saEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
 }
@@ -3643,6 +3651,30 @@ function sincronizarUberCabifyDesdeServidor() {
       syncData();
     }).catch(function(){});
   });
+}
+
+// Sincroniza Cabify con lo que haya en el servidor — ya sea porque tú mismo
+// subiste una captura, o porque tu administrador lo introdujo/editó a mano
+// desde el Dashboard (en ese caso también verás su "Neto real" actualizado).
+function cargarCabifyDesdeAdmin() {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/facturacion_cabify/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+    if (!datos) return;
+    platData.cabify.neto = Number(datos.neto||0);
+    platData.cabify.propinas = Number(datos.propinas||0);
+    platData.cabify.promociones = Number(datos.promociones||0);
+    platData.cabify.efectivo = Number(datos.efectivo||0);
+    var netoReal = (typeof datos.netoReal === 'number') ? datos.netoReal : (platData.cabify.neto - platData.cabify.propinas - platData.cabify.promociones);
+    platData.cabify.netoReal = netoReal;
+
+    var netoEl = document.getElementById('cabify-neto'); if (netoEl) netoEl.textContent = '€ ' + platData.cabify.neto.toFixed(2).replace('.',',');
+    var propEl = document.getElementById('cabify-propinas'); if (propEl) propEl.textContent = '€ ' + platData.cabify.propinas.toFixed(2).replace('.',',');
+    var promoEl = document.getElementById('cabify-promos'); if (promoEl) promoEl.textContent = '€ ' + platData.cabify.promociones.toFixed(2).replace('.',',');
+    var efEl = document.getElementById('cabify-efectivo'); if (efEl) efEl.textContent = '€ ' + platData.cabify.efectivo.toFixed(2).replace('.',',');
+    var nrEl = document.getElementById('cabify-netoreal'); if (nrEl) nrEl.textContent = '€ ' + netoReal.toFixed(2).replace('.',',');
+
+    updateBillingTotal();
+  }).catch(function(){});
 }
 
 function cargarBoltDesdeAdmin() {

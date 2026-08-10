@@ -309,6 +309,24 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   <div id="fact-multi-modal-inner" style="display:flex;gap:24px;align-items:flex-start;margin:0 auto"></div>
 </div>
 
+<!-- ══════════════ MODAL: EDICIÓN MANUAL DE FACTURACIÓN (ADMIN) ══════════════ -->
+<div id="fact-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10001;align-items:center;justify-content:center;padding:20px">
+  <div id="fact-edit-modal-box" style="background:var(--surface);border:2.5px solid rgba(0,212,255,1);border-radius:20px;max-width:380px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.9),0 0 40px rgba(0,212,255,.6)">
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div id="fact-edit-title" style="font-size:15px;font-weight:900;color:#fff">Editar</div>
+      <button class="modal-close" onclick="cerrarEdicionManualFact()">✕</button>
+    </div>
+    <div style="padding:18px 20px 6px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Estos datos sustituirán a los actuales y se verán reflejados en la app del conductor y del propietario.</div>
+      <div id="fact-edit-fields"></div>
+    </div>
+    <div style="padding:6px 20px 20px">
+      <button onclick="guardarEdicionManualFact()" style="width:100%;padding:13px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:8px">💾 Guardar</button>
+      <button onclick="cerrarEdicionManualFact()" style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:inherit">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: DOBLE CONFIRMACIÓN DE BORRADO (FACTURACIÓN) ══════════════ -->
 <div id="fact-delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10000;align-items:center;justify-content:center;padding:24px">
   <div style="background:var(--surface);border:2px solid rgba(255,71,87,.65);border-radius:24px;padding:28px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 0 18px rgba(255,71,87,.5),0 0 40px rgba(255,71,87,.25),0 20px 50px rgba(0,0,0,.6)">
@@ -1968,17 +1986,26 @@ function facturacionModalBodyHtml(info) {
       '<span id="fact-total-' + uid + '" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ 0,00</span>' +
     '</div>' +
     '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:4px">Uber</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Uber</div>' +
+        '<button onclick="abrirEdicionManualFact(\'uber\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.9);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(255,255,255,.6),0 0 16px rgba(255,255,255,.35)">✏️</button>' +
+      '</div>' +
       '<div id="uber_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
     '</div>' +
     '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(0,230,118,.55),0 0 22px rgba(0,230,118,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">Bolt</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Bolt</div>' +
+        '<button onclick="abrirEdicionManualFact(\'bolt\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(0,230,118,.14);border:2px solid rgba(0,230,118,1);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(0,230,118,.6),0 0 16px rgba(0,230,118,.35)">✏️</button>' +
+      '</div>' +
       '<input type="file" id="boltcsv_' + uid + '" accept=".csv,text/csv" style="display:none" onchange="onBoltCsvFile(this,\'' + info.cid + '\',\'' + (info.nombre||'').replace(/'/g,"\\'") + '\')">' +
       '<button onclick="document.getElementById(\'boltcsv_' + uid + '\').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);margin-bottom:12px">📤 SUBIR CSV DE BOLT</button>' +
       '<div id="boltcsv_body_' + uid + '"></div>' +
     '</div>' +
     '<div style="background:rgba(124,92,252,.05);border:2px solid rgba(124,92,252,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(124,92,252,.55),0 0 22px rgba(124,92,252,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:4px">Cabify</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Cabify</div>' +
+        '<button onclick="abrirEdicionManualFact(\'cabify\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(124,92,252,.16);border:2px solid rgba(124,92,252,1);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(124,92,252,.6),0 0 16px rgba(124,92,252,.35)">✏️</button>' +
+      '</div>' +
       '<div id="cabify_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
     '</div>' +
     '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
@@ -2061,24 +2088,95 @@ function pintarUberCabifyGuardado(cid) {
           '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:' + textColor + ';text-shadow:0 0 5px rgba(' + color + ',.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
         '</div>';
       }
-      var netoRealPlat = plat === 'uber' ? Number((typeof datos.netoReal === 'number' ? datos.netoReal : datos.neto)||0) : Number(datos.neto||0);
+      var netoRealPlat = Number((typeof datos.netoReal === 'number' ? datos.netoReal : (datos.neto - (datos.propinas||0) - (datos.promociones||0)))||0);
       _facturacionTotales[cid][plat] = netoRealPlat;
       recalcularTotalFacturacion(uid, cid);
 
       cont.innerHTML =
-        '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Subido por el conductor · ' + (datos.fecha || '') + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">' + (datos.editadoPorAdmin ? 'Editado manualmente por el admin' : 'Subido por el conductor') + ' · ' + (datos.fecha || '') + '</div>' +
         casilla('Ganancias / neto', datos.neto) +
         casilla('Propinas', datos.propinas) +
-        (plat === 'uber' ? casilla('Promociones/Campañas', datos.promociones) : '') +
+        casilla('Promociones/Campañas', datos.promociones) +
         casilla('Efectivo cobrado', datos.efectivo) +
-        (plat === 'uber' ? ('<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ganancias totales − Propina − Promociones/Campañas</div>' +
-          '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
-            '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
-            '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoRealPlat.toFixed(2).replace('.',',') + '</span>' +
-          '</div>') : '') +
+        '<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ganancias totales − Propina − Promociones/Campañas</div>' +
+        '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+          '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoRealPlat.toFixed(2).replace('.',',') + '</span>' +
+        '</div>' +
         '<button onclick="pedirBorrarPlat(\'' + plat + '\',\'' + cid + '\',\'' + uid + '\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px">🗑 Eliminar datos</button>';
     }).catch(function(){});
   });
+}
+
+// ── Edición manual (admin) de Uber/Bolt/Cabify ──
+var _factEditContext = null;
+var FACT_EDIT_COLORS = { uber:'255,255,255', bolt:'0,230,118', cabify:'124,92,252' };
+var FACT_EDIT_FIELDS = {
+  uber:   [['neto','Ganancias totales'],['propinas','Propina'],['promociones','Promociones/Campañas'],['efectivo','Efectivo cobrado']],
+  cabify: [['neto','Ganancias totales / neto'],['propinas','Propina'],['promociones','Promociones/Campañas'],['efectivo','Efectivo cobrado']],
+  bolt:   [['ingresosNetos','Ingresos netos'],['peajes','Peajes'],['ingresosCampanas','Ingresos de campañas'],['propinas','Propinas de pasajeros'],['efectivoRecaudado','Efectivo recaudado']]
+};
+function abrirEdicionManualFact(plat, cid, uid) {
+  _factEditContext = { plat: plat, cid: cid, uid: uid };
+  var color = FACT_EDIT_COLORS[plat];
+  var titulo = plat === 'uber' ? 'Editar Uber' : plat === 'bolt' ? 'Editar Bolt' : 'Editar Cabify';
+  document.getElementById('fact-edit-title').textContent = titulo;
+  var box = document.getElementById('fact-edit-modal-box');
+  box.style.borderColor = 'rgba(' + color + ',1)';
+  box.style.boxShadow = '0 0 18px rgba(' + color + ',.9),0 0 40px rgba(' + color + ',.6)';
+
+  var campos = FACT_EDIT_FIELDS[plat];
+  var boltPath = plat === 'bolt' ? '/facturacion_bolt/' : '/facturacion_' + plat + '/';
+  document.getElementById('fact-edit-fields').innerHTML = campos.map(function(f){
+    return '<div class="field"><label>' + f[1] + ' (€)</label><input id="factedit-' + f[0] + '" type="number" step="0.01" value="0"></div>';
+  }).join('');
+
+  fetch(FIREBASE_URL + boltPath + cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+    datos = datos || {};
+    campos.forEach(function(f){
+      var el = document.getElementById('factedit-' + f[0]);
+      if (el) el.value = datos[f[0]] || 0;
+    });
+  }).catch(function(){});
+
+  document.getElementById('fact-edit-modal').style.display = 'flex';
+}
+function cerrarEdicionManualFact() {
+  document.getElementById('fact-edit-modal').style.display = 'none';
+  _factEditContext = null;
+}
+function guardarEdicionManualFact() {
+  if (!_factEditContext) return;
+  var plat = _factEditContext.plat, cid = _factEditContext.cid, uid = _factEditContext.uid;
+  var campos = FACT_EDIT_FIELDS[plat];
+  var datos = {};
+  campos.forEach(function(f){
+    var el = document.getElementById('factedit-' + f[0]);
+    datos[f[0]] = el ? (parseFloat(el.value) || 0) : 0;
+  });
+  datos.fecha = new Date().toISOString().slice(0,10);
+  datos.ts = Date.now();
+  datos.editadoPorAdmin = true;
+
+  if (plat === 'bolt') {
+    datos.netoReal = datos.ingresosNetos - datos.peajes - datos.ingresosCampanas - datos.propinas;
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(datos)
+    }).then(function(){
+      pintarBoltCsvGuardado(cid);
+      toast('✓ Datos de Bolt actualizados manualmente');
+      cerrarEdicionManualFact();
+    }).catch(function(){ toast('❌ No se pudo guardar'); });
+  } else {
+    datos.netoReal = datos.neto - datos.propinas - datos.promociones;
+    fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + cid + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(datos)
+    }).then(function(){
+      pintarUberCabifyGuardado(cid);
+      toast('✓ Datos de ' + (plat === 'uber' ? 'Uber' : 'Cabify') + ' actualizados manualmente');
+      cerrarEdicionManualFact();
+    }).catch(function(){ toast('❌ No se pudo guardar'); });
+  }
 }
 
 function pedirBorrarPlat(plat, cid, uid) {
