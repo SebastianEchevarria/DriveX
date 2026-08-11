@@ -1090,30 +1090,111 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/transfers/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/transfers/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/gastos/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
-    var uber = results[0], bolt = results[1], cabify = results[2], hojas = results[3] || {};
-    var porcentaje = (typeof results[4] === 'number') ? results[4] : 30;
+    var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {};
+    var hojas = results[3] || {};
+    var reg = results[4] || {};
+    var porcentaje = (typeof reg.porcentaje === 'number') ? reg.porcentaje : 30;
+    var nombreConductor = reg.nombre || '';
     var transfersData = results[5] || {};
+    var gastosD = results[6] || {};
+
+    var uberNetoReal = (typeof uber.netoReal === 'number') ? uber.netoReal : ((uber.neto||0) - (uber.propinas||0) - (uber.promociones||0));
+    var uberPropinas = Number(uber.propinas || 0);
+    var uberPromo = Number(uber.promociones || 0);
+    var uberEfectivo = Number(uber.efectivo || 0);
+
+    var boltIngresosNetos = Number(bolt.ingresosNetos || 0);
+    var boltPeajes = Number(bolt.peajes || 0);
+    var boltCampanas = Number(bolt.ingresosCampanas || 0);
+    var boltPropinas = Number(bolt.propinas || 0);
+    var boltEfectivo = Number(bolt.efectivoRecaudado || 0);
+    var boltNetoReal = (typeof bolt.netoReal === 'number') ? bolt.netoReal : (boltIngresosNetos - boltPeajes - boltCampanas - boltPropinas);
+
+    var cabifyNetoReal = (typeof cabify.netoReal === 'number') ? cabify.netoReal : ((cabify.neto||0) - (cabify.propinas||0) - (cabify.promociones||0));
+    var cabifyPropinas = Number(cabify.propinas || 0);
+    var cabifyPromo = Number(cabify.promociones || 0);
+    var cabifyEfectivo = Number(cabify.efectivo || 0);
 
     var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
     var privadosTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
+    var privadosEfectivoTotal = privadosPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
     var transfersPropios = Object.keys(transfersData).map(function(k){ return transfersData[k]; }).filter(function(h){ return h && h.cid === cid; });
     var transfersTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
+    var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
-    var uberNetoReal = uber ? Number((typeof uber.netoReal === 'number' ? uber.netoReal : uber.neto)||0) : 0;
-    var boltNetoReal = bolt ? Number((typeof bolt.netoReal === 'number' ? bolt.netoReal : 0)) : 0;
-    var cabifyNetoReal = cabify ? Number((typeof cabify.netoReal === 'number' ? cabify.netoReal : cabify.neto)||0) : 0;
-    var totalGeneral = uberNetoReal + boltNetoReal + cabifyNetoReal + privadosTotal + transfersTotal;
-    var pagarConductor = totalGeneral * (porcentaje / 100);
+    var gastosTotal = 0;
+    ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
+      var catObj = gastosD[cat] || {};
+      Object.keys(catObj).forEach(function(tid){
+        var t = catObj[tid];
+        if (t && (t.conductor||'') === nombreConductor) gastosTotal += Number(t.importe||0);
+      });
+    });
+
+    var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
+    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas;
+    var promoBruto = uberPromo + boltCampanas + cabifyPromo;
+    var umbral = netoAppsTotal + privadosTotal + transfersTotal;
+    var promoRate = umbral >= 1000 ? 0.50 : 0.30;
+    var promoTotal = promoBruto * promoRate;
+    var netoAppsConductor = netoAppsTotal * (porcentaje / 100);
+    var sueldo = netoAppsConductor + privadosTotal + transfersTotal + propinasTotal + promoTotal;
+
+    var efectivoAppsTotal = uberEfectivo + boltEfectivo + cabifyEfectivo;
+    var efectivoReal = (efectivoAppsTotal + privadosEfectivoTotal + transfersEfectivoTotal) - gastosTotal;
+    var resultado = sueldo - efectivoReal;
+
+    var totalGeneral = netoAppsTotal + privadosTotal + transfersTotal;
+
+    function linea(label, valor, esNegativo) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px">' +
+        '<span style="color:#fff">' + label + '</span>' +
+        '<span style="font-family:var(--mono);font-weight:700;color:' + (esNegativo ? 'var(--red)' : '#fff') + '">' + (esNegativo ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
+    }
+    var esPagar = resultado >= 0;
+    var colorResultado = esPagar ? '255,215,0' : '255,71,87';
+    var colorResultadoVar = esPagar ? '#ffd700' : 'var(--red)';
+    var etiquetaResultado = esPagar ? 'DEBES PAGAR A ESTE CONDUCTOR' : 'ESTE CONDUCTOR TE DEBE DEVOLVER';
 
     var html = '';
-    html += '<div style="background:rgba(255,140,0,.08);border:2px solid rgba(255,140,0,1);border-radius:12px;padding:12px 14px;margin:12px 0 8px;box-shadow:0 0 12px rgba(255,140,0,.85),0 0 26px rgba(255,140,0,.5);display:flex;justify-content:space-between;align-items:center">' +
-      '<span style="font-size:12px;font-weight:900;color:#fff">PAGAR A CONDUCTOR (' + porcentaje + '%)</span>' +
-      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--amber)">€ ' + pagarConductor.toFixed(2).replace('.',',') + '</span>' +
+    html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:12px;padding:12px 14px;margin:12px 0 10px;box-shadow:0 0 12px rgba(0,230,118,.8),0 0 26px rgba(0,230,118,.5)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+        '<span style="font-size:12px;font-weight:900;color:#fff">💵 SUELDO</span>' +
+        '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--green)">€ ' + sueldo.toFixed(2).replace('.',',') + '</span>' +
+      '</div>' +
+      '<div style="border-top:1px solid rgba(0,230,118,.25);padding-top:4px">' +
+        linea(porcentaje + '% del neto Uber+Bolt+Cabify (de €' + netoAppsTotal.toFixed(2).replace('.',',') + ')', netoAppsConductor) +
+        linea('40% viajes privados', privadosTotal) +
+        linea('30% transfers', transfersTotal) +
+        linea('100% propinas', propinasTotal) +
+        linea('Promociones/campañas (' + (promoRate*100) + '% de €' + promoBruto.toFixed(2).replace('.',',') + ')', promoTotal) +
+      '</div>' +
     '</div>';
+
+    html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.8),0 0 26px rgba(0,212,255,.5)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+        '<span style="font-size:12px;font-weight:900;color:#fff">🪙 EFECTIVO REAL</span>' +
+        '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ ' + efectivoReal.toFixed(2).replace('.',',') + '</span>' +
+      '</div>' +
+      '<div style="border-top:1px solid rgba(0,212,255,.25);padding-top:4px">' +
+        linea('Efectivo Uber + Bolt + Cabify', efectivoAppsTotal) +
+        linea('Privados en efectivo', privadosEfectivoTotal) +
+        linea('Transfers en efectivo', transfersEfectivoTotal) +
+        linea('Gastos (incl. datáfono)', gastosTotal, true) +
+      '</div>' +
+    '</div>';
+
+    html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 0 16px rgba(' + colorResultado + ',.9),0 0 32px rgba(' + colorResultado + ',.55);text-align:center">' +
+      '<div style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>' +
+      '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorResultadoVar + '">€ ' + Math.abs(resultado).toFixed(2).replace('.',',') + '</div>' +
+    '</div>';
+
     html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:0 0 12px;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font-size:12px;font-weight:900;color:#fff">FACTURACIÓN NETO TOTAL</span>' +
       '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ '+totalGeneral.toFixed(2).replace('.',',')+'</span>' +

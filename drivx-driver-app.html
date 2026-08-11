@@ -518,10 +518,7 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <span class="processing-text" id="billing-processing-text">Analizando captura...</span>
     </div>
 
-    <div id="pagar-conductor-box" style="background:rgba(255,140,0,.08);border:2px solid rgba(255,140,0,1);border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">TU PAGO (<span id="pagar-conductor-pct">30</span>%)</span>
-      <span id="pagar-conductor-val" style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--amber);text-shadow:0 0 6px rgba(255,140,0,.95),0 0 14px rgba(255,140,0,.6)">€ 0,00</span>
-    </div>
+    <div id="liquidacion-driver-box" style="margin-bottom:14px"></div>
 
     <div class="total-bar">
       <span class="total-bar-label">Facturación neto total</span>
@@ -2783,10 +2780,143 @@ function updateBillingTotal() {
   document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
   var saEl = document.getElementById('stat-apps'); if (saEl) saEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
 
-  var pct = (currentUser && typeof currentUser.porcentaje === 'number') ? currentUser.porcentaje : 30;
-  var pagar = total * (pct / 100);
-  var pctEl = document.getElementById('pagar-conductor-pct'); if (pctEl) pctEl.textContent = pct;
-  var pagarEl = document.getElementById('pagar-conductor-val'); if (pagarEl) pagarEl.textContent = '€ ' + pagar.toFixed(2).replace('.',',');
+  recalcularLiquidacionDriver();
+}
+
+// ══ LIQUIDACIÓN: lo mismo que calcula tu administrador en el Dashboard,
+// para que sepas exactamente cuánto te corresponde cobrar (o devolver). ══
+function recalcularLiquidacionDriver() {
+  if (!currentUser) return;
+  var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  var cid = currentUser.cid;
+  var nombreConductor = currentUser.nombre || '';
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/hojasruta/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/transfers/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/gastos/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {};
+    var hojas = results[3] || {}, transfersD = results[4] || {}, gastosD = results[5] || {};
+
+    var uberNetoReal = (typeof uber.netoReal === 'number') ? uber.netoReal : ((uber.neto||0) - (uber.propinas||0) - (uber.promociones||0));
+    var uberPropinas = Number(uber.propinas || 0);
+    var uberPromo = Number(uber.promociones || 0);
+    var uberEfectivo = Number(uber.efectivo || 0);
+
+    var boltIngresosNetos = Number(bolt.ingresosNetos || 0);
+    var boltPeajes = Number(bolt.peajes || 0);
+    var boltCampanas = Number(bolt.ingresosCampanas || 0);
+    var boltPropinas = Number(bolt.propinas || 0);
+    var boltEfectivo = Number(bolt.efectivoRecaudado || 0);
+    var boltNetoReal = (typeof bolt.netoReal === 'number') ? bolt.netoReal : (boltIngresosNetos - boltPeajes - boltCampanas - boltPropinas);
+
+    var cabifyNetoReal = (typeof cabify.netoReal === 'number') ? cabify.netoReal : ((cabify.neto||0) - (cabify.propinas||0) - (cabify.promociones||0));
+    var cabifyPropinas = Number(cabify.propinas || 0);
+    var cabifyPromo = Number(cabify.promociones || 0);
+    var cabifyEfectivo = Number(cabify.efectivo || 0);
+
+    var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var privadosCutTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
+    var privadosEfectivoTotal = privadosPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
+
+    var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var transfersCutTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
+    var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
+
+    var gastosTotal = 0;
+    ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
+      var catObj = gastosD[cat] || {};
+      Object.keys(catObj).forEach(function(tid){
+        var t = catObj[tid];
+        if (t && (t.conductor||'') === nombreConductor) gastosTotal += Number(t.importe||0);
+      });
+    });
+
+    var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
+    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas;
+    var promoBruto = uberPromo + boltCampanas + cabifyPromo;
+
+    var umbral = netoAppsTotal + privadosCutTotal + transfersCutTotal;
+    var promoRate = umbral >= 1000 ? 0.50 : 0.30;
+    var promoTotal = promoBruto * promoRate;
+
+    var porcentajeConductor = (typeof currentUser.porcentaje === 'number') ? currentUser.porcentaje : 30;
+    var netoAppsConductor = netoAppsTotal * (porcentajeConductor / 100);
+
+    var sueldo = netoAppsConductor + privadosCutTotal + transfersCutTotal + propinasTotal + promoTotal;
+
+    var efectivoAppsTotal = uberEfectivo + boltEfectivo + cabifyEfectivo;
+    var efectivoReal = (efectivoAppsTotal + privadosEfectivoTotal + transfersEfectivoTotal) - gastosTotal;
+
+    var resultado = sueldo - efectivoReal;
+
+    pintarLiquidacionDriver({
+      sueldo: sueldo, netoAppsTotal: netoAppsTotal, netoAppsConductor: netoAppsConductor, porcentajeConductor: porcentajeConductor,
+      privadosCutTotal: privadosCutTotal, transfersCutTotal: transfersCutTotal,
+      propinasTotal: propinasTotal, promoBruto: promoBruto, promoRate: promoRate, promoTotal: promoTotal, umbral: umbral,
+      efectivoReal: efectivoReal, efectivoAppsTotal: efectivoAppsTotal, privadosEfectivoTotal: privadosEfectivoTotal,
+      transfersEfectivoTotal: transfersEfectivoTotal, gastosTotal: gastosTotal, resultado: resultado
+    });
+  }).catch(function(){});
+}
+
+function pintarLiquidacionDriver(d) {
+  var cont = document.getElementById('liquidacion-driver-box');
+  if (!cont) return;
+
+  var esPagar = d.resultado >= 0;
+  var colorResultado = esPagar ? '255,215,0' : '255,71,87';
+  var colorResultadoVar = esPagar ? '#ffd700' : 'var(--red)';
+  var etiquetaResultado = esPagar ? 'EL PROPIETARIO TE PAGA' : 'DEBES DEVOLVER AL PROPIETARIO';
+
+  function linea(label, valor, esNegativo) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px">' +
+      '<span style="color:#fff">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:700;color:' + (esNegativo ? 'var(--red)' : '#fff') + '">' + (esNegativo ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+
+  var html = '';
+
+  html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 14px rgba(0,230,118,.8),0 0 30px rgba(0,230,118,.5)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+    '<span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">💵 SUELDO</span>' +
+    '<span style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--green);text-shadow:0 0 6px rgba(0,230,118,.9)">€ ' + d.sueldo.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+  html += '<div style="border-top:1px solid rgba(0,230,118,.25);padding-top:6px">' +
+    linea(d.porcentajeConductor + '% del neto Uber+Bolt+Cabify (de €' + d.netoAppsTotal.toFixed(2).replace('.',',') + ')', d.netoAppsConductor) +
+    linea('40% viajes privados', d.privadosCutTotal) +
+    linea('30% transfers', d.transfersCutTotal) +
+    linea('100% propinas', d.propinasTotal) +
+    linea('Promociones/campañas (' + (d.promoRate*100) + '% de €' + d.promoBruto.toFixed(2).replace('.',',') + ')', d.promoTotal) +
+  '</div>';
+  html += '<div style="font-size:9px;color:#fff;margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
+  html += '</div>';
+
+  html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 14px rgba(0,212,255,.8),0 0 30px rgba(0,212,255,.5)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+    '<span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">🪙 EFECTIVO REAL</span>' +
+    '<span style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9)">€ ' + d.efectivoReal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+  html += '<div style="border-top:1px solid rgba(0,212,255,.25);padding-top:6px">' +
+    linea('Efectivo Uber + Bolt + Cabify', d.efectivoAppsTotal) +
+    linea('Privados cobrados en efectivo', d.privadosEfectivoTotal) +
+    linea('Transfers cobrados en efectivo', d.transfersEfectivoTotal) +
+    linea('Gastos (incl. datáfono)', d.gastosTotal, true) +
+  '</div>';
+  html += '</div>';
+
+  html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">';
+  html += '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>';
+  html += '<div style="font-family:var(--mono);font-size:26px;font-weight:900;color:' + colorResultadoVar + ';text-shadow:0 0 8px rgba(' + colorResultado + ',.9)">€ ' + Math.abs(d.resultado).toFixed(2).replace('.',',') + '</div>';
+  html += '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + d.sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + d.efectivoReal.toFixed(2).replace('.',',') + ')</div>';
+  html += '</div>';
+
+  cont.innerHTML = html;
 }
 
 // ── HOJA DE RUTA (viajes privados con Fomento) ──
