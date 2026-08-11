@@ -2134,7 +2134,13 @@ function recalcularLiquidacionCompleta(cid, matricula, uid) {
     var promoRate = umbral >= 1000 ? 0.50 : 0.30;
     var promoTotal = promoBruto * promoRate;
 
-    var sueldo = netoAppsTotal + privadosCutTotal + transfersCutTotal + propinasTotal + promoTotal;
+    // El conductor solo cobra el % que le asignó el admin sobre el neto de
+    // las apps (Uber+Bolt+Cabify) — Transfers (30%) y Privados (40%) ya
+    // llevan su propio porcentaje fijo y no se ven afectados por este otro.
+    var porcentajeConductor = (info && typeof info.porcentaje === 'number') ? info.porcentaje : 30;
+    var netoAppsConductor = netoAppsTotal * (porcentajeConductor / 100);
+
+    var sueldo = netoAppsConductor + privadosCutTotal + transfersCutTotal + propinasTotal + promoTotal;
 
     var efectivoAppsTotal = uberEfectivo + boltEfectivo + cabifyEfectivo;
     var efectivoReal = (efectivoAppsTotal + privadosEfectivoTotal + transfersEfectivoTotal) - gastosTotal;
@@ -2142,7 +2148,8 @@ function recalcularLiquidacionCompleta(cid, matricula, uid) {
     var resultado = sueldo - efectivoReal;
 
     pintarLiquidacion(uid, {
-      sueldo: sueldo, netoAppsTotal: netoAppsTotal, privadosCutTotal: privadosCutTotal, transfersCutTotal: transfersCutTotal,
+      sueldo: sueldo, netoAppsTotal: netoAppsTotal, netoAppsConductor: netoAppsConductor, porcentajeConductor: porcentajeConductor,
+      privadosCutTotal: privadosCutTotal, transfersCutTotal: transfersCutTotal,
       propinasTotal: propinasTotal, promoBruto: promoBruto, promoRate: promoRate, promoTotal: promoTotal, umbral: umbral,
       efectivoReal: efectivoReal, efectivoAppsTotal: efectivoAppsTotal, privadosEfectivoTotal: privadosEfectivoTotal,
       transfersEfectivoTotal: transfersEfectivoTotal, gastosTotal: gastosTotal, resultado: resultado
@@ -2175,7 +2182,7 @@ function pintarLiquidacion(uid, d) {
     '<span style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--green);text-shadow:0 0 6px rgba(0,230,118,.9)">€ ' + d.sueldo.toFixed(2).replace('.',',') + '</span>' +
   '</div>';
   html += '<div style="border-top:1px solid rgba(0,230,118,.25);padding-top:6px">' +
-    linea('Neto Uber + Bolt + Cabify', d.netoAppsTotal) +
+    linea(d.porcentajeConductor + '% del neto Uber+Bolt+Cabify (de €' + d.netoAppsTotal.toFixed(2).replace('.',',') + ')', d.netoAppsConductor) +
     linea('40% viajes privados', d.privadosCutTotal) +
     linea('30% transfers', d.transfersCutTotal) +
     linea('100% propinas', d.propinasTotal) +
