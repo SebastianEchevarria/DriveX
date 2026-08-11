@@ -2162,14 +2162,14 @@ function pintarLiquidacion(uid, d) {
   if (!cont) return;
 
   var esPagar = d.resultado >= 0;
-  var colorResultado = esPagar ? '0,212,255' : '255,71,87';
-  var colorResultadoVar = esPagar ? 'var(--cyan)' : 'var(--red)';
+  var colorResultado = esPagar ? '255,215,0' : '255,71,87';
+  var colorResultadoVar = esPagar ? '#ffd700' : 'var(--red)';
   var etiquetaResultado = esPagar ? 'EL PROPIETARIO PAGA AL CONDUCTOR' : 'EL CONDUCTOR DEVUELVE AL PROPIETARIO';
 
   function linea(label, valor, esNegativo) {
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px">' +
-      '<span style="color:var(--text3)">' + label + '</span>' +
-      '<span style="font-family:var(--mono);font-weight:700;color:' + (esNegativo ? 'var(--red)' : 'var(--text2)') + '">' + (esNegativo ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
+      '<span style="color:#fff">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:700;color:' + (esNegativo ? 'var(--red)' : '#fff') + '">' + (esNegativo ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
     '</div>';
   }
 
@@ -2188,7 +2188,7 @@ function pintarLiquidacion(uid, d) {
     linea('100% propinas', d.propinasTotal) +
     linea('Promociones/campañas (' + (d.promoRate*100) + '% de €' + d.promoBruto.toFixed(2).replace('.',',') + ')', d.promoTotal) +
   '</div>';
-  html += '<div style="font-size:9px;color:var(--text3);margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
+  html += '<div style="font-size:9px;color:#fff;margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
   html += '</div>';
 
   // EFECTIVO REAL
@@ -2209,7 +2209,7 @@ function pintarLiquidacion(uid, d) {
   html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">';
   html += '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>';
   html += '<div style="font-family:var(--mono);font-size:26px;font-weight:900;color:' + colorResultadoVar + ';text-shadow:0 0 8px rgba(' + colorResultado + ',.9)">€ ' + Math.abs(d.resultado).toFixed(2).replace('.',',') + '</div>';
-  html += '<div style="font-size:9px;color:var(--text3);margin-top:6px">Sueldo (€' + d.sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + d.efectivoReal.toFixed(2).replace('.',',') + ')</div>';
+  html += '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + d.sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + d.efectivoReal.toFixed(2).replace('.',',') + ')</div>';
   html += '</div>';
 
   cont.innerHTML = html;
