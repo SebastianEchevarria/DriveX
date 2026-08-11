@@ -1642,6 +1642,15 @@ function closeConductorPerfilModal() {
   document.getElementById('conductor-perfil-modal').style.display = 'none';
 }
 
+function toggleCondDocsO(cuid) {
+  var body = document.getElementById('body_' + cuid);
+  var chev = document.getElementById('chev_' + cuid);
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.textContent = open ? '▾' : '▴';
+}
+
 function conductorPerfilBodyHtml(c) {
   function docThumbP(url, label) {
     if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
@@ -1660,11 +1669,21 @@ function conductorPerfilBodyHtml(c) {
   html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">✉️ <b>Email:</b> ' + (c.email || '—') + '</div>';
   html += '<div style="font-size:12px;color:var(--text2);margin-bottom:16px">📅 <b>Fecha de alta:</b> ' + (c.fechaRegistro || '—') + '</div>';
 
-  html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
+  var cuid = 'pdocs_' + c.cid;
+  html += '<div style="border:1.5px solid rgba(0,212,255,.5);border-radius:12px;margin-bottom:18px;overflow:hidden;background:var(--surface2)">';
+  html += '<div onclick="toggleCondDocsO(\'' + cuid + '\')" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">' +
+    '<span style="font-size:18px">🪪</span>' +
+    '<span style="flex:1;font-size:13px;font-weight:800;color:#fff">DNI y Licencia Conductor</span>' +
+    '<span id="chev_' + cuid + '" style="color:var(--cyan);font-size:14px">▾</span>' +
+  '</div>';
+  html += '<div id="body_' + cuid + '" style="display:none;padding:0 14px 16px;border-top:1px solid var(--border)">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">🆔 DNI</div>';
   html += '<div style="margin-bottom:14px">' + docThumbP(c.dniFrenteUrl, 'Frontal') + docThumbP(c.dniDorsoUrl, 'Dorso') + '</div>';
 
   html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🪪 Carnet de conducir</div>';
-  html += '<div style="margin-bottom:18px">' + docThumbP(c.carnetFrenteUrl, 'Frontal') + docThumbP(c.carnetDorsoUrl, 'Dorso') + '</div>';
+  html += '<div>' + docThumbP(c.carnetFrenteUrl, 'Frontal') + docThumbP(c.carnetDorsoUrl, 'Dorso') + '</div>';
+  html += '</div>'; // body_cuid
+  html += '</div>'; // wrapper
 
   html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
     '<span style="font-size:18px;flex-shrink:0">🕐</span>' +
