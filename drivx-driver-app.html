@@ -584,15 +584,15 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     <!-- Separador: apps vs viajes privados -->
     <div style="text-align:center;margin:22px 0 16px;font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,140,0,.55);letter-spacing:1.5px;display:flex;align-items:center;gap:10px">
       <span style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(255,140,0,.6))"></span>
-      VIAJES PRIVADOS
+      VIAJES PRIVADOS / TRANSFERS
       <span style="flex:1;height:1px;background:linear-gradient(to left,transparent,rgba(255,140,0,.6))"></span>
     </div>
 
-    <!-- Hoja de ruta -->
+    <!-- Viaje privado -->
     <div style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:2px solid rgba(255,140,0,1);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35)">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,140,0,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🧾</div>
-        <div><div style="font-size:15px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">Hoja de ruta</div><div style="font-size:11px;color:#e8f6ff">Viajes privados con hoja de ruta de Fomento</div></div>
+        <div><div style="font-size:15px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">Viaje privado</div><div style="font-size:11px;color:#e8f6ff">Viajes privados con hoja de ruta de Fomento</div></div>
       </div>
 
       <a href="https://sede.transportes.gob.es/regvtc/gestion/" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.14);color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95);font-size:14px;font-weight:900;text-decoration:none;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);margin-bottom:10px;font-family:inherit">
@@ -607,6 +607,35 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <div style="background:rgba(255,140,0,.08);border:1.5px solid rgba(255,140,0,.65);box-shadow:0 0 10px rgba(255,140,0,.6),0 0 20px rgba(255,140,0,.35);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
         <span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">💰 Tu 40% de los viajes privados</span>
         <span id="hojaruta-total" style="font-family:var(--mono);font-size:19px;font-weight:900;color:#ff9500;text-shadow:0 0 6px rgba(255,149,0,.95),0 0 14px rgba(255,149,0,.6);flex-shrink:0">€ 0,00</span>
+      </div>
+    </div>
+
+    <!-- Separador: viajes privados vs transfers -->
+    <div style="text-align:center;margin:18px 0 16px;font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,140,0,.55);letter-spacing:1.5px;display:flex;align-items:center;gap:10px">
+      <span style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(255,140,0,.6))"></span>
+      TRANSFERS
+      <span style="flex:1;height:1px;background:linear-gradient(to left,transparent,rgba(255,140,0,.6))"></span>
+    </div>
+
+    <!-- Transfer -->
+    <div style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:2px solid rgba(255,140,0,1);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,140,0,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🧾</div>
+        <div><div style="font-size:15px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">Transfer</div><div style="font-size:11px;color:#e8f6ff">Transfers con hoja de ruta de Fomento</div></div>
+      </div>
+
+      <a href="https://sede.transportes.gob.es/regvtc/gestion/" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.14);color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95);font-size:14px;font-weight:900;text-decoration:none;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);margin-bottom:10px;font-family:inherit">
+        🌐 CREAR HOJA DE RUTA
+      </a>
+
+      <input type="file" id="input-transfer" accept="image/*,application/pdf" style="display:none" onchange="onTransferFile(this)">
+      <button onclick="document.getElementById('input-transfer').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.14);color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);margin-bottom:14px">
+        📤 SUBIR HOJA DE RUTA
+      </button>
+
+      <div style="background:rgba(255,140,0,.08);border:1.5px solid rgba(255,140,0,.65);box-shadow:0 0 10px rgba(255,140,0,.6),0 0 20px rgba(255,140,0,.35);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85)">💰 Tu 30% de los transfers</span>
+        <span id="transfer-total" style="font-family:var(--mono);font-size:19px;font-weight:900;color:#ff9500;text-shadow:0 0 6px rgba(255,149,0,.95),0 0 14px rgba(255,149,0,.6);flex-shrink:0">€ 0,00</span>
       </div>
     </div>
   </div>
@@ -632,6 +661,17 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     <button onclick="cerrarHojaRutaInvalida()" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(255,71,87,.85);background:rgba(255,71,87,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">Entendido</button>
   </div>
 </div>
+
+<!-- ══════════════ MÉTODO DE PAGO DEL VIAJE (PRIVADO/TRANSFER) ══════════════ -->
+<div id="metodo-pago-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(255,140,0,.9);border-radius:24px;padding:28px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 0 18px rgba(255,140,0,.6),0 0 40px rgba(255,140,0,.35),0 20px 50px rgba(0,0,0,.6)">
+    <div style="font-size:44px;margin-bottom:10px">💳</div>
+    <div id="metodo-pago-texto" style="font-size:15px;color:var(--text2);margin-bottom:22px;line-height:1.6">—</div>
+    <button onclick="seleccionarMetodoPago('efectivo')" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(0,230,118,.9);background:rgba(0,230,118,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">💵 Efectivo</button>
+    <button onclick="seleccionarMetodoPago('tarjeta')" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(0,212,255,.9);background:rgba(0,212,255,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">💳 Tarjeta (requiere foto del ticket)</button>
+  </div>
+</div>
+<input type="file" id="input-ticket-viaje" accept="image/*" capture="environment" style="display:none" onchange="onTicketViajeFile(this)">
 
 <!-- ══════════════ AVISO: TICKET DUPLICADO ══════════════ -->
 <div id="ticket-duplicado-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:24px">
@@ -1523,6 +1563,7 @@ function loginAs(u) {
   data.cabify = { neto:0, propinas:0 };
   data.privados = 0; data.efectivo = 0;
   data.hojaRutaTotal = 0; data.hojasRuta = [];
+  data.transferTotal = 0; data.transfers = [];
   data.gastos = { gasolina:[], peaje:[], parking:[], lavado:[], datafono:[], otros:[] };
   kmEntrada = null;
   platData.uber   = { neto:0, propinas:0, efectivo:0, promociones:0, netoReal:0 };
@@ -1540,6 +1581,7 @@ function loginAs(u) {
   var nrElInicial = document.getElementById('uber-netoreal'); if (nrElInicial) nrElInicial.textContent = '€ —';
   var nrElInicialCabify = document.getElementById('cabify-netoreal'); if (nrElInicialCabify) nrElInicialCabify.textContent = '€ —';
   var hrElInicial = document.getElementById('hojaruta-total'); if (hrElInicial) hrElInicial.textContent = '€ 0,00';
+  var trElInicial = document.getElementById('transfer-total'); if (trElInicial) trElInicial.textContent = '€ 0,00';
   var boltBodyInicial = document.getElementById('bolt-admin-body');
   if (boltBodyInicial) boltBodyInicial.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
 
@@ -1583,6 +1625,8 @@ function loginAs(u) {
       if (typeof saved.efectivo === 'number') data.efectivo = saved.efectivo;
       if (typeof saved.hojaRutaTotal === 'number') data.hojaRutaTotal = saved.hojaRutaTotal;
       if (saved.hojasRuta) data.hojasRuta = saved.hojasRuta;
+      if (typeof saved.transferTotal === 'number') data.transferTotal = saved.transferTotal;
+      if (saved.transfers) data.transfers = saved.transfers;
     }
   } catch (e) {}
 
@@ -1605,6 +1649,8 @@ function loginAs(u) {
 
   var hrEl = document.getElementById('hojaruta-total');
   if (hrEl) hrEl.textContent = '€ ' + (data.hojaRutaTotal || 0).toFixed(2).replace('.',',');
+  var trEl = document.getElementById('transfer-total');
+  if (trEl) trEl.textContent = '€ ' + (data.transferTotal || 0).toFixed(2).replace('.',',');
 
   var hn = document.getElementById('home-name'); if(hn) hn.textContent = u.nombre;
   var hm = document.getElementById('home-meta'); if(hm) hm.textContent = u.matricula + ' · ' + u.ciudad + ' · ' + u.turno;
@@ -2744,7 +2790,10 @@ function updateBillingTotal() {
 }
 
 // ── HOJA DE RUTA (viajes privados con Fomento) ──
-function onHojaRutaFile(input) {
+function onHojaRutaFile(input) { validarFechaYSubirViaje(input, 'privado'); }
+function onTransferFile(input) { validarFechaYSubirViaje(input, 'transfer'); }
+
+function validarFechaYSubirViaje(input, tipo) {
   if (!input.files[0]) return;
   var file = input.files[0];
   toast('⏳ Comprobando la fecha de la hoja de ruta...');
@@ -2773,7 +2822,7 @@ function onHojaRutaFile(input) {
       }
 
       // Fecha válida — seguimos con la subida normal
-      subirHojaRutaValidada(file, input);
+      subirViajeValidado(file, input, tipo);
     }).catch(function(){
       mostrarHojaRutaInvalida('No se ha podido verificar la fecha de la hoja de ruta (fallo de conexión). Inténtalo de nuevo.');
       input.value = '';
@@ -2783,19 +2832,54 @@ function onHojaRutaFile(input) {
   reader.readAsDataURL(file);
 }
 
-function subirHojaRutaValidada(file, input) {
+function subirViajeValidado(file, input, tipo) {
   toast('⏳ Fecha correcta · subiendo hoja de ruta...');
   uploadToCloudinary(file).then(function(res){
     if (input) input.value = '';
     var url = res && res.secure_url ? res.secure_url : null;
     setTimeout(function(){
       var precio = parseFloat(prompt('Hoja de ruta subida ✓\n\nIntroduce el precio TOTAL del viaje (€):'));
-      if (!precio || precio <= 0) { toast('⚠ No se ha guardado el importe — hoja de ruta subida sin importe'); registrarHojaRuta(url, 0); return; }
-      registrarHojaRuta(url, precio);
+      if (!precio || precio <= 0) { toast('⚠ No se ha guardado el importe — hoja de ruta subida sin importe'); registrarViaje(tipo, url, 0, null, null); return; }
+      pedirMetodoPago(tipo, url, precio);
     }, 150);
   }).catch(function(){
     if (input) input.value = '';
     toast('❌ No se pudo subir la hoja de ruta. Inténtalo de nuevo.');
+  });
+}
+
+// ── Método de pago del viaje (efectivo / tarjeta) ──
+var _viajePendiente = null;
+function pedirMetodoPago(tipo, urlHoja, precio) {
+  _viajePendiente = { tipo: tipo, urlHoja: urlHoja, precio: precio };
+  var txt = document.getElementById('metodo-pago-texto');
+  if (txt) txt.innerHTML = 'Precio del viaje: <b style="color:#fff">€ ' + precio.toFixed(2).replace('.',',') + '</b><br>¿Cómo se cobró?';
+  document.getElementById('metodo-pago-modal').style.display = 'flex';
+}
+function seleccionarMetodoPago(metodo) {
+  document.getElementById('metodo-pago-modal').style.display = 'none';
+  if (!_viajePendiente) return;
+  if (metodo === 'tarjeta') {
+    document.getElementById('input-ticket-viaje').click();
+  } else {
+    registrarViaje(_viajePendiente.tipo, _viajePendiente.urlHoja, _viajePendiente.precio, 'efectivo', null);
+    _viajePendiente = null;
+  }
+}
+function onTicketViajeFile(input) {
+  if (!input.files[0] || !_viajePendiente) { if (input) input.value=''; return; }
+  var file = input.files[0];
+  var ctx = _viajePendiente;
+  _viajePendiente = null;
+  toast('⏳ Subiendo ticket del cobro con tarjeta...');
+  uploadToCloudinary(file).then(function(res){
+    input.value = '';
+    var ticketUrl = res && res.secure_url ? res.secure_url : null;
+    registrarViaje(ctx.tipo, ctx.urlHoja, ctx.precio, 'tarjeta', ticketUrl);
+  }).catch(function(){
+    input.value = '';
+    toast('⚠ No se pudo subir el ticket — se registra igualmente con el precio');
+    registrarViaje(ctx.tipo, ctx.urlHoja, ctx.precio, 'tarjeta', null);
   });
 }
 
@@ -2807,37 +2891,53 @@ function cerrarHojaRutaInvalida() {
   document.getElementById('hojaruta-invalid-modal').style.display = 'none';
 }
 
-function registrarHojaRuta(url, precioTotal) {
-  var cut = Math.round(precioTotal * 0.40 * 100) / 100;
-  data.hojasRuta = data.hojasRuta || [];
-  data.hojasRuta.push({ url: url, precioTotal: precioTotal, cutConductor: cut, fecha: new Date().toISOString().slice(0,10), ts: Date.now() });
-  data.hojaRutaTotal = Math.round(((data.hojaRutaTotal || 0) + cut) * 100) / 100;
-  var totalEl = document.getElementById('hojaruta-total');
-  if (totalEl) totalEl.textContent = '€ ' + data.hojaRutaTotal.toFixed(2).replace('.',',');
-  if (cut > 0) toast('✓ Hoja de ruta guardada · tu 40% = €' + cut.toFixed(2).replace('.',','));
-  uploadHojaRutaToFirebase(url, precioTotal, cut);
+function registrarViaje(tipo, urlHoja, precioTotal, metodoPago, ticketUrl) {
+  var pct = tipo === 'transfer' ? 0.30 : 0.40;
+  var cut = Math.round(precioTotal * pct * 100) / 100;
+  var registro = { url: urlHoja, precioTotal: precioTotal, cutConductor: cut, metodoPago: metodoPago || null, ticketUrl: ticketUrl || null, fecha: new Date().toISOString().slice(0,10), ts: Date.now() };
+
+  if (tipo === 'transfer') {
+    data.transfers = data.transfers || [];
+    data.transfers.push(registro);
+    data.transferTotal = Math.round(((data.transferTotal || 0) + cut) * 100) / 100;
+    var totalElT = document.getElementById('transfer-total');
+    if (totalElT) totalElT.textContent = '€ ' + data.transferTotal.toFixed(2).replace('.',',');
+  } else {
+    data.hojasRuta = data.hojasRuta || [];
+    data.hojasRuta.push(registro);
+    data.hojaRutaTotal = Math.round(((data.hojaRutaTotal || 0) + cut) * 100) / 100;
+    var totalEl = document.getElementById('hojaruta-total');
+    if (totalEl) totalEl.textContent = '€ ' + data.hojaRutaTotal.toFixed(2).replace('.',',');
+  }
+
+  if (cut > 0) toast('✓ Guardado · tu ' + Math.round(pct*100) + '% = €' + cut.toFixed(2).replace('.',','));
+  uploadViajeToFirebase(tipo, registro);
   syncData();
-  cargarBoltDesdeAdmin(); // recalcula el Neto Real de Bolt + este 40% y el total de arriba
+  cargarBoltDesdeAdmin(); // recalcula el Neto Real de Bolt + este importe y el total de arriba
 }
 
 // Guarda el registro en Firebase organizado por matrícula, para que el
-// Dashboard pueda verlo en la sección de facturación de cada conductor.
-function uploadHojaRutaToFirebase(url, precioTotal, cut) {
+// Dashboard y la app del Propietario puedan verlo en Facturación.
+function uploadViajeToFirebase(tipo, registro) {
   if (!currentUser) return;
   var matSlug = currentUser.matricula.replace(/\s/g,'_');
-  var id = 'hr_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-  fetch(FIREBASE_URL + '/hojasruta/' + matSlug + '/' + id + '.json', {
+  var id = (tipo === 'transfer' ? 'tr_' : 'hr_') + Date.now() + '_' + Math.floor(Math.random()*1000);
+  var path = tipo === 'transfer' ? '/transfers/' : '/hojasruta/';
+  fetch(FIREBASE_URL + path + matSlug + '/' + id + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({
-      url: url || null,
-      precioTotal: precioTotal,
-      cutConductor: cut,
-      porcentaje: 40,
-      fecha: new Date().toISOString().slice(0,10),
-      ts: Date.now(),
+      url: registro.url || null,
+      precioTotal: registro.precioTotal,
+      cutConductor: registro.cutConductor,
+      porcentaje: tipo === 'transfer' ? 30 : 40,
+      metodoPago: registro.metodoPago || null,
+      ticketUrl: registro.ticketUrl || null,
+      fecha: registro.fecha,
+      ts: registro.ts,
       matricula: currentUser.matricula,
       conductor: currentUser.nombre || '',
-      cid: currentUser.cid || ''
+      cid: currentUser.cid || '',
+      tipo: tipo
     })
   }).catch(function(){});
 }
@@ -3707,9 +3807,10 @@ function cargarBoltDesdeAdmin() {
   fetch(FIREBASE_URL + '/facturacion_bolt/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
     var cont = document.getElementById('bolt-admin-body');
     if (!cont) return;
+    var privados = (data.hojaRutaTotal || 0) + (data.transferTotal || 0);
     if (!datos) {
       cont.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
-      platData.bolt.netoReal = data.hojaRutaTotal || 0;
+      platData.bolt.netoReal = privados;
       updateBillingTotal();
       return;
     }
@@ -3720,7 +3821,6 @@ function cargarBoltDesdeAdmin() {
       '</div>';
     }
     var netoRealCsv = (typeof datos.netoReal === 'number') ? datos.netoReal : (Number(datos.ingresosNetos||0) - Number(datos.peajes||0) - Number(datos.ingresosCampanas||0) - Number(datos.propinas||0));
-    var privados = data.hojaRutaTotal || 0;
     var netoRealFinal = netoRealCsv + privados;
     platData.bolt.netoReal = netoRealFinal;
     updateBillingTotal();
@@ -3732,8 +3832,9 @@ function cargarBoltDesdeAdmin() {
       casilla('Propinas de pasajeros', datos.propinas) +
       casilla('Efectivo recaudado', datos.efectivoRecaudado) +
       casilla('Ingresos netos', datos.ingresosNetos) +
-      '<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ingresos netos − Peajes − Campañas − Propinas' + (privados > 0 ? ' + 40% viajes privados' : '') + '</div>' +
-      (privados > 0 ? casilla('40% viajes privados (hoja de ruta)', privados) : '') +
+      '<div style="font-size:10px;color:var(--text3);margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ingresos netos − Peajes − Campañas − Propinas' + (privados > 0 ? ' + viajes privados/transfers' : '') + '</div>' +
+      (data.hojaRutaTotal > 0 ? casilla('40% viajes privados (hoja de ruta)', data.hojaRutaTotal) : '') +
+      (data.transferTotal > 0 ? casilla('30% transfers', data.transferTotal) : '') +
       '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
         '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
         '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoRealFinal.toFixed(2).replace('.',',') + '</span>' +

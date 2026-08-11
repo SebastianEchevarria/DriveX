@@ -1972,6 +1972,7 @@ function abrirTodosConductoresVehiculo(matricula) {
     }
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
+    pintarTransfersGuardado(info.cid, info.matricula);
   });
 }
 function closeFacturacionMultiModal() {
@@ -2000,6 +2001,7 @@ function openFacturacionConductorModal(uid) {
   }
   pintarUberCabifyGuardado(info.cid);
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
+    pintarTransfersGuardado(info.cid, info.matricula);
 
   // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
   // así se ve al instante lo que el conductor vaya subiendo desde su app.
@@ -2008,6 +2010,7 @@ function openFacturacionConductorModal(uid) {
     pintarBoltCsvGuardado(info.cid);
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
+    pintarTransfersGuardado(info.cid, info.matricula);
   }, 8000);
 }
 function closeFacturacionConductorModal() {
@@ -2051,9 +2054,13 @@ function facturacionModalBodyHtml(info) {
       '</div>' +
       '<div id="cabify_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
     '</div>' +
-    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viajes privados</div>' +
+    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
       '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+    '</div>' +
+    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
+      '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
     '</div>';
 }
 
@@ -2062,7 +2069,7 @@ function facturacionModalBodyHtml(info) {
 var _facturacionTotales = {};
 function recalcularTotalFacturacion(uid, cid) {
   var t = _facturacionTotales[cid] || {};
-  var total = (t.uber||0) + (t.bolt||0) + (t.cabify||0) + (t.privados||0);
+  var total = (t.uber||0) + (t.bolt||0) + (t.cabify||0) + (t.privados||0) + (t.transfers||0);
   var el = document.getElementById('fact-total-' + uid);
   if (el) el.textContent = '€ ' + total.toFixed(2).replace('.',',');
 
@@ -2118,10 +2125,11 @@ function pintarViajesPrivadosGuardado(cid, matricula) {
           '<span style="font-size:10px;color:var(--text3)">' + (h.fecha || '') + '</span>' +
           (h.url ? '<a href="' + h.url + '" target="_blank" style="font-size:11px;font-weight:700;color:var(--cyan);text-decoration:none">📄 Ver hoja de ruta</a>' : '<span style="font-size:10px;color:var(--text3)">Sin archivo</span>') +
         '</div>' +
-        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
           '<span style="font-size:12px;font-weight:700;color:#fff">Precio total del viaje</span>' +
           '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + Number(h.precioTotal||0).toFixed(2).replace('.',',') + '</span>' +
         '</div>' +
+        (h.metodoPago ? '<div style="font-size:10px;color:var(--text3)">Cobrado con ' + (h.metodoPago === 'tarjeta' ? '💳 tarjeta' : '💵 efectivo') + (h.ticketUrl ? ' · <a href="'+h.ticketUrl+'" target="_blank" style="color:var(--cyan);text-decoration:none">ver ticket</a>' : '') + '</div>' : '') +
       '</div>';
     }).join('');
     cont.innerHTML = filas +
@@ -2130,6 +2138,48 @@ function pintarViajesPrivadosGuardado(cid, matricula) {
         '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + totalCut.toFixed(2).replace('.',',') + '</span>' +
       '</div>';
     _facturacionTotales[cid].privados = totalCut;
+    recalcularTotalFacturacion(uid, cid);
+  }).catch(function(){});
+}
+
+// Transfers — mismo esquema que Viajes privados, pero con el 30% fijo.
+function pintarTransfersGuardado(cid, matricula) {
+  var uid = 'fact_' + cid;
+  var matSlug = (matricula||'').replace(/\s/g,'_');
+  fetch(FIREBASE_URL + '/transfers/' + matSlug + '.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var propios = Object.keys(all).map(function(k){ return all[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var cont = document.getElementById('transfers_body_' + uid);
+    if (!cont) return;
+    _facturacionTotales[cid] = _facturacionTotales[cid] || {};
+    if (!propios.length) {
+      cont.innerHTML = '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ningún transfer.</div>';
+      _facturacionTotales[cid].transfers = 0;
+      recalcularTotalFacturacion(uid, cid);
+      return;
+    }
+    propios.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+    var totalCut = 0;
+    var filas = propios.map(function(h){
+      totalCut += Number(h.cutConductor||0);
+      return '<div style="background:rgba(255,140,0,.06);border:1.5px solid rgba(255,140,0,.55);border-radius:10px;padding:10px 12px;margin-bottom:8px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+          '<span style="font-size:10px;color:var(--text3)">' + (h.fecha || '') + '</span>' +
+          (h.url ? '<a href="' + h.url + '" target="_blank" style="font-size:11px;font-weight:700;color:var(--cyan);text-decoration:none">📄 Ver hoja de ruta</a>' : '<span style="font-size:10px;color:var(--text3)">Sin archivo</span>') +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+          '<span style="font-size:12px;font-weight:700;color:#fff">Precio total del viaje</span>' +
+          '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + Number(h.precioTotal||0).toFixed(2).replace('.',',') + '</span>' +
+        '</div>' +
+        (h.metodoPago ? '<div style="font-size:10px;color:var(--text3)">Cobrado con ' + (h.metodoPago === 'tarjeta' ? '💳 tarjeta' : '💵 efectivo') + (h.ticketUrl ? ' · <a href="'+h.ticketUrl+'" target="_blank" style="color:var(--cyan);text-decoration:none">ver ticket</a>' : '') + '</div>' : '') +
+      '</div>';
+    }).join('');
+    cont.innerHTML = filas +
+      '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-top:2px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
+        '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">30% DEL CONDUCTOR</span>' +
+        '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + totalCut.toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
+    _facturacionTotales[cid].transfers = totalCut;
     recalcularTotalFacturacion(uid, cid);
   }).catch(function(){});
 }

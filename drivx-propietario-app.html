@@ -1090,18 +1090,23 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/transfers/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var uber = results[0], bolt = results[1], cabify = results[2], hojas = results[3] || {};
     var porcentaje = (typeof results[4] === 'number') ? results[4] : 30;
+    var transfersData = results[5] || {};
 
     var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
     var privadosTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
 
+    var transfersPropios = Object.keys(transfersData).map(function(k){ return transfersData[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var transfersTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
+
     var uberNetoReal = uber ? Number((typeof uber.netoReal === 'number' ? uber.netoReal : uber.neto)||0) : 0;
     var boltNetoReal = bolt ? Number((typeof bolt.netoReal === 'number' ? bolt.netoReal : 0)) : 0;
     var cabifyNetoReal = cabify ? Number((typeof cabify.netoReal === 'number' ? cabify.netoReal : cabify.neto)||0) : 0;
-    var totalGeneral = uberNetoReal + boltNetoReal + cabifyNetoReal + privadosTotal;
+    var totalGeneral = uberNetoReal + boltNetoReal + cabifyNetoReal + privadosTotal + transfersTotal;
     var pagarConductor = totalGeneral * (porcentaje / 100);
 
     var html = '';
@@ -1132,9 +1137,14 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
         : '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ninguna captura.</div>') +
     '</div>';
 
-    html += '<div style="background:rgba(255,140,0,.05);border:1.5px solid rgba(255,140,0,.7);border-radius:10px;padding:10px 12px">' +
-      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">🧾 Viajes privados</div>' +
+    html += '<div style="background:rgba(255,140,0,.05);border:1.5px solid rgba(255,140,0,.7);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">🧾 Viaje privado</div>' +
       (privadosPropios.length ? casillaFactO('255,140,0','var(--amber)','40% del conductor', privadosTotal) : '<div style="font-size:11px;color:var(--text3)">Sin hojas de ruta registradas.</div>') +
+    '</div>';
+
+    html += '<div style="background:rgba(255,140,0,.05);border:1.5px solid rgba(255,140,0,.7);border-radius:10px;padding:10px 12px">' +
+      '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">🧾 Transfer</div>' +
+      (transfersPropios.length ? casillaFactO('255,140,0','var(--amber)','30% del conductor', transfersTotal) : '<div style="font-size:11px;color:var(--text3)">Sin transfers registrados.</div>') +
     '</div>';
 
     body.innerHTML = html;
