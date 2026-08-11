@@ -1675,13 +1675,22 @@ function conductorPerfilBodyHtml(c) {
     '<button onclick="guardarTurnoConductorPerfil(\'' + c.cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
   '</div>';
 
-  html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:20px">' +
+  html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
     '<span style="font-size:20px;flex-shrink:0">🏦</span>' +
     '<div style="flex:1;min-width:0">' +
       '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Cuenta bancaria</div>' +
       '<input id="pcuenta-' + c.cid + '" value="' + (c.cuentaBancaria || '').replace(/"/g,'&quot;') + '" placeholder="No proporcionada" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(0,212,255,.4);color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 0">' +
     '</div>' +
     '<button onclick="guardarCuentaConductorPerfil(\'' + c.cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
+  '</div>';
+
+  html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,140,0,.08);border:2px solid rgba(255,140,0,.85);box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3);border-radius:10px;padding:10px 12px;margin-bottom:20px">' +
+    '<span style="font-size:20px;flex-shrink:0">💰</span>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">% Neto Facturación</div>' +
+      '<input id="ppct-' + c.cid + '" type="number" min="0" max="100" step="1" value="' + (typeof c.porcentaje === 'number' ? c.porcentaje : 30) + '" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,140,0,.5);color:var(--amber);font-family:var(--mono);font-size:14px;font-weight:800;padding:2px 0">' +
+    '</div>' +
+    '<button onclick="guardarPorcentajeConductorPerfil(\'' + c.cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
   '</div>';
 
   html += '<button onclick="toggleCambioVehiculo(\'' + c.cid + '\')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35)">🔄 CAMBIO DE VEHÍCULO</button>';
@@ -1735,6 +1744,28 @@ function guardarCuentaConductorPerfil(cid) {
     if (_conductoresIndex[cid]) _conductoresIndex[cid].cuentaBancaria = nuevaCuenta;
     toast('✓ Cuenta bancaria actualizada');
   }).catch(function(){ toast('❌ No se pudo guardar la cuenta bancaria'); });
+}
+
+function guardarPorcentajeConductorPerfil(cid) {
+  var input = document.getElementById('ppct-' + cid);
+  if (!input) return;
+  var nuevoPct = parseFloat(input.value);
+  if (isNaN(nuevoPct) || nuevoPct < 0 || nuevoPct > 100) { toast('⚠ Introduce un porcentaje válido (0-100)'); return; }
+  fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(nuevoPct)
+  }).then(function(){
+    if (_vdInvitadosCacheGlobal[cid]) _vdInvitadosCacheGlobal[cid].porcentaje = nuevoPct;
+    if (_conductoresIndex[cid]) _conductoresIndex[cid].porcentaje = nuevoPct;
+    // Si la ficha de Facturación de este conductor está abierta (individual o
+    // dentro de "todos a la vez"), actualizamos también su "Pagar a conductor".
+    var uidFact = 'fact_' + cid;
+    if (_facturacionConductoresIndex[uidFact]) {
+      _facturacionConductoresIndex[uidFact].porcentaje = nuevoPct;
+      recalcularTotalFacturacion(uidFact, cid);
+    }
+    toast('✓ Porcentaje actualizado a ' + nuevoPct + '%');
+  }).catch(function(){ toast('❌ No se pudo guardar el porcentaje'); });
 }
 
 // ── Cambio de vehículo ──
