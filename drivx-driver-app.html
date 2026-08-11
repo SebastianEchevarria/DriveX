@@ -518,6 +518,11 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <span class="processing-text" id="billing-processing-text">Analizando captura...</span>
     </div>
 
+    <div id="pagar-conductor-box" style="background:rgba(255,140,0,.08);border:2px solid rgba(255,140,0,1);border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">TU PAGO (<span id="pagar-conductor-pct">30</span>%)</span>
+      <span id="pagar-conductor-val" style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--amber);text-shadow:0 0 6px rgba(255,140,0,.95),0 0 14px rgba(255,140,0,.6)">€ 0,00</span>
+    </div>
+
     <div class="total-bar">
       <span class="total-bar-label">Facturación neto total</span>
       <span class="total-bar-val" id="billing-total">€ 0,00</span>
@@ -1453,6 +1458,7 @@ function finalizeRegistro() {
     cuentaBancaria: inv.cuentaBancaria || '',
     matricula: inv.matricula,
     turno: inv.turno,
+    porcentaje: (typeof inv.porcentaje === 'number') ? inv.porcentaje : 30,
     modelo: inv.modelo || '',
     ciudad: inv.ciudad || '',
     ccaa: inv.ccaa || '',
@@ -1694,6 +1700,16 @@ function sincronizarVehiculoAsignado() {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/conductores_registro/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(reg){
     if (!reg) return;
+
+    // El porcentaje de cobro se sincroniza siempre (no depende de que cambie
+    // el vehículo o el turno), para que "TU PAGO" use el dato real.
+    if (typeof reg.porcentaje === 'number' && reg.porcentaje !== currentUser.porcentaje) {
+      currentUser.porcentaje = reg.porcentaje;
+      localStorage.setItem('drivx_session_user', JSON.stringify(currentUser));
+      localStorage.setItem('drivx_dynamic_user_' + currentUser.cid, JSON.stringify(currentUser));
+      updateBillingTotal();
+    }
+
     var cambioMatricula = reg.matricula && reg.matricula !== currentUser.matricula;
     var cambioTurno = reg.turno && reg.turno !== currentUser.turno;
     if (!cambioMatricula && !cambioTurno) return;
@@ -1763,12 +1779,16 @@ function refreshGastosFromFirebase() {
 
     cats.forEach(function(cat){
       var catObj = remote[cat] || {};
+      var hoyStr = new Date().toDateString();
       // Los gastos se guardan por vehículo, no por conductor — así que aquí
       // nos quedamos SOLO con los tickets que subió el conductor que ha
       // iniciado sesión ahora, para no ver los de otro compañero que use
-      // el mismo coche en otro turno.
+      // el mismo coche en otro turno. Y SOLO los de HOY, para que el límite
+      // de tickets por turno se reinicie cada día (antes se quedaba
+      // bloqueado para siempre porque contaba tickets de días anteriores).
       var tickets = Object.keys(catObj).map(function(tid){ return catObj[tid]; })
-        .filter(function(t){ return (t.conductor || '') === miNombre; });
+        .filter(function(t){ return (t.conductor || '') === miNombre; })
+        .filter(function(t){ return t.ts && new Date(t.ts).toDateString() === hoyStr; });
       tickets.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
 
       data.gastos[cat] = tickets.map(function(t){ return { importe:t.importe, nombre:t.nombre, fecha:t.fecha, hora:t.hora }; });
@@ -2716,6 +2736,11 @@ function updateBillingTotal() {
   var total = netoRealUber + platData.bolt.netoReal + netoRealCabify;
   document.getElementById('billing-total').textContent = '€ ' + total.toFixed(2).replace('.',',');
   var saEl = document.getElementById('stat-apps'); if (saEl) saEl.textContent = '€ ' + total.toFixed(2).replace('.',',');
+
+  var pct = (currentUser && typeof currentUser.porcentaje === 'number') ? currentUser.porcentaje : 30;
+  var pagar = total * (pct / 100);
+  var pctEl = document.getElementById('pagar-conductor-pct'); if (pctEl) pctEl.textContent = pct;
+  var pagarEl = document.getElementById('pagar-conductor-val'); if (pagarEl) pagarEl.textContent = '€ ' + pagar.toFixed(2).replace('.',',');
 }
 
 // ── HOJA DE RUTA (viajes privados con Fomento) ──

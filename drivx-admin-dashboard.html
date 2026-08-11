@@ -393,6 +393,10 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </select>
         <input id="vd-invite-turno-manual" type="text" placeholder="Ej: 08:00–16:00" style="display:none;width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
 
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">% que cobrará de la Facturación Neto Total</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Cada conductor puede tener una condición de cobro distinta</div>
+        <input id="vd-invite-porcentaje" type="number" min="0" max="100" step="1" value="30" placeholder="30" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+
         <button onclick="enviarInvitacion()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">📨 ENVIAR INVITACIÓN</button>
 
         <div id="vd-invite-result" style="display:none;margin-top:14px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">
@@ -1836,9 +1840,9 @@ function renderFacturacion() {
 // contorno y el nombre. Al pulsarla se abre un modal con sus 3 apartados
 // independientes (Uber, Bolt, Cabify), cada uno con el color de su app.
 var _facturacionConductoresIndex = {};
-function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula) {
+function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula, porcentaje) {
   var uid = 'fact_' + cid;
-  _facturacionConductoresIndex[uid] = { cid: cid, nombre: nombre, turno: turno, esInvitado: esInvitado, matricula: matricula };
+  _facturacionConductoresIndex[uid] = { cid: cid, nombre: nombre, turno: turno, esInvitado: esInvitado, matricula: matricula, porcentaje: porcentaje || 30 };
   return '<div onclick="event.stopPropagation();openFacturacionConductorModal(\'' + uid + '\')" style="border:1.5px solid rgba(0,212,255,.65);border-radius:12px;margin-bottom:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2);box-shadow:0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)">' +
       '<div style="flex:1;min-width:0"><span style="font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.75),0 0 12px rgba(0,212,255,.55)">' + nombre + '</span>' +
       '<span style="font-size:11px;color:rgba(255,255,255,.75);margin-left:8px">' + turno + '</span></div>' +
@@ -1883,11 +1887,11 @@ function abrirTodosConductoresVehiculo(matricula) {
   var lista = [];
   v.conductores.forEach(function(cid){
     var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
-    if (c) lista.push({ cid: c.cid, nombre: c.nombre, turno: c.turno, esInvitado: false, matricula: v.matricula });
+    if (c) lista.push({ cid: c.cid, nombre: c.nombre, turno: c.turno, esInvitado: false, matricula: v.matricula, porcentaje: c.porcentaje || 30 });
   });
   Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
     var r = _vdInvitadosCacheGlobal[cid];
-    if (r.matricula === matricula) lista.push({ cid: cid, nombre: r.nombre || 'Conductor', turno: r.turno, esInvitado: true, matricula: matricula });
+    if (r.matricula === matricula) lista.push({ cid: cid, nombre: r.nombre || 'Conductor', turno: r.turno, esInvitado: true, matricula: matricula, porcentaje: r.porcentaje || 30 });
   });
 
   if (!lista.length) { toast('Este vehículo no tiene conductores asignados'); return; }
@@ -1981,7 +1985,15 @@ function closeFacturacionConductorModal() {
 }
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
-  return '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);display:flex;justify-content:space-between;align-items:center">' +
+  var porcentaje = info.porcentaje || 30;
+  return '<div style="background:rgba(255,140,0,.08);border:2px solid rgba(255,140,0,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);display:flex;justify-content:space-between;align-items:center;gap:10px">' +
+      '<span style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">PAGAR A CONDUCTOR</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' +
+        '<span id="fact-pct-' + uid + '" onclick="editarPorcentajeConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Tocar para cambiar el porcentaje" style="font-family:var(--mono);font-size:12px;font-weight:800;color:var(--amber);background:rgba(255,140,0,.15);border:1px solid rgba(255,140,0,.6);border-radius:8px;padding:3px 8px;cursor:pointer">' + porcentaje + '%</span>' +
+        '<span id="fact-pagar-' + uid + '" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--amber);text-shadow:0 0 6px rgba(255,140,0,.95),0 0 14px rgba(255,140,0,.6)">€ 0,00</span>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">FACTURACIÓN NETO TOTAL</span>' +
       '<span id="fact-total-' + uid + '" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ 0,00</span>' +
     '</div>' +
@@ -2022,6 +2034,32 @@ function recalcularTotalFacturacion(uid, cid) {
   var total = (t.uber||0) + (t.bolt||0) + (t.cabify||0) + (t.privados||0);
   var el = document.getElementById('fact-total-' + uid);
   if (el) el.textContent = '€ ' + total.toFixed(2).replace('.',',');
+
+  var info = _facturacionConductoresIndex[uid];
+  var porcentaje = (info && info.porcentaje) || 30;
+  var pagar = total * (porcentaje / 100);
+  var pagarEl = document.getElementById('fact-pagar-' + uid);
+  if (pagarEl) pagarEl.textContent = '€ ' + pagar.toFixed(2).replace('.',',');
+  var pctEl = document.getElementById('fact-pct-' + uid);
+  if (pctEl) pctEl.textContent = porcentaje + '%';
+}
+
+function editarPorcentajeConductor(cid, uid) {
+  var info = _facturacionConductoresIndex[uid];
+  var actual = (info && info.porcentaje) || 30;
+  var nuevo = prompt('¿Qué porcentaje de la Facturación Neto Total cobra este conductor?', actual);
+  if (nuevo === null) return;
+  nuevo = parseFloat(nuevo);
+  if (isNaN(nuevo) || nuevo < 0 || nuevo > 100) { toast('⚠ Introduce un porcentaje válido (0-100)'); return; }
+
+  fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevo)
+  }).then(function(){
+    if (info) info.porcentaje = nuevo;
+    if (_vdInvitadosCacheGlobal[cid]) _vdInvitadosCacheGlobal[cid].porcentaje = nuevo;
+    recalcularTotalFacturacion(uid, cid);
+    toast('✓ Porcentaje actualizado a ' + nuevo + '%');
+  }).catch(function(){ toast('❌ No se pudo guardar el porcentaje'); });
 }
 
 // Viajes privados (hoja de ruta) subidos por el conductor desde su app.
@@ -2545,12 +2583,12 @@ function paintFacturacion() {
       v.conductores.forEach(function(cid){
         var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
         if (!c) return;
-        condRows += facturacionConductorRow(cid, c.nombre, c.turno, false, v.matricula);
+        condRows += facturacionConductorRow(cid, c.nombre, c.turno, false, v.matricula, c.porcentaje);
       });
       Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
         var r = _vdInvitadosCacheGlobal[cid];
         if (r.matricula !== v.matricula) return;
-        condRows += facturacionConductorRow(cid, r.nombre || 'Conductor', r.turno, true, v.matricula);
+        condRows += facturacionConductorRow(cid, r.nombre || 'Conductor', r.turno, true, v.matricula, r.porcentaje);
       });
       if (!condRows) condRows = '<div style="font-size:12px;color:var(--text3);padding:6px 0">Sin conductores asignados</div>';
 
@@ -4439,9 +4477,12 @@ function enviarInvitacion() {
   var turno = turnoSel === 'manual' ? (document.getElementById('vd-invite-turno-manual').value || '').trim() : turnoSel;
   if (!turno) { alert('Indica el horario del conductor.'); return; }
 
+  var porcentaje = parseFloat(document.getElementById('vd-invite-porcentaje').value);
+  if (isNaN(porcentaje) || porcentaje < 0 || porcentaje > 100) porcentaje = 30;
+
   var code = generateInviteCode();
   var invite = {
-    matricula: v.matricula, turno: turno, email: email,
+    matricula: v.matricula, turno: turno, email: email, porcentaje: porcentaje,
     modelo: v.modelo, ciudad: v.ciudad, ccaa: v.ccaa, icon: v.icon,
     usado: false, creadoTs: Date.now()
   };

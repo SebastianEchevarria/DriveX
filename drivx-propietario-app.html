@@ -1089,9 +1089,11 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var uber = results[0], bolt = results[1], cabify = results[2], hojas = results[3] || {};
+    var porcentaje = (typeof results[4] === 'number') ? results[4] : 30;
 
     var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
     var privadosTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
@@ -1100,9 +1102,14 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     var boltNetoReal = bolt ? Number((typeof bolt.netoReal === 'number' ? bolt.netoReal : 0)) : 0;
     var cabifyNetoReal = cabify ? Number((typeof cabify.netoReal === 'number' ? cabify.netoReal : cabify.neto)||0) : 0;
     var totalGeneral = uberNetoReal + boltNetoReal + cabifyNetoReal + privadosTotal;
+    var pagarConductor = totalGeneral * (porcentaje / 100);
 
     var html = '';
-    html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:12px 0;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
+    html += '<div style="background:rgba(255,140,0,.08);border:2px solid rgba(255,140,0,1);border-radius:12px;padding:12px 14px;margin:12px 0 8px;box-shadow:0 0 12px rgba(255,140,0,.85),0 0 26px rgba(255,140,0,.5);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff">PAGAR A CONDUCTOR (' + porcentaje + '%)</span>' +
+      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--amber)">€ ' + pagarConductor.toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+    html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:0 0 12px;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font-size:12px;font-weight:900;color:#fff">FACTURACIÓN NETO TOTAL</span>' +
       '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ '+totalGeneral.toFixed(2).replace('.',',')+'</span>' +
     '</div>';
