@@ -640,64 +640,73 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 </div>
 
 <!-- ══════════════ MODAL: AGREGAR VEHÍCULO ══════════════ -->
-<div id="add-vehicle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:520px;width:100%;max-height:88vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+<div id="add-vehicle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2.5px solid rgba(0,212,255,1);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.95),0 0 40px rgba(0,212,255,.6),0 20px 50px rgba(0,0,0,.6);max-width:520px;width:100%;max-height:88vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid rgba(0,212,255,.25);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0">
       <div style="font-size:26px">🚗</div>
       <div style="flex:1">
-        <div style="font-size:17px;font-weight:900">Agregar vehículo</div>
-        <div style="font-size:12px;color:var(--text3)">Nuevo vehículo para la flota</div>
+        <div style="font-size:17px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.55)">Agregar vehículo</div>
+        <div style="font-size:12px;color:#fff">Nuevo vehículo para la flota</div>
       </div>
-      <button onclick="closeAddVehicleModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeAddVehicleModal()" style="background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.7);color:#fff;border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;box-shadow:0 0 8px rgba(255,71,87,.5)">✕</button>
     </div>
 
     <div style="padding:20px 22px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Matrícula *</label>
-          <input id="av-matricula" type="text" placeholder="1234 ABC" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
+          <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Matrícula *</label>
+          <input id="av-matricula" type="text" placeholder="1234 ABC" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase;box-sizing:border-box">
         </div>
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Año *</label>
-          <input id="av-anio" type="number" placeholder="2024" min="1990" max="2030" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+          <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Año *</label>
+          <input id="av-anio" type="number" placeholder="2024" min="1990" max="2030" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;box-sizing:border-box">
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Marca *</label>
-          <input id="av-marca" type="text" placeholder="Tesla" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+          <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Marca *</label>
+          <input id="av-marca" type="text" placeholder="Tesla" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;box-sizing:border-box">
         </div>
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Modelo *</label>
-          <input id="av-modelo" type="text" placeholder="Model 3" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+          <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Modelo *</label>
+          <input id="av-modelo" type="text" placeholder="Model 3" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;box-sizing:border-box">
         </div>
       </div>
 
       <div style="margin-bottom:14px">
-        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Tipo de combustible *</label>
-        <select id="av-combustible" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Tipo de combustible *</label>
+        <select id="av-combustible" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">
           <option value="electrico">⚡ 100% Eléctrico</option>
           <option value="gasolina">⛽ Gasolina</option>
           <option value="diesel">⛽ Diésel</option>
         </select>
-        <div style="font-size:11px;color:var(--text3);margin-top:5px">Si es eléctrico, en Gastos del conductor aparecerá "Carga" en vez de "Gasolina"</div>
+        <div style="font-size:11px;color:#fff;margin-top:5px">Si es eléctrico, en Gastos del conductor aparecerá "Carga" en vez de "Gasolina"</div>
       </div>
 
       <div style="margin-bottom:14px">
-        <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Fecha de vencimiento de la ITV</label>
-        <input id="av-itv-fecha" type="date" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
-        <div style="font-size:11px;color:var(--text3);margin-top:5px">Se usará para avisar de la ITV en el Dashboard, Supervisor y la app de Propietarios</div>
+        <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(255,140,0,.6);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Tipo de facturación *</label>
+        <select id="av-facturacion" style="width:100%;background:rgba(255,140,0,.06);border:1.5px solid rgba(255,140,0,.7);box-shadow:0 0 8px rgba(255,140,0,.4);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">
+          <option value="semanal">🗓️ Semanal</option>
+          <option value="mensual">📅 Mensual</option>
+        </select>
+        <div style="font-size:11px;color:#fff;margin-top:5px">Define cada cuánto se hace la liquidación de este vehículo en Facturación</div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Fecha de vencimiento de la ITV</label>
+        <input id="av-itv-fecha" type="date" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">
+        <div style="font-size:11px;color:#fff;margin-top:5px">Se usará para avisar de la ITV en el Dashboard, Supervisor y la app de Propietarios</div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px">
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Ciudad</label>
-          <input id="av-ciudad" type="text" placeholder="Málaga" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px">
+          <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Ciudad</label>
+          <input id="av-ciudad" type="text" placeholder="Málaga" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;box-sizing:border-box">
         </div>
         <div>
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma *</label>
-          <select id="av-ccaa" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+          <label style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px rgba(0,212,255,.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Comunidad autónoma *</label>
+          <select id="av-ccaa" style="width:100%;background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.5);box-shadow:0 0 6px rgba(0,212,255,.3);color:#fff;padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">
             <option value="Andalucía">Andalucía</option>
             <option value="Comunidad Valenciana">Comunidad Valenciana</option>
             <option value="Castilla-La Mancha">Castilla-La Mancha</option>
@@ -705,10 +714,10 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </div>
       </div>
 
-      <div class="sb-section" style="padding:0 0 10px">Documentación del vehículo (opcional ahora, puedes subirla después)</div>
+      <div style="font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.55);text-transform:uppercase;letter-spacing:1px;padding:0 0 10px">Documentación del vehículo (opcional ahora, puedes subirla después)</div>
       <div id="av-docs-list" style="margin-bottom:20px"></div>
 
-      <button onclick="guardarNuevoVehiculo()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">✓ Guardar vehículo</button>
+      <button onclick="guardarNuevoVehiculo()" style="width:100%;padding:14px;border-radius:12px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35)">✓ GUARDAR VEHÍCULO</button>
     </div>
   </div>
 </div>
@@ -4573,6 +4582,7 @@ function openAddVehicleModal(ccaa) {
   document.getElementById('av-ciudad').value = '';
   document.getElementById('av-itv-fecha').value = '';
   document.getElementById('av-combustible').value = 'electrico';
+  document.getElementById('av-facturacion').value = 'semanal';
   var ccaaSelect = document.getElementById('av-ccaa');
   ccaaSelect.innerHTML = getCcaaOrder().map(function(cc){ return '<option value="'+cc+'">'+cc+'</option>'; }).join('');
   ccaaSelect.value = ccaa || getCcaaOrder()[0];
@@ -4612,6 +4622,7 @@ function guardarNuevoVehiculo() {
   var modelo = (document.getElementById('av-modelo').value || '').trim();
   var anio = (document.getElementById('av-anio').value || '').trim();
   var combustible = document.getElementById('av-combustible').value;
+  var facturacionTipo = document.getElementById('av-facturacion').value;
   var ciudad = (document.getElementById('av-ciudad').value || '').trim();
   var ccaa = document.getElementById('av-ccaa').value;
   var itvFecha = document.getElementById('av-itv-fecha').value || null;
@@ -4622,7 +4633,7 @@ function guardarNuevoVehiculo() {
   var icon = combustible === 'electrico' ? '⚡' : '🚗';
   var vehiculo = {
     matricula: matricula, marca: marca, modelo: marca + ' ' + modelo, anio: anio,
-    combustible: combustible, ciudad: ciudad, ccaa: ccaa, icon: icon,
+    combustible: combustible, tipoFacturacion: facturacionTipo, ciudad: ciudad, ccaa: ccaa, icon: icon,
     docs: { itv: { fecha: itvFecha, ok: !!itvFecha }, seguro: { fecha: null, ok: false }, vtc: { ok: false } },
     conductores: []
   };
