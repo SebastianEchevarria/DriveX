@@ -40,6 +40,8 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 .role-toggle{display:flex;gap:8px;margin-bottom:20px;background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);border-radius:12px;padding:4px;box-shadow:0 0 6px rgba(0,212,255,.2),0 0 14px rgba(0,212,255,.1)}
 .role-btn{flex:1;padding:10px;border:none;border-radius:9px;background:transparent;color:var(--text3);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:.15s}
 .role-btn.active{background:var(--cyan);color:#000}
+.modal-close{background:rgba(255,71,87,.14);border:2px solid rgba(255,71,87,1);color:#fff;width:34px;height:34px;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 8px rgba(255,71,87,.9),0 0 18px rgba(255,71,87,.6),0 0 30px rgba(255,71,87,.35);transition:transform .12s ease}
+.modal-close:active{transform:scale(.9)}
 .field{margin-bottom:16px}
 .field label{display:block;font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
 .field input{width:100%;background:rgba(0,212,255,.04);border:1.5px solid rgba(0,212,255,.3);color:var(--text);padding:13px 14px;border-radius:10px;font-size:15px;font-family:inherit;outline:none;box-shadow:0 0 6px rgba(0,212,255,.2),0 0 14px rgba(0,212,255,.1)}
@@ -362,7 +364,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
       <div style="display:flex;align-items:center;gap:14px">
         <div id="vd-plate" style="flex:1;display:flex;align-items:center;gap:10px">—</div>
-        <button onclick="closeVehicleDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer;flex-shrink:0">✕</button>
+        <button onclick="closeVehicleDetail()" class="modal-close">✕</button>
       </div>
       <div style="font-size:12px;color:var(--text3);margin-top:8px;margin-left:0" id="vd-model">—</div>
     </div>
@@ -443,7 +445,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:17px;font-weight:900" id="ac-modal-title">Nueva cita</div>
         <div style="font-size:12px;color:var(--text3)" id="ac-modal-subtitle">Visible para todos los conductores del vehículo</div>
       </div>
-      <button onclick="closeAddCitaModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeAddCitaModal()" class="modal-close">✕</button>
     </div>
     <div style="padding:20px 22px">
       <div style="margin-bottom:14px">
@@ -502,7 +504,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:15px;font-weight:900">Añadir vehículo</div>
         <div id="avp-nombre" style="font-size:12px;color:var(--text3)">—</div>
       </div>
-      <button onclick="closeAddVehiculoPropietario()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeAddVehiculoPropietario()" class="modal-close">✕</button>
     </div>
     <div style="padding:16px 22px 22px">
       <div id="avp-lista" style="max-height:280px;overflow-y:auto;border:1px solid var(--border2);border-radius:10px;padding:10px;background:var(--surface2);margin-bottom:16px"></div>
@@ -520,7 +522,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:15px;font-weight:900">Código de invitación</div>
         <div id="vc-nombre" style="font-size:12px;color:var(--text3)">—</div>
       </div>
-      <button onclick="cerrarVerCodigo()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="cerrarVerCodigo()" class="modal-close">✕</button>
     </div>
     <div style="padding:20px 22px;text-align:center">
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Compártelo otra vez si lo perdió</div>
@@ -539,7 +541,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:17px;font-weight:900" id="ap-modal-title">Nuevo propietario</div>
         <div style="font-size:12px;color:var(--text3)">Titular de uno o varios vehículos de la flota</div>
       </div>
-      <button onclick="closeAddPropietarioModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeAddPropietarioModal()" class="modal-close">✕</button>
     </div>
     <div style="padding:20px 22px">
 
@@ -607,7 +609,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:17px;font-weight:900">ITV urgente / vencida</div>
         <div style="font-size:12px;color:var(--text3)">Toda la flota</div>
       </div>
-      <button onclick="closeItvDetalle()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeItvDetalle()" class="modal-close">✕</button>
     </div>
     <div id="itv-detalle-body" style="padding:16px 22px 22px"></div>
   </div>
@@ -623,7 +625,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div id="cd-ccaa" style="font-size:12px;color:var(--text3)">—</div>
       </div>
       <button id="cd-edit-btn" onclick="editarCitaDashboard()" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);color:var(--cyan);border-radius:10px;width:32px;height:32px;font-size:14px;cursor:pointer;flex-shrink:0">✏️</button>
-      <button onclick="closeCitaDetail()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeCitaDetail()" class="modal-close">✕</button>
     </div>
     <div id="cd-body" style="padding:8px 22px 22px"></div>
   </div>
@@ -638,7 +640,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div style="font-size:17px;font-weight:900">Agregar comunidad autónoma</div>
         <div style="font-size:12px;color:var(--text3)">Elige cuál quieres añadir a la Flota</div>
       </div>
-      <button onclick="closeAddCcaaModal()" style="background:transparent;border:1px solid var(--border2);color:var(--text3);border-radius:10px;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      <button onclick="closeAddCcaaModal()" class="modal-close">✕</button>
     </div>
     <div id="add-ccaa-list" style="padding:14px 16px 20px"></div>
   </div>
