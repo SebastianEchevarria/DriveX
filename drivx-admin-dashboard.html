@@ -137,6 +137,10 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 @media (min-width:861px){
   .dash-biometric-btn, #biometric-clear, #biometric-offer-modal{display:none !important}
 }
+@keyframes pulseVencida {
+  0%, 100% { box-shadow: 0 0 14px rgba(255,71,87,1), 0 0 30px rgba(255,71,87,.7), 0 0 50px rgba(255,71,87,.4); }
+  50% { box-shadow: 0 0 22px rgba(255,71,87,1), 0 0 46px rgba(255,71,87,.9), 0 0 74px rgba(255,71,87,.55); }
+}
 </style>
 </head>
 <body>
@@ -249,6 +253,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </div>
         <div id="fichaje-alerts"></div>
         <div id="uber-efectivo-alerts"></div>
+        <div id="citas-vencidas-alerts"></div>
         <div id="proximas-citas-inicio"></div>
         <div class="stat-grid" id="inicio-stats"></div>
       </div>
@@ -911,9 +916,11 @@ function enterShell() {
   renderFlota();
   renderFichajeAlerts();
   renderUberEfectivoAlerts();
+  renderCitasVencidasAlerts();
   renderProximasCitasInicio();
   setInterval(renderFichajeAlerts, 60000);
   setInterval(renderUberEfectivoAlerts, 60000);
+  setInterval(renderCitasVencidasAlerts, 60000);
   setInterval(renderProximasCitasInicio, 60000);
   setInterval(function(){ if (document.getElementById('dash-citas').classList.contains('active')) renderCitas(); }, 8000);
 }
@@ -1059,6 +1066,71 @@ function renderProximasCitasInicio() {
 
 // Aviso cuando una captura de Uber subida por un conductor no mostraba el
 // campo "Efectivo cobrado" — con la imagen adjunta para poder comprobarlo.
+// Aviso muy visible de citas vencidas (que ya pasaron su hora, pero siguen
+// dentro de las 48h de margen antes de eliminarse solas).
+// Las citas vencidas se mantienen visibles 48h desde su hora de comienzo;
+// pasado ese plazo se eliminan automáticamente para todas las apps (todas
+// leen y escriben el mismo listado /citas_globales.json).
+function limpiarCitasVencidas48h(lista) {
+  var ahora = Date.now();
+  var vivas = [];
+  var eliminadas = false;
+  lista.forEach(function(c){
+    if (!c || !c.fecha) { vivas.push(c); return; }
+    var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+    var horasVencida = (ahora - dCita.getTime()) / 3600000;
+    if (horasVencida > 48) { eliminadas = true; return; }
+    vivas.push(c);
+  });
+  if (eliminadas) {
+    fetch(FIREBASE_URL + '/citas_globales.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(vivas)
+    }).catch(function(){});
+  }
+  return vivas;
+}
+
+function renderCitasVencidasAlerts() {
+  var container = document.getElementById('citas-vencidas-alerts');
+  if (!container) return;
+
+  fetchTodasLasCitas().then(function(lista){
+    var ahora = Date.now();
+    var vencidas = lista.filter(function(c){
+      if (!c || !c.fecha) return false;
+      var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+      var horas = (ahora - dCita.getTime()) / 3600000;
+      return horas > 0 && horas <= 48;
+    });
+
+    if (!vencidas.length) { container.innerHTML = ''; return; }
+    vencidas.sort(function(a,b){
+      return new Date(a.fecha+'T'+(a.hora||'00:00')) - new Date(b.fecha+'T'+(b.hora||'00:00'));
+    });
+
+    var html = '<div style="margin-bottom:24px">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-shadow:0 0 8px rgba(255,71,87,.9)">🚨 CITAS VENCIDAS (' + vencidas.length + ') — se eliminarán a las 48h</div>';
+    html += vencidas.map(function(c){
+      var info = citaTipoInfo(c.tipo);
+      var nombreCond = nombreConductorCita(c.cid) || 'Sin asignar';
+      var restante = Math.max(0, 48 - ((ahora - new Date(c.fecha+'T'+(c.hora||'00:00')).getTime())/3600000));
+      return '<div onclick="openCitaDetail(' + c.id + ')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 14px rgba(255,71,87,1),0 0 30px rgba(255,71,87,.7),0 0 50px rgba(255,71,87,.4);animation:pulseVencida 1.6s ease-in-out infinite">' +
+        '<div style="width:40px;height:40px;border-radius:11px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + info.icon + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:900;color:#fff">' + c.tipo + ' · ' + nombreCond + '</div>' +
+          '<div style="font-size:11px;color:#fff;margin-top:2px">' + (c.matricula||'') + ' · venció ' + (c.fecha||'') + ' ' + (c.hora||'') + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0">' +
+          '<div style="font-size:10px;color:#fff;font-weight:800">SE BORRA EN</div>' +
+          '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:#fff">' + restante.toFixed(0) + 'h</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function(){});
+}
+
 function renderUberEfectivoAlerts() {
   var container = document.getElementById('uber-efectivo-alerts');
   if (!container) return;
@@ -3556,7 +3628,8 @@ function fetchTodasLasCitas() {
     _citasInvitadosCache = results[1] || {};
     var lista = results[0] || [];
     if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
-    return lista.filter(Boolean);
+    lista = lista.filter(Boolean);
+    return limpiarCitasVencidas48h(lista);
   });
 }
 
@@ -3568,6 +3641,29 @@ function nombreConductorCita(cid) {
 }
 
 var _citasLoadedOnce = false;
+
+// Las citas vencidas se mantienen visibles 48h desde su hora de comienzo;
+// pasado ese plazo se eliminan automáticamente para todas las apps (ya que
+// todas leen el mismo listado /citas_globales.json).
+function limpiarCitasVencidas48h(lista) {
+  var ahora = Date.now();
+  var vivas = [];
+  var eliminadas = false;
+  lista.forEach(function(c){
+    if (!c || !c.fecha) { vivas.push(c); return; }
+    var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+    var horasVencida = (ahora - dCita.getTime()) / 3600000;
+    if (horasVencida > 48) { eliminadas = true; return; }
+    vivas.push(c);
+  });
+  if (eliminadas) {
+    fetch(FIREBASE_URL + '/citas_globales.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(vivas)
+    }).catch(function(){});
+  }
+  return vivas;
+}
+
 function renderCitas() {
   var container = document.getElementById('citas-list');
   if (!container) return;
@@ -3581,7 +3677,7 @@ function renderCitas() {
     fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/comunidades_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
-    _citasCache = results[0];
+    _citasCache = limpiarCitasVencidas48h(results[0]);
     var extra = results[1] || {};
     var ocultos = results[2] || {};
     var comunidadesExtra = results[3] || {};

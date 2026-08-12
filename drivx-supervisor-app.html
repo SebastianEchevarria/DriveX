@@ -175,6 +175,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
 }
 .logout-fab:active { background: rgba(255,107,107,.4); }
 .logout-fab.visible { display: flex; }
+@keyframes pulseVencida {
+  0%, 100% { box-shadow: 0 0 14px rgba(255,71,87,1), 0 0 30px rgba(255,71,87,.7), 0 0 50px rgba(255,71,87,.4); }
+  50% { box-shadow: 0 0 22px rgba(255,71,87,1), 0 0 46px rgba(255,71,87,.9), 0 0 74px rgba(255,71,87,.55); }
+}
 </style>
 </head>
 <body>
@@ -211,6 +215,9 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
       <div><div class="header-title">Mis Vehículos</div><div class="header-sub" id="home-sub">VTC Infinity</div></div>
       <button onclick="doLogout()" style="padding:7px 14px;border-radius:16px;border:1.5px solid rgba(255,107,107,.6);background:rgba(255,107,107,.1);color:#ff6b6b;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap">Salir</button>
     </div>
+
+    <!-- Aviso de citas vencidas -->
+    <div id="citas-vencidas-alerts-sup"></div>
 
     <!-- Próximas citas -->
     <div class="sec-title" style="font-size:16px;font-weight:900;color:#fff;text-transform:none;letter-spacing:.3px;text-shadow:0 0 8px rgba(0,212,255,.85),0 0 16px rgba(0,212,255,.5);margin:20px 0 12px">📅 Próximas citas</div>
@@ -1396,6 +1403,28 @@ function startSync() {
   setInterval(renderHomeProximas, 30000);
 }
 
+// Las citas vencidas se mantienen visibles 48h desde su hora de comienzo;
+// pasado ese plazo se eliminan automáticamente para todas las apps (ya que
+// todas leen el mismo listado /citas_globales.json).
+function limpiarCitasVencidas48hSup(lista) {
+  var ahora = Date.now();
+  var vivas = [];
+  var eliminadas = false;
+  lista.forEach(function(c){
+    if (!c || !c.fecha) { vivas.push(c); return; }
+    var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+    var horasVencida = (ahora - dCita.getTime()) / 3600000;
+    if (horasVencida > 48) { eliminadas = true; return; }
+    vivas.push(c);
+  });
+  if (eliminadas) {
+    fetch(FIREBASE_URL + '/citas_globales.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(vivas)
+    }).catch(function(){});
+  }
+  return vivas;
+}
+
 // Trae de Firebase cualquier cita creada, editada o borrada desde otra app
 // (p.ej. el Dashboard) y la integra en el mismo almacenamiento local que ya
 // usa toda la interfaz de Supervisor, para no tener que tocar cada pantalla.
@@ -1404,6 +1433,7 @@ function pullCitasFromFirebase() {
     lista = lista || [];
     if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
     lista = lista.filter(Boolean);
+    lista = limpiarCitasVencidas48hSup(lista);
 
     localStorage.setItem('drivx_citas', JSON.stringify(lista));
 
@@ -1427,7 +1457,50 @@ function pullCitasFromFirebase() {
     Object.keys(porConductor).forEach(function(cid){
       localStorage.setItem('drivx_citas_' + cid, JSON.stringify(porConductor[cid]));
     });
+
+    renderCitasVencidasAlertsSup(lista);
   }).catch(function(){});
+}
+
+// Aviso llamativo (LED rojo pulsante) de citas vencidas — mismo criterio y
+// diseño que en el Dashboard: se muestran 48h desde su hora de comienzo.
+function renderCitasVencidasAlertsSup(lista) {
+  var container = document.getElementById('citas-vencidas-alerts-sup');
+  if (!container) return;
+
+  var ahora = Date.now();
+  var icons = {'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Filtros':'🌀','Otro':'📌','Otro taller':'🔩'};
+
+  var vencidas = lista.filter(function(c){
+    if (!c || !c.fecha) return false;
+    var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+    var horas = (ahora - dCita.getTime()) / 3600000;
+    return horas > 0 && horas <= 48;
+  });
+
+  if (!vencidas.length) { container.innerHTML = ''; return; }
+  vencidas.sort(function(a,b){
+    return new Date(a.fecha+'T'+(a.hora||'00:00')) - new Date(b.fecha+'T'+(b.hora||'00:00'));
+  });
+
+  var html = '<div style="margin:16px 0">';
+  html += '<div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-shadow:0 0 8px rgba(255,71,87,.9)">🚨 CITAS VENCIDAS (' + vencidas.length + ') — se eliminarán a las 48h</div>';
+  html += vencidas.map(function(c){
+    var restante = Math.max(0, 48 - ((ahora - new Date(c.fecha+'T'+(c.hora||'00:00')).getTime())/3600000));
+    return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 14px rgba(255,71,87,1),0 0 30px rgba(255,71,87,.7),0 0 50px rgba(255,71,87,.4);animation:pulseVencida 1.6s ease-in-out infinite">' +
+      '<div style="width:40px;height:40px;border-radius:11px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + (icons[c.tipo]||'📅') + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:900;color:#fff">' + (c.tipo||'Cita') + '</div>' +
+        '<div style="font-size:11px;color:#fff;margin-top:2px">' + (c.matricula||'') + ' · venció ' + (c.fecha||'') + ' ' + (c.hora||'') + '</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' +
+        '<div style="font-size:10px;color:#fff;font-weight:800">SE BORRA EN</div>' +
+        '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:#fff">' + restante.toFixed(0) + 'h</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 // ══ CITAS ══

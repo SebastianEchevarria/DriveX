@@ -271,6 +271,10 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
 }
 .logout-fab:active { background: rgba(255,107,107,.4); }
 .logout-fab.visible { display: flex; }
+@keyframes pulseVencida {
+  0%, 100% { box-shadow: 0 0 14px rgba(255,71,87,1), 0 0 30px rgba(255,71,87,.7), 0 0 50px rgba(255,71,87,.4); }
+  50% { box-shadow: 0 0 22px rgba(255,71,87,1), 0 0 46px rgba(255,71,87,.9), 0 0 74px rgba(255,71,87,.55); }
+}
 </style>
 </head>
 <body>
@@ -365,6 +369,9 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         </div>
       </div>
     </div>
+
+    <!-- Citas vencidas (48h) -->
+    <div id="citas-vencidas-driver"></div>
 
     <!-- Próxima cita -->
     <div id="proxima-cita-card" style="display:none;background:rgba(10,16,26,.32);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);border:2.5px solid rgba(0,212,255,.65);border-radius:18px;padding:16px 18px;margin-bottom:14px;box-shadow:0 0 10px rgba(0,212,255,.55),0 0 22px rgba(0,212,255,.3),inset 0 0 14px rgba(0,212,255,.06)">
@@ -4042,11 +4049,34 @@ function cargarBoltDesdeAdmin() {
   }).catch(function(){});
 }
 
+// Las citas vencidas se mantienen visibles 48h desde su hora de comienzo;
+// pasado ese plazo se eliminan automáticamente para todas las apps (todas
+// leen y escriben el mismo listado /citas_globales.json).
+function limpiarCitasVencidas48h(lista) {
+  var ahora = Date.now();
+  var vivas = [];
+  var eliminadas = false;
+  lista.forEach(function(c){
+    if (!c || !c.fecha) { vivas.push(c); return; }
+    var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+    var horasVencida = (ahora - dCita.getTime()) / 3600000;
+    if (horasVencida > 48) { eliminadas = true; return; }
+    vivas.push(c);
+  });
+  if (eliminadas) {
+    fetch(FIREBASE_URL + '/citas_globales.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(vivas)
+    }).catch(function(){});
+  }
+  return vivas;
+}
+
 function loadProximaCita() {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
     lista = lista || [];
     if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    lista = limpiarCitasVencidas48h(lista.filter(Boolean));
     var citas = lista.filter(function(c){
       return c && (c.cid === currentUser.cid || c.matricula === currentUser.matricula);
     });
@@ -4060,9 +4090,42 @@ function loadProximaCita() {
   });
 }
 
+function pintarCitasVencidasDriver(vencidas) {
+  var cont = document.getElementById('citas-vencidas-driver');
+  if (!cont) return;
+  if (!vencidas.length) { cont.innerHTML = ''; return; }
+
+  var icons = { 'ITV':'🔧','Mecánico':'🔩','Revisión':'🔍','Cambio aceite':'🛢️','Neumáticos':'🏎️','Batería':'⚡','Limpieza':'🚿','Seguro':'📄','VTC':'📋','Otro':'📌' };
+  var ahora = Date.now();
+  vencidas.sort(function(a,b){ return new Date(a.fecha+'T'+(a.hora||'00:00')) - new Date(b.fecha+'T'+(b.hora||'00:00')); });
+
+  cont.innerHTML = vencidas.map(function(c){
+    var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
+    var restante = Math.max(0, 48 - ((ahora - dCita.getTime())/3600000));
+    return '<div style="display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:10px;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 14px rgba(255,71,87,1),0 0 30px rgba(255,71,87,.7),0 0 50px rgba(255,71,87,.4);animation:pulseVencida 1.6s ease-in-out infinite">' +
+      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + (icons[c.tipo]||'📅') + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:900;color:#fff">🚨 VENCIDA · ' + (c.tipo||'Cita') + '</div>' +
+        '<div style="font-size:11px;color:#fff;margin-top:2px">' + (c.lugar ? c.lugar + ' · ' : '') + 'venció ' + (c.fecha||'') + ' ' + (c.hora||'') + '</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' +
+        '<div style="font-size:9px;color:#fff;font-weight:800">SE BORRA EN</div>' +
+        '<div style="font-family:var(--mono);font-size:12px;font-weight:900;color:#fff">' + restante.toFixed(0) + 'h</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
 function pintarProximaCita(citas) {
-  // Filter future citas only, sort by date
   var now = new Date();
+
+  // Separamos las que ya vencieron (pero siguen visibles hasta las 48h) de
+  // las futuras — el temporizador de "próxima cita" solo mira las futuras,
+  // así que si hay otra cita por delante, pasa a ser ella la que cuenta.
+  var vencidas = citas.filter(function(c){
+    var d = new Date(c.fecha + (c.hora ? 'T' + c.hora : 'T23:59'));
+    return d <= now;
+  });
   citas = citas.filter(function(c) {
     var d = new Date(c.fecha + (c.hora ? 'T' + c.hora : 'T23:59'));
     return d > now;
@@ -4070,6 +4133,8 @@ function pintarProximaCita(citas) {
   citas.sort(function(a, b) {
     return new Date(a.fecha + 'T' + (a.hora||'00:00')) - new Date(b.fecha + 'T' + (b.hora||'00:00'));
   });
+
+  pintarCitasVencidasDriver(vencidas);
 
   var card = document.getElementById('proxima-cita-card');
   if (!card) return;
