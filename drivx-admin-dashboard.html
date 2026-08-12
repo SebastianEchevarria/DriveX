@@ -4218,7 +4218,13 @@ function paintPropietarios() {
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">✉️ '+(p.email||'—')+(p.telefono?' · 📱 '+p.telefono:'')+'</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📅 Alta: '+(p.fechaAlta||'—')+'</div>';
       html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">' +
-        (p.matriculas||[]).map(function(m){ return '<span style="font-size:11px;font-weight:800;font-family:var(--mono);color:#fff;background:transparent;border:1.5px solid rgba(0,212,255,.65);box-shadow:0 0 6px rgba(0,212,255,.35),0 0 12px rgba(0,212,255,.18);border-radius:8px;padding:3px 8px">'+m+'</span>'; }).join('') +
+        (p.matriculas||[]).map(function(m, idx){
+          var btnId = 'delveh_' + item.pid + '_' + idx;
+          return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;font-family:var(--mono);color:#fff;background:transparent;border:1.5px solid rgba(0,212,255,.65);box-shadow:0 0 6px rgba(0,212,255,.35),0 0 12px rgba(0,212,255,.18);border-radius:8px;padding:3px 6px 3px 9px">' +
+            m +
+            '<button id="'+btnId+'" onclick="event.stopPropagation();eliminarVehiculoDePropietario(\''+item.pid+'\',\''+m.replace(/'/g,"\\'")+'\',\''+btnId+'\')" title="Quitar de este propietario (no afecta a la flota)" style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.55);color:var(--red);width:17px;height:17px;border-radius:5px;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:inherit">✕</button>' +
+          '</span>';
+        }).join('') +
         '<button onclick="event.stopPropagation();openAddVehiculoPropietario(\''+item.pid+'\')" style="font-size:11px;font-weight:800;color:var(--green);background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:3px 9px;cursor:pointer;font-family:inherit">+ VEHÍCULO</button>' +
       '</div>';
       if (p.cuentaBancaria) {
@@ -4277,6 +4283,42 @@ function copiarCuentaPropietario(pid) {
   var old = btn.textContent;
   btn.textContent = '✓ Copiado';
   setTimeout(function(){ btn.textContent = old; }, 1500);
+}
+
+// Quita un vehículo concreto de la lista de un propietario — con doble
+// confirmación (pulsar dos veces en 5s). Solo lo desvincula de ese
+// propietario: el vehículo sigue existiendo en la Flota igual que antes.
+function eliminarVehiculoDePropietario(pid, matricula, btnId) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    var p = _propietariosCache[pid];
+    if (!p) return;
+    var nuevasMatriculas = (p.matriculas || []).filter(function(m){ return m !== matricula; });
+    fetch(FIREBASE_URL + '/propietarios/' + pid + '/matriculas.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevasMatriculas)
+    }).then(fbCheck).then(function(){
+      toast('✓ ' + matricula + ' desvinculado de este propietario (sigue en la Flota)');
+      renderPropietarios();
+    }).catch(function(err){ alert('No se pudo quitar el vehículo: ' + err.message); });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠';
+  btn.title = '¿Seguro? Pulsa otra vez para confirmar — solo se quita de este propietario, no de la flota';
+  btn.style.background = 'rgba(255,71,87,.4)';
+  btn.style.width = 'auto';
+  btn.style.padding = '0 5px';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '✕';
+      btn.style.background = 'rgba(255,71,87,.12)';
+      btn.style.width = '17px';
+      btn.style.padding = '0';
+    }
+  }, 5000);
 }
 
 function confirmDeletePropietario(pid) {
@@ -4429,8 +4471,15 @@ function openAddPropietarioModal() {
   marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono');
 
   var listEl = document.getElementById('ap-matriculas-list');
+  var matriculasAsignadas = {};
+  Object.keys(_propietariosCache || {}).forEach(function(pid){
+    var p = _propietariosCache[pid];
+    (p && p.matriculas || []).forEach(function(m){ matriculasAsignadas[m] = true; });
+  });
+  var vehiculosDisponibles = getAllVehiculos().filter(function(v){ return !matriculasAsignadas[v.matricula]; });
+
   var porCcaa = {};
-  getAllVehiculos().forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
+  vehiculosDisponibles.forEach(function(v){ (porCcaa[v.ccaa] = porCcaa[v.ccaa] || []).push(v); });
   var orden = getCcaaOrder();
   var ccaasPresentes = Object.keys(porCcaa).sort(function(a,b){
     var ai = orden.indexOf(a), bi = orden.indexOf(b);
@@ -4445,7 +4494,7 @@ function openAddPropietarioModal() {
           '<span style="font-size:11px;color:var(--text3)">'+v.modelo+'</span>' +
         '</label>';
       }).join('');
-  }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0">No hay vehículos en la flota todavía</div>';
+  }).join('') || '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0">No hay vehículos disponibles — todos ya tienen propietario asignado</div>';
 
   var filtroCcaaSel = document.getElementById('ap-mat-ccaa-filtro');
   filtroCcaaSel.innerHTML = '<option value="">Todas las comunidades</option>' + ccaasPresentes.map(function(cc){
