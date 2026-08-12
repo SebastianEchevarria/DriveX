@@ -1253,7 +1253,7 @@ function renderFichajeAlerts() {
 
 function paintInicioStats() {
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
 
   var allVeh = getAllVehiculos();
   var totalVeh = allVeh.length;
@@ -1273,7 +1273,7 @@ function paintInicioStats() {
 }
 function openItvDetalle() {
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
   var allVeh = getAllVehiculos();
@@ -1456,7 +1456,7 @@ function paintFlota() {
   if (!container) return;
 
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
   var ccaaOrder = getCcaaOrder();
@@ -3759,7 +3759,7 @@ function paintCitas() {
       var esITV = (cita.tipo === 'ITV');
       var esRevision = (cita.tipo === 'Revisión general');
       var dCita = new Date(cita.fecha + 'T' + (cita.hora || '00:00'));
-      var diasFaltan = Math.ceil((dCita - now) / 86400000);
+      var diasFaltan = Math.round((new Date(dCita.getFullYear(),dCita.getMonth(),dCita.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate())) / 86400000);
       var vencida = dCita < now && diasFaltan < 0;
       var borderColor = vencida ? 'rgba(255,71,87,.4)' : diasFaltan <= 2 ? 'rgba(255,179,0,.4)' : 'var(--border)';
       var nombreCond = nombreConductorCita(cita.cid);
@@ -3885,14 +3885,20 @@ function buildMiniCalendar(citas, baseNow, gid, cc) {
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
   for (var i=0; i<startWeekday; i++) html += '<div></div>';
+  var hoyMidnight = new Date(baseNow.getFullYear(), baseNow.getMonth(), baseNow.getDate());
   for (var day=1; day<=daysInMonth; day++) {
     var count = citasPorDia[day] || 0;
     var isToday = day === todayNum;
+    var esPasado = new Date(year, month, day) < hoyMidnight;
     var border, color, textSh, boxSh;
     if (isToday) {
       border = '1.5px solid rgba(0,212,255,.95)'; color = 'var(--cyan)';
       textSh = '0 0 5px rgba(0,212,255,.9)';
       boxSh = ';box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45)';
+    } else if (esPasado) {
+      border = '1.5px solid transparent'; color = 'rgba(255,255,255,.22)';
+      textSh = 'none';
+      boxSh = '';
     } else {
       border = '1.5px solid transparent'; color = 'rgba(255,255,255,.88)';
       textSh = 'none';
@@ -3900,9 +3906,15 @@ function buildMiniCalendar(citas, baseNow, gid, cc) {
     }
     var dot = count > 0 ? '<span style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--amber);box-shadow:0 0 4px rgba(255,179,0,.9),0 0 8px rgba(255,179,0,.6)"></span>' : '';
     var fechaDia = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
-    html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="'+(count>0 ? count+' cita(s) el '+day+' — toca para añadir otra' : 'Añadir cita el '+day)+'" style="position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:transparent;border:'+border+';color:'+color+';font-size:9px;font-weight:'+(isToday?'800':'400')+';cursor:pointer;line-height:1;box-sizing:border-box;text-shadow:'+textSh+boxSh+'">' +
-      day + dot +
-    '</div>';
+    if (esPasado) {
+      html += '<div title="No se pueden crear citas en días pasados" style="position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:transparent;border:'+border+';color:'+color+';font-size:9px;cursor:not-allowed;line-height:1;box-sizing:border-box;text-shadow:'+textSh+boxSh+'">' +
+        day + dot +
+      '</div>';
+    } else {
+      html += '<div onclick="openAddCitaModal(\''+cc+'\',\''+fechaDia+'\')" title="'+(count>0 ? count+' cita(s) el '+day+' — toca para añadir otra' : 'Añadir cita el '+day)+'" style="position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:5px;background:transparent;border:'+border+';color:'+color+';font-size:9px;font-weight:'+(isToday?'800':'400')+';cursor:pointer;line-height:1;box-sizing:border-box;text-shadow:'+textSh+boxSh+'">' +
+        day + dot +
+      '</div>';
+    }
   }
   html += '</div></div>';
   return html;
@@ -4013,7 +4025,9 @@ function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
   filtrarMatriculasPorCcaa();
 
   document.getElementById('ac-tipo').value = 'ITV';
-  document.getElementById('ac-fecha').value = fechaPreseleccionada || '';
+  var acFecha = document.getElementById('ac-fecha');
+  acFecha.value = fechaPreseleccionada || '';
+  acFecha.min = new Date().toISOString().slice(0,10); // bloquea días pasados en el propio selector
   document.getElementById('ac-hora').value = '';
   document.getElementById('ac-lugar').value = '';
   document.getElementById('ac-nota').value = '';
@@ -4063,6 +4077,11 @@ function guardarNuevaCitaDashboard() {
 
   if (!matricula) { alert('Elige una matrícula.'); return; }
   if (!fecha) { alert('Elige una fecha.'); return; }
+  if (!_editandoCitaId) {
+    var hoyLimite = new Date(); hoyLimite.setHours(0,0,0,0);
+    var fechaElegida = new Date(fecha + 'T00:00:00');
+    if (fechaElegida < hoyLimite) { alert('No se pueden crear citas en días pasados.'); return; }
+  }
 
   fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
     lista = lista || [];

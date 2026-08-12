@@ -761,7 +761,7 @@ function paintVehiculosHome() {
   if (!container) return;
 
   var now = new Date();
-  function dU(s) { return s ? Math.round((new Date(s) - now) / 86400000) : 9999; }
+  function dU(s) { if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d - hoy) / 86400000); }
   function fD(s) { return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
   // Group vehicles by CCAA
@@ -1225,7 +1225,7 @@ function renderHomeProximas() {
   });
 
   var now = new Date();
-  function dU(f,hh){ return Math.round((new Date(f+'T'+(hh||'00:00'))-now)/86400000); }
+  function dU(f,hh){ var d = new Date(f+'T'+(hh||'00:00')); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
 
   var future = allCitas
     .filter(function(c){ return c.fecha && dU(c.fecha,c.hora)>=0; })
@@ -1514,6 +1514,8 @@ function guardarCitaTallerMat() {
   var nota  = (document.getElementById('mat-taller-nota').value||'').trim();
 
   if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+  var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
+  if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
 
   v.conductores.forEach(function(cid) {
     var key = 'drivx_citas_' + cid;
@@ -1685,6 +1687,8 @@ function guardarCita() {
   var nota   = document.getElementById('cita-nota').value.trim();
 
   if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+  var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
+  if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
 
   var cidsToNotify = [];
   var matricula, nombre;
@@ -1756,7 +1760,7 @@ function renderNotifCitas() {
   allCitas=allCitas.filter(function(c){var k=(c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');if(seen[k])return false;seen[k]=true;return true;});
   allCitas.sort(function(a,b){return new Date(a.fecha+'T'+(a.hora||'00:00'))-new Date(b.fecha+'T'+(b.hora||'00:00'));});
   var now=new Date();
-  function dU(f,hh){return Math.round((new Date(f+'T'+(hh||'00:00'))-now)/86400000);}
+  function dU(f,hh){ var d = new Date(f+'T'+(hh||'00:00')); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   var future=allCitas.filter(function(c){return dU(c.fecha,c.hora)>=0;});
   var past=allCitas.filter(function(c){return dU(c.fecha,c.hora)<0;});
   var html='';
@@ -1809,7 +1813,7 @@ function renderITVAlerts() {
   var list = document.getElementById('notif-itv-list');
   if (!list) return;
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
   var rows = VEHICULOS
@@ -1888,7 +1892,7 @@ function openITVDetail(matricula) {
   var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
   var days = dU(v.docs.itv.fecha);
   var color = days < 0 ? 'var(--red)' : days <= 30 ? 'var(--red)' : 'var(--amber)';
@@ -1972,6 +1976,8 @@ function guardarCitaTaller() {
 
   if (!mat)   { toast('⚠ Selecciona una matrícula'); return; }
   if (!fecha) { toast('⚠ Selecciona una fecha');     return; }
+  var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
+  if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
 
   var v = VEHICULOS.find(function(x){ return x.matricula === mat; });
   if (!v) return;
@@ -2010,7 +2016,7 @@ function renderITVAlerts() {
   var list = document.getElementById('notif-itv-list');
   if (!list) return;
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
   var sorted = VEHICULOS
@@ -2131,6 +2137,8 @@ function guardarCitaTallerModal() {
   var nota  = document.getElementById('am-nota').value.trim();
 
   if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+  var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
+  if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
 
   v.conductores.forEach(function(cid) {
     var key = 'drivx_citas_' + cid;
@@ -2170,7 +2178,7 @@ function verMatAlerta(btn) {
   _verMatActual = v;
 
   var now = new Date();
-  function dU(s){ return s ? Math.round((new Date(s)-now)/86400000) : 9999; }
+  function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '-'; }
 
   // Set header
@@ -2261,6 +2269,8 @@ function guardarCitaTallerVer() {
   var lugar = (document.getElementById('vm-lugar').value||'').trim();
   var nota  = (document.getElementById('vm-nota').value||'').trim();
   if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+  var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
+  if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
 
   v.conductores.forEach(function(cid) {
     var key='drivx_citas_'+cid, citas=[];
