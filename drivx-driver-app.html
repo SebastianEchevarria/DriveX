@@ -837,6 +837,11 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <label>IBAN / Número de cuenta</label>
         <input id="inv-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="font-size:15px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
       </div>
+      <div class="field">
+        <label>Bizum (opcional)</label>
+        <input id="inv-bizum" type="tel" placeholder="600 123 456">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Si tienes Bizum, indica el teléfono asociado como método de pago adicional</div>
+      </div>
       <button class="btn-primary" onclick="startRegVerification()" style="width:100%">Verificar documentos →</button>
     </div>
 
@@ -909,6 +914,10 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <div class="field" style="margin-bottom:6px">
         <label>Cuenta bancaria (IBAN)</label>
         <input id="driver-cuenta-input" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="field" style="margin-bottom:6px">
+        <label>Bizum (opcional)</label>
+        <input id="driver-bizum-input" type="tel" placeholder="600 123 456">
       </div>
 
       <button class="btn-primary" onclick="guardarPerfilDriver()" style="margin-top:10px">Guardar cambios</button>
@@ -1464,6 +1473,7 @@ function startRegVerification() {
   var cuenta = (document.getElementById('inv-cuenta').value || '').trim();
   if (cuenta.replace(/\s/g,'').length < 10) { toast('⚠ Introduce una cuenta bancaria válida'); return; }
   _inviteData.cuentaBancaria = cuenta;
+  _inviteData.bizum = (document.getElementById('inv-bizum').value || '').trim();
 
   goRegStep('inv-step-verifying');
   var statusEl = document.getElementById('inv-verifying-status');
@@ -1505,6 +1515,7 @@ function finalizeRegistro() {
     pass: pass,
     email: inv.email || null,
     cuentaBancaria: inv.cuentaBancaria || '',
+    bizum: inv.bizum || '',
     matricula: inv.matricula,
     turno: inv.turno,
     porcentaje: (typeof inv.porcentaje === 'number') ? inv.porcentaje : 30,
@@ -1988,6 +1999,7 @@ function pintarPerfilDriver() {
     if (reg) {
       if (reg.telefono) document.getElementById('driver-telefono-input').value = reg.telefono;
       document.getElementById('driver-cuenta-input').value = reg.cuentaBancaria || '';
+      document.getElementById('driver-bizum-input').value = reg.bizum || '';
     }
   }).catch(function(){});
 }
@@ -1996,13 +2008,14 @@ function guardarPerfilDriver() {
   if (!currentUser) return;
   var telefono = (document.getElementById('driver-telefono-input').value || '').trim();
   var cuenta   = (document.getElementById('driver-cuenta-input').value || '').trim();
+  var bizum    = (document.getElementById('driver-bizum-input').value || '').trim();
   if (telefono.length < 6) { toast('⚠ Introduce un teléfono válido'); return; }
   if (cuenta.replace(/\s/g,'').length < 10) { toast('⚠ Introduce una cuenta bancaria válida'); return; }
 
   currentUser.telefono = telefono;
   fetch(FIREBASE_URL + '/conductores_registro/' + currentUser.cid + '.json', {
     method: 'PATCH', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ telefono: telefono, cuentaBancaria: cuenta })
+    body: JSON.stringify({ telefono: telefono, cuentaBancaria: cuenta, bizum: bizum })
   }).then(function(){
     toast('✓ Datos guardados');
   }).catch(function(){
@@ -2929,6 +2942,12 @@ function pintarLiquidacionDriver(d) {
 
   var html = '';
 
+  html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">';
+  html += '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>';
+  html += '<div style="font-family:var(--mono);font-size:26px;font-weight:900;color:' + colorResultadoVar + ';text-shadow:0 0 8px rgba(' + colorResultado + ',.9)">€ ' + Math.abs(d.resultado).toFixed(2).replace('.',',') + '</div>';
+  html += '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + d.sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + d.efectivoReal.toFixed(2).replace('.',',') + ')</div>';
+  html += '</div>';
+
   html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 14px rgba(0,230,118,.8),0 0 30px rgba(0,230,118,.5)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
     '<span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">💵 SUELDO</span>' +
@@ -2955,12 +2974,6 @@ function pintarLiquidacionDriver(d) {
     linea('Transfers cobrados en efectivo', d.transfersEfectivoTotal) +
     linea('Gastos (incl. datáfono)', d.gastosTotal, true) +
   '</div>';
-  html += '</div>';
-
-  html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">';
-  html += '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>';
-  html += '<div style="font-family:var(--mono);font-size:26px;font-weight:900;color:' + colorResultadoVar + ';text-shadow:0 0 8px rgba(' + colorResultado + ',.9)">€ ' + Math.abs(d.resultado).toFixed(2).replace('.',',') + '</div>';
-  html += '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + d.sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + d.efectivoReal.toFixed(2).replace('.',',') + ')</div>';
   html += '</div>';
 
   cont.innerHTML = html;

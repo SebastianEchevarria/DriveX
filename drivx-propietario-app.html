@@ -1075,6 +1075,30 @@ function casillaFactO(color, textColor, label, valor) {
   '</div>';
 }
 
+function copiarCuentaConductorO(fuid, btn) {
+  var el = document.getElementById('cuentacopy_' + fuid);
+  if (!el) return;
+  var texto = el.textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(texto);
+  if (btn) {
+    var old = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(function(){ btn.textContent = old; }, 1500);
+  }
+}
+
+function copiarBizumConductorO(fuid, btn) {
+  var el = document.getElementById('bizumcopy_' + fuid);
+  if (!el) return;
+  var texto = el.textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(texto);
+  if (btn) {
+    var old = btn.textContent;
+    btn.textContent = '✓ Copiado';
+    setTimeout(function(){ btn.textContent = old; }, 1500);
+  }
+}
+
 function toggleFacturacionCondO(fuid, cid, matricula) {
   var body = document.getElementById('body_' + fuid);
   var chev = document.getElementById('chev_' + fuid);
@@ -1163,7 +1187,35 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     var etiquetaResultado = esPagar ? 'DEBES PAGAR A ESTE CONDUCTOR' : 'ESTE CONDUCTOR TE DEBE DEVOLVER';
 
     var html = '';
-    html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:12px;padding:12px 14px;margin:12px 0 10px;box-shadow:0 0 12px rgba(0,230,118,.8),0 0 26px rgba(0,230,118,.5)">' +
+
+    html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 0 16px rgba(' + colorResultado + ',.9),0 0 32px rgba(' + colorResultado + ',.55);text-align:center">' +
+      '<div style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>' +
+      '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorResultadoVar + '">€ ' + Math.abs(resultado).toFixed(2).replace('.',',') + '</div>' +
+    '</div>';
+
+    var cuentaConductor = reg.cuentaBancaria || '';
+    html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1.5px solid rgba(0,212,255,.6);border-radius:12px;padding:11px 13px;margin-bottom:12px;box-shadow:0 0 8px rgba(0,212,255,.5),0 0 16px rgba(0,212,255,.28)">' +
+      '<span style="font-size:18px;flex-shrink:0">🏦</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Cuenta bancaria del conductor</div>' +
+        '<div id="cuentacopy_' + fuid + '" style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (cuentaConductor || 'No proporcionada') + '</div>' +
+      '</div>' +
+      (cuentaConductor ? '<button onclick="copiarCuentaConductorO(\'' + fuid + '\', this)" style="flex-shrink:0;background:rgba(0,212,255,.14);border:1.5px solid rgba(0,212,255,.8);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit">📋 Copiar</button>' : '') +
+    '</div>';
+
+    if (reg.bizum) {
+      html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(124,92,252,.06);border:1.5px solid rgba(124,92,252,.6);border-radius:12px;padding:11px 13px;margin-bottom:12px;box-shadow:0 0 8px rgba(124,92,252,.5),0 0 16px rgba(124,92,252,.28)">' +
+        '<span style="font-size:18px;flex-shrink:0">📲</span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Bizum del conductor</div>' +
+          '<div id="bizumcopy_' + fuid + '" style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--purple)">' + reg.bizum + '</div>' +
+        '</div>' +
+        '<button onclick="copiarBizumConductorO(\'' + fuid + '\', this)" style="flex-shrink:0;background:rgba(124,92,252,.14);border:1.5px solid rgba(124,92,252,.8);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit">📋 Copiar</button>' +
+      '</div>';
+    }
+
+
+    html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,230,118,.8),0 0 26px rgba(0,230,118,.5)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
         '<span style="font-size:12px;font-weight:900;color:#fff">💵 SUELDO</span>' +
         '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--green)">€ ' + sueldo.toFixed(2).replace('.',',') + '</span>' +
@@ -1188,11 +1240,6 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
         linea('Transfers en efectivo', transfersEfectivoTotal) +
         linea('Gastos (incl. datáfono)', gastosTotal, true) +
       '</div>' +
-    '</div>';
-
-    html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 0 16px rgba(' + colorResultado + ',.9),0 0 32px rgba(' + colorResultado + ',.55);text-align:center">' +
-      '<div style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>' +
-      '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorResultadoVar + '">€ ' + Math.abs(resultado).toFixed(2).replace('.',',') + '</div>' +
     '</div>';
 
     html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:0 0 12px;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
