@@ -680,6 +680,18 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ VERIFICACIÓN DE KM DETECTADOS ══════════════ -->
+<div id="verif-km-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.9);border-radius:24px;padding:24px 22px;width:100%;max-width:360px;text-align:center;box-shadow:0 0 18px rgba(0,212,255,.6),0 0 40px rgba(0,212,255,.35),0 20px 50px rgba(0,0,0,.6)">
+    <div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:14px">Verifica el kilometraje detectado</div>
+    <img id="verif-km-img" src="" style="max-width:100%;max-height:200px;border-radius:12px;object-fit:contain;display:block;margin:0 auto 16px;border:1px solid var(--border2)">
+    <div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,.9);border-radius:12px;padding:12px;margin-bottom:20px">
+      <div id="verif-km-valor" style="font-family:var(--mono);font-size:24px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9)">—</div>
+    </div>
+    <button onclick="confirmarVerificacionKm()" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(0,230,118,.9);background:rgba(0,230,118,.15);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px">✓ Es correcto, continuar</button>
+    <button onclick="corregirVerificacionKm()" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:inherit">✏️ No es correcto, lo corrijo yo</button>
+  </div>
+</div>
 
 <!-- ══════════════ KM MODAL ══════════════ -->
 <div class="modal-overlay" id="km-modal">
@@ -2061,8 +2073,9 @@ function onKmPhoto(input) {
     st.textContent = '🤖 Preparando imagen...';
     st.className = 'km-status';
 
-    // Call AI
-    var prompt = 'Foto del cuadro de instrumentos. Necesito SOLO el total del odómetro en km (el número grande acumulado, no la autonomía). Ignora fechas (DD.MM.AAAA). Responde SOLO: {"km":NUMERO,"confianza":0.0-1.0}';
+    // Call AI — primero comprobamos que la foto es realmente del cuadro de
+    // instrumentos / pantalla de km (y no un DNI, un documento u otra cosa).
+    var prompt = 'Analiza esta imagen. Primero comprueba si es una foto del cuadro de instrumentos o salpicadero de un coche, o de la pantalla central de un Tesla, mostrando el ODÓMETRO (el total acumulado de kilómetros recorridos por el vehículo). Si la imagen NO muestra claramente esto — por ejemplo es un documento de identidad, un DNI, una persona, un ticket, u otra cosa que no sea el cuadro de km del coche — responde SOLO con JSON sin markdown: {"esOdometro":false}. Si SÍ es una foto del odómetro del vehículo, responde SOLO con JSON sin markdown: {"esOdometro":true,"km":NUMERO,"confianza":0.0}. El número de km debe ser el total acumulado (el número grande), NUNCA la autonomía restante ni una fecha.';
 
     comprimirImagenBase64(kmPhotoBase64, kmPhotoType, 1500, 0.72).then(function(img){
       kmPhotoBase64 = img.base64; kmPhotoType = img.mediaType;
@@ -2071,17 +2084,23 @@ function onKmPhoto(input) {
       return analyzeImage(kmPhotoBase64, kmPhotoType, prompt);
     }).then(function(text) {
       var parsed = parseJSON(text);
+
+      if (parsed && parsed.esOdometro === false) {
+        inp.value = '';
+        inp.placeholder = 'Escribe los km aquí';
+        st.textContent = '❌ Esta foto no parece el cuadro de km del coche — repite la foto';
+        st.className = 'km-status warn';
+        toast('❌ La imagen no parece el odómetro del vehículo. Vuelve a hacer la foto.');
+        return;
+      }
+
       var km = parsed ? parseInt(parsed.km) : null;
 
       // Try OCR parse if AI returned raw text
       if (!km || km < 100) km = ocrParseKm(text);
 
       if (km && km > 100) {
-        inp.value = km;
-        inp.className = 'valid';
-        st.textContent = '✓ ' + km.toLocaleString('es-ES') + ' km — corrige si es incorrecto';
-        st.className = 'km-status ok';
-        enableKmBtn(km);
+        mostrarVerificacionKm(km, dataUrl);
       } else {
         inp.placeholder = 'Escribe los km aquí';
         inp.focus();
@@ -2097,6 +2116,38 @@ function onKmPhoto(input) {
     });
   };
   reader.readAsDataURL(file);
+}
+
+// Cartel de verificación: antes de aceptar el km leído por la IA, se le
+// muestra al conductor la foto junto al número detectado para que confirme
+// que es correcto, en vez de aceptarlo a ciegas.
+function mostrarVerificacionKm(km, dataUrl) {
+  document.getElementById('verif-km-img').src = dataUrl;
+  document.getElementById('verif-km-valor').textContent = km.toLocaleString('es-ES') + ' km';
+  document.getElementById('verif-km-modal').dataset.km = km;
+  document.getElementById('verif-km-modal').style.display = 'flex';
+}
+function confirmarVerificacionKm() {
+  var km = parseInt(document.getElementById('verif-km-modal').dataset.km);
+  document.getElementById('verif-km-modal').style.display = 'none';
+  var inp = document.getElementById('km-input');
+  var st = document.getElementById('km-status');
+  inp.value = km;
+  inp.className = 'valid';
+  st.textContent = '✓ ' + km.toLocaleString('es-ES') + ' km — corrige si es incorrecto';
+  st.className = 'km-status ok';
+  enableKmBtn(km);
+}
+function corregirVerificacionKm() {
+  document.getElementById('verif-km-modal').style.display = 'none';
+  var km = parseInt(document.getElementById('verif-km-modal').dataset.km);
+  var inp = document.getElementById('km-input');
+  var st = document.getElementById('km-status');
+  inp.value = km;
+  inp.focus();
+  inp.select();
+  st.textContent = '✏️ Corrige el kilometraje si hace falta';
+  st.className = 'km-status warn';
 }
 
 // Cuando la IA no devuelve un JSON limpio (p.ej. si se usó el respaldo de
