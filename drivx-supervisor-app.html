@@ -3114,5 +3114,14 @@ function offerBiometricRegister(email,pass){
     <button onclick="document.getElementById('clear-biometric-modal2').style.display='none'" style="width:100%;padding:11px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;cursor:pointer;font-family:inherit">Cancelar</button>
   </div>
 </div>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function() {
+    navigator.serviceWorker.register("sw.js").catch(function(err) {
+      console.log("SW registration failed:", err);
+    });
+  });
+}
+</script>
 </body>
 </html>
