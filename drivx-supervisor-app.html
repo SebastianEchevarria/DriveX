@@ -1477,6 +1477,8 @@ function startSync() {
     pullCitasFromFirebase().then(function(){
       renderNotifCitas();
       renderHomeProximas();
+      var calScreen = document.getElementById('screen-calendario');
+      if (calScreen && calScreen.classList.contains('active')) renderCalendar(true);
     });
   }, 8000);
   setInterval(renderNotifCitas, 30000);
@@ -2630,7 +2632,7 @@ function getAllCitas() {
   return all;
 }
 
-function renderCalendar() {
+function renderCalendar(silent) {
   var monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var titleEl = document.getElementById('cal-month-title');
   var subEl   = document.getElementById('cal-sub');
@@ -2665,24 +2667,34 @@ function renderCalendar() {
   for (var i=0; i<firstDay; i++) {
     html += '<div></div>';
   }
+  var ahoraCal = Date.now();
   // Day cells
   for (var d=1; d<=daysInMonth; d++) {
     var hasCitas = citasByDay[d] && citasByDay[d].length > 0;
     var count = hasCitas ? citasByDay[d].length : 0;
+    var hasVencida = hasCitas && citasByDay[d].some(function(c){ return new Date(c.fecha + 'T' + (c.hora || '00:00')).getTime() < ahoraCal; });
     var isToday = (today.getDate()===d && today.getMonth()===_calMonth && today.getFullYear()===_calYear);
     var isSelected = (_calSelectedDay === d);
     var isPast = new Date(_calYear, _calMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-    var bg = isSelected ? 'var(--cyan)' : isToday ? 'rgba(0,212,255,.28)' : hasCitas ? 'rgba(0,212,255,.08)' : 'var(--surface)';
-    var textColor = isSelected ? '#000' : '#fff';
-    var border = isSelected ? '2px solid var(--cyan)' : isToday ? '2.5px solid rgba(0,212,255,1)' : hasCitas ? '1.5px solid rgba(0,212,255,.5)' : '1.5px solid rgba(0,212,255,.3)';
-    var glow = isSelected ? '' : isToday ? ';box-shadow:0 0 14px rgba(0,212,255,1),0 0 30px rgba(0,212,255,.85),0 0 50px rgba(0,212,255,.55),0 0 70px rgba(0,212,255,.3)' : ';box-shadow:0 0 6px rgba(0,212,255,.45),0 0 14px rgba(0,212,255,.28),0 0 24px rgba(0,212,255,.15)';
+    var bg, textColor, border, glow;
+    if (hasVencida) {
+      bg = isSelected ? 'rgba(255,71,87,.35)' : 'rgba(255,71,87,.14)';
+      textColor = 'var(--red)';
+      border = '2.5px solid rgba(255,71,87,1)';
+      glow = ';box-shadow:0 0 10px rgba(255,71,87,1),0 0 22px rgba(255,71,87,.7),0 0 36px rgba(255,71,87,.4)';
+    } else {
+      bg = isSelected ? 'var(--cyan)' : isToday ? 'rgba(0,212,255,.28)' : hasCitas ? 'rgba(0,212,255,.08)' : 'var(--surface)';
+      textColor = isSelected ? '#000' : '#fff';
+      border = isSelected ? '2px solid var(--cyan)' : isToday ? '2.5px solid rgba(0,212,255,1)' : hasCitas ? '1.5px solid rgba(0,212,255,.5)' : '1.5px solid rgba(0,212,255,.3)';
+      glow = isSelected ? '' : isToday ? ';box-shadow:0 0 14px rgba(0,212,255,1),0 0 30px rgba(0,212,255,.85),0 0 50px rgba(0,212,255,.55),0 0 70px rgba(0,212,255,.3)' : ';box-shadow:0 0 6px rgba(0,212,255,.45),0 0 14px rgba(0,212,255,.28),0 0 24px rgba(0,212,255,.15)';
+    }
 
-    html += '<div id="calday_'+d+'" data-today="'+(isToday?'1':'0')+'" data-citas="'+(hasCitas?'1':'0')+'" data-past="'+(isPast?'1':'0')+'" onclick="selectCalDay('+d+')" style="'
-      +'background:'+bg+';border:'+border+glow+';border-radius:10px;padding:6px 4px;text-align:center;cursor:pointer;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'
-      +'<span style="font-size:15px;font-weight:900;color:'+textColor+'">'+d+'</span>';
+    html += '<div id="calday_'+d+'" data-today="'+(isToday?'1':'0')+'" data-citas="'+(hasCitas?'1':'0')+'" data-past="'+(isPast?'1':'0')+'" data-vencida="'+(hasVencida?'1':'0')+'" onclick="selectCalDay('+d+')" style="'
+      +'background:'+bg+';border:'+border+glow+';border-radius:10px;padding:6px 4px;text-align:center;cursor:pointer;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px'+(hasVencida?';animation:pulseVencida 1.6s ease-in-out infinite':'')+'">'
+      +'<span style="font-size:15px;font-weight:900;color:'+textColor+(hasVencida?';text-shadow:0 0 6px rgba(255,71,87,.95)':'')+'">'+d+'</span>';
     if (hasCitas) {
-      html += '<span style="background:'+(isSelected?'rgba(0,0,0,.3)':'var(--cyan)')+';color:'+(isSelected?'#fff':'#000')+';border-radius:8px;padding:1px 5px;font-size:9px;font-weight:800">'+count+'</span>';
+      html += '<span style="background:'+(hasVencida?'var(--red)':isSelected?'rgba(0,0,0,.3)':'var(--cyan)')+';color:'+(hasVencida?'#fff':isSelected?'#fff':'#000')+';border-radius:8px;padding:1px 5px;font-size:9px;font-weight:800">'+count+'</span>';
     }
     html += '</div>';
   }
@@ -2691,14 +2703,14 @@ function renderCalendar() {
 
   // Show selected day if any
   if (_calSelectedDay) {
-    selectCalDay(_calSelectedDay);
+    selectCalDay(_calSelectedDay, silent);
   } else {
     var detail = document.getElementById('cal-day-detail');
     if (detail) detail.style.display = 'none';
   }
 }
 
-function selectCalDay(day) {
+function selectCalDay(day, silent) {
   _calSelectedDay = day;
   // Just update visual selection without full re-render
   document.querySelectorAll('[id^="calday_"]').forEach(function(el) {
@@ -2707,32 +2719,38 @@ function selectCalDay(day) {
     var isToday = el.getAttribute('data-today') === '1';
     var hasCitas = el.getAttribute('data-citas') === '1';
     var isPast = el.getAttribute('data-past') === '1';
+    var hasVencida = el.getAttribute('data-vencida') === '1';
     var numSpan = el.querySelector('span');
-    if (isSelected) {
+    if (hasVencida) {
+      el.style.background = isSelected ? 'rgba(255,71,87,.35)' : 'rgba(255,71,87,.14)';
+      el.style.border = '2.5px solid rgba(255,71,87,1)';
+      el.style.boxShadow = '0 0 10px rgba(255,71,87,1),0 0 22px rgba(255,71,87,.7),0 0 36px rgba(255,71,87,.4)';
+      if (numSpan) { numSpan.style.color = 'var(--red)'; numSpan.style.fontWeight = '900'; numSpan.style.textShadow = '0 0 6px rgba(255,71,87,.95)'; }
+    } else if (isSelected) {
       el.style.background = 'var(--cyan)';
       el.style.border = '2px solid var(--cyan)';
       el.style.boxShadow = 'none';
-      if (numSpan) { numSpan.style.color = '#000'; numSpan.style.fontWeight = '900'; }
+      if (numSpan) { numSpan.style.color = '#000'; numSpan.style.fontWeight = '900'; numSpan.style.textShadow = 'none'; }
     } else if (isToday) {
       el.style.background = 'rgba(0,212,255,.28)';
       el.style.border = '2.5px solid rgba(0,212,255,1)';
       el.style.boxShadow = '0 0 14px rgba(0,212,255,1),0 0 30px rgba(0,212,255,.85),0 0 50px rgba(0,212,255,.55),0 0 70px rgba(0,212,255,.3)';
-      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; }
+      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; numSpan.style.textShadow = 'none'; }
     } else if (hasCitas) {
       el.style.background = 'rgba(0,212,255,.08)';
       el.style.border = '1.5px solid rgba(0,212,255,.5)';
       el.style.boxShadow = '0 0 6px rgba(0,212,255,.45),0 0 14px rgba(0,212,255,.28),0 0 24px rgba(0,212,255,.15)';
-      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; }
+      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; numSpan.style.textShadow = 'none'; }
     } else if (isPast) {
       el.style.background = 'var(--surface)';
       el.style.border = '1.5px solid rgba(0,212,255,.3)';
       el.style.boxShadow = '0 0 6px rgba(0,212,255,.45),0 0 14px rgba(0,212,255,.28),0 0 24px rgba(0,212,255,.15)';
-      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; }
+      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; numSpan.style.textShadow = 'none'; }
     } else {
       el.style.background = 'var(--surface)';
       el.style.border = '1.5px solid rgba(0,212,255,.3)';
       el.style.boxShadow = '0 0 6px rgba(0,212,255,.45),0 0 14px rgba(0,212,255,.28),0 0 24px rgba(0,212,255,.15)';
-      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; }
+      if (numSpan) { numSpan.style.color = '#fff'; numSpan.style.fontWeight = '900'; numSpan.style.textShadow = 'none'; }
     }
   });
 
@@ -2773,17 +2791,35 @@ function selectCalDay(day) {
       byMat[mat].forEach(function(c) {
         var cKey = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
         var estaVencida = new Date(c.fecha + 'T' + (c.hora || '00:00')).getTime() < ahoraCal;
-        h += '<div class="cal-cita-row" data-id="'+c.id+'" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 8px;margin:4px 0;border-radius:12px;'+(estaVencida?'background:rgba(255,71,87,.14);border:2px solid rgba(255,71,87,1);box-shadow:0 0 10px rgba(255,71,87,.9),0 0 22px rgba(255,71,87,.55);animation:pulseVencida 1.6s ease-in-out infinite':'border-bottom:1px solid var(--border)')+'">'
-          +'<span style="font-size:16px">'+((c.tipo==='ITV') ? itvIconImg(18,4) : (icons[c.tipo]||'📅'))+'</span>'
-          +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+(estaVencida?'#fff':'var(--text)')+'">'+c.tipo+(estaVencida?' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95);font-size:11px;font-weight:900">· VENCIDA</span>':'')+'</div>'
-          +'<div style="font-size:11px;color:'+(estaVencida?'#fff':'var(--text3)')+'">'+(c.hora?c.hora+' · ':'')+''+(c.lugar||'Sin dirección')+'</div>'
-          +(c.nota?'<div style="font-size:11px;color:'+(estaVencida?'#fff':'var(--text3)')+'">📝 '+c.nota+'</div>':'')
-          +'</div>'
-          +'<div style="display:flex;gap:6px;flex-shrink:0">'
-          +'<button class="cal-edit-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #00d4ff;background:rgba(0,212,255,.12);color:#00d4ff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">✏️</button>'
-          +'<button class="cal-del-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #ff4757;background:rgba(255,71,87,.12);color:#ff4757;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>'
-          +'</div>'
-          +'</div>';
+        var esITV = (c.tipo === 'ITV');
+
+        if (estaVencida) {
+          // Misma tarjeta que en Inicio: icono real + placa + cuenta atrás de borrado
+          var restanteCal = Math.max(0, 48 - ((ahoraCal - new Date(c.fecha+'T'+(c.hora||'00:00')).getTime())/3600000));
+          h += '<div class="cal-cita-row" data-id="'+c.id+'" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 10px;margin:6px 0;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 12px rgba(255,71,87,1),0 0 26px rgba(255,71,87,.65);animation:pulseVencida 1.6s ease-in-out infinite">' +
+            (esITV ? itvIconImg(36,10) : '<div style="width:36px;height:36px;border-radius:10px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">'+(icons[c.tipo]||'📅')+'</div>') +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-size:13px;font-weight:900;color:#fff">'+(c.tipo||'Cita')+' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95)">· VENCIDA</span></div>' +
+              '<div style="font-size:11px;color:#fff;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+(c.hora||'')+' · <span style="display:inline-flex;transform:scale(.72);transform-origin:left center">'+plateHtml(c.matricula)+'</span></div>' +
+            '</div>' +
+            '<div style="text-align:right;flex-shrink:0">' +
+              '<div style="font-size:9px;color:#fff;font-weight:800">SE BORRA EN</div>' +
+              '<div style="font-family:var(--mono);font-size:12px;font-weight:900;color:#fff">'+restanteCal.toFixed(0)+'h</div>' +
+            '</div>' +
+          '</div>';
+        } else {
+          h += '<div class="cal-cita-row" data-id="'+c.id+'" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
+            +'<span style="font-size:16px">'+(esITV ? itvIconImg(18,4) : (icons[c.tipo]||'📅'))+'</span>'
+            +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">'+c.tipo+'</div>'
+            +'<div style="font-size:11px;color:var(--text3)">'+(c.hora?c.hora+' · ':'')+''+(c.lugar||'Sin dirección')+'</div>'
+            +(c.nota?'<div style="font-size:11px;color:var(--text3)">📝 '+c.nota+'</div>':'')
+            +'</div>'
+            +'<div style="display:flex;gap:6px;flex-shrink:0">'
+            +'<button class="cal-edit-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #00d4ff;background:rgba(0,212,255,.12);color:#00d4ff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">✏️</button>'
+            +'<button class="cal-del-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #ff4757;background:rgba(255,71,87,.12);color:#ff4757;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>'
+            +'</div>'
+            +'</div>';
+        }
       });
       h += '</div>';
     });
@@ -2791,8 +2827,8 @@ function selectCalDay(day) {
   }
 
   detail.style.display = 'block';
-  // Scroll to detail
-  detail.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  // Scroll to detail (solo en la selección manual, no en el auto-refresh silencioso)
+  if (!silent) detail.scrollIntoView({ behavior:'smooth', block:'nearest' });
 
   // La lista de este día queda disponible para el modal de detalle
   _calDayCitasCache = dayCitas;
