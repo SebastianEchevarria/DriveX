@@ -3837,19 +3837,43 @@ function paintCitas() {
     _citasPorGidCache[gid] = citasCcaa;
     html += '<div id="calwrap_'+gid+'">' + buildMiniCalendar(citasCcaa, now, gid, cc) + '</div>';
 
-    // Listado cronológico con todos los detalles
-    html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📋 Próximas citas</div>';
-    if (!citasCcaa.length) {
-      html += '<div style="padding:14px;color:var(--text3);font-size:12px;text-align:center">Sin citas programadas en esta comunidad</div>';
+    // Listado cronológico con todos los detalles: separamos las que ya
+    // vencieron (van en su propio bloque rojo) de las próximas de verdad.
+    var vencidasCcaa = citasCcaa.filter(function(cita){
+      return new Date(cita.fecha + 'T' + (cita.hora || '00:00')) < now;
+    });
+    var proximasCcaa = citasCcaa.filter(function(cita){
+      return new Date(cita.fecha + 'T' + (cita.hora || '00:00')) >= now;
+    });
+
+    if (vencidasCcaa.length) {
+      html += '<div style="font-size:11px;font-weight:900;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px;text-shadow:0 0 6px rgba(255,71,87,.7)">🚨 CITAS VENCIDAS (' + vencidasCcaa.length + ')</div>';
+      vencidasCcaa.forEach(function(cita){
+        var esITV = (cita.tipo === 'ITV');
+        var esRevision = (cita.tipo === 'Revisión general');
+        var info = citaTipoInfo(cita.tipo);
+        html += '<div class="cita-card" data-matricula="'+(cita.matricula||'').replace(/\s/g,'').toUpperCase()+'" onclick="openCitaDetail('+cita.id+')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:2.5px solid rgba(255,71,87,1);border-radius:14px;margin-bottom:8px;cursor:pointer;background:rgba(255,71,87,.14);box-shadow:0 0 12px rgba(255,71,87,.9),0 0 26px rgba(255,71,87,.55);animation:pulseVencida 1.6s ease-in-out infinite">';
+        html += '<div style="width:40px;height:40px;border-radius:11px;background:'+(esITV?'#0a1830':'rgba(255,255,255,.06)')+';display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0'+((esITV||esRevision)?';border:2px solid rgba(0,212,255,.9);box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45)':'')+'">'+(esITV?itvIconImg(26,5,true):esRevision?revisionIconImg(26,6,true):info.icon)+'</div>';
+        html += '<div style="flex:1;min-width:0">';
+        html += '<div style="font-size:13px;font-weight:900;color:#fff">'+cita.tipo+'</div>';
+        html += '<div style="font-size:11px;color:#fff;margin-top:2px">venció '+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="font-family:var(--mono);color:#fff">'+cita.matricula+'</span></div>';
+        html += '</div>';
+        html += '<span style="font-size:10px;font-weight:900;color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95);flex-shrink:0">VENCIDA</span>';
+        html += '</div>';
+      });
     }
-    citasCcaa.forEach(function(cita){
+
+    html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">📋 Próximas citas</div>';
+    if (!proximasCcaa.length) {
+      html += '<div style="padding:14px;color:var(--text3);font-size:12px;text-align:center">Sin citas próximas en esta comunidad</div>';
+    }
+    proximasCcaa.forEach(function(cita){
       var info = citaTipoInfo(cita.tipo);
       var esITV = (cita.tipo === 'ITV');
       var esRevision = (cita.tipo === 'Revisión general');
       var dCita = new Date(cita.fecha + 'T' + (cita.hora || '00:00'));
       var diasFaltan = Math.round((new Date(dCita.getFullYear(),dCita.getMonth(),dCita.getDate()) - new Date(now.getFullYear(),now.getMonth(),now.getDate())) / 86400000);
-      var vencida = dCita < now && diasFaltan < 0;
-      var borderColor = vencida ? 'rgba(255,71,87,.4)' : diasFaltan <= 2 ? 'rgba(255,179,0,.4)' : 'var(--border)';
+      var borderColor = diasFaltan <= 2 ? 'rgba(255,179,0,.4)' : 'var(--border)';
       var nombreCond = nombreConductorCita(cita.cid);
 
       html += '<div class="cita-card" data-matricula="'+(cita.matricula||'').replace(/\s/g,'').toUpperCase()+'" onclick="openCitaDetail('+cita.id+')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:2px solid '+borderColor+';border-radius:14px;margin-bottom:8px;cursor:pointer;background:var(--surface2)">';
@@ -3858,9 +3882,7 @@ function paintCitas() {
       html += '<div style="font-size:13px;font-weight:800;color:var(--text)">'+cita.tipo+'</div>';
       html += '<div style="font-size:11px;color:var(--text3)">'+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="font-family:var(--mono);color:var(--cyan)">'+cita.matricula+'</span>'+(nombreCond?' · '+nombreCond:'')+'</div>';
       html += '</div>';
-      html += vencida
-        ? '<span style="font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:3px 8px;flex-shrink:0">VENCIDA</span>'
-        : '<span style="font-size:10px;font-weight:800;color:'+(diasFaltan<=2?'var(--amber)':'var(--text3)')+';flex-shrink:0">'+(diasFaltan===0?'HOY':diasFaltan===1?'MAÑANA':diasFaltan+' días')+'</span>';
+      html += '<span style="font-size:10px;font-weight:800;color:'+(diasFaltan<=2?'var(--amber)':'var(--text3)')+';flex-shrink:0">'+(diasFaltan===0?'HOY':diasFaltan===1?'MAÑANA':diasFaltan+' días')+'</span>';
       html += '</div>';
     });
 
