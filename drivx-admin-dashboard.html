@@ -1107,7 +1107,7 @@ function renderProximasCitasInicio() {
     var proximas = lista.filter(function(c){
       if (!c.fecha) return false;
       var d = new Date(c.fecha + 'T' + (c.hora || '00:00'));
-      return d >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && d <= limite;
+      return d >= now && d <= limite;
     });
     proximas.sort(function(a,b){ return (a.fecha+(a.hora||'00:00')).localeCompare(b.fecha+(b.hora||'00:00')); });
 
