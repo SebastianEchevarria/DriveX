@@ -2,15 +2,14 @@
   "name": "DRIVX Propietario App",
   "short_name": "DRIVX Propietario",
   "description": "Panel de propietarios de vehículos DRIVX",
-  "start_url": "./drivx-propietario-app.html",
-  "scope": "./",
+  "start_url": "/drivx-propietario-app.html",
+  "scope": "/",
+  "id": "drivx-propietario",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070b12",
   "theme_color": "#b25ee1",
   "icons": [
-    { "src": "icons/icon-propietario-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-propietario-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-propietario-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icon-propietario.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }
