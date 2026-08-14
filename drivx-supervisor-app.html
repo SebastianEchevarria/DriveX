@@ -1564,10 +1564,7 @@ function renderCitasVencidasAlertsSup(lista) {
   });
 
   var html = '<div style="margin:16px 0">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">' +
-    '<div style="font-size:15px;font-weight:900;color:var(--red);display:flex;align-items:center;gap:8px;text-shadow:0 0 8px rgba(255,71,87,.9)">🚨 CITAS VENCIDAS (' + vencidas.length + ') — se eliminarán a las 48h</div>' +
-    '<button onclick="resetCitaModalGeneral();document.getElementById(\'cita-modal\').style.display=\'flex\'" style="flex-shrink:0;padding:7px 12px;border-radius:10px;border:1.5px solid rgba(0,212,255,.6);background:rgba(0,212,255,.12);color:var(--cyan);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">+ Nueva cita</button>' +
-  '</div>';
+  html += '<div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-shadow:0 0 8px rgba(255,71,87,.9)">🚨 CITAS VENCIDAS (' + vencidas.length + ') — se eliminarán a las 48h</div>';
   html += vencidas.map(function(c){
     var restante = Math.max(0, 48 - ((ahora - new Date(c.fecha+'T'+(c.hora||'00:00')).getTime())/3600000));
     var esITV = (c.tipo === 'ITV');
@@ -1588,38 +1585,126 @@ function renderCitasVencidasAlertsSup(lista) {
   _citasVencidasSupCache = vencidas;
 }
 
-// ── Modal de detalle de una cita vencida: ver + eliminar ──
+// ── Modal de detalle de una cita (vencida o no): ver + eliminar + solicitar otra ──
 var _citasVencidasSupCache = [];
+var _calDayCitasCache = [];
+var _citaDetailSupActual = null;
 function openCitaDetailSup(id) {
-  var c = _citasVencidasSupCache.find(function(x){ return String(x.id) === String(id); });
+  var c = _citasVencidasSupCache.find(function(x){ return String(x.id) === String(id); }) ||
+          _calDayCitasCache.find(function(x){ return String(x.id) === String(id); });
   if (!c) return;
+  renderCitaDetailModalSup(c);
+}
+function renderCitaDetailModalSup(c) {
+  _citaDetailSupActual = c;
+  var estaVencida = new Date(c.fecha + 'T' + (c.hora || '00:00')).getTime() < Date.now();
   var esITV = (c.tipo === 'ITV');
   var icons = {'ITV':'🔧','Taller':'🔩','Revisión general':'🔍','Cambio aceite':'🛢️','Frenos':'🛑','Neumáticos':'🏎️','Batería':'⚡','Climatización':'❄️','Suspensión':'🔧','Filtros':'🌀','Otro':'📌','Otro taller':'🔩'};
+
   var body =
     '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">' +
       (esITV ? itvIconImg(38,10) : '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,71,87,.15);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">'+(icons[c.tipo]||'📅')+'</div>') +
-      '<div><div style="font-size:16px;font-weight:900;color:#fff">'+(c.tipo||'Cita')+' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95);font-size:12px">· VENCIDA</span></div></div>' +
+      '<div><div style="font-size:16px;font-weight:900;color:#fff">'+(c.tipo||'Cita')+(estaVencida?' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95);font-size:12px">· VENCIDA</span>':'')+'</div></div>' +
     '</div>' +
     '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:18px;width:24px;flex-shrink:0">📅</div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Fecha</div><div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">'+(c.fecha||'—')+'</div></div></div>' +
     '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:18px;width:24px;flex-shrink:0">🕐</div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Hora</div><div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">'+(c.hora||'No especificada')+'</div></div></div>' +
     '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:18px;width:24px;flex-shrink:0">🚗</div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Matrícula</div>'+(c.matricula?plateHtml(c.matricula):'—')+'</div></div>' +
     '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:18px;width:24px;flex-shrink:0">📍</div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lugar</div><div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">'+(c.lugar||'No especificado')+'</div></div></div>' +
-    (c.nota ? '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:18px;width:24px;flex-shrink:0">📝</div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Nota</div><div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">'+c.nota+'</div></div></div>' : '') +
-    '<div style="margin-top:18px"><button id="cd-sup-delete-btn" onclick="confirmDeleteCitaSup(\''+c.id+'\')" style="width:100%;padding:13px;border-radius:12px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar cita</button></div>';
+    (c.nota ? '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-size:18px;width:24px;flex-shrink:0">📝</div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Nota</div><div style="font-size:14px;color:var(--text);font-weight:600;margin-top:2px">'+c.nota+'</div></div></div>' : '');
+
+  if (estaVencida) {
+    var conductoresMat = CONDUCTORES.filter(function(x){ return x.matricula === c.matricula; });
+    var opcionesConductor = '<option value="">👥 Todos los conductores / sin concretar</option>' +
+      conductoresMat.map(function(cd){ return '<option value="'+cd.cid+'">'+cd.nombre+'</option>'; }).join('');
+    body += '<div style="margin-top:18px"><button onclick="toggleSolicitarOtraCitaSup()" style="width:100%;padding:13px;border-radius:12px;background:rgba(0,212,255,.1);border:1.5px solid rgba(0,212,255,.5);color:var(--cyan);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">📅 Solicitar otra cita con esta matrícula</button></div>' +
+      '<div id="cd-sup-nueva-form" style="display:none;margin-top:14px;padding:14px;border-radius:14px;background:rgba(0,212,255,.06);border:1.5px solid rgba(0,212,255,.3)">' +
+        '<div class="field" style="margin-bottom:10px"><label>Tipo</label><select id="cd-sup-nueva-tipo" class="form-input">' +
+          ['ITV','Taller','Revisión general','Cambio aceite','Frenos','Neumáticos','Batería','Climatización','Suspensión','Filtros','Otro'].map(function(t){ return '<option value="'+t+'"'+(t===c.tipo?' selected':'')+'>'+t+'</option>'; }).join('') +
+        '</select></div>' +
+        '<div class="field" style="margin-bottom:10px"><label>Conductor</label><select id="cd-sup-nueva-conductor" class="form-input">'+opcionesConductor+'</select></div>' +
+        '<div class="field" style="margin-bottom:10px"><label>Fecha</label><input type="date" id="cd-sup-nueva-fecha" class="form-input" min="'+new Date().toISOString().slice(0,10)+'"></div>' +
+        '<div class="field" style="margin-bottom:10px"><label>Hora</label><input type="time" id="cd-sup-nueva-hora" class="form-input"></div>' +
+        '<div class="field" style="margin-bottom:10px"><label>Lugar</label><input type="text" id="cd-sup-nueva-lugar" class="form-input" value="'+(c.lugar||'').replace(/"/g,'&quot;')+'"></div>' +
+        '<div class="field" style="margin-bottom:12px"><label>Nota</label><input type="text" id="cd-sup-nueva-nota" class="form-input"></div>' +
+        '<button onclick="guardarNuevaCitaDesdeDetalleSup()" style="width:100%;padding:13px;border-radius:12px;background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.7);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">✓ Guardar cita</button>' +
+      '</div>';
+  }
+
+  body += '<div style="margin-top:14px"><button id="cd-sup-delete-btn" onclick="confirmDeleteCitaSup(\''+c.id+'\')" style="width:100%;padding:13px;border-radius:12px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);color:var(--red);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar cita</button></div>';
 
   var modal = document.getElementById('cita-detail-modal-sup');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'cita-detail-modal-sup';
     modal.className = 'modal-overlay';
-    modal.innerHTML = '<div id="cd-sup-box" style="background:var(--surface);border:2.5px solid rgba(255,71,87,1);border-radius:20px;box-shadow:0 0 18px rgba(255,71,87,1),0 0 40px rgba(255,71,87,.7),0 20px 50px rgba(0,0,0,.6);max-width:400px;width:100%;max-height:85vh;overflow-y:auto;padding:22px">' +
+    modal.innerHTML = '<div id="cd-sup-box" style="background:var(--surface);border:2.5px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:400px;width:100%;max-height:85vh;overflow-y:auto;padding:22px">' +
       '<div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button onclick="document.getElementById(\'cita-detail-modal-sup\').style.display=\'none\'" class="modal-close">✕</button></div>' +
       '<div id="cd-sup-body"></div>' +
     '</div>';
     document.body.appendChild(modal);
   }
+  var box = document.getElementById('cd-sup-box');
+  if (estaVencida) {
+    box.style.border = '2.5px solid rgba(255,71,87,1)';
+    box.style.boxShadow = '0 0 18px rgba(255,71,87,1),0 0 40px rgba(255,71,87,.7),0 20px 50px rgba(0,0,0,.6)';
+  } else {
+    box.style.border = '2.5px solid rgba(0,212,255,.65)';
+    box.style.boxShadow = '0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)';
+  }
   document.getElementById('cd-sup-body').innerHTML = body;
   modal.style.display = 'flex';
+}
+function toggleSolicitarOtraCitaSup() {
+  var form = document.getElementById('cd-sup-nueva-form');
+  if (form) form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+}
+function guardarNuevaCitaDesdeDetalleSup() {
+  var c = _citaDetailSupActual;
+  if (!c) return;
+  var tipo  = document.getElementById('cd-sup-nueva-tipo').value;
+  var cid   = document.getElementById('cd-sup-nueva-conductor').value; // vacío = todos / sin concretar
+  var fecha = document.getElementById('cd-sup-nueva-fecha').value;
+  var hora  = document.getElementById('cd-sup-nueva-hora').value;
+  var lugar = (document.getElementById('cd-sup-nueva-lugar').value||'').trim();
+  var nota  = (document.getElementById('cd-sup-nueva-nota').value||'').trim();
+
+  if (!fecha) { toast('⚠ Selecciona una fecha'); return; }
+  var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
+  if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
+
+  var conductoresMat = CONDUCTORES.filter(function(x){ return x.matricula === c.matricula; });
+  var cidsToNotify = cid ? [cid] : conductoresMat.map(function(x){ return x.cid; });
+
+  var nuevaCita = {
+    id:        Date.now() + Math.random(),
+    cid:       cidsToNotify[0] || '',
+    matricula: c.matricula,
+    tipo:      tipo,
+    fecha:     fecha,
+    hora:      hora || '',
+    lugar:     lugar || '',
+    nota:      nota || '',
+    ts:        Date.now()
+  };
+
+  cidsToNotify.forEach(function(cidNotif){
+    var key = 'drivx_citas_' + cidNotif;
+    var existing = [];
+    try { existing = JSON.parse(localStorage.getItem(key)||'[]'); } catch(e){}
+    existing.push(nuevaCita);
+    localStorage.setItem(key, JSON.stringify(existing));
+  });
+
+  var allCitas = [];
+  try { allCitas = JSON.parse(localStorage.getItem('drivx_citas')||'[]'); } catch(e){}
+  allCitas.push(nuevaCita);
+  localStorage.setItem('drivx_citas', JSON.stringify(allCitas));
+  syncAllCitasToFirebase(allCitas);
+
+  document.getElementById('cita-detail-modal-sup').style.display = 'none';
+  toast('✅ Nueva cita creada · ' + c.matricula + ' · ' + tipo);
+  pullCitasFromFirebase().then(function(){ renderHomeProximas(); });
+  if (typeof renderCalendar === 'function') renderCalendar();
 }
 function confirmDeleteCitaSup(id) {
   var btn = document.getElementById('cd-sup-delete-btn');
@@ -1638,6 +1723,7 @@ function confirmDeleteCitaSup(id) {
       document.getElementById('cita-detail-modal-sup').style.display = 'none';
       toast('✅ Cita eliminada');
       pullCitasFromFirebase().then(function(){ renderHomeProximas(); });
+      if (typeof renderCalendar === 'function') renderCalendar();
     }).catch(function(err){
       alert('No se pudo eliminar la cita: ' + err.message);
       btn.disabled = false;
@@ -2678,6 +2764,7 @@ function selectCalDay(day) {
   if (!dayCitas.length) {
     citasEl.innerHTML = '<div style="padding:14px 16px;color:var(--text3);font-size:13px;text-align:center">Sin citas este día</div>';
   } else {
+    var ahoraCal = Date.now();
     var h = '';
     Object.keys(byMat).forEach(function(mat) {
       var v = getAllVehiculos().find(function(x){ return x.matricula===mat; });
@@ -2685,11 +2772,12 @@ function selectCalDay(day) {
       h += '<div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:6px">'+(v?v.icon+' ':'')+mat+(v?' · '+v.modelo:'')+'</div>';
       byMat[mat].forEach(function(c) {
         var cKey = (c.matricula||'')+'|'+(c.tipo||'')+'|'+(c.fecha||'')+'|'+(c.hora||'');
-        h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
+        var estaVencida = new Date(c.fecha + 'T' + (c.hora || '00:00')).getTime() < ahoraCal;
+        h += '<div class="cal-cita-row" data-id="'+c.id+'" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 8px;margin:4px 0;border-radius:12px;'+(estaVencida?'background:rgba(255,71,87,.14);border:2px solid rgba(255,71,87,1);box-shadow:0 0 10px rgba(255,71,87,.9),0 0 22px rgba(255,71,87,.55);animation:pulseVencida 1.6s ease-in-out infinite':'border-bottom:1px solid var(--border)')+'">'
           +'<span style="font-size:16px">'+((c.tipo==='ITV') ? itvIconImg(18,4) : (icons[c.tipo]||'📅'))+'</span>'
-          +'<div style="flex:1"><div style="font-size:13px;font-weight:700">'+c.tipo+'</div>'
-          +'<div style="font-size:11px;color:var(--text3)">'+(c.hora?c.hora+' · ':'')+''+(c.lugar||'Sin dirección')+'</div>'
-          +(c.nota?'<div style="font-size:11px;color:var(--text3)">📝 '+c.nota+'</div>':'')
+          +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+(estaVencida?'#fff':'var(--text)')+'">'+c.tipo+(estaVencida?' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95);font-size:11px;font-weight:900">· VENCIDA</span>':'')+'</div>'
+          +'<div style="font-size:11px;color:'+(estaVencida?'#fff':'var(--text3)')+'">'+(c.hora?c.hora+' · ':'')+''+(c.lugar||'Sin dirección')+'</div>'
+          +(c.nota?'<div style="font-size:11px;color:'+(estaVencida?'#fff':'var(--text3)')+'">📝 '+c.nota+'</div>':'')
           +'</div>'
           +'<div style="display:flex;gap:6px;flex-shrink:0">'
           +'<button class="cal-edit-btn" data-key="'+cKey+'" style="width:36px;height:36px;border-radius:10px;border:2px solid #00d4ff;background:rgba(0,212,255,.12);color:#00d4ff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">✏️</button>'
@@ -2706,12 +2794,22 @@ function selectCalDay(day) {
   // Scroll to detail
   detail.scrollIntoView({ behavior:'smooth', block:'nearest' });
 
+  // La lista de este día queda disponible para el modal de detalle
+  _calDayCitasCache = dayCitas;
+
+  // Tocar la fila abre el detalle completo (ver + eliminar + solicitar otra si venció)
+  citasEl.querySelectorAll('.cal-cita-row').forEach(function(row) {
+    row.onclick = function(e) {
+      if (e.target.closest('.cal-edit-btn') || e.target.closest('.cal-del-btn')) return;
+      openCitaDetailSup(row.getAttribute('data-id'));
+    };
+  });
   // Attach delete handlers
   citasEl.querySelectorAll('.cal-del-btn').forEach(function(btn) {
-    btn.onclick = function() { deleteCitaFromCal(btn.getAttribute('data-key'), day); };
+    btn.onclick = function(e) { e.stopPropagation(); deleteCitaFromCal(btn.getAttribute('data-key'), day); };
   });
   citasEl.querySelectorAll('.cal-edit-btn').forEach(function(btn) {
-    btn.onclick = function() { editCitaFromCal(btn.getAttribute('data-key')); };
+    btn.onclick = function(e) { e.stopPropagation(); editCitaFromCal(btn.getAttribute('data-key')); };
   });
 }
 
