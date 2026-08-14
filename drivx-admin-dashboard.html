@@ -635,11 +635,14 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ MODAL: DETALLE DE CITA ══════════════ -->
 <div id="cita-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:420px;width:100%;max-height:85vh;overflow-y:auto">
+  <div id="cd-box" style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:420px;width:100%;max-height:85vh;overflow-y:auto">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
       <div id="cd-icon" style="font-size:30px;width:30px;height:30px;flex-shrink:0"></div>
       <div style="flex:1">
-        <div id="cd-tipo" style="font-size:17px;font-weight:900">—</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="cd-tipo" style="font-size:17px;font-weight:900">—</div>
+          <div id="cd-vencida-tag" style="display:none;font-size:11px;font-weight:900;color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95),0 0 14px rgba(255,71,87,.7);letter-spacing:.5px">VENCIDA</div>
+        </div>
         <div id="cd-ccaa" style="font-size:12px;color:var(--text3)">—</div>
       </div>
       <button id="cd-edit-btn" onclick="editarCitaDashboard()" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.4);color:var(--cyan);border-radius:10px;width:32px;height:32px;font-size:14px;cursor:pointer;flex-shrink:0">✏️</button>
@@ -4027,6 +4030,22 @@ function openCitaDetail(id) {
   }
   document.getElementById('cd-tipo').textContent = cita.tipo;
   document.getElementById('cd-ccaa').innerHTML = (v ? (CCAA_ICONS[v.ccaa]||'📍') + ' ' + v.ccaa : 'Comunidad autónoma sin identificar');
+
+  // Si la cita ya venció (su fecha+hora ya pasó), LED rojo intenso en todo el modal + etiqueta VENCIDA
+  var dCita = new Date(cita.fecha + 'T' + (cita.hora || '00:00'));
+  var estaVencida = dCita.getTime() < Date.now();
+  var cdBox = document.getElementById('cd-box');
+  var cdTag = document.getElementById('cd-vencida-tag');
+  if (cdBox) {
+    if (estaVencida) {
+      cdBox.style.border = '2.5px solid rgba(255,71,87,1)';
+      cdBox.style.boxShadow = '0 0 18px rgba(255,71,87,1),0 0 40px rgba(255,71,87,.7),0 20px 50px rgba(0,0,0,.6)';
+    } else {
+      cdBox.style.border = '2px solid rgba(0,212,255,.65)';
+      cdBox.style.boxShadow = '0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)';
+    }
+  }
+  if (cdTag) cdTag.style.display = estaVencida ? 'inline' : 'none';
 
   var body = '';
   body += citaDetailRow('📅', 'Fecha', formatFechaCita(cita.fecha));

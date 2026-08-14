@@ -1487,11 +1487,12 @@ function renderCitasVencidasAlertsSup(lista) {
   html += '<div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-shadow:0 0 8px rgba(255,71,87,.9)">🚨 CITAS VENCIDAS (' + vencidas.length + ') — se eliminarán a las 48h</div>';
   html += vencidas.map(function(c){
     var restante = Math.max(0, 48 - ((ahora - new Date(c.fecha+'T'+(c.hora||'00:00')).getTime())/3600000));
+    var esITV = (c.tipo === 'ITV');
     return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 14px rgba(255,71,87,1),0 0 30px rgba(255,71,87,.7),0 0 50px rgba(255,71,87,.4);animation:pulseVencida 1.6s ease-in-out infinite">' +
-      '<div style="width:40px;height:40px;border-radius:11px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + (icons[c.tipo]||'📅') + '</div>' +
+      (esITV ? itvIconImg(40,11) : '<div style="width:40px;height:40px;border-radius:11px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + (icons[c.tipo]||'📅') + '</div>') +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:13px;font-weight:900;color:#fff">' + (c.tipo||'Cita') + '</div>' +
-        '<div style="font-size:11px;color:#fff;margin-top:2px">' + (c.matricula||'') + ' · venció ' + (c.fecha||'') + ' ' + (c.hora||'') + '</div>' +
+        '<div style="font-size:13px;font-weight:900;color:#fff">' + (c.tipo||'Cita') + ' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95)">· VENCIDA</span></div>' +
+        '<div style="font-size:12px;color:#fff;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">venció ' + (c.fecha||'') + ' ' + (c.hora||'') + ' · <span style="display:inline-flex;transform:scale(.75);transform-origin:left center">'+(c.matricula?plateHtml(c.matricula):'')+'</span></div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
         '<div style="font-size:10px;color:#fff;font-weight:800">SE BORRA EN</div>' +

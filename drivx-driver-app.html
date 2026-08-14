@@ -4182,10 +4182,11 @@ function pintarCitasVencidasDriver(vencidas) {
   cont.innerHTML = vencidas.map(function(c){
     var dCita = new Date(c.fecha + 'T' + (c.hora || '00:00'));
     var restante = Math.max(0, 48 - ((ahora - dCita.getTime())/3600000));
+    var esITV = (c.tipo === 'ITV');
     return '<div style="display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:10px;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 14px rgba(255,71,87,1),0 0 30px rgba(255,71,87,.7),0 0 50px rgba(255,71,87,.4);animation:pulseVencida 1.6s ease-in-out infinite">' +
-      '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + (icons[c.tipo]||'📅') + '</div>' +
+      (esITV ? itvIconImg(38,10) : '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + (icons[c.tipo]||'📅') + '</div>') +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:13px;font-weight:900;color:#fff">🚨 VENCIDA · ' + (c.tipo||'Cita') + '</div>' +
+        '<div style="font-size:13px;font-weight:900;color:#fff">' + (c.tipo||'Cita') + ' <span style="color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95)">· VENCIDA</span></div>' +
         '<div style="font-size:11px;color:#fff;margin-top:2px">' + (c.lugar ? c.lugar + ' · ' : '') + 'venció ' + (c.fecha||'') + ' ' + (c.hora||'') + '</div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
