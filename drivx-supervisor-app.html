@@ -1228,7 +1228,11 @@ function renderHomeProximas() {
   function dU(f,hh){ var d = new Date(f+'T'+(hh||'00:00')); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
 
   var future = allCitas
-    .filter(function(c){ return c.fecha && dU(c.fecha,c.hora)>=0; })
+    .filter(function(c){
+      if (!c.fecha) return false;
+      var dCita = new Date(c.fecha+'T'+(c.hora||'00:00'));
+      return dCita >= now;
+    })
     .sort(function(a,b){ return new Date(a.fecha+'T'+(a.hora||'00:00'))-new Date(b.fecha+'T'+(b.hora||'00:00')); })
     .slice(0,8);
 
