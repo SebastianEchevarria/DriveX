@@ -1196,13 +1196,14 @@ function renderCitasVencidasAlerts() {
     html += '<div style="font-size:15px;font-weight:900;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:8px;text-shadow:0 0 8px rgba(255,71,87,.9)">🚨 CITAS VENCIDAS (' + vencidas.length + ') — se eliminarán a las 48h</div>';
     html += vencidas.map(function(c){
       var info = citaTipoInfo(c.tipo);
-      var nombreCond = nombreConductorCita(c.cid) || 'Sin asignar';
+      var esITV = (c.tipo === 'ITV');
+      var esRevision = (c.tipo === 'Revisión general');
       var restante = Math.max(0, 48 - ((ahora - new Date(c.fecha+'T'+(c.hora||'00:00')).getTime())/3600000));
       return '<div onclick="openCitaDetail(' + c.id + ')" style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px;border-radius:14px;background:rgba(255,71,87,.14);border:2.5px solid rgba(255,71,87,1);box-shadow:0 0 14px rgba(255,71,87,1),0 0 30px rgba(255,71,87,.7),0 0 50px rgba(255,71,87,.4);animation:pulseVencida 1.6s ease-in-out infinite">' +
-        '<div style="width:40px;height:40px;border-radius:11px;background:rgba(255,71,87,.2);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">' + info.icon + '</div>' +
+        '<div style="width:44px;height:44px;border-radius:12px;background:'+(esITV?'#0a1830':'rgba(255,255,255,.06)')+';display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0'+((esITV||esRevision)?';border:2px solid rgba(0,212,255,.9);box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45)':'')+'">' + (esITV?itvIconImg(30,6,true):esRevision?revisionIconImg(30,7,true):info.icon) + '</div>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:13px;font-weight:900;color:#fff">' + c.tipo + ' · ' + nombreCond + '</div>' +
-          '<div style="font-size:11px;color:#fff;margin-top:2px">' + (c.matricula||'') + ' · venció ' + (c.fecha||'') + ' ' + (c.hora||'') + '</div>' +
+          '<div style="font-size:13px;font-weight:900;color:#fff">' + c.tipo + '</div>' +
+          '<div style="font-size:12px;color:#fff;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">venció ' + (c.fecha||'') + ' ' + (c.hora||'') + ' · <span style="display:inline-flex;transform:scale(.9);transform-origin:left center">'+plateHtmlSmall(c.matricula)+'</span></div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0">' +
           '<div style="font-size:10px;color:#fff;font-weight:800">SE BORRA EN</div>' +
