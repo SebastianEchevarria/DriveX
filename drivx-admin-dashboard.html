@@ -832,7 +832,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-1';
+var APP_VERSION = '2026-08-15-2';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3928,7 +3928,7 @@ function paintCitas() {
         html += '<div style="width:40px;height:40px;border-radius:11px;background:'+(esITV?'#0a1830':'rgba(255,255,255,.06)')+';display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0'+((esITV||esRevision)?';border:2px solid rgba(0,212,255,.9);box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45)':'')+'">'+(esITV?itvIconImg(26,5,true):esRevision?revisionIconImg(26,6,true):info.icon)+'</div>';
         html += '<div style="flex:1;min-width:0">';
         html += '<div style="font-size:13px;font-weight:900;color:#fff">'+cita.tipo+'</div>';
-        html += '<div style="font-size:11px;color:#fff;margin-top:2px">venció '+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="font-family:var(--mono);color:#fff">'+cita.matricula+'</span></div>';
+        html += '<div style="font-size:11px;color:#fff;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">venció '+formatFechaCita(cita.fecha)+(cita.hora?' · '+cita.hora:'')+' · <span style="display:inline-flex;transform:scale(.85);transform-origin:left center">'+plateHtmlSmall(cita.matricula)+'</span></div>';
         html += '</div>';
         html += '<span style="font-size:10px;font-weight:900;color:var(--red);text-shadow:0 0 6px rgba(255,71,87,.95);flex-shrink:0">VENCIDA</span>';
         html += '</div>';
