@@ -381,6 +381,19 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 </div>
 
 <!-- ══════════════ MODAL: FICHA DE VEHÍCULO ══════════════ -->
+<!-- ══════ Confirmación de cambio de tipo de facturación (LED naranja) ══════ -->
+<div id="cambio-facturacion-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10001;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2.5px solid rgba(255,140,0,1);border-radius:20px;box-shadow:0 0 18px rgba(255,140,0,1),0 0 40px rgba(255,140,0,.65),0 20px 50px rgba(0,0,0,.6);max-width:380px;width:100%;padding:26px 24px;text-align:center">
+    <div style="font-size:38px;margin-bottom:10px">🔄</div>
+    <div style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,140,0,.6);margin-bottom:18px">Cambiar tipo de facturación</div>
+    <div id="cambio-facturacion-body" style="font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.5"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('cambio-facturacion-modal').style.display='none'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>
+      <button onclick="confirmarCambioTipoFacturacion()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(255,140,0,1);background:rgba(255,140,0,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,140,0,.85),0 0 22px rgba(255,140,0,.5)">Cambiar</button>
+    </div>
+  </div>
+</div>
+
 <div id="vehicle-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:560px;width:100%;max-height:88vh;overflow-y:auto">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
@@ -401,7 +414,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <div class="sb-section" style="padding:0 0 10px">Tipo de facturación</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
         <div id="vd-facturacion" style="font-size:13px;font-weight:700;flex:1">—</div>
-        <button onclick="editarTipoFacturacion()" style="background:rgba(255,140,0,.1);border:1px solid rgba(255,140,0,.4);color:#ff8c00;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0">✏️ Editar</button>
+        <button onclick="editarTipoFacturacion()" style="background:rgba(255,140,0,.14);border:2px solid rgba(255,140,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 0 8px rgba(255,140,0,.85),0 0 18px rgba(255,140,0,.5)">🔄 Cambiar</button>
       </div>
 
       <div class="sb-section" style="padding:0 0 10px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Conductores y turnos</div>
@@ -4711,6 +4724,7 @@ function guardarPropietario() {
   });
 }
 
+var _cambioFacturacionPendiente = null;
 function editarTipoFacturacion() {
   if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
   var mySlug = matSlug(_vdCurrentMat);
@@ -4721,17 +4735,27 @@ function editarTipoFacturacion() {
   }
   var actualTipo = actual.tipoFacturacion || 'semanal';
   var nuevoTipo = actualTipo === 'semanal' ? 'mensual' : 'semanal';
-  var ok = confirm('Facturación actual: ' + (actualTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '\n\n¿Cambiar a ' + (nuevoTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '?');
-  if (!ok) return;
+  _cambioFacturacionPendiente = { mySlug: mySlug, actual: actual, nuevoTipo: nuevoTipo };
 
-  fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '/tipoFacturacion.json', {
+  document.getElementById('cambio-facturacion-body').innerHTML =
+    'Facturación actual: <strong style="color:#fff">' + (actualTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '</strong><br><br>' +
+    '¿Cambiar a <strong style="color:#fff">' + (nuevoTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '</strong>?';
+  document.getElementById('cambio-facturacion-modal').style.display = 'flex';
+}
+
+function confirmarCambioTipoFacturacion() {
+  var p = _cambioFacturacionPendiente;
+  if (!p) return;
+  document.getElementById('cambio-facturacion-modal').style.display = 'none';
+
+  fetch(FIREBASE_URL + '/vehiculos_extra/' + p.mySlug + '/tipoFacturacion.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(nuevoTipo)
+    body: JSON.stringify(p.nuevoTipo)
   }).then(fbCheck).then(function(){
-    actual.tipoFacturacion = nuevoTipo;
+    p.actual.tipoFacturacion = p.nuevoTipo;
     openVehicleDetail(_vdCurrentMat);
     renderFlota();
-    toast('✅ Facturación cambiada a ' + (nuevoTipo === 'semanal' ? 'Semanal' : 'Mensual'));
+    toast('✅ Facturación cambiada a ' + (p.nuevoTipo === 'semanal' ? 'Semanal' : 'Mensual'));
   }).catch(function(err){
     alert('No se pudo actualizar el tipo de facturación: ' + err.message);
   });
