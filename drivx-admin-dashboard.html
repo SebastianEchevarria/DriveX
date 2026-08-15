@@ -300,6 +300,10 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
       <!-- ── FACTURACIÓN ── -->
       <div class="dash-screen" id="dash-facturacion">
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <button id="fact-tab-semanal" onclick="setFacturacionTab('semanal')" style="flex:1;padding:12px;border-radius:14px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:.3px">🗓️ F. SEMANAL</button>
+          <button id="fact-tab-mensual" onclick="setFacturacionTab('mensual')" style="flex:1;padding:12px;border-radius:14px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:.3px">📅 F. MENSUAL</button>
+        </div>
         <div id="facturacion-list"></div>
       </div>
 
@@ -392,6 +396,12 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
         <div id="vd-itv" style="font-size:13px;font-weight:700;flex:1">—</div>
         <button onclick="editarFechaItv()" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0">✏️ Editar fecha</button>
+      </div>
+
+      <div class="sb-section" style="padding:0 0 10px">Tipo de facturación</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
+        <div id="vd-facturacion" style="font-size:13px;font-weight:700;flex:1">—</div>
+        <button onclick="editarTipoFacturacion()" style="background:rgba(255,140,0,.1);border:1px solid rgba(255,140,0,.4);color:#ff8c00;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0">✏️ Editar</button>
       </div>
 
       <div class="sb-section" style="padding:0 0 10px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Conductores y turnos</div>
@@ -1055,6 +1065,7 @@ function normalizeVehiculoExtra(v, key) {
     matricula: v.matricula || key, marca: v.marca || '', modelo: v.modelo || (v.marca || 'Vehículo'),
     anio: v.anio || '', combustible: v.combustible || 'gasolina',
     ciudad: v.ciudad || '', ccaa: v.ccaa || 'Andalucía', icon: v.icon || '🚗',
+    tipoFacturacion: v.tipoFacturacion || 'semanal',
     docs: {
       itv:    (v.docs && v.docs.itv)    || { fecha: null, ok: false },
       seguro: (v.docs && v.docs.seguro) || { fecha: null, ok: false },
@@ -2058,12 +2069,21 @@ function realizarCambioVehiculo(cid) {
 function renderFacturacion() {
   var container = document.getElementById('facturacion-list');
   if (container && !container.innerHTML) container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
+  aplicarEstiloFacturacionTab();
   fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
     _vdInvitadosCacheGlobal = all || {};
     paintFacturacion();
   }).catch(function(){
     paintFacturacion();
   });
+}
+function aplicarEstiloFacturacionTab() {
+  var semBtn = document.getElementById('fact-tab-semanal');
+  var menBtn = document.getElementById('fact-tab-mensual');
+  var activeStyle = 'background:rgba(0,212,255,.18);border:2px solid rgba(0,212,255,1);color:#fff;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55)';
+  var inactiveStyle = 'background:var(--surface2);border:2px solid var(--border2);color:var(--text3);box-shadow:none';
+  if (semBtn) semBtn.style.cssText += ';' + (_facturacionTabActual === 'semanal' ? activeStyle : inactiveStyle);
+  if (menBtn) menBtn.style.cssText += ';' + (_facturacionTabActual === 'mensual' ? activeStyle : inactiveStyle);
 }
 // Fila de conductor en Facturación: LED azul de intensidad media en el
 // contorno y el nombre. Al pulsarla se abre un modal con sus 3 apartados
@@ -2956,12 +2976,21 @@ function pintarBoltCsvBox(uid, datos, cid, estado) {
   cont.innerHTML = html;
 }
 
+var _facturacionTabActual = 'semanal';
+function setFacturacionTab(tipo) {
+  _facturacionTabActual = tipo;
+  aplicarEstiloFacturacionTab();
+  paintFacturacion();
+}
+
 function paintFacturacion() {
   var container = document.getElementById('facturacion-list');
   if (!container) return;
 
   var ccaaOrder = getCcaaOrder();
-  var allVehiculos = getAllVehiculos();
+  var allVehiculos = getAllVehiculos().filter(function(v){
+    return (v.tipoFacturacion || 'semanal') === _facturacionTabActual;
+  });
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; });
   allVehiculos.forEach(function(v){
@@ -4682,6 +4711,32 @@ function guardarPropietario() {
   });
 }
 
+function editarTipoFacturacion() {
+  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  var mySlug = matSlug(_vdCurrentMat);
+  var actual = VEHICULOS_EXTRA.find(function(v){ return v.matricula === _vdCurrentMat; });
+  if (!actual) {
+    alert('Este vehículo es uno de los originales del sistema, y su tipo de facturación está escrito directamente en el código — no se puede editar desde aquí. Dime la matrícula y lo actualizamos juntos.');
+    return;
+  }
+  var actualTipo = actual.tipoFacturacion || 'semanal';
+  var nuevoTipo = actualTipo === 'semanal' ? 'mensual' : 'semanal';
+  var ok = confirm('Facturación actual: ' + (actualTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '\n\n¿Cambiar a ' + (nuevoTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '?');
+  if (!ok) return;
+
+  fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '/tipoFacturacion.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(nuevoTipo)
+  }).then(fbCheck).then(function(){
+    actual.tipoFacturacion = nuevoTipo;
+    openVehicleDetail(_vdCurrentMat);
+    renderFlota();
+    toast('✅ Facturación cambiada a ' + (nuevoTipo === 'semanal' ? 'Semanal' : 'Mensual'));
+  }).catch(function(err){
+    alert('No se pudo actualizar el tipo de facturación: ' + err.message);
+  });
+}
+
 function editarFechaItv() {
   if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
   var mySlug = matSlug(_vdCurrentMat);
@@ -4723,6 +4778,11 @@ function openVehicleDetail(matricula) {
   var itvEl = document.getElementById('vd-itv');
   itvEl.textContent = itvTxt;
   itvEl.style.color = itvColor;
+
+  var factEl = document.getElementById('vd-facturacion');
+  var esFactMensual = (v.tipoFacturacion === 'mensual');
+  factEl.innerHTML = esFactMensual ? '📅 Mensual' : '🗓️ Semanal';
+  factEl.style.color = '#fff';
 
   renderConductoresYTurnos(v);
 

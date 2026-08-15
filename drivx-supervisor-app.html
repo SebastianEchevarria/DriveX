@@ -725,6 +725,7 @@ function normalizeVehiculoExtra(v, key) {
     matricula: v.matricula || key, marca: v.marca || '', modelo: v.modelo || (v.marca || 'Vehículo'),
     anio: v.anio || '', combustible: v.combustible || 'gasolina',
     ciudad: v.ciudad || '', ccaa: v.ccaa || 'Andalucía', icon: v.icon || '🚗',
+    tipoFacturacion: v.tipoFacturacion || 'semanal',
     docs: {
       itv:    (v.docs && v.docs.itv)    || { fecha: null, ok: false },
       seguro: (v.docs && v.docs.seguro) || { fecha: null, ok: false },
