@@ -213,15 +213,14 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 <!-- ══════════════ SHELL ══════════════ -->
 <!-- ══════════════ AVISO: INSTALAR APP ══════════════ -->
 <!-- ══════════════ AVISO: NUEVA VERSIÓN DISPONIBLE ══════════════ -->
-<div id="update-banner" style="display:none;position:fixed;left:16px;right:16px;bottom:16px;max-width:420px;z-index:950;background:rgba(10,16,26,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:2px solid rgba(0,230,118,1);border-radius:16px;padding:14px 16px;box-shadow:0 0 14px rgba(0,230,118,1),0 0 30px rgba(0,230,118,.6),0 8px 24px rgba(0,0,0,.5)">
-  <div style="display:flex;align-items:center;gap:12px">
-    <div style="font-size:26px;flex-shrink:0">🔄</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Nueva versión disponible</div>
-      <div style="font-size:11px;color:#fff;margin-top:2px">Tus datos no se pierden al actualizar</div>
-    </div>
+<div id="update-banner" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9995;align-items:center;justify-content:center;padding:20px">
+  <div style="background:rgba(10,16,26,.92);border:2.5px solid rgba(0,230,118,1);border-radius:20px;box-shadow:0 0 18px rgba(0,230,118,1),0 0 40px rgba(0,230,118,.65),0 20px 50px rgba(0,0,0,.6);max-width:380px;width:100%;padding:26px 24px;text-align:center">
+    <div style="font-size:38px;margin-bottom:10px">🔄</div>
+    <div style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(0,230,118,.6);margin-bottom:8px">Nueva versión disponible</div>
+    <div style="font-size:13px;color:#cdd8e6;margin-bottom:4px">Esta actualización incluye mejoras necesarias.</div>
+    <div style="font-size:12px;color:#8a97a8;margin-bottom:22px">Es obligatoria para seguir usando la app. Tus datos no se pierden.</div>
+    <button onclick="location.reload()" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.2);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.85),0 0 22px rgba(0,230,118,.5)">✓ Actualizar ahora</button>
   </div>
-  <button onclick="location.reload()" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">✓ Actualizar ahora</button>
 </div>
 
 <div id="pwa-install-banner" style="display:none;position:fixed;left:16px;right:16px;bottom:16px;max-width:420px;z-index:900;background:rgba(10,16,26,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:2px solid rgba(30,175,252,.9);border-radius:16px;padding:14px 16px;box-shadow:0 0 14px rgba(30,175,252,.8),0 0 30px rgba(30,175,252,.5),0 8px 24px rgba(0,0,0,.5)">
@@ -832,7 +831,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-2';
+var APP_VERSION = '2026-08-15-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -841,12 +840,12 @@ function checkForNewVersion() {
       var remota = data && data[APP_VERSION_KEY];
       if (remota && remota !== APP_VERSION) {
         var banner = document.getElementById('update-banner');
-        if (banner) banner.style.display = 'block';
+        if (banner) banner.style.display = 'flex';
       }
     })
     .catch(function(){ /* sin conexión o version.json no disponible: no molestamos */ });
 }
-setTimeout(checkForNewVersion, 4000);
+setTimeout(checkForNewVersion, 600);
 setInterval(checkForNewVersion, 5 * 60 * 1000);
 
 var currentUser = null;
