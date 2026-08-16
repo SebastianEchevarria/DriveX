@@ -178,7 +178,7 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
     <div style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(0,230,118,.6);margin-bottom:8px">Nueva versión disponible</div>
     <div style="font-size:13px;color:#cdd8e6;margin-bottom:4px">Esta actualización incluye mejoras necesarias.</div>
     <div style="font-size:12px;color:#8a97a8;margin-bottom:22px">Es obligatoria para seguir usando la app. Tus datos no se pierden.</div>
-    <button onclick="location.reload()" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.2);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.85),0 0 22px rgba(0,230,118,.5)">✓ Actualizar ahora</button>
+    <button onclick="location.href = location.pathname + '?_v=' + Date.now()" style="width:100%;padding:14px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.2);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.85),0 0 22px rgba(0,230,118,.5)">✓ Actualizar ahora</button>
   </div>
 </div>
 
@@ -476,7 +476,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-9';
+var APP_VERSION = '2026-08-15-10';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
