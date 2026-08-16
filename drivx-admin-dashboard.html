@@ -334,7 +334,10 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
       <div style="flex:1;min-width:0">
         <div id="fact-modal-nombre" style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55)">—</div>
-        <div id="fact-modal-plate" style="margin:8px 0 6px"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px">
+          <div id="fact-modal-plate"></div>
+          <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
+        </div>
         <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
       <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
@@ -846,7 +849,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-8';
+var APP_VERSION = '2026-08-15-9';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2160,6 +2163,11 @@ function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula, porc
 }
 
 var _factModalRefreshTimer = null;
+var _factModalActual = null;
+function cerrarPeriodoConductorDesdeModal() {
+  if (!_factModalActual) return;
+  cerrarPeriodoConductor(_factModalActual.cid, _factModalActual.uid);
+}
 // Solo en PC (pantallas anchas): al tocar la tarjeta del vehículo (no un
 // conductor concreto), se abren TODAS sus ventanas de conductor a la vez,
 // una al lado de otra. En móvil, la tarjeta no hace nada — se sigue
@@ -2219,7 +2227,10 @@ function abrirTodosConductoresVehiculo(matricula) {
     return '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;width:400px;flex-shrink:0;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3)">' +
       '<div style="padding:18px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0">' +
         '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55);margin-bottom:8px">' + (info.nombre||'Conductor') + '</div>' +
-        plateHtmlSmall(info.matricula) +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          plateHtmlSmall(info.matricula) +
+          '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar ' + ((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion === 'mensual' ? 'mes' : 'semana') + '" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>' +
+        '</div>' +
       '</div>' +
       '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
     '</div>';
@@ -2270,6 +2281,10 @@ function openFacturacionConductorModal(uid) {
   document.getElementById('fact-modal-plate').innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
   document.getElementById('fact-modal-turno').innerHTML = '🕐 ' + info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
   document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
+  _factModalActual = { cid: info.cid, uid: uid };
+  var vTipoBtn = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
+  var cerrarBtn = document.getElementById('fact-modal-cerrar-btn');
+  if (cerrarBtn) cerrarBtn.title = 'Cerrar ' + (vTipoBtn === 'mensual' ? 'mes' : 'semana');
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   if (_boltCsvPendiente[info.cid]) {
     pintarBoltCsvBox('fact_' + info.cid, _boltCsvPendiente[info.cid], info.cid, 'pendiente');
@@ -2315,8 +2330,7 @@ function facturacionModalBodyHtml(info) {
         '<button onclick="abrirEdicionManualFact(\'bolt\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(0,230,118,.14);border:2px solid rgba(0,230,118,1);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(0,230,118,.6),0 0 16px rgba(0,230,118,.35)">✏️</button>' +
       '</div>' +
       '<input type="file" id="boltcsv_' + uid + '" accept=".csv,text/csv" style="display:none" onchange="onBoltCsvFile(this,\'' + info.cid + '\',\'' + (info.nombre||'').replace(/'/g,"\\'") + '\')">' +
-      '<button onclick="document.getElementById(\'boltcsv_' + uid + '\').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);margin-bottom:10px">📤 SUBIR CSV DE BOLT</button>' +
-      '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" style="width:100%;padding:12px;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);margin-bottom:12px">🔒 Cerrar ' + (vTipo === 'mensual' ? 'mes' : 'semana') + ' de este conductor</button>' +
+      '<button onclick="document.getElementById(\'boltcsv_' + uid + '\').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);margin-bottom:12px">📤 SUBIR CSV DE BOLT</button>' +
       '<div id="boltcsv_body_' + uid + '"></div>' +
     '</div>' +
     '<div style="background:rgba(124,92,252,.05);border:2px solid rgba(124,92,252,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(124,92,252,.55),0 0 22px rgba(124,92,252,.3)">' +
