@@ -1,15 +1,20 @@
 {
   "name": "DRIVX Dashboard App",
   "short_name": "DRIVX Dashboard",
-  "description": "Panel de administración y gestión de la flota DRIVX",
+  "description": "Panel de administraci\u00f3n y gesti\u00f3n de la flota DRIVX",
   "start_url": "/drivx-admin-dashboard.html",
-  "scope": "/",
+  "scope": "/drivx-admin-dashboard.html",
   "id": "drivx-dashboard",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070b12",
   "theme_color": "#1eafFC",
   "icons": [
-    { "src": "/icon-dashboard.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "/icon-dashboard.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }

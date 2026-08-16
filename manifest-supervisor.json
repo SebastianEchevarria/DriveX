@@ -1,15 +1,20 @@
 {
   "name": "DRIVX Supervisor App",
   "short_name": "DRIVX Supervisor",
-  "description": "App de supervisión de flota DRIVX",
+  "description": "App de supervisi\u00f3n de flota DRIVX",
   "start_url": "/drivx-supervisor-app.html",
-  "scope": "/",
+  "scope": "/drivx-supervisor-app.html",
   "id": "drivx-supervisor",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070b12",
   "theme_color": "#fea401",
   "icons": [
-    { "src": "/icon-supervisor.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "/icon-supervisor.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }

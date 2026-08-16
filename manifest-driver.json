@@ -3,13 +3,18 @@
   "short_name": "DRIVX Driver",
   "description": "App para conductores de la flota DRIVX",
   "start_url": "/drivx-driver-app.html",
-  "scope": "/",
+  "scope": "/drivx-driver-app.html",
   "id": "drivx-driver",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070b12",
   "theme_color": "#1eafFC",
   "icons": [
-    { "src": "/icon-driver.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "/icon-driver.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }
