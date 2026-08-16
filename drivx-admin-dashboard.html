@@ -846,7 +846,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-6';
+var APP_VERSION = '2026-08-15-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2296,7 +2296,9 @@ function closeFacturacionConductorModal() {
 }
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
+  var vTipo = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
   return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+    '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" style="width:100%;padding:12px;border-radius:12px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);margin-bottom:12px">🔒 Cerrar ' + (vTipo === 'mensual' ? 'mes' : 'semana') + ' de este conductor</button>' +
     '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">FACTURACIÓN NETO TOTAL</span>' +
       '<span id="fact-total-' + uid + '" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ 0,00</span>' +
@@ -4812,25 +4814,10 @@ function getPeriodKey(tipo) {
 }
 
 var _cierrePendiente = null;
-function cerrarPeriodoVehiculo(matricula) {
-  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
-  if (!v) return;
-  var tipo = v.tipoFacturacion || 'semanal';
+function iniciarCierrePeriodo(matricula, tipo, cids) {
+  if (!cids.length) { alert('No hay conductores para cerrar en este periodo.'); return; }
 
-  var cids = [];
-  (v.conductores||[]).forEach(function(cid){
-    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
-    if (c) cids.push({ cid: cid, uid: 'fact_' + cid, nombre: c.nombre, porcentaje: c.porcentaje });
-  });
-  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
-    var r = _vdInvitadosCacheGlobal[cid];
-    if (r.matricula !== matricula) return;
-    cids.push({ cid: cid, uid: 'fact_' + cid, nombre: r.nombre || 'Conductor', porcentaje: r.porcentaje });
-  });
-
-  if (!cids.length) { alert('Este vehículo no tiene conductores asignados todavía.'); return; }
-
-  document.getElementById('cierre-periodo-titulo').textContent = 'Cerrar ' + (tipo === 'mensual' ? 'mes' : 'semana') + ' · ' + matricula;
+  document.getElementById('cierre-periodo-titulo').textContent = 'Cerrar ' + (tipo === 'mensual' ? 'mes' : 'semana') + ' · ' + matricula + (cids.length===1 ? ' · ' + cids[0].nombre : '');
   document.getElementById('cierre-periodo-body').innerHTML = '<div style="text-align:center;color:var(--text3);font-size:13px;padding:10px 0">Calculando totales de ' + cids.length + ' conductor' + (cids.length!==1?'es':'') + '…</div>';
   document.getElementById('cierre-periodo-modal').style.display = 'flex';
 
@@ -4861,6 +4848,36 @@ function cerrarPeriodoVehiculo(matricula) {
     }).join('');
     document.getElementById('cierre-periodo-body').innerHTML = body || '<div style="text-align:center;color:var(--text3);font-size:13px">Sin movimiento desde el último cierre.</div>';
   });
+}
+
+// Cierre a nivel de VEHÍCULO: incluye a TODOS los conductores asignados a esa matrícula
+function cerrarPeriodoVehiculo(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  var tipo = v.tipoFacturacion || 'semanal';
+
+  var cids = [];
+  (v.conductores||[]).forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (c) cids.push({ cid: cid, uid: 'fact_' + cid, nombre: c.nombre, porcentaje: c.porcentaje });
+  });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula !== matricula) return;
+    cids.push({ cid: cid, uid: 'fact_' + cid, nombre: r.nombre || 'Conductor', porcentaje: r.porcentaje });
+  });
+
+  if (!cids.length) { alert('Este vehículo no tiene conductores asignados todavía.'); return; }
+  iniciarCierrePeriodo(matricula, tipo, cids);
+}
+
+// Cierre a nivel de UN SOLO CONDUCTOR, desde su propio modal de facturación
+function cerrarPeriodoConductor(cid, uid) {
+  var info = _facturacionConductoresIndex[uid];
+  if (!info || !info.matricula) return;
+  var v = getAllVehiculos().find(function(x){ return x.matricula === info.matricula; });
+  var tipo = (v && v.tipoFacturacion) || 'semanal';
+  iniciarCierrePeriodo(info.matricula, tipo, [{ cid: cid, uid: uid, nombre: info.nombre }]);
 }
 
 function confirmarCierrePeriodo() {
