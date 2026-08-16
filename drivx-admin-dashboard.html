@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="DRIVX Admin">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg:      #070b12; --surface:#0d1420; --surface2:#111b2b;
@@ -393,6 +394,20 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ MODAL: FICHA DE VEHÍCULO ══════════════ -->
 <!-- ══════ Confirmación de cambio de tipo de facturación (LED naranja) ══════ -->
+<!-- ══════ Confirmación de CIERRE de periodo de facturación (LED dorado) ══════ -->
+<div id="cierre-periodo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10001;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2.5px solid rgba(255,215,0,1);border-radius:20px;box-shadow:0 0 18px rgba(255,215,0,1),0 0 40px rgba(255,215,0,.6),0 20px 50px rgba(0,0,0,.6);max-width:420px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px">
+    <div style="text-align:center;margin-bottom:6px"><div style="font-size:38px">🔒</div></div>
+    <div id="cierre-periodo-titulo" style="text-align:center;font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:6px">Cerrar semana</div>
+    <div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:18px">Esto archiva los números actuales de cada conductor y prepara el siguiente periodo desde cero. No se borra ningún dato.</div>
+    <div id="cierre-periodo-body" style="margin-bottom:20px"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('cierre-periodo-modal').style.display='none'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>
+      <button onclick="confirmarCierrePeriodo()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.85),0 0 22px rgba(255,215,0,.5)">🔒 Confirmar cierre</button>
+    </div>
+  </div>
+</div>
+
 <div id="cambio-facturacion-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10001;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2.5px solid rgba(255,140,0,1);border-radius:20px;box-shadow:0 0 18px rgba(255,140,0,1),0 0 40px rgba(255,140,0,.65),0 20px 50px rgba(0,0,0,.6);max-width:380px;width:100%;padding:26px 24px;text-align:center">
     <div style="font-size:38px;margin-bottom:10px">🔄</div>
@@ -831,7 +846,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-5';
+var APP_VERSION = '2026-08-15-6';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2336,13 +2351,13 @@ var _facturacionTotales = {};
 // RESULTADO = SUELDO − EFECTIVO REAL
 //   positivo → el propietario debe pagar esa cantidad al conductor
 //   negativo → el conductor debe devolver esa cantidad al propietario
-function recalcularLiquidacionCompleta(cid, matricula, uid) {
-  if (!matricula) return;
+function calcularLiquidacionAcumulada(cid, matricula, uid) {
+  if (!matricula) return Promise.resolve(null);
   var matSlug = matricula.replace(/\s/g,'_');
   var info = _facturacionConductoresIndex[uid];
   var nombreConductor = (info && info.nombre) || '';
 
-  Promise.all([
+  return Promise.all([
     fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
@@ -2378,7 +2393,6 @@ function recalcularLiquidacionCompleta(cid, matricula, uid) {
     var transfersCutTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
     var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
-    // Gastos: todos los tickets subidos por este conductor en este vehículo (incluye datáfono)
     var gastosTotal = 0;
     ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
       var catObj = gastosD[cat] || {};
@@ -2396,9 +2410,6 @@ function recalcularLiquidacionCompleta(cid, matricula, uid) {
     var promoRate = umbral >= 1000 ? 0.50 : 0.30;
     var promoTotal = promoBruto * promoRate;
 
-    // El conductor solo cobra el % que le asignó el admin sobre el neto de
-    // las apps (Uber+Bolt+Cabify) — Transfers (30%) y Privados (40%) ya
-    // llevan su propio porcentaje fijo y no se ven afectados por este otro.
     var porcentajeConductor = (info && typeof info.porcentaje === 'number') ? info.porcentaje : 30;
     var netoAppsConductor = netoAppsTotal * (porcentajeConductor / 100);
 
@@ -2409,13 +2420,20 @@ function recalcularLiquidacionCompleta(cid, matricula, uid) {
 
     var resultado = sueldo - efectivoReal;
 
-    pintarLiquidacion(uid, {
+    return {
+      nombreConductor: nombreConductor,
       sueldo: sueldo, netoAppsTotal: netoAppsTotal, netoAppsConductor: netoAppsConductor, porcentajeConductor: porcentajeConductor,
       privadosCutTotal: privadosCutTotal, transfersCutTotal: transfersCutTotal,
       propinasTotal: propinasTotal, promoBruto: promoBruto, promoRate: promoRate, promoTotal: promoTotal, umbral: umbral,
       efectivoReal: efectivoReal, efectivoAppsTotal: efectivoAppsTotal, privadosEfectivoTotal: privadosEfectivoTotal,
       transfersEfectivoTotal: transfersEfectivoTotal, gastosTotal: gastosTotal, resultado: resultado
-    });
+    };
+  });
+}
+
+function recalcularLiquidacionCompleta(cid, matricula, uid) {
+  calcularLiquidacionAcumulada(cid, matricula, uid).then(function(d){
+    if (d) pintarLiquidacion(uid, d);
   }).catch(function(){});
 }
 
@@ -3091,8 +3109,9 @@ function paintFacturacion() {
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
-      html += '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">' +
-        '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
+      html += '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar ' + ((v.tipoFacturacion||'semanal') === 'mensual' ? 'mes' : 'semana') + '</button>' +
+      '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">' +
+        '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
       html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>';
@@ -4772,6 +4791,153 @@ function editarTipoFacturacion() {
     'Facturación actual: <strong style="color:#fff">' + (actualTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '</strong><br><br>' +
     '¿Cambiar a <strong style="color:#fff">' + (nuevoTipo === 'semanal' ? 'Semanal 🗓️' : 'Mensual 📅') + '</strong>?';
   document.getElementById('cambio-facturacion-modal').style.display = 'flex';
+}
+
+// ══════════════ CIERRE DE PERIODO DE FACTURACIÓN (Excel histórico) ══════════════
+// Como los totales de Firebase son acumulados desde siempre (nunca se
+// resetean), "cerrar" un periodo significa: calcular cuánto se ha movido
+// desde el ÚLTIMO cierre (la diferencia = lo de esta semana/mes), guardar
+// ese delta como un cierre archivado, y actualizar la "base" para que el
+// próximo cierre solo cuente lo nuevo. Los datos originales nunca se tocan.
+function getPeriodKey(tipo) {
+  var d = new Date();
+  if (tipo === 'mensual') {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+  // Semanal: usamos el lunes de la semana actual como identificador
+  var day = d.getDay() || 7;
+  var monday = new Date(d);
+  monday.setDate(d.getDate() - day + 1);
+  return monday.getFullYear() + '-S' + String(monday.getMonth()+1).padStart(2,'0') + String(monday.getDate()).padStart(2,'0');
+}
+
+var _cierrePendiente = null;
+function cerrarPeriodoVehiculo(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  var tipo = v.tipoFacturacion || 'semanal';
+
+  var cids = [];
+  (v.conductores||[]).forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (c) cids.push({ cid: cid, uid: 'fact_' + cid, nombre: c.nombre, porcentaje: c.porcentaje });
+  });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula !== matricula) return;
+    cids.push({ cid: cid, uid: 'fact_' + cid, nombre: r.nombre || 'Conductor', porcentaje: r.porcentaje });
+  });
+
+  if (!cids.length) { alert('Este vehículo no tiene conductores asignados todavía.'); return; }
+
+  document.getElementById('cierre-periodo-titulo').textContent = 'Cerrar ' + (tipo === 'mensual' ? 'mes' : 'semana') + ' · ' + matricula;
+  document.getElementById('cierre-periodo-body').innerHTML = '<div style="text-align:center;color:var(--text3);font-size:13px;padding:10px 0">Calculando totales de ' + cids.length + ' conductor' + (cids.length!==1?'es':'') + '…</div>';
+  document.getElementById('cierre-periodo-modal').style.display = 'flex';
+
+  Promise.all(cids.map(function(info){
+    return Promise.all([
+      calcularLiquidacionAcumulada(info.cid, matricula, info.uid),
+      fetch(FIREBASE_URL + '/facturacion_baseline/' + matricula.replace(/\s/g,'_') + '/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    ]).then(function(r){
+      var acumulado = r[0]; var baseline = r[1] || {};
+      if (!acumulado) return null;
+      var delta = {};
+      ['sueldo','netoAppsTotal','netoAppsConductor','privadosCutTotal','transfersCutTotal','propinasTotal','promoTotal','efectivoReal','efectivoAppsTotal','privadosEfectivoTotal','transfersEfectivoTotal','gastosTotal','resultado'].forEach(function(k){
+        delta[k] = (acumulado[k]||0) - (baseline[k]||0);
+      });
+      return { cid: info.cid, nombre: info.nombre, acumulado: acumulado, baseline: baseline, delta: delta };
+    });
+  })).then(function(resultados){
+    resultados = resultados.filter(Boolean);
+    _cierrePendiente = { matricula: matricula, tipo: tipo, periodo: getPeriodKey(tipo), resultados: resultados };
+
+    var body = resultados.map(function(r){
+      var esPagar = r.delta.resultado >= 0;
+      var color = esPagar ? '#ffd700' : 'var(--red)';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--border2);margin-bottom:8px">' +
+        '<span style="font-size:13px;font-weight:700;color:#fff">' + r.nombre + '</span>' +
+        '<span style="font-family:var(--mono);font-size:13px;font-weight:900;color:' + color + '">€ ' + Math.abs(r.delta.resultado).toFixed(2).replace('.',',') + (esPagar ? ' ↑' : ' ↓') + '</span>' +
+      '</div>';
+    }).join('');
+    document.getElementById('cierre-periodo-body').innerHTML = body || '<div style="text-align:center;color:var(--text3);font-size:13px">Sin movimiento desde el último cierre.</div>';
+  });
+}
+
+function confirmarCierrePeriodo() {
+  var p = _cierrePendiente;
+  if (!p) return;
+  document.getElementById('cierre-periodo-modal').style.display = 'none';
+  var matSlug = p.matricula.replace(/\s/g,'_');
+  var fechaCierre = new Date().toISOString();
+
+  var writes = [];
+  p.resultados.forEach(function(r){
+    var registro = {};
+    for (var k in r.delta) registro[k] = r.delta[k];
+    registro.nombreConductor = r.nombre;
+    registro.matricula = p.matricula;
+    registro.tipo = p.tipo;
+    registro.fecha = fechaCierre;
+
+    writes.push(fetch(FIREBASE_URL + '/facturacion_cierres/' + matSlug + '/' + r.cid + '/' + p.periodo + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(registro)
+    }));
+    writes.push(fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlug + '/' + r.cid + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(r.acumulado)
+    }));
+  });
+
+  Promise.all(writes).then(function(){
+    toast('✅ Periodo cerrado y archivado · ' + p.matricula);
+    generarExcelFacturacion();
+  }).catch(function(err){
+    alert('No se pudo cerrar el periodo: ' + err.message);
+  });
+}
+
+function generarExcelFacturacion() {
+  fetch(FIREBASE_URL + '/facturacion_cierres.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var wb = XLSX.utils.book_new();
+    var resumen = [['Matrícula','Conductor','Periodo','Tipo','Sueldo','Efectivo real','Resultado','Fecha de cierre']];
+
+    Object.keys(data).forEach(function(matSlug){
+      var porConductor = data[matSlug] || {};
+      var matriculaLegible = matSlug.replace(/_/g,' ');
+      var filas = [['Conductor','Periodo','Tipo','Neto apps (conductor)','Privados','Transfers','Propinas','Promociones','Sueldo','Gastos','Efectivo real','Resultado','Fecha de cierre']];
+
+      Object.keys(porConductor).forEach(function(cid){
+        var periodos = porConductor[cid] || {};
+        Object.keys(periodos).sort().forEach(function(periodo){
+          var d = periodos[periodo];
+          filas.push([
+            d.nombreConductor || cid, periodo, d.tipo === 'mensual' ? 'Mensual' : 'Semanal',
+            Number((d.netoAppsConductor||0).toFixed(2)), Number((d.privadosCutTotal||0).toFixed(2)),
+            Number((d.transfersCutTotal||0).toFixed(2)), Number((d.propinasTotal||0).toFixed(2)),
+            Number((d.promoTotal||0).toFixed(2)), Number((d.sueldo||0).toFixed(2)),
+            Number((d.gastosTotal||0).toFixed(2)), Number((d.efectivoReal||0).toFixed(2)),
+            Number((d.resultado||0).toFixed(2)), (d.fecha||'').slice(0,10)
+          ]);
+          resumen.push([matriculaLegible, d.nombreConductor || cid, periodo, d.tipo === 'mensual' ? 'Mensual' : 'Semanal',
+            Number((d.sueldo||0).toFixed(2)), Number((d.efectivoReal||0).toFixed(2)), Number((d.resultado||0).toFixed(2)), (d.fecha||'').slice(0,10)]);
+        });
+      });
+
+      var ws = XLSX.utils.aoa_to_sheet(filas);
+      var nombreHoja = matriculaLegible.substring(0,31);
+      XLSX.utils.book_append_sheet(wb, ws, nombreHoja);
+    });
+
+    var wsResumen = XLSX.utils.aoa_to_sheet(resumen);
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen general');
+    // Mover el resumen a la primera posición
+    wb.SheetNames.unshift(wb.SheetNames.pop());
+
+    var fechaArchivo = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, 'DRIVX_Facturacion_' + fechaArchivo + '.xlsx');
+  }).catch(function(err){
+    alert('No se pudo generar el Excel: ' + err.message);
+  });
 }
 
 function confirmarCambioTipoFacturacion() {
