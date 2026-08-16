@@ -831,7 +831,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-4';
+var APP_VERSION = '2026-08-15-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -846,7 +846,9 @@ function checkForNewVersion() {
     .catch(function(){ /* sin conexión o version.json no disponible: no molestamos */ });
 }
 setTimeout(checkForNewVersion, 600);
-setInterval(checkForNewVersion, 5 * 60 * 1000);
+setInterval(checkForNewVersion, 15 * 1000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkForNewVersion(); });
+window.addEventListener('focus', checkForNewVersion);
 
 var currentUser = null;
 
