@@ -1195,7 +1195,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-6';
+var APP_VERSION = '2026-08-15-7';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1557,6 +1557,9 @@ function verifyInviteCode() {
   // Si no, comprobamos si es una invitación nueva creada desde el Panel Admin
   fetch(FIREBASE_URL + '/invites/' + code + '.json').then(function(r){ return r.json(); }).then(function(inv){
     if (!inv) { errEl.textContent = '❌ Código no válido'; errEl.style.display = 'block'; return; }
+    // Este código de invitación solo es válido para la app de Driver. Las invitaciones
+    // antiguas (creadas antes de esta comprobación) no llevan el campo "app" y se siguen aceptando.
+    if (inv.app && inv.app !== 'driver') { errEl.textContent = '❌ Este código no es válido para esta app'; errEl.style.display = 'block'; return; }
     if (inv.usado) { errEl.textContent = '⚠ Este código ya ha sido utilizado'; errEl.style.display = 'block'; return; }
     _inviteData = inv;
     _inviteData.code = code;
