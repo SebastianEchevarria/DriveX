@@ -482,8 +482,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div id="vd-invite-result" style="display:none;margin-top:14px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">
           <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código generado — compártelo con el conductor</div>
           <div id="vd-invite-code" style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--green);letter-spacing:1px">—</div>
-          <button onclick="copyInviteCode()" style="margin-top:10px;margin-right:8px;padding:7px 16px;border-radius:8px;border:1px solid rgba(0,230,118,.4);background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">📋 Copiar mensaje + enlace</button>
-          <button onclick="copyInviteImage()" style="margin-top:10px;padding:7px 16px;border-radius:8px;border:1px solid rgba(0,212,255,.4);background:transparent;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer">🖼️ Copiar imagen</button>
+          <button onclick="copyInviteCode()" style="margin-top:10px;padding:7px 16px;border-radius:8px;border:1px solid rgba(0,230,118,.4);background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">📋 Copiar mensaje + enlace</button>
         </div>
       </div>
 
@@ -853,7 +852,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-18';
+var APP_VERSION = '2026-08-15-19';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5479,84 +5478,23 @@ function enviarInvitacion() {
     alert('No se pudo crear la invitación: ' + err.message);
   });
 }
-// Genera una imagen (icono de la app Driver + código) para acompañar al
-// mensaje de texto que se copia junto con el enlace de instalación
-function _buildInviteCodeImage(code, cb) {
-  var icon = new Image();
-  icon.onload = function() {
-    var W = 640, H = 420;
-    var canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
-    var ctx = canvas.getContext('2d');
-    var grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, '#0a0e18'); grad.addColorStop(1, '#101826');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(30,175,252,.9)'; ctx.lineWidth = 4;
-    ctx.strokeRect(6, 6, W - 12, H - 12);
-    var iconSize = 168;
-    ctx.drawImage(icon, (W - iconSize) / 2, 34, iconSize, iconSize);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 22px Arial';
-    ctx.fillText('Descarga la app DRIVX Driver', W / 2, 244);
-    ctx.fillStyle = 'rgba(255,255,255,.65)';
-    ctx.font = '400 15px Arial';
-    ctx.fillText('e introduce este código para activar tu cuenta', W / 2, 270);
-    ctx.strokeStyle = 'rgba(0,230,118,.5)'; ctx.lineWidth = 2;
-    roundRectPath(ctx, W / 2 - 180, 296, 360, 78, 14); ctx.stroke();
-    ctx.fillStyle = '#00e676';
-    ctx.font = '900 40px monospace';
-    ctx.fillText(code, W / 2, 348);
-    canvas.toBlob(function(blob){ cb(blob); }, 'image/png');
-  };
-  icon.onerror = function(){ cb(null); };
-  icon.src = DRIVER_ICON_B64;
-}
-function roundRectPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
 function copyInviteCode() {
   var code = document.getElementById('vd-invite-code').textContent;
-  var link = 'https://drive-x-lilac-seven.vercel.app/drivx-driver-app.html?invite=' + encodeURIComponent(code);
+  var link = 'http://drive-x-lilac-seven.vercel.app/drivx-driver-app.html';
   var mensaje = '🚗 ¡Bienvenido a DRIVX!\n\n' +
     '👉 Toca aquí para instalar la app y activar tu cuenta:\n' + link + '\n\n' +
-    'Si ya la tienes instalada, abre la app e introduce este código: ' + code;
+    'Una vez dentro, introduce este código: ' + code;
   var btn = event.target;
   var old = btn.textContent;
   function done(ok) {
     btn.textContent = ok ? '✓ Copiado' : '✕ No se pudo copiar';
     setTimeout(function(){ btn.textContent = old; }, 1500);
   }
-  // Copiamos SOLO el texto (con el enlace). Si intentamos copiar también la
-  // imagen a la vez, algunas apps (WhatsApp incluida) se quedan solo con la
-  // imagen y descartan el texto silenciosamente — y entonces se pierde el enlace.
   if (navigator.clipboard) {
     navigator.clipboard.writeText(mensaje).then(function(){ done(true); }).catch(function(){ done(false); });
   } else {
     done(false);
   }
-}
-function copyInviteImage() {
-  var code = document.getElementById('vd-invite-code').textContent;
-  var btn = event.target;
-  var old = btn.textContent;
-  function done(ok) {
-    btn.textContent = ok ? '✓ Copiado' : '✕ No se pudo copiar';
-    setTimeout(function(){ btn.textContent = old; }, 1500);
-  }
-  if (!(navigator.clipboard && window.ClipboardItem)) { done(false); return; }
-  _buildInviteCodeImage(code, function(blob){
-    if (!blob) { done(false); return; }
-    try {
-      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function(){ done(true); }).catch(function(){ done(false); });
-    } catch(e) { done(false); }
-  });
 }
 
 // ══ CONDUCTORES REGISTRADOS POR INVITACIÓN ══
