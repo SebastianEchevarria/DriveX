@@ -849,7 +849,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-15';
+var APP_VERSION = '2026-08-15-16';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5475,8 +5475,8 @@ function enviarInvitacion() {
     alert('No se pudo crear la invitación: ' + err.message);
   });
 }
-// Genera una imagen (icono de la app Driver + código) para poder pegarla
-// directamente en WhatsApp u otra app de mensajería, sin mostrar ningún enlace
+// Genera una imagen (icono de la app Driver + código) para acompañar al
+// mensaje de texto que se copia junto con el enlace de instalación
 function _buildInviteCodeImage(code, cb) {
   var icon = new Image();
   icon.onload = function() {
@@ -5519,6 +5519,10 @@ function roundRectPath(ctx, x, y, w, h, r) {
 }
 function copyInviteCode() {
   var code = document.getElementById('vd-invite-code').textContent;
+  var link = 'https://drive-x-lilac-seven.vercel.app/drivx-driver-app.html?invite=' + encodeURIComponent(code);
+  var mensaje = '🚗 ¡Bienvenido a DRIVX!\n\n' +
+    '👉 Toca aquí para instalar la app y activar tu cuenta:\n' + link + '\n\n' +
+    'Si ya la tienes instalada, abre la app e introduce este código: ' + code;
   var btn = event.target;
   var old = btn.textContent;
   function done(ok) {
@@ -5528,19 +5532,19 @@ function copyInviteCode() {
   if (navigator.clipboard && window.ClipboardItem) {
     _buildInviteCodeImage(code, function(blob){
       try {
-        var items = { 'text/plain': new Blob([code], { type: 'text/plain' }) };
+        var items = { 'text/plain': new Blob([mensaje], { type: 'text/plain' }) };
         if (blob) items['image/png'] = blob;
         navigator.clipboard.write([new ClipboardItem(items)]).then(function(){
           done(true);
         }).catch(function(){
-          navigator.clipboard.writeText(code).then(function(){ done(true); }).catch(function(){ done(false); });
+          navigator.clipboard.writeText(mensaje).then(function(){ done(true); }).catch(function(){ done(false); });
         });
       } catch(e) {
-        navigator.clipboard.writeText(code).then(function(){ done(true); }).catch(function(){ done(false); });
+        navigator.clipboard.writeText(mensaje).then(function(){ done(true); }).catch(function(){ done(false); });
       }
     });
   } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(function(){ done(true); }).catch(function(){ done(false); });
+    navigator.clipboard.writeText(mensaje).then(function(){ done(true); }).catch(function(){ done(false); });
   } else {
     done(false);
   }
