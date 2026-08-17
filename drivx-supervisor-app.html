@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>DRIVX · Supervisor</title>
@@ -1107,7 +1110,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-8';
+var APP_VERSION = '2026-08-15-9';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
