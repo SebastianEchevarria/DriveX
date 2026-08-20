@@ -852,7 +852,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-19';
+var APP_VERSION = '2026-08-15-20';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2372,6 +2372,8 @@ function facturacionModalBodyHtml(info) {
 var _facturacionTotales = {};
 // ══ LIQUIDACIÓN: cálculo completo de lo que corresponde cobrar/devolver ══
 //
+var _boltCsvPendiente = {};
+
 // SUELDO = (neto Bolt + neto Uber + neto Cabify) + 40% viajes privados (efectivo y tarjeta)
 //        + 30% transfers (efectivo y tarjeta) + 100% propinas
 //        + 30% o 50% de promociones/campañas (50% si Facturación neto total
@@ -2398,7 +2400,11 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
     fetch(FIREBASE_URL + '/transfers/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/gastos/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
-    var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {};
+    var uber = results[0] || {}, cabify = results[2] || {};
+    // Si hay un CSV de Bolt recién leído pero todavía sin pulsar "Enviar al
+    // conductor", lo usamos igualmente aquí como vista previa del sueldo,
+    // para que el admin vea el número correcto sin tener que enviarlo antes.
+    var bolt = (typeof _boltCsvPendiente !== 'undefined' && _boltCsvPendiente[cid]) ? _boltCsvPendiente[cid] : (results[1] || {});
     var hojas = results[3] || {}, transfersD = results[4] || {}, gastosD = results[5] || {};
 
     var uberNetoReal = (typeof uber.netoReal === 'number') ? uber.netoReal : ((uber.neto||0) - (uber.propinas||0) - (uber.promociones||0));
@@ -2468,7 +2474,9 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
       cabifyNetoReal: cabifyNetoReal, cabifyPropinas: cabifyPropinas, cabifyPromo: cabifyPromo, cabifyEfectivo: cabifyEfectivo,
       // Listas completas de viajes privados y transfers de este conductor
       // (no acumulados — son los registros en sí, se filtran por fecha al cerrar)
-      privadosItems: privadosPropios, transfersItems: transfersPropios
+      privadosItems: privadosPropios, transfersItems: transfersPropios,
+      // Avisamos en pantalla si el sueldo incluye un CSV de Bolt aún sin enviar
+      boltPendiente: !!(typeof _boltCsvPendiente !== 'undefined' && _boltCsvPendiente[cid])
     };
   });
 }
@@ -2518,6 +2526,9 @@ function pintarLiquidacion(uid, d) {
     linea('Promociones/campañas (' + (d.promoRate*100) + '% de €' + d.promoBruto.toFixed(2).replace('.',',') + ')', d.promoTotal) +
   '</div>';
   html += '<div style="font-size:9px;color:#fff;margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
+  if (d.boltPendiente) {
+    html += '<div style="font-size:10px;color:var(--amber);margin-top:8px;font-weight:700;display:flex;align-items:center;gap:5px">⚠ Incluye un CSV de Bolt aún sin pulsar "Enviar al conductor"</div>';
+  }
   html += '</div>';
 
   // EFECTIVO REAL
@@ -3010,7 +3021,6 @@ function onBoltCsvFile(input, cid, nombreConductor) {
   reader.readAsText(file, 'UTF-8');
 }
 
-var _boltCsvPendiente = {};
 function enviarBoltAlConductor(cid, uid, silencioso) {
   var datos = _boltCsvPendiente[cid];
   if (!datos) return;
