@@ -852,7 +852,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-21';
+var APP_VERSION = '2026-08-15-22';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2433,7 +2433,7 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
     var transfersCutTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
     var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
-    var gastosTotal = 0, gastosSinDatafonoTotal = 0, datafonoTotal = 0;
+    var gastosTotal = 0, gastosSinDatafonoTotal = 0, datafonoTotal = 0, propinasDatafonoTotal = 0;
     var gastosItems = [], datafonoItems = [];
     ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
       var catObj = gastosD[cat] || {};
@@ -2441,15 +2441,16 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
         var t = catObj[tid];
         if (!(t && (t.conductor||'') === nombreConductor)) return;
         var importe = Number(t.importe||0);
+        var propinaTicket = Number(t.propina||0);
         gastosTotal += importe;
-        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'' };
-        if (cat === 'datafono') { datafonoTotal += importe; datafonoItems.push(item); }
+        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'', propina: propinaTicket, importeOriginal: Number(t.importeOriginal||importe) };
+        if (cat === 'datafono') { datafonoTotal += importe; datafonoItems.push(item); propinasDatafonoTotal += propinaTicket; }
         else { gastosSinDatafonoTotal += importe; gastosItems.push(item); }
       });
     });
 
     var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
-    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas;
+    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas + propinasDatafonoTotal;
     var promoBruto = uberPromo + boltCampanas + cabifyPromo;
 
     var umbral = netoAppsTotal + privadosCutTotal + transfersCutTotal;
@@ -2473,7 +2474,7 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
       propinasTotal: propinasTotal, promoBruto: promoBruto, promoRate: promoRate, promoTotal: promoTotal, umbral: umbral,
       efectivoReal: efectivoReal, efectivoAppsTotal: efectivoAppsTotal, privadosEfectivoTotal: privadosEfectivoTotal,
       transfersEfectivoTotal: transfersEfectivoTotal, gastosTotal: gastosTotal, resultado: resultado,
-      gastosSinDatafonoTotal: gastosSinDatafonoTotal, datafonoTotal: datafonoTotal,
+      gastosSinDatafonoTotal: gastosSinDatafonoTotal, datafonoTotal: datafonoTotal, propinasDatafonoTotal: propinasDatafonoTotal,
       gastosItems: gastosItems, datafonoItems: datafonoItems, matSlug: matSlug, cid: cid,
       // Desglose completo por plataforma (para el Excel de cierre) — cada
       // uno de estos números también es acumulado desde siempre, igual que
@@ -2531,7 +2532,7 @@ function pintarLiquidacion(uid, d) {
     linea(d.porcentajeConductor + '% del neto Uber+Bolt+Cabify (de €' + d.netoAppsTotal.toFixed(2).replace('.',',') + ')', d.netoAppsConductor) +
     linea('40% viajes privados', d.privadosCutTotal) +
     linea('30% transfers', d.transfersCutTotal) +
-    linea('100% propinas', d.propinasTotal) +
+    linea('100% propinas' + (d.propinasDatafonoTotal > 0 ? ' (incl. €' + d.propinasDatafonoTotal.toFixed(2).replace('.',',') + ' de datáfono)' : ''), d.propinasTotal) +
     linea('Promociones/campañas (' + (d.promoRate*100) + '% de €' + d.promoBruto.toFixed(2).replace('.',',') + ')', d.promoTotal) +
   '</div>';
   html += '<div style="font-size:9px;color:#fff;margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
@@ -2555,7 +2556,7 @@ function pintarLiquidacion(uid, d) {
   '</div>';
   html += '<div style="display:flex;gap:8px;margin-top:8px">' +
     '<button onclick="abrirTicketsConductorModal(\'' + uid + '\',\'gastos\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver gastos (' + d.gastosItems.length + ')</button>' +
-    '<button onclick="abrirTicketsConductorModal(\'' + uid + '\',\'datafono\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver datáfono (' + d.datafonoItems.length + ')</button>' +
+    '<button onclick="abrirTicketsConductorModal(\'' + uid + '\',\'datafono\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver datáfono (' + d.datafonoItems.length + ')' + (d.propinasDatafonoTotal > 0 ? ' 💰' : '') + '</button>' +
   '</div>';
   html += '</div>';
 
@@ -2599,6 +2600,9 @@ function abrirTicketsConductorModal(uid, tipo) {
       html += '<div style="flex:1;min-width:0">';
       html += '<div style="font-size:13px;font-weight:700;color:#fff">€ ' + Number(t.importe||0).toFixed(2).replace('.',',') + (t.nombre ? ' <span style="color:var(--text3);font-weight:400">· ' + t.nombre + '</span>' : '') + '</div>';
       html += '<div style="font-size:10px;color:var(--text3)">' + (t.fecha||'') + ' ' + (t.hora||'') + '</div>';
+      if (t.propina > 0) {
+        html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € ' + t.propina.toFixed(2).replace('.',',') + ' (ticket original € ' + t.importeOriginal.toFixed(2).replace('.',',') + ')</div>';
+      }
       html += '</div>';
       html += '<button onclick="editarTicketGastoConductor(\'' + uid + '\',\'' + tipo + '\',\'' + t.tid + '\')" style="padding:6px 10px;border-radius:7px;border:1px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️ Editar</button>';
       html += '</div>';
@@ -2626,8 +2630,16 @@ function editarTicketGastoConductor(uid, tipo, tid) {
 
   var html = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,1);border-radius:16px;max-width:360px;width:100%;padding:20px;box-shadow:0 0 18px rgba(0,212,255,.7),0 0 38px rgba(0,212,255,.4)">';
   html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:14px">✏️ Editar ticket</div>';
-  html += '<label style="font-size:11px;color:var(--text3);font-weight:700">IMPORTE (€)</label>';
-  html += '<input id="edit-ticket-importe" type="number" step="0.01" value="' + Number(t.importe||0).toFixed(2) + '" style="width:100%;margin:6px 0 12px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
+  if (tipo === 'datafono') {
+    html += '<label style="font-size:11px;color:var(--text3);font-weight:700">TOTAL DEL TICKET (€)</label>';
+    html += '<input id="edit-ticket-original" type="number" step="0.01" value="' + Number(t.importeOriginal||t.importe||0).toFixed(2) + '" style="width:100%;margin:6px 0 12px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
+    html += '<label style="font-size:11px;color:var(--text3);font-weight:700">DE ESE TOTAL, PROPINA (€)</label>';
+    html += '<input id="edit-ticket-propina" type="number" step="0.01" value="' + Number(t.propina||0).toFixed(2) + '" style="width:100%;margin:6px 0 12px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
+    html += '<div style="font-size:10px;color:var(--text3);margin:-6px 0 12px;font-style:italic">El importe que cuenta como gasto de datáfono será el total menos la propina.</div>';
+  } else {
+    html += '<label style="font-size:11px;color:var(--text3);font-weight:700">IMPORTE (€)</label>';
+    html += '<input id="edit-ticket-importe" type="number" step="0.01" value="' + Number(t.importe||0).toFixed(2) + '" style="width:100%;margin:6px 0 12px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
+  }
   html += '<label style="font-size:11px;color:var(--text3);font-weight:700">DESCRIPCIÓN (opcional)</label>';
   html += '<input id="edit-ticket-nombre" type="text" value="' + (t.nombre||'').replace(/"/g,'&quot;') + '" style="width:100%;margin:6px 0 16px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
   html += '<div style="display:flex;gap:10px">';
@@ -2643,13 +2655,24 @@ function guardarEdicionTicketGasto(uid, tipo, tid) {
   if (!cache) return;
   var cat = tipo === 'datafono' ? 'datafono' : (cache.gastos.find(function(x){ return x.tid === tid; }) || {}).cat;
   if (!cat) return;
-  var importe = parseFloat(document.getElementById('edit-ticket-importe').value);
   var nombre = document.getElementById('edit-ticket-nombre').value;
-  if (isNaN(importe)) { alert('Importe no válido'); return; }
+  var body;
+
+  if (tipo === 'datafono') {
+    var original = parseFloat(document.getElementById('edit-ticket-original').value);
+    var propina = parseFloat(document.getElementById('edit-ticket-propina').value);
+    if (isNaN(original) || isNaN(propina)) { alert('Importes no válidos'); return; }
+    if (propina > original) { alert('La propina no puede ser mayor que el total del ticket'); return; }
+    body = { importe: original - propina, importeOriginal: original, propina: propina, nombre: nombre };
+  } else {
+    var importe = parseFloat(document.getElementById('edit-ticket-importe').value);
+    if (isNaN(importe)) { alert('Importe no válido'); return; }
+    body = { importe: importe, nombre: nombre };
+  }
 
   fetch(FIREBASE_URL + '/gastos/' + cache.matSlug + '/' + cat + '/' + tid + '.json', {
     method: 'PATCH', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ importe: importe, nombre: nombre })
+    body: JSON.stringify(body)
   }).then(function(){
     document.getElementById('ticket-edit-modal').style.display = 'none';
     document.getElementById('tickets-conductor-modal').style.display = 'none';
@@ -3679,6 +3702,9 @@ function paintGastos() {
           html += '<div style="flex:1;min-width:0">';
           html += '<div style="font-size:13px;font-weight:700">€ '+(t.importe||0).toFixed(2)+' <span style="color:var(--text3);font-weight:400">· '+(t.nombre||catDef.label)+'</span></div>';
           html += '<div style="font-size:11px;color:var(--text3)">'+(t.fecha||'')+' '+(t.hora||'')+(t.conductor?' · '+t.conductor:'')+'</div>';
+          if (Number(t.propina||0) > 0) {
+            html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € '+Number(t.propina).toFixed(2)+' (ticket original € '+Number(t.importeOriginal||t.importe||0).toFixed(2)+')</div>';
+          }
           html += '</div>';
           if (t.url) {
             html += '<button onclick="window.open(\''+t.url+'\',\'_blank\')" class="edit-btn">Ver</button>';

@@ -1198,7 +1198,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-9';
+var APP_VERSION = '2026-08-15-10';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2612,8 +2612,12 @@ function onCatFile(input, cat) {
       }
 
       gastosHashes[hash] = true;
-      registerTicket(cat, importe, nombre, fecha, hora, file);
-      toast((importe > 0 ? '✓' : '⚠') + ' ' + catNames[cat] + ' registrado · € ' + importe.toFixed(2).replace('.',',') + (importe <= 0 ? ' — revisa el importe, parece que no se leyó bien' : ''));
+      if (cat === 'datafono') {
+        preguntarPropinaDatafono({ importe: importe, nombre: nombre, fecha: fecha, hora: hora, file: file });
+      } else {
+        registerTicket(cat, importe, nombre, fecha, hora, file);
+        toast((importe > 0 ? '✓' : '⚠') + ' ' + catNames[cat] + ' registrado · € ' + importe.toFixed(2).replace('.',',') + (importe <= 0 ? ' — revisa el importe, parece que no se leyó bien' : ''));
+      }
     }).catch(function(e) {
       proc.classList.remove('visible');
       console.error('[Gastos IA] error:', e);
@@ -2642,7 +2646,8 @@ function uploadTicketToFirebase(cat, ticket, file) {
     importe: ticket.importe, nombre: ticket.nombre, fecha: ticket.fecha, hora: ticket.hora,
     categoria: cat, ts: Date.now(),
     matricula: currentUser.matricula, ccaa: currentUser.ccaa || '',
-    conductor: currentUser.nombre || ''
+    conductor: currentUser.nombre || '',
+    propina: ticket.propina || 0, importeOriginal: ticket.importeOriginal || ticket.importe
   };
   function saveRecord(url) {
     if (url) record.url = url;
@@ -2657,10 +2662,73 @@ function uploadTicketToFirebase(cat, ticket, file) {
   }
 }
 
-function registerTicket(cat, importe, nombre, fecha, hora, file) {
+// ══ PROPINA EN TICKET DE DATÁFONO ══
+// Cuando el ticket es de datáfono, preguntamos siempre si el importe
+// incluye propina. Si la hay, se resta del importe del ticket (para que
+// Gastos/Facturación en el Dashboard no la contabilicen como gasto) y esa
+// cantidad se suma aparte a las propinas del conductor.
+var _propinaDatafonoActual = null;
+function preguntarPropinaDatafono(datos) {
+  _propinaDatafonoActual = datos;
+  var modal = document.getElementById('propina-datafono-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'propina-datafono-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  var html = '<div style="background:var(--surface);border:2px solid rgba(178,94,225,.9);border-radius:18px;max-width:360px;width:100%;padding:22px;box-shadow:0 0 18px rgba(178,94,225,.7),0 0 38px rgba(178,94,225,.4)">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:8px">💳 Ticket de datáfono</div>';
+  html += '<div style="font-size:13px;color:var(--text2);margin-bottom:18px">Importe leído: <b style="color:#fff">€ ' + datos.importe.toFixed(2).replace('.',',') + '</b><br>¿Este ticket incluye propina?</div>';
+  html += '<div style="display:flex;gap:10px">';
+  html += '<button onclick="_propinaDatafonoSinPropina()" style="flex:1;padding:13px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:13px;font-weight:700;cursor:pointer">No</button>';
+  html += '<button onclick="preguntarPropinaDatafonoCantidad(_propinaDatafonoActual)" style="flex:1;padding:13px;border-radius:10px;border:none;background:var(--purple);color:#fff;font-size:13px;font-weight:800;cursor:pointer">Sí, hay propina</button>';
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+function _propinaDatafonoSinPropina() {
+  var datos = _propinaDatafonoActual;
+  document.getElementById('propina-datafono-modal').style.display = 'none';
+  registerTicket('datafono', datos.importe, datos.nombre, datos.fecha, datos.hora, datos.file, 0, datos.importe);
+  toast('✓ Datáfono registrado · € ' + datos.importe.toFixed(2).replace('.',','));
+}
+function preguntarPropinaDatafonoCantidad(datos) {
+  _propinaDatafonoActual = datos;
+  var modal = document.getElementById('propina-datafono-modal');
+  var html = '<div style="background:var(--surface);border:2px solid rgba(178,94,225,.9);border-radius:18px;max-width:360px;width:100%;padding:22px;box-shadow:0 0 18px rgba(178,94,225,.7),0 0 38px rgba(178,94,225,.4)">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:8px">💰 ¿Cuánto de propina?</div>';
+  html += '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">Del total de € ' + datos.importe.toFixed(2).replace('.',',') + ', indica la cantidad exacta que era propina.</div>';
+  html += '<input id="propina-cantidad-input" type="number" step="0.01" min="0" max="' + datos.importe + '" placeholder="0.00" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:18px;font-weight:800;box-sizing:border-box;margin-bottom:16px">';
+  html += '<div style="display:flex;gap:10px">';
+  html += '<button onclick="preguntarPropinaDatafono(_propinaDatafonoActual)" style="flex:1;padding:13px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:13px;font-weight:700;cursor:pointer">Atrás</button>';
+  html += '<button onclick="_propinaDatafonoConfirmarCantidad()" style="flex:1;padding:13px;border-radius:10px;border:none;background:var(--purple);color:#fff;font-size:13px;font-weight:800;cursor:pointer">Confirmar</button>';
+  html += '</div></div>';
+  modal.innerHTML = html;
+  setTimeout(function(){ var inp = document.getElementById('propina-cantidad-input'); if (inp) inp.focus(); }, 50);
+}
+function _propinaDatafonoConfirmarCantidad() {
+  var datos = _propinaDatafonoActual;
+  var input = document.getElementById('propina-cantidad-input');
+  var propina = parseFloat(input.value);
+  if (isNaN(propina) || propina < 0) { toast('⚠ Indica una cantidad válida'); return; }
+  if (propina > datos.importe) { toast('⚠ La propina no puede ser mayor que el total del ticket'); return; }
+  var importeNeto = datos.importe - propina;
+  document.getElementById('propina-datafono-modal').style.display = 'none';
+  registerTicket('datafono', importeNeto, datos.nombre, datos.fecha, datos.hora, datos.file, propina, datos.importe);
+  if (propina > 0) {
+    toast('✓ Datáfono € ' + importeNeto.toFixed(2).replace('.',',') + ' + propina € ' + propina.toFixed(2).replace('.',','));
+  } else {
+    toast('✓ Datáfono registrado · € ' + importeNeto.toFixed(2).replace('.',','));
+  }
+}
+
+function registerTicket(cat, importe, nombre, fecha, hora, file, propina, importeOriginal) {
+  propina = propina || 0;
+  importeOriginal = importeOriginal || importe;
   gastosTotals[cat] = (gastosTotals[cat] || 0) + importe;
-  data.gastos[cat].push({ importe:importe, nombre:nombre, fecha:fecha, hora:hora });
-  uploadTicketToFirebase(cat, { importe:importe, nombre:nombre, fecha:fecha, hora:hora }, file);
+  data.gastos[cat].push({ importe:importe, nombre:nombre, fecha:fecha, hora:hora, propina:propina, importeOriginal:importeOriginal });
+  uploadTicketToFirebase(cat, { importe:importe, nombre:nombre, fecha:fecha, hora:hora, propina:propina, importeOriginal:importeOriginal }, file);
 
   var count = data.gastos[cat].length;
   var cEl = document.getElementById('count-'+cat);
@@ -2685,6 +2753,7 @@ function registerTicket(cat, importe, nombre, fecha, hora, file) {
     if (fecha) metaParts.push(fecha);
     if (hora)  metaParts.push(hora);
     if (!metaParts.length) metaParts.push('Hoy');
+    if (propina > 0) metaParts.push('💰 propina € ' + propina.toFixed(2).replace('.',','));
     var meta = metaParts.join(' · ');
     li.innerHTML =
       '<div class="ticket-item">' +
