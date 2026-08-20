@@ -852,7 +852,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-22';
+var APP_VERSION = '2026-08-15-23';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2442,10 +2442,17 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
         if (!(t && (t.conductor||'') === nombreConductor)) return;
         var importe = Number(t.importe||0);
         var propinaTicket = Number(t.propina||0);
-        gastosTotal += importe;
-        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'', propina: propinaTicket, importeOriginal: Number(t.importeOriginal||importe) };
-        if (cat === 'datafono') { datafonoTotal += importe; datafonoItems.push(item); propinasDatafonoTotal += propinaTicket; }
-        else { gastosSinDatafonoTotal += importe; gastosItems.push(item); }
+        var pagadoPorPropietario = t.pagadoPor === 'propietario';
+        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'', propina: propinaTicket, importeOriginal: Number(t.importeOriginal||importe), pagadoPorPropietario: pagadoPorPropietario };
+        // Los pagados directamente por el propietario no cuentan como
+        // gasto del conductor (se reflejarán en la cuenta del propietario),
+        // pero se siguen mostrando en la lista para que quede constancia.
+        if (!pagadoPorPropietario) {
+          gastosTotal += importe;
+          if (cat === 'datafono') { datafonoTotal += importe; propinasDatafonoTotal += propinaTicket; }
+          else { gastosSinDatafonoTotal += importe; }
+        }
+        if (cat === 'datafono') datafonoItems.push(item); else gastosItems.push(item);
       });
     });
 
@@ -2602,6 +2609,9 @@ function abrirTicketsConductorModal(uid, tipo) {
       html += '<div style="font-size:10px;color:var(--text3)">' + (t.fecha||'') + ' ' + (t.hora||'') + '</div>';
       if (t.propina > 0) {
         html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € ' + t.propina.toFixed(2).replace('.',',') + ' (ticket original € ' + t.importeOriginal.toFixed(2).replace('.',',') + ')</div>';
+      }
+      if (t.pagadoPorPropietario) {
+        html += '<div style="font-size:10px;color:var(--purple);font-weight:800;margin-top:2px">🏢 Pagado por el propietario · no cuenta en su cuenta</div>';
       }
       html += '</div>';
       html += '<button onclick="editarTicketGastoConductor(\'' + uid + '\',\'' + tipo + '\',\'' + t.tid + '\')" style="padding:6px 10px;border-radius:7px;border:1px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️ Editar</button>';
@@ -3704,6 +3714,9 @@ function paintGastos() {
           html += '<div style="font-size:11px;color:var(--text3)">'+(t.fecha||'')+' '+(t.hora||'')+(t.conductor?' · '+t.conductor:'')+'</div>';
           if (Number(t.propina||0) > 0) {
             html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € '+Number(t.propina).toFixed(2)+' (ticket original € '+Number(t.importeOriginal||t.importe||0).toFixed(2)+')</div>';
+          }
+          if (t.pagadoPor === 'propietario') {
+            html += '<div style="font-size:10px;color:var(--purple);font-weight:800;margin-top:2px">🏢 Pagado por el propietario · no cuenta en la cuenta del conductor</div>';
           }
           html += '</div>';
           if (t.url) {
