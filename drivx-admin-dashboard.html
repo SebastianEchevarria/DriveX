@@ -852,7 +852,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-20';
+var APP_VERSION = '2026-08-15-21';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2373,6 +2373,7 @@ var _facturacionTotales = {};
 // ══ LIQUIDACIÓN: cálculo completo de lo que corresponde cobrar/devolver ══
 //
 var _boltCsvPendiente = {};
+var _gastosPorConductorCache = {};
 
 // SUELDO = (neto Bolt + neto Uber + neto Cabify) + 40% viajes privados (efectivo y tarjeta)
 //        + 30% transfers (efectivo y tarjeta) + 100% propinas
@@ -2432,12 +2433,18 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
     var transfersCutTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
     var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
-    var gastosTotal = 0;
+    var gastosTotal = 0, gastosSinDatafonoTotal = 0, datafonoTotal = 0;
+    var gastosItems = [], datafonoItems = [];
     ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
       var catObj = gastosD[cat] || {};
       Object.keys(catObj).forEach(function(tid){
         var t = catObj[tid];
-        if (t && (t.conductor||'') === nombreConductor) gastosTotal += Number(t.importe||0);
+        if (!(t && (t.conductor||'') === nombreConductor)) return;
+        var importe = Number(t.importe||0);
+        gastosTotal += importe;
+        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'' };
+        if (cat === 'datafono') { datafonoTotal += importe; datafonoItems.push(item); }
+        else { gastosSinDatafonoTotal += importe; gastosItems.push(item); }
       });
     });
 
@@ -2466,6 +2473,8 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
       propinasTotal: propinasTotal, promoBruto: promoBruto, promoRate: promoRate, promoTotal: promoTotal, umbral: umbral,
       efectivoReal: efectivoReal, efectivoAppsTotal: efectivoAppsTotal, privadosEfectivoTotal: privadosEfectivoTotal,
       transfersEfectivoTotal: transfersEfectivoTotal, gastosTotal: gastosTotal, resultado: resultado,
+      gastosSinDatafonoTotal: gastosSinDatafonoTotal, datafonoTotal: datafonoTotal,
+      gastosItems: gastosItems, datafonoItems: datafonoItems, matSlug: matSlug, cid: cid,
       // Desglose completo por plataforma (para el Excel de cierre) — cada
       // uno de estos números también es acumulado desde siempre, igual que
       // el resto, así que se les resta la baseline igual que a todo lo demás.
@@ -2541,11 +2550,113 @@ function pintarLiquidacion(uid, d) {
     linea('Efectivo Uber + Bolt + Cabify', d.efectivoAppsTotal) +
     linea('Privados cobrados en efectivo', d.privadosEfectivoTotal) +
     linea('Transfers cobrados en efectivo', d.transfersEfectivoTotal) +
-    linea('Gastos (incl. datáfono)', d.gastosTotal, true) +
+    linea('Gastos', d.gastosSinDatafonoTotal, true) +
+    linea('Datáfono', d.datafonoTotal, true) +
+  '</div>';
+  html += '<div style="display:flex;gap:8px;margin-top:8px">' +
+    '<button onclick="abrirTicketsConductorModal(\'' + uid + '\',\'gastos\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver gastos (' + d.gastosItems.length + ')</button>' +
+    '<button onclick="abrirTicketsConductorModal(\'' + uid + '\',\'datafono\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver datáfono (' + d.datafonoItems.length + ')</button>' +
   '</div>';
   html += '</div>';
 
+  _gastosPorConductorCache[uid] = { gastos: d.gastosItems, datafono: d.datafonoItems, matSlug: d.matSlug, nombreConductor: d.nombreConductor };
+
   cont.innerHTML = html;
+}
+
+// ══ TICKETS de Gastos/Datáfono dentro de la facturación de un conductor ══
+function abrirTicketsConductorModal(uid, tipo) {
+  var cache = _gastosPorConductorCache[uid];
+  if (!cache) return;
+  var items = tipo === 'datafono' ? cache.datafono : cache.gastos;
+  var titulo = tipo === 'datafono' ? '💳 Tickets de datáfono' : '🧾 Tickets de gastos';
+
+  var modal = document.getElementById('tickets-conductor-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'tickets-conductor-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+
+  var html = '<div style="background:var(--surface);border:2px solid rgba(255,71,87,.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(255,71,87,.55),0 0 40px rgba(255,71,87,.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:15px;font-weight:900;color:#fff">' + titulo + '</span>';
+  html += '<button onclick="document.getElementById(\'tickets-conductor-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:14px 18px 18px">';
+
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin tickets en esta categoría</div>';
+  } else {
+    items.forEach(function(t){
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">';
+      if (t.url) {
+        html += '<img src="' + t.url + '" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0" onclick="window.open(\'' + t.url + '\',\'_blank\')">';
+      } else {
+        html += '<div style="width:44px;height:44px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🧾</div>';
+      }
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:13px;font-weight:700;color:#fff">€ ' + Number(t.importe||0).toFixed(2).replace('.',',') + (t.nombre ? ' <span style="color:var(--text3);font-weight:400">· ' + t.nombre + '</span>' : '') + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3)">' + (t.fecha||'') + ' ' + (t.hora||'') + '</div>';
+      html += '</div>';
+      html += '<button onclick="editarTicketGastoConductor(\'' + uid + '\',\'' + tipo + '\',\'' + t.tid + '\')" style="padding:6px 10px;border-radius:7px;border:1px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️ Editar</button>';
+      html += '</div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function editarTicketGastoConductor(uid, tipo, tid) {
+  var cache = _gastosPorConductorCache[uid];
+  if (!cache) return;
+  var items = tipo === 'datafono' ? cache.datafono : cache.gastos;
+  var t = items.find(function(x){ return x.tid === tid; });
+  if (!t) return;
+
+  var modal = document.getElementById('ticket-edit-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ticket-edit-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+
+  var html = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,1);border-radius:16px;max-width:360px;width:100%;padding:20px;box-shadow:0 0 18px rgba(0,212,255,.7),0 0 38px rgba(0,212,255,.4)">';
+  html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:14px">✏️ Editar ticket</div>';
+  html += '<label style="font-size:11px;color:var(--text3);font-weight:700">IMPORTE (€)</label>';
+  html += '<input id="edit-ticket-importe" type="number" step="0.01" value="' + Number(t.importe||0).toFixed(2) + '" style="width:100%;margin:6px 0 12px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
+  html += '<label style="font-size:11px;color:var(--text3);font-weight:700">DESCRIPCIÓN (opcional)</label>';
+  html += '<input id="edit-ticket-nombre" type="text" value="' + (t.nombre||'').replace(/"/g,'&quot;') + '" style="width:100%;margin:6px 0 16px;padding:10px;border-radius:8px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:14px;box-sizing:border-box">';
+  html += '<div style="display:flex;gap:10px">';
+  html += '<button onclick="document.getElementById(\'ticket-edit-modal\').style.display=\'none\'" style="flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:13px;font-weight:700;cursor:pointer">Cancelar</button>';
+  html += '<button onclick="guardarEdicionTicketGasto(\'' + uid + '\',\'' + tipo + '\',\'' + tid + '\')" style="flex:1;padding:11px;border-radius:9px;border:none;background:var(--cyan);color:#000;font-size:13px;font-weight:800;cursor:pointer">Guardar</button>';
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function guardarEdicionTicketGasto(uid, tipo, tid) {
+  var cache = _gastosPorConductorCache[uid];
+  if (!cache) return;
+  var cat = tipo === 'datafono' ? 'datafono' : (cache.gastos.find(function(x){ return x.tid === tid; }) || {}).cat;
+  if (!cat) return;
+  var importe = parseFloat(document.getElementById('edit-ticket-importe').value);
+  var nombre = document.getElementById('edit-ticket-nombre').value;
+  if (isNaN(importe)) { alert('Importe no válido'); return; }
+
+  fetch(FIREBASE_URL + '/gastos/' + cache.matSlug + '/' + cat + '/' + tid + '.json', {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ importe: importe, nombre: nombre })
+  }).then(function(){
+    document.getElementById('ticket-edit-modal').style.display = 'none';
+    document.getElementById('tickets-conductor-modal').style.display = 'none';
+    toast('✓ Ticket actualizado');
+    var info = _facturacionConductoresIndex[uid];
+    if (info) recalcularLiquidacionCompleta(info.cid, info.matricula, uid);
+  }).catch(function(){ alert('No se pudo guardar el cambio'); });
 }
 
 function recalcularTotalFacturacion(uid, cid) {
