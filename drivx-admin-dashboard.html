@@ -352,7 +352,6 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 <!-- ══════════════ MODAL: TODOS LOS CONDUCTORES DEL VEHÍCULO (solo PC) ══════════════ -->
 <div id="fact-multi-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9998;align-items:flex-start;justify-content:center;padding:70px 24px 30px;overflow:auto">
   <button onclick="closeFacturacionMultiModal()" style="position:fixed;top:20px;left:24px;padding:10px 18px;border-radius:20px;border:2px solid rgba(255,71,87,.85);background:rgba(255,71,87,.15);color:#fff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.6),0 0 20px rgba(255,71,87,.35);z-index:1">← ATRÁS</button>
-  <button id="fact-multi-enviar-btn" onclick="enviarBoltATodos()" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 26px;border-radius:20px;border:2.5px solid rgba(255,140,0,1);background:rgba(255,140,0,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35);z-index:1">📤 ENVIAR A LOS CONDUCTORES</button>
   <div id="fact-multi-modal-inner" style="display:flex;gap:24px;align-items:flex-start;margin:0 auto"></div>
 </div>
 
@@ -404,12 +403,15 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 <div id="cierre-periodo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10001;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2.5px solid rgba(255,215,0,1);border-radius:20px;box-shadow:0 0 18px rgba(255,215,0,1),0 0 40px rgba(255,215,0,.6),0 20px 50px rgba(0,0,0,.6);max-width:420px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px">
     <div style="text-align:center;margin-bottom:6px"><div style="font-size:38px">🔒</div></div>
-    <div id="cierre-periodo-titulo" style="text-align:center;font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:6px">Cerrar semana</div>
-    <div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:18px">Esto archiva los números actuales de cada conductor y prepara el siguiente periodo desde cero. No se borra ningún dato.</div>
+    <div id="cierre-periodo-titulo" style="text-align:center;font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:10px">Cerrar semana</div>
+    <div style="text-align:center;background:rgba(255,215,0,.1);border:2px solid rgba(255,215,0,.9);border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 0 10px rgba(255,215,0,.5)">
+      <div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9)">¿Cerrar la facturación semanal y enviar al conductor?</div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:18px">Si confirmas, se archivan los números actuales de cada conductor y se envían a su app de Driver. Hasta que no cierres la semana, lo que edites o subas aquí no se reflejará en la app del conductor. No se borra ningún dato.</div>
     <div id="cierre-periodo-body" style="margin-bottom:20px"></div>
     <div style="display:flex;gap:10px">
-      <button onclick="document.getElementById('cierre-periodo-modal').style.display='none'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button onclick="confirmarCierrePeriodo()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.85),0 0 22px rgba(255,215,0,.5)">🔒 Confirmar cierre</button>
+      <button onclick="document.getElementById('cierre-periodo-modal').style.display='none'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">No</button>
+      <button onclick="confirmarCierrePeriodo()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.85),0 0 22px rgba(255,215,0,.5)">🔒 Sí, cerrar y enviar</button>
     </div>
   </div>
 </div>
@@ -852,7 +854,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-23';
+var APP_VERSION = '2026-08-15-24';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2190,26 +2192,6 @@ function cerrarPeriodoConductorDesdeModal() {
 // una al lado de otra. En móvil, la tarjeta no hace nada — se sigue
 // entrando conductor por conductor como hasta ahora.
 var _facturacionMultiListaActual = [];
-function enviarBoltATodos() {
-  var btn = document.getElementById('fact-multi-enviar-btn');
-  var enviados = 0;
-  _facturacionMultiListaActual.forEach(function(info){
-    if (_boltCsvPendiente[info.cid]) {
-      enviarBoltAlConductor(info.cid, 'fact_' + info.cid, true);
-      enviados++;
-    }
-  });
-  if (!enviados) return;
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = '✓ Enviado';
-    btn.style.borderColor = 'rgba(0,230,118,1)';
-    btn.style.background = 'rgba(0,230,118,.16)';
-    btn.style.boxShadow = '0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.65),0 0 58px rgba(0,230,118,.35)';
-    btn.style.cursor = 'default';
-  }
-  toast('📤 Datos de Bolt enviados a ' + enviados + ' conductor' + (enviados !== 1 ? 'es' : ''));
-}
 
 function abrirTodosConductoresVehiculo(matricula) {
   if (window.innerWidth < 900) return;
@@ -2257,24 +2239,8 @@ function abrirTodosConductoresVehiculo(matricula) {
 
   _facturacionMultiListaActual = lista;
 
-  var hayPendientes = lista.some(function(info){ return !!_boltCsvPendiente[info.cid]; });
-  var btnEnviarTodos = document.getElementById('fact-multi-enviar-btn');
-  if (btnEnviarTodos) {
-    btnEnviarTodos.style.display = hayPendientes ? 'block' : 'none';
-    btnEnviarTodos.disabled = false;
-    btnEnviarTodos.textContent = '📤 ENVIAR A LOS CONDUCTORES';
-    btnEnviarTodos.style.borderColor = 'rgba(255,140,0,1)';
-    btnEnviarTodos.style.background = 'rgba(255,140,0,.16)';
-    btnEnviarTodos.style.boxShadow = '0 0 16px rgba(255,140,0,.95),0 0 34px rgba(255,140,0,.65),0 0 58px rgba(255,140,0,.35)';
-    btnEnviarTodos.style.cursor = 'pointer';
-  }
-
   lista.forEach(function(info){
-    if (_boltCsvPendiente[info.cid]) {
-      pintarBoltCsvBox('fact_' + info.cid, _boltCsvPendiente[info.cid], info.cid, 'pendiente');
-    } else {
-      pintarBoltCsvGuardado(info.cid);
-    }
+    pintarBoltCsvGuardado(info.cid);
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
@@ -2303,11 +2269,7 @@ function openFacturacionConductorModal(uid) {
   var cerrarBtn = document.getElementById('fact-modal-cerrar-btn');
   if (cerrarBtn) cerrarBtn.title = 'Cerrar ' + (vTipoBtn === 'mensual' ? 'mes' : 'semana');
   document.getElementById('fact-conductor-modal').style.display = 'flex';
-  if (_boltCsvPendiente[info.cid]) {
-    pintarBoltCsvBox('fact_' + info.cid, _boltCsvPendiente[info.cid], info.cid, 'pendiente');
-  } else {
-    pintarBoltCsvGuardado(info.cid);
-  }
+  pintarBoltCsvGuardado(info.cid);
   pintarUberCabifyGuardado(info.cid);
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
@@ -2372,7 +2334,6 @@ function facturacionModalBodyHtml(info) {
 var _facturacionTotales = {};
 // ══ LIQUIDACIÓN: cálculo completo de lo que corresponde cobrar/devolver ══
 //
-var _boltCsvPendiente = {};
 var _gastosPorConductorCache = {};
 
 // SUELDO = (neto Bolt + neto Uber + neto Cabify) + 40% viajes privados (efectivo y tarjeta)
@@ -2401,11 +2362,7 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
     fetch(FIREBASE_URL + '/transfers/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/gastos/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
-    var uber = results[0] || {}, cabify = results[2] || {};
-    // Si hay un CSV de Bolt recién leído pero todavía sin pulsar "Enviar al
-    // conductor", lo usamos igualmente aquí como vista previa del sueldo,
-    // para que el admin vea el número correcto sin tener que enviarlo antes.
-    var bolt = (typeof _boltCsvPendiente !== 'undefined' && _boltCsvPendiente[cid]) ? _boltCsvPendiente[cid] : (results[1] || {});
+    var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {};
     var hojas = results[3] || {}, transfersD = results[4] || {}, gastosD = results[5] || {};
 
     var uberNetoReal = (typeof uber.netoReal === 'number') ? uber.netoReal : ((uber.neto||0) - (uber.propinas||0) - (uber.promociones||0));
@@ -2491,9 +2448,7 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
       cabifyNetoReal: cabifyNetoReal, cabifyPropinas: cabifyPropinas, cabifyPromo: cabifyPromo, cabifyEfectivo: cabifyEfectivo,
       // Listas completas de viajes privados y transfers de este conductor
       // (no acumulados — son los registros en sí, se filtran por fecha al cerrar)
-      privadosItems: privadosPropios, transfersItems: transfersPropios,
-      // Avisamos en pantalla si el sueldo incluye un CSV de Bolt aún sin enviar
-      boltPendiente: !!(typeof _boltCsvPendiente !== 'undefined' && _boltCsvPendiente[cid])
+      privadosItems: privadosPropios, transfersItems: transfersPropios
     };
   });
 }
@@ -2543,9 +2498,6 @@ function pintarLiquidacion(uid, d) {
     linea('Promociones/campañas (' + (d.promoRate*100) + '% de €' + d.promoBruto.toFixed(2).replace('.',',') + ')', d.promoTotal) +
   '</div>';
   html += '<div style="font-size:9px;color:#fff;margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
-  if (d.boltPendiente) {
-    html += '<div style="font-size:10px;color:var(--amber);margin-top:8px;font-weight:700;display:flex;align-items:center;gap:5px">⚠ Incluye un CSV de Bolt aún sin pulsar "Enviar al conductor"</div>';
-  }
   html += '</div>';
 
   // EFECTIVO REAL
@@ -3100,17 +3052,15 @@ function onBoltCsvFileVehiculo(input, matricula) {
       };
       datos.netoReal = datos.ingresosNetos - datos.peajes - datos.ingresosCampanas - datos.propinas;
 
-      // No se manda todavía: se queda pendiente hasta que se pulse el botón
-      // de "Enviar a los conductores" (arriba, al abrir todos a la vez).
-      _boltCsvPendiente[cond.cid] = datos;
+      guardarBoltCsvFirebase(cond.cid, datos);
       encontrados.push(cond.nombre);
     });
 
-    if (encontrados.length) toast('✓ CSV leído para: ' + encontrados.join(', ') + ' — revisa y pulsa "Enviar a los conductores"');
+    if (encontrados.length) toast('✓ CSV de Bolt guardado para: ' + encontrados.join(', '));
     if (noEncontrados.length) toast('⚠ No se encontró en el CSV a: ' + noEncontrados.join(', '));
 
     // Si ya están abiertas las ventanas de este vehículo, las refrescamos
-    // para que se vea el aviso pendiente y el botón naranja de arriba.
+    // para que se vean los nuevos números.
     if (document.getElementById('fact-multi-modal').style.display === 'flex') {
       abrirTodosConductoresVehiculo(matricula);
     }
@@ -3156,22 +3106,11 @@ function onBoltCsvFile(input, cid, nombreConductor) {
     };
     datos.netoReal = datos.ingresosNetos - datos.peajes - datos.ingresosCampanas - datos.propinas;
 
-    // De momento NO se manda al conductor: se queda pendiente de revisión
-    // hasta que el admin pulse "Enviar al conductor".
-    _boltCsvPendiente[cid] = datos;
-    pintarBoltCsvBox('fact_' + cid, datos, cid, 'pendiente');
-    toast('✓ CSV leído para ' + nombreConductor + ' — revisa los datos y pulsa "Enviar al conductor"');
+    guardarBoltCsvFirebase(cid, datos);
+    pintarBoltCsvBox('fact_' + cid, datos, cid);
+    toast('✓ CSV de Bolt guardado para ' + nombreConductor);
   };
   reader.readAsText(file, 'UTF-8');
-}
-
-function enviarBoltAlConductor(cid, uid, silencioso) {
-  var datos = _boltCsvPendiente[cid];
-  if (!datos) return;
-  guardarBoltCsvFirebase(cid, datos);
-  delete _boltCsvPendiente[cid];
-  pintarBoltCsvBox(uid, datos, cid, 'enviado');
-  if (!silencioso) toast('📤 Datos de Bolt enviados al conductor');
 }
 
 function guardarBoltCsvFirebase(cid, datos) {
@@ -3184,20 +3123,20 @@ function guardarBoltCsvFirebase(cid, datos) {
 function pintarBoltCsvGuardado(cid) {
   var uid = 'fact_' + cid;
   fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
-    if (datos) pintarBoltCsvBox(uid, datos, cid, 'enviado');
+    pintarBoltCsvBox(uid, datos, cid);
   }).catch(function(){});
 }
 
 function pedirBorrarBolt(cid, uid) {
-  pedirConfirmacionBorrado('¿Eliminar los datos de Bolt de este conductor? El conductor dejará de verlos en su app.', function(){
+  pedirConfirmacionBorrado('¿Eliminar los datos de Bolt de este conductor? El conductor dejará de verlos en su app en cuanto cierres la semana.', function(){
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json', { method: 'DELETE' }).then(function(){
       toast('🗑 Datos de Bolt eliminados');
-      pintarBoltCsvBox(uid, null, cid, null);
+      pintarBoltCsvBox(uid, null, cid);
     }).catch(function(){});
   });
 }
 
-function pintarBoltCsvBox(uid, datos, cid, estado) {
+function pintarBoltCsvBox(uid, datos, cid) {
   var cont = document.getElementById('boltcsv_body_' + uid);
   if (!cont) return;
   _facturacionTotales[cid] = _facturacionTotales[cid] || {};
@@ -3225,12 +3164,8 @@ function pintarBoltCsvBox(uid, datos, cid, estado) {
       '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoReal.toFixed(2).replace('.',',') + '</span>' +
     '</div>';
 
-  if (estado === 'pendiente') {
-    html += '<button onclick="enviarBoltAlConductor(\'' + cid + '\',\'' + uid + '\')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);margin-top:6px">📤 ENVIAR AL CONDUCTOR</button>';
-  } else if (estado === 'enviado') {
-    html += '<div style="font-size:11px;color:var(--cyan);margin:4px 0 10px;text-align:center">✓ Enviado — el conductor ya puede verlo en su app</div>' +
-      '<button onclick="pedirBorrarBolt(\'' + cid + '\',\'' + uid + '\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar datos</button>';
-  }
+  html += '<div style="font-size:11px;color:var(--text3);margin:4px 0 10px;text-align:center">✓ Guardado — se enviará a la app del conductor cuando cierres la semana</div>' +
+    '<button onclick="pedirBorrarBolt(\'' + cid + '\',\'' + uid + '\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">🗑 Eliminar datos</button>';
   cont.innerHTML = html;
 }
 
@@ -5130,10 +5065,27 @@ function confirmarCierrePeriodo() {
     writes.push(fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlug + '/' + r.cid + '.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevaBaseline)
     }));
+
+    // Publicamos hacia la app del conductor: hasta este momento, nada de lo
+    // que el admin edite o suba (Uber/Bolt/Cabify) se reflejaba en su app.
+    // Al cerrar la semana, copiamos el estado actual de las 3 plataformas a
+    // una "foto" publicada que es la que la app de Driver lee.
+    writes.push(
+      Promise.all([
+        fetch(FIREBASE_URL + '/facturacion_uber/' + r.cid + '.json').then(function(res){ return res.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/facturacion_bolt/' + r.cid + '.json').then(function(res){ return res.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/facturacion_cabify/' + r.cid + '.json').then(function(res){ return res.json(); }).catch(function(){ return null; })
+      ]).then(function(datos){
+        var publicado = { uber: datos[0] || null, bolt: datos[1] || null, cabify: datos[2] || null, publicadoTs: ahoraTs };
+        return fetch(FIREBASE_URL + '/facturacion_publicada/' + r.cid + '.json', {
+          method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(publicado)
+        });
+      })
+    );
   });
 
   Promise.all(writes).then(function(){
-    toast('✅ Periodo cerrado y archivado · ' + p.matricula);
+    toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
     generarExcelFacturacion();
   }).catch(function(err){
     alert('No se pudo cerrar el periodo: ' + err.message);
