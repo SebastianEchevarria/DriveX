@@ -854,7 +854,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-25';
+var APP_VERSION = '2026-08-15-26';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2292,10 +2292,6 @@ function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
   var vTipo = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
   return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
-    '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);display:flex;justify-content:space-between;align-items:center">' +
-      '<span style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">FACTURACIÓN NETO TOTAL</span>' +
-      '<span id="fact-total-' + uid + '" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ 0,00</span>' +
-    '</div>' +
     '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Uber</div>' +
@@ -2484,6 +2480,12 @@ function pintarLiquidacion(uid, d) {
   html += '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + d.sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + d.efectivoReal.toFixed(2).replace('.',',') + ')</div>';
   html += '</div>';
 
+  // FACTURACIÓN NETO TOTAL — justo debajo del resultado
+  html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65),0 0 58px rgba(0,212,255,.35);display:flex;justify-content:space-between;align-items:center">' +
+    '<span style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">FACTURACIÓN NETO TOTAL</span>' +
+    '<span id="fact-total-' + uid + '" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ 0,00</span>' +
+  '</div>';
+
   // SUELDO
   html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 14px rgba(0,230,118,.8),0 0 30px rgba(0,230,118,.5)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
@@ -2522,6 +2524,15 @@ function pintarLiquidacion(uid, d) {
   _gastosPorConductorCache[uid] = { gastos: d.gastosItems, datafono: d.datafonoItems, matSlug: d.matSlug, nombreConductor: d.nombreConductor };
 
   cont.innerHTML = html;
+
+  // El span del total vive ahora dentro de este bloque (se regenera cada
+  // vez), así que lo actualizamos aquí mismo para que nunca se quede en
+  // "€ 0,00" aunque el cálculo del total llegue en otro momento.
+  var cidDeUid = uid.replace(/^fact_/, '');
+  var tTotales = _facturacionTotales[cidDeUid] || {};
+  var totalNeto = (tTotales.uber||0) + (tTotales.bolt||0) + (tTotales.cabify||0) + (tTotales.privados||0) + (tTotales.transfers||0);
+  var totalEl = document.getElementById('fact-total-' + uid);
+  if (totalEl) totalEl.textContent = '€ ' + totalNeto.toFixed(2).replace('.',',');
 }
 
 // ══ TICKETS de Gastos/Datáfono dentro de la facturación de un conductor ══
