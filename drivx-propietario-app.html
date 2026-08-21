@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-12';
+var APP_VERSION = '2026-08-15-13';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1315,17 +1315,24 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     var transfersTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
     var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
-    var gastosTotal = 0;
+    var gastosTotal = 0, gastosSinDatafonoTotal = 0, datafonoTotal = 0, propinasDatafonoTotal = 0;
     ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
       var catObj = gastosD[cat] || {};
       Object.keys(catObj).forEach(function(tid){
         var t = catObj[tid];
-        if (t && (t.conductor||'') === nombreConductor) gastosTotal += Number(t.importe||0);
+        if (!(t && (t.conductor||'') === nombreConductor)) return;
+        // Los pagados directamente por el propietario no cuentan como
+        // gasto del conductor.
+        if (t.pagadoPor === 'propietario') return;
+        var importe = Number(t.importe||0);
+        gastosTotal += importe;
+        if (cat === 'datafono') { datafonoTotal += importe; propinasDatafonoTotal += Number(t.propina||0); }
+        else { gastosSinDatafonoTotal += importe; }
       });
     });
 
     var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
-    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas;
+    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas + propinasDatafonoTotal;
     var promoBruto = uberPromo + boltCampanas + cabifyPromo;
     var umbral = netoAppsTotal + privadosTotal + transfersTotal;
     var promoRate = umbral >= 1000 ? 0.50 : 0.30;
@@ -1388,7 +1395,7 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
         linea(porcentaje + '% del neto Uber+Bolt+Cabify (de €' + netoAppsTotal.toFixed(2).replace('.',',') + ')', netoAppsConductor) +
         linea('40% viajes privados', privadosTotal) +
         linea('30% transfers', transfersTotal) +
-        linea('100% propinas', propinasTotal) +
+        linea('100% propinas' + (propinasDatafonoTotal > 0 ? ' (incl. €' + propinasDatafonoTotal.toFixed(2).replace('.',',') + ' de datáfono)' : ''), propinasTotal) +
         linea('Promociones/campañas (' + (promoRate*100) + '% de €' + promoBruto.toFixed(2).replace('.',',') + ')', promoTotal) +
       '</div>' +
     '</div>';
@@ -1402,7 +1409,8 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
         linea('Efectivo Uber + Bolt + Cabify', efectivoAppsTotal) +
         linea('Privados en efectivo', privadosEfectivoTotal) +
         linea('Transfers en efectivo', transfersEfectivoTotal) +
-        linea('Gastos (incl. datáfono)', gastosTotal, true) +
+        linea('Gastos', gastosSinDatafonoTotal, true) +
+        linea('Datáfono', datafonoTotal, true) +
       '</div>' +
     '</div>';
 
