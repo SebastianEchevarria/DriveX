@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-13';
+var APP_VERSION = '2026-08-15-14';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1362,6 +1362,12 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
     html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 0 16px rgba(' + colorResultado + ',.9),0 0 32px rgba(' + colorResultado + ',.55);text-align:center">' +
       '<div style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>' +
       '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorResultadoVar + '">€ ' + Math.abs(resultado).toFixed(2).replace('.',',') + '</div>' +
+      '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + sueldo.toFixed(2).replace('.',',') + ') − Efectivo real (€' + efectivoReal.toFixed(2).replace('.',',') + ')</div>' +
+    '</div>';
+
+    html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff">FACTURACIÓN NETO TOTAL</span>' +
+      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ '+totalGeneral.toFixed(2).replace('.',',')+'</span>' +
     '</div>';
 
     var cuentaConductor = reg.cuentaBancaria || '';
@@ -1414,10 +1420,6 @@ function toggleFacturacionCondO(fuid, cid, matricula) {
       '</div>' +
     '</div>';
 
-    html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:12px;padding:12px 14px;margin:0 0 12px;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
-      '<span style="font-size:12px;font-weight:900;color:#fff">FACTURACIÓN NETO TOTAL</span>' +
-      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ '+totalGeneral.toFixed(2).replace('.',',')+'</span>' +
-    '</div>';
 
     html += '<div style="background:rgba(255,255,255,.03);border:1.5px solid rgba(255,255,255,.7);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
       '<div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px">Uber</div>' +
