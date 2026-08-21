@@ -854,7 +854,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-24';
+var APP_VERSION = '2026-08-15-25';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3597,7 +3597,7 @@ function paintGastos() {
       html += '<button onclick="event.stopPropagation();descargarTodoMatricula(\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn" style="font-weight:800">⬇ DESCARGAR TODO</button>';
       html += '<button id="delall_'+mgid+'" onclick="event.stopPropagation();confirmEliminarTodoGastos(\''+mgid+'\',\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);font-weight:800">🗑 ELIMINAR TODO</button>';
       html += '<span id="chvm_'+mgid+'" style="color:var(--cyan);font-size:15px;margin-left:4px;transition:transform .2s">▾</span>';
-      html += '</div>';
+      html += '</div></div>';
 
       html += '<div id="'+mgid+'" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(0,212,255,.2);background:rgba(7,11,18,.4)">';
 
