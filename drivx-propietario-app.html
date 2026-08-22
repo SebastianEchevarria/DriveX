@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-20';
+var APP_VERSION = '2026-08-15-21';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1334,10 +1334,8 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     var nombreGestion = extra.nombreCampoGestion || 'INFINITY';
     var infinityTotal = facturacionTotal * (porcentajeGestion / 100);
     var plusBrandingTotal = Number(extra.branding || 0);
-    // El % de gestión y el branding se muestran ya en el resumen, pero de
-    // momento NO restan del beneficio — en cuanto confirmes que deben
-    // descontarse, lo ajustamos.
-    var beneficio = facturacionTotal - gastosTotalGeneral - sueldosTotal;
+    // BENEFICIO = Facturación total − Branding − Gastos total − Sueldos total − Infinity (% de gestión)
+    var beneficio = facturacionTotal - plusBrandingTotal - gastosTotalGeneral - sueldosTotal - infinityTotal;
 
     pintarResumenGeneralO({
       uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
@@ -1402,7 +1400,7 @@ function pintarResumenGeneralO(d) {
   var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
   var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';
   html += '<div style="margin-top:16px;background:rgba(' + colorBeneficio + ',.1);border:2px solid rgba(' + colorBeneficio + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBeneficio + ',.85),0 0 28px rgba(' + colorBeneficio + ',.5)">' +
-    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO (Facturación − Gastos − Sueldos)</div>' +
+    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO (Facturación − Branding − Gastos − Sueldos − ' + d.nombreGestion + ')</div>' +
     '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorBeneficioVar + '">€ ' + d.beneficio.toFixed(2).replace('.',',') + '</div>' +
   '</div>';
 
