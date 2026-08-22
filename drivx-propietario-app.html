@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-24';
+var APP_VERSION = '2026-08-15-25';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1446,7 +1446,7 @@ function pintarResumenGeneralO(d) {
     '</div>';
   }
 
-  var html = '<div style="background:rgba(255,215,0,.05);border:2.5px solid rgba(255,215,0,.9);border-radius:16px;padding:16px;box-shadow:0 0 16px rgba(255,215,0,.7),0 0 34px rgba(255,215,0,.4)">';
+  var html = '<div style="background:rgba(10,8,2,.88);border:2.5px solid rgba(255,215,0,.9);border-radius:16px;padding:16px;box-shadow:0 0 16px rgba(255,215,0,.7),0 0 34px rgba(255,215,0,.4)">';
   html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:14px;display:flex;align-items:center;gap:8px">📊 RESUMEN GENERAL</div>';
 
   html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Facturación</div>';
