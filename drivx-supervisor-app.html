@@ -1110,7 +1110,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-9';
+var APP_VERSION = '2026-08-15-11';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1212,9 +1212,35 @@ function doLogin() {
     var isTester = (email === '1111');
     var _hs=(function(){var s=null;try{s=JSON.parse(localStorage.getItem('drivx_webauthn_cred_supervisor')||'null');}catch(e){}return !!(s&&s.email);})();
     if(!_hs){ offerBiometricRegister(email,pass); setTimeout(function(){if(document.getElementById('biometric-offer-modal').style.display!=='none'){document.getElementById('biometric-offer-modal').style.display='none';}loginSuccess(isTester);},10000); } else { loginSuccess(isTester); }
-  } else {
-    err.style.display = 'block';
+    return;
   }
+
+  // Usuarios creados desde Configuración → Invitación en el Dashboard (Firebase)
+  fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var match = null;
+    Object.keys(data).forEach(function(uid){
+      var uu = data[uid];
+      if (uu && uu.email === email && uu.pass === pass) match = uu;
+    });
+    if (match) {
+      err.style.display = 'none';
+      var _hs2=(function(){var s=null;try{s=JSON.parse(localStorage.getItem('drivx_webauthn_cred_supervisor')||'null');}catch(e){}return !!(s&&s.email);})();
+      window.currentSupervisorUser = match;
+      var subEl = document.getElementById('home-sub');
+      if(!_hs2){ offerBiometricRegister(email,pass); setTimeout(function(){if(document.getElementById('biometric-offer-modal').style.display!=='none'){document.getElementById('biometric-offer-modal').style.display='none';}loginSuccessCustom(match);},10000); } else { loginSuccessCustom(match); }
+    } else {
+      err.style.display = 'block';
+    }
+  }).catch(function(){
+    err.style.display = 'block';
+  });
+}
+
+function loginSuccessCustom(usuario) {
+  loginSuccess(false);
+  var sub = document.getElementById('home-sub');
+  if (sub) sub.textContent = (usuario.nombre || 'Supervisor') + ' · hoy';
 }
 
 function loginSuccess(isTester) {
@@ -1532,6 +1558,38 @@ function startSync() {
   }, 8000);
   setInterval(renderNotifCitas, 30000);
   setInterval(renderHomeProximas, 30000);
+
+  iniciarSincronizacionInstantaneaSup();
+}
+
+// ══ SINCRONIZACIÓN INSTANTÁNEA ENTRE SUPERVISORES ══
+// Además del refresco periódico de arriba, escuchamos los cambios de toda
+// la base de datos en tiempo real: en cuanto otro supervisor (o el admin,
+// o un conductor) cambia algo, se refleja aquí al instante, sin esperar
+// al siguiente ciclo automático.
+var _supSSE = null;
+var _supSyncDebounce = null;
+function iniciarSincronizacionInstantaneaSup() {
+  if (_supSSE || typeof EventSource === 'undefined') return;
+  try {
+    _supSSE = new EventSource(FIREBASE_URL + '/.json');
+    _supSSE.addEventListener('put', _onCambioRemotoSup);
+    _supSSE.addEventListener('patch', _onCambioRemotoSup);
+  } catch(e) {}
+}
+function _onCambioRemotoSup() {
+  clearTimeout(_supSyncDebounce);
+  _supSyncDebounce = setTimeout(function(){
+    syncFromDrivers();
+    renderVehiculosHome();
+    renderITVAlerts();
+    pullCitasFromFirebase().then(function(){
+      renderNotifCitas();
+      renderHomeProximas();
+      var calScreen = document.getElementById('screen-calendario');
+      if (calScreen && calScreen.classList.contains('active')) renderCalendar(true);
+    });
+  }, 700);
 }
 
 // Las citas vencidas se mantienen visibles 48h desde su hora de comienzo;
