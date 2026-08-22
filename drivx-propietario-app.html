@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-16';
+var APP_VERSION = '2026-08-15-17';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -673,8 +673,6 @@ function entrarApp() {
   cargarFacturacionO();
   cargarCitas();
   setInterval(cargarInicio, 20000);
-  setInterval(cargarGastosO, 25000);
-  setInterval(cargarFacturacionO, 25000);
   setInterval(cargarCitas, 30000);
 }
 
@@ -683,6 +681,12 @@ function showScreen(id) {
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('screen-' + id).classList.add('active');
   document.getElementById('nav-' + id).classList.add('active');
+  // Los datos de estas dos pestañas ya no se refrescan solos en segundo
+  // plano (eso cerraba tarjetas abiertas y movía el scroll sin avisar) —
+  // ahora se actualizan justo al entrar en la pestaña, nunca mientras la
+  // estás usando.
+  if (id === 'gastos') cargarGastosO();
+  if (id === 'facturacion') cargarFacturacionO();
 }
 
 function getAllVehiculosOwner() { return VEHICULOS; } // + vehículos añadidos, se combinan al cargar
