@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-23';
+var APP_VERSION = '2026-08-15-24';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1317,7 +1317,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
           else if (cat === 'otros' || cat === 'parking') otrosTotal += importe;
           else if (cat === 'datafono') propinasDatafonoConductor += Number(t.propina||0);
 
-          var ticketItem = { cat: CAT_LABELS_O[cat] || cat, importe: importe, fecha: t.fecha||'', hora: t.hora||'', conductor: nombreConductor, matricula: dc.matricula, url: t.url||'', nombre: t.nombre||'' };
+          var ticketItem = { catRaw: cat, cat: CAT_LABELS_O[cat] || cat, importe: importe, fecha: t.fecha||'', hora: t.hora||'', conductor: nombreConductor, matricula: dc.matricula, url: t.url||'', nombre: t.nombre||'', propina: Number(t.propina||0) };
           if ((t.pagadoPor||'conductor') === 'propietario') ticketsPropietario.push(ticketItem);
           else ticketsConductor.push(ticketItem);
         });
@@ -1359,6 +1359,14 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
 }
 
 var _resumenGeneralTicketsCache = { conductor: [], propietario: [] };
+var CONDUCTOR_COLORS_O = ['#00d4ff','#00e676','#ffb300','#ff4757','#b25ee1','#ff8c00','#1eafFC','#7cff5e','#ff6ec7','#5ec8ff'];
+var CAT_LABELS_O_MODAL = { gasolina:'⛽ Combustible', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', datafono:'💳 Datáfono', otros:'📄 Otros' };
+function _colorParaConductorO(nombre) {
+  var hash = 0;
+  for (var i = 0; i < nombre.length; i++) hash = (hash * 31 + nombre.charCodeAt(i)) >>> 0;
+  return CONDUCTOR_COLORS_O[hash % CONDUCTOR_COLORS_O.length];
+}
+
 function abrirGastosResumenO(tipo) {
   var items = _resumenGeneralTicketsCache[tipo] || [];
   var titulo = tipo === 'propietario' ? '🏢 Gastos pagados por el propietario' : '👤 Gastos pagados por el conductor';
@@ -1374,6 +1382,11 @@ function abrirGastosResumenO(tipo) {
 
   var total = items.reduce(function(s,t){ return s+t.importe; }, 0);
 
+  // Subtotales por categoría, solo de este filtro (conductor o propietario)
+  var CAT_ORDEN_O = ['gasolina','peaje','lavado','otros','parking','datafono'];
+  var subtotales = {};
+  items.forEach(function(t){ subtotales[t.catRaw] = (subtotales[t.catRaw]||0) + t.importe; });
+
   var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.55),0 0 40px rgba(' + colorTema + ',.3)">';
   html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
   html += '<span style="font-size:14px;font-weight:900;color:#fff">' + titulo + '</span>';
@@ -1383,12 +1396,24 @@ function abrirGastosResumenO(tipo) {
   html += '<span style="font-size:11px;color:var(--text3)">' + items.length + ' ticket' + (items.length!==1?'s':'') + '</span>';
   html += '<span style="font-family:var(--mono);font-size:14px;font-weight:900;color:#fff">€ ' + total.toFixed(2).replace('.',',') + '</span>';
   html += '</div>';
+
+  html += '<div style="padding:12px 18px;border-bottom:1px solid var(--border)">';
+  CAT_ORDEN_O.forEach(function(cat){
+    if (!subtotales[cat]) return;
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">' +
+      '<span style="color:#fff">' + (CAT_LABELS_O_MODAL[cat]||cat) + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:var(--text2)">€ ' + subtotales[cat].toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  });
+  html += '</div>';
+
   html += '<div style="padding:8px 18px 18px">';
 
   if (!items.length) {
     html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin tickets en esta categoría</div>';
   } else {
     items.sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).forEach(function(t){
+      var colorCond = _colorParaConductorO(t.conductor);
       html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">';
       if (t.url) {
         html += '<img src="' + t.url + '" onclick="window.open(\'' + t.url + '\',\'_blank\')" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0">';
@@ -1397,7 +1422,10 @@ function abrirGastosResumenO(tipo) {
       }
       html += '<div style="flex:1;min-width:0">';
       html += '<div style="font-size:12.5px;font-weight:700;color:#fff">€ ' + t.importe.toFixed(2).replace('.',',') + ' <span style="color:var(--text3);font-weight:400">· ' + t.cat + '</span></div>';
-      html += '<div style="font-size:10.5px;color:var(--text3)">' + t.conductor + ' · ' + t.matricula + (t.fecha?' · '+t.fecha:'') + '</div>';
+      html += '<div style="font-size:10.5px"><span style="color:' + colorCond + ';font-weight:800">' + t.conductor + '</span><span style="color:var(--text3)"> · ' + t.matricula + (t.fecha?' · '+t.fecha:'') + '</span></div>';
+      if (t.propina > 0) {
+        html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € ' + t.propina.toFixed(2).replace('.',',') + '</div>';
+      }
       html += '</div></div>';
     });
   }
@@ -1433,17 +1461,13 @@ function pintarResumenGeneralO(d) {
   '</div>';
 
   html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Gastos</div>';
-  html += filaResumen('Combustible', d.combustibleTotal, true) +
-    filaResumen('Peajes', d.peajesTotal, true) +
-    filaResumen('Limpieza', d.limpiezaTotal, true) +
-    filaResumen('Otros', d.otrosTotal, true);
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
-    '<span style="font-size:12px;font-weight:900;color:#fff">Gastos total</span>' +
-    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + d.gastosTotalGeneral.toFixed(2).replace('.',',') + '</span>' +
-  '</div>';
-  html += '<div style="display:flex;gap:8px;margin-top:8px">' +
+  html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
     '<button onclick="abrirGastosResumenO(\'conductor\')" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">👤 Pagados por conductor (' + d.ticketsConductor.length + ')</button>' +
     '<button onclick="abrirGastosResumenO(\'propietario\')" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid rgba(178,94,225,.5);background:rgba(178,94,225,.08);color:var(--purple);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">🏢 Pagados por propietario (' + d.ticketsPropietario.length + ')</button>' +
+  '</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Gastos total</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + d.gastosTotalGeneral.toFixed(2).replace('.',',') + '</span>' +
   '</div>';
 
   _resumenGeneralTicketsCache = { conductor: d.ticketsConductor, propietario: d.ticketsPropietario };
