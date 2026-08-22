@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-17';
+var APP_VERSION = '2026-08-15-19';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1273,6 +1273,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     var extra = resultadosGenerales[0] || {};
     var datosConductores = resultadosGenerales[1];
     var uberTotal=0, boltTotal=0, cabifyTotal=0;
+    var privadosFacturacionTotal=0, transfersFacturacionTotal=0;
     var combustibleTotal=0, peajesTotal=0, limpiezaTotal=0, otrosTotal=0;
     var sueldosTotal=0;
 
@@ -1292,8 +1293,10 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       var hojas = dc.hojas, transfersD = dc.transfersD, gastosD = dc.gastosD;
       var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid===dc.cid; });
       var privadosTotal = privadosPropios.reduce(function(s,h){ return s+Number(h.cutConductor||0); },0);
+      privadosFacturacionTotal += privadosTotal; // ya es neto: solo el % del conductor (40%)
       var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid===dc.cid; });
       var transfersTotal = transfersPropios.reduce(function(s,h){ return s+Number(h.cutConductor||0); },0);
+      transfersFacturacionTotal += transfersTotal; // ya es neto: solo el % del conductor (30%)
 
       var propinasDatafonoConductor = 0;
       ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
@@ -1325,7 +1328,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       sueldosTotal += sueldo;
     });
 
-    var facturacionTotal = uberTotal + boltTotal + cabifyTotal;
+    var facturacionTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
     var gastosTotalGeneral = combustibleTotal + peajesTotal + limpiezaTotal + otrosTotal;
     var infinityTotal = Number(extra.infinity || 0);
     var plusBrandingTotal = Number(extra.plusBranding || 0);
@@ -1335,7 +1338,9 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     var beneficio = facturacionTotal - gastosTotalGeneral - sueldosTotal;
 
     pintarResumenGeneralO({
-      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal, facturacionTotal:facturacionTotal,
+      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
+      privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
+      facturacionTotal:facturacionTotal,
       combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
       gastosTotalGeneral:gastosTotalGeneral, sueldosTotal:sueldosTotal,
       infinityTotal:infinityTotal, plusBrandingTotal:plusBrandingTotal, beneficio:beneficio
@@ -1363,7 +1368,9 @@ function pintarResumenGeneralO(d) {
   html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Facturación</div>';
   html += filaResumen('Facturación total Uber', d.uberTotal) +
     filaResumen('Facturación total Bolt', d.boltTotal) +
-    filaResumen('Facturación total Cabify', d.cabifyTotal);
+    filaResumen('Facturación total Cabify', d.cabifyTotal) +
+    filaResumen('Facturación total transfers', d.transfersFacturacionTotal) +
+    filaResumen('Facturación total privados', d.privadosFacturacionTotal);
   html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
     '<span style="font-size:12px;font-weight:900;color:#fff">Facturación total</span>' +
     '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.8)">€ ' + d.facturacionTotal.toFixed(2).replace('.',',') + '</span>' +
