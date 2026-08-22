@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-14';
+var APP_VERSION = '2026-08-15-16';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1190,7 +1190,7 @@ function cargarFacturacionO() {
       return (ai<0?99:ai) - (bi<0?99:bi);
     });
 
-    var htmlOut = '';
+    var htmlOut = '<div id="resumen-general-o" style="margin-bottom:16px"></div>';
     ccaasPresentes.forEach(function(cc){
       var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
       var iconCc = CCAA_ICONS_O[cc] || '📍';
@@ -1227,9 +1227,173 @@ function cargarFacturacionO() {
     });
 
     cont.innerHTML = htmlOut;
+    calcularResumenGeneralO(misVehiculos, invitados);
   }).catch(function(){
     document.getElementById('facturacion-content-o').innerHTML = '<div class="empty-msg">No se pudo cargar. Comprueba tu conexión.</div>';
   });
+}
+
+// ══ RESUMEN GENERAL — totales de todos los conductores/vehículos del propietario ══
+function calcularResumenGeneralO(misVehiculos, invitados) {
+  var cont = document.getElementById('resumen-general-o');
+  if (!cont) return;
+  cont.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text3);font-size:12px">Calculando resumen general…</div>';
+
+  var todosConductores = [];
+  misVehiculos.forEach(function(v){
+    CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) todosConductores.push({cid:c.cid, matricula:v.matricula}); });
+    Object.keys(invitados).forEach(function(cid){
+      var r = invitados[cid];
+      if (r && r.matricula === v.matricula) todosConductores.push({cid:cid, matricula:v.matricula});
+    });
+  });
+
+  if (!todosConductores.length) { cont.innerHTML = ''; return; }
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/resumen_extra_propietario.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    Promise.all(todosConductores.map(function(info){
+      return Promise.all([
+        fetch(FIREBASE_URL + '/facturacion_uber/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/facturacion_bolt/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/facturacion_cabify/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/transfers/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/gastos/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+        fetch(FIREBASE_URL + '/conductores_registro/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+      ]).then(function(results){
+        return { cid: info.cid, uber: results[0]||{}, bolt: results[1]||{}, cabify: results[2]||{}, hojas: results[3]||{}, transfersD: results[4]||{}, gastosD: results[5]||{}, reg: results[6]||{} };
+      });
+    }))
+  ]).then(function(resultadosGenerales){
+    var extra = resultadosGenerales[0] || {};
+    var datosConductores = resultadosGenerales[1];
+    var uberTotal=0, boltTotal=0, cabifyTotal=0;
+    var combustibleTotal=0, peajesTotal=0, limpiezaTotal=0, otrosTotal=0;
+    var sueldosTotal=0;
+
+    datosConductores.forEach(function(dc){
+      var uber=dc.uber, bolt=dc.bolt, cabify=dc.cabify;
+      var uberNetoReal = (typeof uber.netoReal==='number')?uber.netoReal:((uber.neto||0)-(uber.propinas||0)-(uber.promociones||0));
+      var boltNetoReal = (typeof bolt.netoReal==='number')?bolt.netoReal:((bolt.ingresosNetos||0)-(bolt.peajes||0)-(bolt.ingresosCampanas||0)-(bolt.propinas||0));
+      var cabifyNetoReal = (typeof cabify.netoReal==='number')?cabify.netoReal:((cabify.neto||0)-(cabify.propinas||0)-(cabify.promociones||0));
+      uberTotal += uberNetoReal; boltTotal += boltNetoReal; cabifyTotal += cabifyNetoReal;
+
+      var uberPropinas = Number(uber.propinas||0), boltPropinas = Number(bolt.propinas||0), cabifyPropinas = Number(cabify.propinas||0);
+      var uberPromo = Number(uber.promociones||0), boltCampanas = Number(bolt.ingresosCampanas||0), cabifyPromo = Number(cabify.promociones||0);
+
+      var nombreConductor = dc.reg.nombre || '';
+      var porcentaje = (typeof dc.reg.porcentaje==='number') ? dc.reg.porcentaje : 30;
+
+      var hojas = dc.hojas, transfersD = dc.transfersD, gastosD = dc.gastosD;
+      var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid===dc.cid; });
+      var privadosTotal = privadosPropios.reduce(function(s,h){ return s+Number(h.cutConductor||0); },0);
+      var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid===dc.cid; });
+      var transfersTotal = transfersPropios.reduce(function(s,h){ return s+Number(h.cutConductor||0); },0);
+
+      var propinasDatafonoConductor = 0;
+      ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
+        var catObj = gastosD[cat] || {};
+        Object.keys(catObj).forEach(function(tid){
+          var t = catObj[tid];
+          if (!(t && (t.conductor||'')===nombreConductor)) return;
+          var importe = Number(t.importe||0);
+          // Aquí SÍ contamos todos los gastos, los pague quien los pague —
+          // es dinero real que ha salido del negocio (a diferencia del
+          // desglose por conductor, donde los pagados por el propietario no
+          // restan de lo que le corresponde a él).
+          if (cat === 'gasolina') combustibleTotal += importe;
+          else if (cat === 'peaje') peajesTotal += importe;
+          else if (cat === 'lavado') limpiezaTotal += importe;
+          else if (cat === 'otros' || cat === 'parking') otrosTotal += importe;
+          else if (cat === 'datafono') propinasDatafonoConductor += Number(t.propina||0);
+        });
+      });
+
+      var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
+      var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas + propinasDatafonoConductor;
+      var promoBruto = uberPromo + boltCampanas + cabifyPromo;
+      var umbral = netoAppsTotal + privadosTotal + transfersTotal;
+      var promoRate = umbral >= 1000 ? 0.50 : 0.30;
+      var promoTotal = promoBruto * promoRate;
+      var netoAppsConductor = netoAppsTotal * (porcentaje/100);
+      var sueldo = netoAppsConductor + privadosTotal + transfersTotal + propinasTotal + promoTotal;
+      sueldosTotal += sueldo;
+    });
+
+    var facturacionTotal = uberTotal + boltTotal + cabifyTotal;
+    var gastosTotalGeneral = combustibleTotal + peajesTotal + limpiezaTotal + otrosTotal;
+    var infinityTotal = Number(extra.infinity || 0);
+    var plusBrandingTotal = Number(extra.plusBranding || 0);
+    // Infinity y Plus Branding se muestran ya en el resumen, pero de momento
+    // NO restan del beneficio — en cuanto me digas qué representan y cómo
+    // deben afectar al cálculo, lo ajustamos.
+    var beneficio = facturacionTotal - gastosTotalGeneral - sueldosTotal;
+
+    pintarResumenGeneralO({
+      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal, facturacionTotal:facturacionTotal,
+      combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
+      gastosTotalGeneral:gastosTotalGeneral, sueldosTotal:sueldosTotal,
+      infinityTotal:infinityTotal, plusBrandingTotal:plusBrandingTotal, beneficio:beneficio
+    });
+  }).catch(function(){
+    cont.innerHTML = '';
+  });
+}
+
+function pintarResumenGeneralO(d) {
+  var cont = document.getElementById('resumen-general-o');
+  if (!cont) return;
+  if (!d) { cont.innerHTML = ''; return; }
+
+  function filaResumen(label, valor, esGasto) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)">' +
+      '<span style="color:#fff">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:' + (esGasto ? 'var(--red)' : '#fff') + '">' + (esGasto ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+
+  var html = '<div style="background:rgba(255,215,0,.05);border:2.5px solid rgba(255,215,0,.9);border-radius:16px;padding:16px;box-shadow:0 0 16px rgba(255,215,0,.7),0 0 34px rgba(255,215,0,.4)">';
+  html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:14px;display:flex;align-items:center;gap:8px">📊 RESUMEN GENERAL</div>';
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Facturación</div>';
+  html += filaResumen('Facturación total Uber', d.uberTotal) +
+    filaResumen('Facturación total Bolt', d.boltTotal) +
+    filaResumen('Facturación total Cabify', d.cabifyTotal);
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Facturación total</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.8)">€ ' + d.facturacionTotal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Gastos</div>';
+  html += filaResumen('Combustible', d.combustibleTotal, true) +
+    filaResumen('Peajes', d.peajesTotal, true) +
+    filaResumen('Limpieza', d.limpiezaTotal, true) +
+    filaResumen('Otros', d.otrosTotal, true);
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Gastos total</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + d.gastosTotalGeneral.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Sueldos</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Sueldos total</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--green)">− € ' + d.sueldosTotal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Otros conceptos <span style="text-transform:none;font-weight:400;font-style:italic">(pendiente de definir)</span></div>';
+  html += filaResumen('Infinity', d.infinityTotal) +
+    filaResumen('Plus Branding', d.plusBrandingTotal);
+
+  var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
+  var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';
+  html += '<div style="margin-top:16px;background:rgba(' + colorBeneficio + ',.1);border:2px solid rgba(' + colorBeneficio + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBeneficio + ',.85),0 0 28px rgba(' + colorBeneficio + ',.5)">' +
+    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO (Facturación − Gastos − Sueldos)</div>' +
+    '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorBeneficioVar + '">€ ' + d.beneficio.toFixed(2).replace('.',',') + '</div>' +
+  '</div>';
+
+  html += '</div>';
+  cont.innerHTML = html;
 }
 
 function casillaFactO(color, textColor, label, valor) {
