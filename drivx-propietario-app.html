@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-19';
+var APP_VERSION = '2026-08-15-20';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1255,7 +1255,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
   if (!todosConductores.length) { cont.innerHTML = ''; return; }
 
   Promise.all([
-    fetch(FIREBASE_URL + '/resumen_extra_propietario.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/propietarios/' + currentUser.pid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     Promise.all(todosConductores.map(function(info){
       return Promise.all([
         fetch(FIREBASE_URL + '/facturacion_uber/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
@@ -1330,11 +1330,13 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
 
     var facturacionTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
     var gastosTotalGeneral = combustibleTotal + peajesTotal + limpiezaTotal + otrosTotal;
-    var infinityTotal = Number(extra.infinity || 0);
-    var plusBrandingTotal = Number(extra.plusBranding || 0);
-    // Infinity y Plus Branding se muestran ya en el resumen, pero de momento
-    // NO restan del beneficio — en cuanto me digas qué representan y cómo
-    // deben afectar al cálculo, lo ajustamos.
+    var porcentajeGestion = Number(extra.porcentajeGestion || 0);
+    var nombreGestion = extra.nombreCampoGestion || 'INFINITY';
+    var infinityTotal = facturacionTotal * (porcentajeGestion / 100);
+    var plusBrandingTotal = Number(extra.branding || 0);
+    // El % de gestión y el branding se muestran ya en el resumen, pero de
+    // momento NO restan del beneficio — en cuanto confirmes que deben
+    // descontarse, lo ajustamos.
     var beneficio = facturacionTotal - gastosTotalGeneral - sueldosTotal;
 
     pintarResumenGeneralO({
@@ -1343,7 +1345,8 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       facturacionTotal:facturacionTotal,
       combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
       gastosTotalGeneral:gastosTotalGeneral, sueldosTotal:sueldosTotal,
-      infinityTotal:infinityTotal, plusBrandingTotal:plusBrandingTotal, beneficio:beneficio
+      infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
+      plusBrandingTotal:plusBrandingTotal, beneficio:beneficio
     });
   }).catch(function(){
     cont.innerHTML = '';
@@ -1392,9 +1395,9 @@ function pintarResumenGeneralO(d) {
     '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--green)">− € ' + d.sueldosTotal.toFixed(2).replace('.',',') + '</span>' +
   '</div>';
 
-  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Otros conceptos <span style="text-transform:none;font-weight:400;font-style:italic">(pendiente de definir)</span></div>';
-  html += filaResumen('Infinity', d.infinityTotal) +
-    filaResumen('Plus Branding', d.plusBrandingTotal);
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Otros conceptos</div>';
+  html += filaResumen(d.nombreGestion + (d.porcentajeGestion ? ' (' + d.porcentajeGestion.toString().replace('.',',') + '% gestión)' : ''), d.infinityTotal) +
+    filaResumen('Branding', d.plusBrandingTotal);
 
   var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
   var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';

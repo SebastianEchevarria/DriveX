@@ -651,6 +651,23 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
       </div>
 
+      <div style="margin-bottom:14px;background:rgba(178,94,225,.06);border:1.5px solid rgba(178,94,225,.4);border-radius:12px;padding:12px 14px">
+        <label style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">% de gestión</label>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aparecerá en el resumen general de la app del propietario, aplicado sobre su facturación total</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="ap-porcentaje-gestion" type="number" step="0.1" min="0" max="100" placeholder="0" style="width:90px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);box-sizing:border-box">
+          <div style="display:flex;align-items:center;color:var(--text3);font-size:14px;font-weight:800">%</div>
+        </div>
+        <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">✏️ Nombre que verá el propietario para este concepto</label>
+        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit">
+      </div>
+
+      <div style="margin-bottom:18px;background:rgba(255,140,0,.06);border:1.5px solid rgba(255,140,0,.4);border-radius:12px;padding:12px 14px">
+        <label style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Branding (€)</label>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Importe fijo que aparecerá como "BRANDING" en el resumen general de su app</div>
+        <input id="ap-branding" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);box-sizing:border-box">
+      </div>
+
       <div style="margin-bottom:20px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Matrículas que posee *</label>
         <select id="ap-mat-ccaa-filtro" onchange="filtrarMatriculasPorCcaaYTexto()" style="width:100%;background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,.5);color:#fff;padding:11px 12px;border-radius:12px;font-size:13px;font-weight:700;font-family:inherit;margin-bottom:8px">
@@ -854,7 +871,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-26';
+var APP_VERSION = '2026-08-15-27';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4601,8 +4618,8 @@ function paintPropietarios() {
           '<button onclick="event.stopPropagation();copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
         '</div>';
       }
-      html += '<button id="delprop_'+item.pid+'" onclick="event.stopPropagation();confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';
-      html += '</div>';
+      html += '<button onclick="event.stopPropagation();editarPropietarioAbrir(\''+item.pid+'\')" class="edit-btn" style="color:var(--cyan);border-color:rgba(0,212,255,.4);width:100%;text-align:center;margin-bottom:6px">✏️ Editar propietario</button>';
+      html += '<button id="delprop_'+item.pid+'" onclick="event.stopPropagation();confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
@@ -4819,8 +4836,10 @@ function copiarCodigoVer() {
   setTimeout(function(){ btn.textContent = old; }, 1500);
 }
 
+var _editandoPropietarioPid = null;
 function openAddPropietarioModal() {
   if (!currentUser || currentUser.role !== 'admin') return;
+  _editandoPropietarioPid = null;
   document.getElementById('ap-modal-title').textContent = 'Nuevo propietario';
   document.getElementById('ap-nombre').value = '';
   document.getElementById('ap-doc').value = '';
@@ -4828,6 +4847,9 @@ function openAddPropietarioModal() {
   document.getElementById('ap-telefono').value = '';
   document.getElementById('ap-fecha-alta').value = new Date().toISOString().slice(0,10);
   document.getElementById('ap-cuenta').value = '';
+  document.getElementById('ap-porcentaje-gestion').value = '';
+  document.getElementById('ap-nombre-gestion').value = '';
+  document.getElementById('ap-branding').value = '';
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '📨 ENVIAR INVITACIÓN';
@@ -4837,10 +4859,49 @@ function openAddPropietarioModal() {
   marcarCampoRellenoPropietario('ap-email','ap-lbl-email');
   marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono');
 
+  _pintarListaMatriculasPropietario(null, []);
+
+  document.getElementById('add-propietario-modal').style.display = 'flex';
+}
+
+function editarPropietarioAbrir(pid) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var p = _propietariosCache[pid];
+  if (!p) return;
+  _editandoPropietarioPid = pid;
+  document.getElementById('ap-modal-title').textContent = 'Editar propietario';
+  document.getElementById('ap-nombre').value = p.nombre || '';
+  document.getElementById('ap-doc').value = p.doc || '';
+  document.getElementById('ap-email').value = p.email || '';
+  document.getElementById('ap-telefono').value = p.telefono || '';
+  document.getElementById('ap-fecha-alta').value = p.fechaAlta || '';
+  document.getElementById('ap-cuenta').value = p.cuentaBancaria || '';
+  document.getElementById('ap-porcentaje-gestion').value = (typeof p.porcentajeGestion === 'number') ? p.porcentajeGestion : '';
+  document.getElementById('ap-nombre-gestion').value = p.nombreCampoGestion || '';
+  document.getElementById('ap-branding').value = (typeof p.branding === 'number') ? p.branding : '';
+  document.getElementById('ap-invite-result').style.display = 'none';
+  document.getElementById('ap-save-btn').disabled = false;
+  document.getElementById('ap-save-btn').textContent = '💾 GUARDAR CAMBIOS';
+  document.getElementById('ap-mat-buscar').value = '';
+  marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre');
+  marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc');
+  marcarCampoRellenoPropietario('ap-email','ap-lbl-email');
+  marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono');
+
+  _pintarListaMatriculasPropietario(pid, p.matriculas || []);
+
+  document.getElementById('add-propietario-modal').style.display = 'flex';
+}
+
+// Pinta la lista de matrículas seleccionables: siempre excluye las que ya
+// tiene asignadas OTRO propietario, pero si estamos editando a "pid", sus
+// propias matrículas actuales sí aparecen (y marcadas).
+function _pintarListaMatriculasPropietario(pid, matriculasActuales) {
   var listEl = document.getElementById('ap-matriculas-list');
   var matriculasAsignadas = {};
-  Object.keys(_propietariosCache || {}).forEach(function(pid){
-    var p = _propietariosCache[pid];
+  Object.keys(_propietariosCache || {}).forEach(function(otroPid){
+    if (otroPid === pid) return;
+    var p = _propietariosCache[otroPid];
     (p && p.matriculas || []).forEach(function(m){ matriculasAsignadas[m] = true; });
   });
   var vehiculosDisponibles = getAllVehiculos().filter(function(v){ return !matriculasAsignadas[v.matricula]; });
@@ -4852,11 +4913,15 @@ function openAddPropietarioModal() {
     var ai = orden.indexOf(a), bi = orden.indexOf(b);
     return (ai<0?99:ai) - (bi<0?99:bi);
   });
+  var setActuales = {};
+  (matriculasActuales||[]).forEach(function(m){ setActuales[m] = true; });
+
   listEl.innerHTML = ccaasPresentes.map(function(cc){
     return '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;margin:8px 0 4px">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</div>' +
       porCcaa[cc].map(function(v){
+        var checked = setActuales[v.matricula] ? ' checked' : '';
         return '<label data-ccaa="'+cc+'" style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer">' +
-          '<input type="checkbox" class="ap-mat-check" value="'+v.matricula+'" style="width:15px;height:15px;accent-color:var(--cyan)">' +
+          '<input type="checkbox" class="ap-mat-check" value="'+v.matricula+'"'+checked+' style="width:15px;height:15px;accent-color:var(--cyan)">' +
           '<span style="font-size:13px;font-family:var(--mono);color:var(--text)">'+v.matricula+'</span>' +
           '<span style="font-size:11px;color:var(--text3)">'+v.modelo+'</span>' +
         '</label>';
@@ -4867,8 +4932,6 @@ function openAddPropietarioModal() {
   filtroCcaaSel.innerHTML = '<option value="">Todas las comunidades</option>' + ccaasPresentes.map(function(cc){
     return '<option value="'+cc+'">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</option>';
   }).join('');
-
-  document.getElementById('add-propietario-modal').style.display = 'flex';
 }
 function closeAddPropietarioModal() {
   document.getElementById('add-propietario-modal').style.display = 'none';
@@ -4890,6 +4953,9 @@ function guardarPropietario() {
   var telefono = document.getElementById('ap-telefono').value.trim();
   var fechaAlta = document.getElementById('ap-fecha-alta').value;
   var cuenta = document.getElementById('ap-cuenta').value.trim();
+  var porcentajeGestion = parseFloat(document.getElementById('ap-porcentaje-gestion').value);
+  var nombreGestion = document.getElementById('ap-nombre-gestion').value.trim();
+  var branding = parseFloat(document.getElementById('ap-branding').value);
   var matriculas = Array.prototype.slice.call(document.querySelectorAll('.ap-mat-check:checked')).map(function(c){ return c.value; });
 
   if (!nombre) { alert('Introduce el nombre completo.'); return; }
@@ -4898,17 +4964,44 @@ function guardarPropietario() {
   if (!telefono) { alert('Introduce un teléfono de contacto.'); return; }
   if (!matriculas.length) { alert('Selecciona al menos una matrícula.'); return; }
 
+  var btn = document.getElementById('ap-save-btn');
+  btn.disabled = true;
+
+  if (_editandoPropietarioPid) {
+    var pidEdit = _editandoPropietarioPid;
+    btn.textContent = 'Guardando…';
+    var cambios = {
+      nombre: nombre, doc: doc, email: email, telefono: telefono || '',
+      fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
+      porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
+      nombreCampoGestion: nombreGestion || 'INFINITY',
+      branding: isNaN(branding) ? 0 : branding
+    };
+    fetch(FIREBASE_URL + '/propietarios/' + pidEdit + '.json', {
+      method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(cambios)
+    }).then(fbCheck).then(function(){
+      Object.assign(_propietariosCache[pidEdit], cambios);
+      toast('✓ Propietario actualizado');
+      closeAddPropietarioModal();
+    }).catch(function(){
+      alert('No se pudo guardar. Inténtalo de nuevo.');
+      btn.disabled = false;
+      btn.textContent = '💾 GUARDAR CAMBIOS';
+    });
+    return;
+  }
+
+  btn.textContent = 'Guardando…';
   var pid = 'prop_' + Date.now();
   var code = generateInviteCode();
   var propietario = {
     nombre: nombre, doc: doc, email: email, telefono: telefono || '',
     fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
+    porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
+    nombreCampoGestion: nombreGestion || 'INFINITY',
+    branding: isNaN(branding) ? 0 : branding,
     inviteCode: code, inviteUsado: false, ts: Date.now()
   };
-
-  var btn = document.getElementById('ap-save-btn');
-  btn.disabled = true;
-  btn.textContent = 'Guardando…';
 
   fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(propietario)
