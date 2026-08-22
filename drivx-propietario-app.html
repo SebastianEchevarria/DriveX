@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-22';
+var APP_VERSION = '2026-08-15-23';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1276,6 +1276,8 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     var privadosFacturacionTotal=0, transfersFacturacionTotal=0;
     var combustibleTotal=0, peajesTotal=0, limpiezaTotal=0, otrosTotal=0;
     var sueldosTotal=0;
+    var ticketsConductor=[], ticketsPropietario=[];
+    var CAT_LABELS_O = { gasolina:'⛽ Gasolina', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', datafono:'💳 Datáfono', otros:'📄 Otros' };
 
     datosConductores.forEach(function(dc){
       var uber=dc.uber, bolt=dc.bolt, cabify=dc.cabify;
@@ -1314,6 +1316,10 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
           else if (cat === 'lavado') limpiezaTotal += importe;
           else if (cat === 'otros' || cat === 'parking') otrosTotal += importe;
           else if (cat === 'datafono') propinasDatafonoConductor += Number(t.propina||0);
+
+          var ticketItem = { cat: CAT_LABELS_O[cat] || cat, importe: importe, fecha: t.fecha||'', hora: t.hora||'', conductor: nombreConductor, matricula: dc.matricula, url: t.url||'', nombre: t.nombre||'' };
+          if ((t.pagadoPor||'conductor') === 'propietario') ticketsPropietario.push(ticketItem);
+          else ticketsConductor.push(ticketItem);
         });
       });
 
@@ -1344,11 +1350,60 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
       gastosTotalGeneral:gastosTotalGeneral, sueldosTotal:sueldosTotal,
       infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
-      plusBrandingTotal:plusBrandingTotal, beneficio:beneficio
+      plusBrandingTotal:plusBrandingTotal, beneficio:beneficio,
+      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario
     });
   }).catch(function(){
     cont.innerHTML = '';
   });
+}
+
+var _resumenGeneralTicketsCache = { conductor: [], propietario: [] };
+function abrirGastosResumenO(tipo) {
+  var items = _resumenGeneralTicketsCache[tipo] || [];
+  var titulo = tipo === 'propietario' ? '🏢 Gastos pagados por el propietario' : '👤 Gastos pagados por el conductor';
+  var colorTema = tipo === 'propietario' ? '178,94,225' : '0,212,255';
+
+  var modal = document.getElementById('resumen-gastos-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'resumen-gastos-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+
+  var total = items.reduce(function(s,t){ return s+t.importe; }, 0);
+
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.55),0 0 40px rgba(' + colorTema + ',.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:14px;font-weight:900;color:#fff">' + titulo + '</span>';
+  html += '<button onclick="document.getElementById(\'resumen-gastos-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:6px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<span style="font-size:11px;color:var(--text3)">' + items.length + ' ticket' + (items.length!==1?'s':'') + '</span>';
+  html += '<span style="font-family:var(--mono);font-size:14px;font-weight:900;color:#fff">€ ' + total.toFixed(2).replace('.',',') + '</span>';
+  html += '</div>';
+  html += '<div style="padding:8px 18px 18px">';
+
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin tickets en esta categoría</div>';
+  } else {
+    items.sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).forEach(function(t){
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">';
+      if (t.url) {
+        html += '<img src="' + t.url + '" onclick="window.open(\'' + t.url + '\',\'_blank\')" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0">';
+      } else {
+        html += '<div style="width:40px;height:40px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧾</div>';
+      }
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:12.5px;font-weight:700;color:#fff">€ ' + t.importe.toFixed(2).replace('.',',') + ' <span style="color:var(--text3);font-weight:400">· ' + t.cat + '</span></div>';
+      html += '<div style="font-size:10.5px;color:var(--text3)">' + t.conductor + ' · ' + t.matricula + (t.fecha?' · '+t.fecha:'') + '</div>';
+      html += '</div></div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
 }
 
 function pintarResumenGeneralO(d) {
@@ -1386,6 +1441,12 @@ function pintarResumenGeneralO(d) {
     '<span style="font-size:12px;font-weight:900;color:#fff">Gastos total</span>' +
     '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + d.gastosTotalGeneral.toFixed(2).replace('.',',') + '</span>' +
   '</div>';
+  html += '<div style="display:flex;gap:8px;margin-top:8px">' +
+    '<button onclick="abrirGastosResumenO(\'conductor\')" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">👤 Pagados por conductor (' + d.ticketsConductor.length + ')</button>' +
+    '<button onclick="abrirGastosResumenO(\'propietario\')" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid rgba(178,94,225,.5);background:rgba(178,94,225,.08);color:var(--purple);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">🏢 Pagados por propietario (' + d.ticketsPropietario.length + ')</button>' +
+  '</div>';
+
+  _resumenGeneralTicketsCache = { conductor: d.ticketsConductor, propietario: d.ticketsPropietario };
 
   html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Sueldos</div>';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px">' +
