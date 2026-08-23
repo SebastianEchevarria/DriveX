@@ -901,7 +901,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-23-2';
+var APP_VERSION = '2026-08-23-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1964,19 +1964,14 @@ function renderConfiguracion() {
   html += '<div style="font-size:12px;color:var(--text3);margin-bottom:18px">Crea nuevos usuarios de acceso para cada app</div>';
   html += '<div style="display:flex;gap:16px;flex-wrap:wrap">';
 
-  html += '<div onclick="abrirNuevoUsuarioModal(\'dashboard\')" style="cursor:pointer;width:140px;text-align:center;background:rgba(0,212,255,.06);border:2.5px solid rgba(0,212,255,.9);border-radius:16px;padding:16px 10px;box-shadow:0 0 14px rgba(0,212,255,.7),0 0 30px rgba(0,212,255,.4)">' +
-    '<img src="' + DASH_ICON_B64 + '" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-bottom:8px">' +
-    '<div style="font-size:12px;font-weight:800;color:#fff">Dashboard</div>' +
+  html += '<div onclick="abrirNuevoUsuarioModal(\'dashboard\')" style="cursor:pointer;width:160px;text-align:center;background:rgba(0,212,255,.06);border:2.5px solid rgba(0,212,255,.9);border-radius:18px;padding:20px 12px;box-shadow:0 0 14px rgba(0,212,255,.7),0 0 30px rgba(0,212,255,.4)">' +
+    '<img src="' + DASH_ICON_B64 + '" style="width:80px;height:80px;border-radius:16px;object-fit:cover;margin-bottom:10px">' +
+    '<div style="font-size:13px;font-weight:800;color:#fff">Dashboard</div>' +
   '</div>';
 
-  html += '<div onclick="abrirNuevoUsuarioModal(\'supervisor\')" style="cursor:pointer;width:140px;text-align:center;background:rgba(254,164,1,.08);border:2.5px solid rgba(254,164,1,.9);border-radius:16px;padding:16px 10px;box-shadow:0 0 14px rgba(254,164,1,.7),0 0 30px rgba(254,164,1,.4)">' +
-    '<img src="' + SUPERVISOR_ICON_B64 + '" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-bottom:8px">' +
-    '<div style="font-size:12px;font-weight:800;color:#fff">Supervisor</div>' +
-  '</div>';
-
-  html += '<div onclick="openAddPropietarioModal()" style="cursor:pointer;width:140px;text-align:center;background:rgba(178,94,225,.08);border:2.5px solid rgba(178,94,225,.9);border-radius:16px;padding:16px 10px;box-shadow:0 0 14px rgba(178,94,225,.7),0 0 30px rgba(178,94,225,.4)">' +
-    '<img src="' + PROPIETARIO_ICON_B64 + '" style="width:64px;height:64px;border-radius:14px;object-fit:cover;margin-bottom:8px">' +
-    '<div style="font-size:12px;font-weight:800;color:#fff">Propietario</div>' +
+  html += '<div onclick="abrirNuevoUsuarioModal(\'supervisor\')" style="cursor:pointer;width:160px;text-align:center;background:rgba(254,164,1,.08);border:2.5px solid rgba(254,164,1,.9);border-radius:18px;padding:20px 12px;box-shadow:0 0 14px rgba(254,164,1,.7),0 0 30px rgba(254,164,1,.4)">' +
+    '<img src="' + SUPERVISOR_ICON_B64 + '" style="width:80px;height:80px;border-radius:16px;object-fit:cover;margin-bottom:10px">' +
+    '<div style="font-size:13px;font-weight:800;color:#fff">Supervisor</div>' +
   '</div>';
 
   html += '</div>';
@@ -2161,18 +2156,22 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
   var icon = app === 'dashboard' ? DASH_ICON_B64 : SUPERVISOR_ICON_B64;
   var registrado = !!u.inviteUsado;
   var btnId = 'del-usr-' + app + '-' + uid;
+  var subt = (u.role ? (u.role==='admin'?'Administrador':'Manager') : (app==='dashboard'?'Dashboard':'Supervisor'));
   var estado = registrado
-    ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Registrado</span>'
-    : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">⏳ Pendiente · ver código</button>';
-  return '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:8px;flex-wrap:wrap">' +
-    '<img src="' + icon + '" style="width:34px;height:34px;border-radius:9px;object-fit:cover;flex-shrink:0">' +
-    '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:13px;font-weight:700;color:#fff">' + (u.nombre||'—') + (u.role ? ' <span style="color:var(--text3);font-weight:400">· ' + (u.role==='admin'?'Administrador':'Manager') + '</span>' : '') + '</div>' +
-      '<div style="font-size:11px;color:var(--text3)">' + (u.email||'') + ' <span style="color:var(--text3)">· ' + (app==='dashboard'?'Dashboard':'Supervisor') + '</span></div>' +
+    ? '<span style="flex:1;text-align:center;font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:7px 8px">✓ Registrado</span>'
+    : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="flex:1;font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:7px 8px;cursor:pointer;font-family:inherit">⏳ Ver código</button>';
+  return '<div style="background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:12px;padding:12px;margin-bottom:10px">' +
+    '<div style="display:flex;align-items:center;gap:10px">' +
+      '<img src="' + icon + '" style="width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.nombre||'—') + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + subt + ' · ' + (app==='dashboard'?'Dashboard':'Supervisor') + '</div>' +
+      '</div>' +
     '</div>' +
-    '<div style="display:flex;align-items:center;gap:6px">' +
+    '<div style="font-size:11px;color:var(--text3);margin-top:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.email||'') + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:10px">' +
       estado +
-      '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">🗑 Eliminar</button>' +
+      '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="flex:1;font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:7px 8px;cursor:pointer;font-family:inherit">🗑 Eliminar</button>' +
     '</div>' +
   '</div>';
 }
