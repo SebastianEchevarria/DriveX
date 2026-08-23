@@ -2026,7 +2026,8 @@ function abrirNuevoUsuarioModal(app) {
   html += '<div id="nu-invite-result" style="display:none;margin-top:16px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">' +
     '<div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código generado — compártelo con la persona</div>' +
     '<div id="nu-invite-code" style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--green);letter-spacing:1px">—</div>' +
-    '<button onclick="copiarCodigoInviteUsuario()" class="edit-btn" style="margin-top:10px">📋 Copiar código</button>' +
+    '<div style="font-size:11px;color:var(--text3);margin-top:8px">Este código solo sirve para ' + (esDash ? 'Dashboard' : 'Supervisor') + ' y solo lo puede usar esta persona (va ligado a su email). Se invalida en cuanto activa su cuenta.</div>' +
+    '<button onclick="copyInviteCodeUsuario()" class="edit-btn" style="margin-top:10px">📋 Copiar mensaje + enlace</button>' +
   '</div>';
 
   html += '</div>';
@@ -2042,6 +2043,32 @@ function copiarCodigoInviteUsuario() {
   var old = btn.textContent;
   btn.textContent = '✓ Copiado';
   setTimeout(function(){ btn.textContent = old; }, 1500);
+}
+function copyInviteCodeUsuario() {
+  var code = document.getElementById('nu-invite-code').textContent;
+  var emailEl = document.getElementById('nu-email');
+  var email = emailEl ? emailEl.value.trim() : '';
+  var app = _nuevoUsuarioApp;
+  var link = app === 'dashboard'
+    ? 'http://drive-x-lilac-seven.vercel.app/drivx-admin-dashboard.html'
+    : 'http://drive-x-lilac-seven.vercel.app/drivx-supervisor-app.html';
+  var nombreApp = app === 'dashboard' ? 'Dashboard' : 'Supervisor';
+  var mensaje = '🚗 ¡Bienvenido a DRIVX ' + nombreApp + '!\n\n' +
+    '👉 Toca aquí para entrar y activar tu cuenta:\n' + link + '\n\n' +
+    (email ? 'Email: ' + email + '\n' : '') +
+    'Código de invitación: ' + code + '\n\n' +
+    'Este código es personal y de un solo uso.';
+  var btn = event.target;
+  var old = btn.textContent;
+  function done(ok) {
+    btn.textContent = ok ? '✓ Copiado' : '✕ No se pudo copiar';
+    setTimeout(function(){ btn.textContent = old; }, 1500);
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(mensaje).then(function(){ done(true); }).catch(function(){ done(false); });
+  } else {
+    done(false);
+  }
 }
 
 function guardarNuevoUsuario() {
