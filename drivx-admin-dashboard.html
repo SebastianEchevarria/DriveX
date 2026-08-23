@@ -167,6 +167,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <button class="role-btn" id="role-manager" onclick="setRole('manager')">📊 Manager</button>
     </div>
 
+    <div id="dash-step-login">
     <div class="login-error" id="login-error">Credenciales incorrectas.</div>
 
     <div class="field">
@@ -178,6 +179,30 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <input type="password" id="login-pass" placeholder="••••••••">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <button onclick="mostrarActivarDash()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Activar cuenta con código de invitación</button>
+    </div>
+
+    <div id="dash-step-activar" style="display:none">
+      <div id="dash-act-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;text-align:center"></div>
+      <div class="field">
+        <label>Código de invitación</label>
+        <input type="text" id="dash-act-code" placeholder="DRVX-XXXX" style="text-transform:uppercase">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="dash-act-email" placeholder="tucorreo@vtcinfinity.com">
+      </div>
+      <div class="field">
+        <label>Elige tu contraseña</label>
+        <input type="password" id="dash-act-pass1" placeholder="Mínimo 4 caracteres">
+      </div>
+      <div class="field">
+        <label>Repite la contraseña</label>
+        <input type="password" id="dash-act-pass2" placeholder="Repite la contraseña">
+      </div>
+      <button class="btn-primary" onclick="activarCuentaDash()">Activar cuenta</button>
+      <button onclick="mostrarLoginDash()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Ya tengo cuenta — iniciar sesión</button>
+    </div>
 
     <button id="biometric-btn" onclick="loginWithBiometric()" class="dash-biometric-btn" style="display:none;width:100%;justify-content:center;margin-top:14px;padding:0;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif">
         <div style="width:62px;height:62px;margin:0 auto;border-radius:50%;border:2.5px solid rgba(0,212,255,.9);background:linear-gradient(135deg,rgba(0,212,255,.14),rgba(0,212,255,.05));display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px rgba(0,212,255,.75),0 0 22px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),inset 0 0 10px rgba(0,212,255,.15)">
@@ -876,7 +901,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-29';
+var APP_VERSION = '2026-08-15-30';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -969,6 +994,48 @@ function triggerPwaInstall() {
       var loginBtn = document.getElementById('pwa-install-btn'); if (loginBtn) loginBtn.style.display = 'none';
     }
     _pwaDeferredPrompt = null;
+  });
+}
+
+function mostrarActivarDash() {
+  document.getElementById('dash-step-login').style.display = 'none';
+  document.getElementById('dash-step-activar').style.display = 'block';
+}
+function mostrarLoginDash() {
+  document.getElementById('dash-step-activar').style.display = 'none';
+  document.getElementById('dash-step-login').style.display = 'block';
+}
+function activarCuentaDash() {
+  var code = (document.getElementById('dash-act-code').value || '').trim().toUpperCase();
+  var email = (document.getElementById('dash-act-email').value || '').trim().toLowerCase();
+  var pass1 = document.getElementById('dash-act-pass1').value || '';
+  var pass2 = document.getElementById('dash-act-pass2').value || '';
+  var errEl = document.getElementById('dash-act-error');
+  errEl.style.display = 'none';
+
+  if (!code || !email) { errEl.textContent = 'Completa el código y el email.'; errEl.style.display = 'block'; return; }
+  if (pass1.length < 4 || pass1 !== pass2) { errEl.textContent = 'Revisa la contraseña (mínimo 4 caracteres, y que coincida).'; errEl.style.display = 'block'; return; }
+
+  fetch(FIREBASE_URL + '/usuarios_dashboard.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var uid = null, u = null;
+    Object.keys(data).forEach(function(k){
+      if (data[k] && data[k].inviteCode === code && (data[k].email||'').toLowerCase() === email) { uid = k; u = data[k]; }
+    });
+    if (!u) { errEl.textContent = 'Código o email incorrectos.'; errEl.style.display = 'block'; return; }
+    if (u.inviteUsado) { errEl.textContent = 'Este código ya se usó. Inicia sesión con tu email y contraseña.'; errEl.style.display = 'block'; return; }
+
+    return fetch(FIREBASE_URL + '/usuarios_dashboard/' + uid + '.json', {
+      method: 'PATCH', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ pass: pass1, inviteUsado: true })
+    }).then(function(){
+      currentUser = { nombre: u.nombre, email: email, role: u.role || 'admin' };
+      localStorage.setItem('drivx_admin_user', email);
+      finishLoginWithBiometricOffer(email, pass1);
+    });
+  }).catch(function(){
+    errEl.textContent = 'No se pudo conectar. Revisa tu conexión.';
+    errEl.style.display = 'block';
   });
 }
 
@@ -1914,9 +1981,8 @@ function renderConfiguracion() {
 
   html += '</div>';
   cont.innerHTML = html;
+  renderListaUsuariosInvitados(cont);
 }
-
-// ── Nuevo usuario para Dashboard o Supervisor (se guardan en Firebase) ──
 var _nuevoUsuarioApp = null;
 function abrirNuevoUsuarioModal(app) {
   _nuevoUsuarioApp = app;
@@ -1930,19 +1996,17 @@ function abrirNuevoUsuarioModal(app) {
 
   var esDash = app === 'dashboard';
   var colorTema = esDash ? '0,212,255' : '254,164,1';
-  var titulo = esDash ? '👑 Nuevo usuario de Dashboard' : '🕵️ Nuevo usuario de Supervisor';
+  var titulo = esDash ? '👑 Invitar usuario de Dashboard' : '🕵️ Invitar usuario de Supervisor';
 
-  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.9);border-radius:20px;max-width:400px;width:100%;padding:22px;box-shadow:0 0 18px rgba(' + colorTema + ',.7),0 0 38px rgba(' + colorTema + ',.4)">';
-  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:16px">' + titulo + '</div>';
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.9);border-radius:20px;max-width:400px;width:100%;padding:22px;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.7),0 0 38px rgba(' + colorTema + ',.4)">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:6px" id="nu-modal-title">' + titulo + '</div>';
+  html += '<div style="font-size:11px;color:var(--text3);margin-bottom:16px">Se genera un código de invitación. La persona lo usa para activar su propia cuenta y elegir su contraseña — solo sirve para ' + (esDash ? 'Dashboard' : 'Supervisor') + '.</div>';
 
   html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo</label>';
   html += '<input id="nu-nombre" type="text" placeholder="Ej: Laura Gómez" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px;box-sizing:border-box">';
 
   html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email</label>';
   html += '<input id="nu-email" type="email" placeholder="correo@ejemplo.com" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px;box-sizing:border-box">';
-
-  html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Contraseña</label>';
-  html += '<input id="nu-pass" type="text" placeholder="Contraseña de acceso" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px;box-sizing:border-box">';
 
   if (esDash) {
     html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Rol</label>';
@@ -1954,32 +2018,49 @@ function abrirNuevoUsuarioModal(app) {
 
   html += '<div id="nu-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px">Rellena todos los campos.</div>';
 
-  html += '<div style="display:flex;gap:10px">';
+  html += '<div id="nu-btns" style="display:flex;gap:10px">';
   html += '<button onclick="document.getElementById(\'nuevo-usuario-modal\').style.display=\'none\'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>';
-  html += '<button onclick="guardarNuevoUsuario()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(' + colorTema + ',1);background:rgba(' + colorTema + ',.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(' + colorTema + ',.85),0 0 22px rgba(' + colorTema + ',.5)">✓ Crear usuario</button>';
-  html += '</div></div>';
+  html += '<button id="nu-save-btn" onclick="guardarNuevoUsuario()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(' + colorTema + ',1);background:rgba(' + colorTema + ',.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(' + colorTema + ',.85),0 0 22px rgba(' + colorTema + ',.5)">📨 Enviar invitación</button>';
+  html += '</div>';
+
+  html += '<div id="nu-invite-result" style="display:none;margin-top:16px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:14px;text-align:center">' +
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:6px">Código generado — compártelo con la persona</div>' +
+    '<div id="nu-invite-code" style="font-family:var(--mono);font-size:22px;font-weight:900;color:var(--green);letter-spacing:1px">—</div>' +
+    '<button onclick="copiarCodigoInviteUsuario()" class="edit-btn" style="margin-top:10px">📋 Copiar código</button>' +
+  '</div>';
+
+  html += '</div>';
 
   modal.innerHTML = html;
   modal.style.display = 'flex';
+}
+
+function copiarCodigoInviteUsuario() {
+  var code = document.getElementById('nu-invite-code').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  var btn = event.target;
+  var old = btn.textContent;
+  btn.textContent = '✓ Copiado';
+  setTimeout(function(){ btn.textContent = old; }, 1500);
 }
 
 function guardarNuevoUsuario() {
   var app = _nuevoUsuarioApp;
   var nombre = document.getElementById('nu-nombre').value.trim();
   var email = document.getElementById('nu-email').value.trim().toLowerCase();
-  var pass = document.getElementById('nu-pass').value;
   var roleEl = document.getElementById('nu-role');
   var role = roleEl ? roleEl.value : null;
   var err = document.getElementById('nu-error');
 
-  if (!nombre || !email || email.indexOf('@') === -1 || !pass) {
+  if (!nombre || !email || email.indexOf('@') === -1) {
     err.style.display = 'block';
     return;
   }
   err.style.display = 'none';
 
   var uid = 'u_' + Date.now();
-  var usuario = { nombre: nombre, email: email, pass: pass, ts: Date.now() };
+  var code = generateInviteCode();
+  var usuario = { nombre: nombre, email: email, inviteCode: code, inviteUsado: false, ts: Date.now() };
   var path;
   if (app === 'dashboard') {
     usuario.role = role;
@@ -1988,14 +2069,74 @@ function guardarNuevoUsuario() {
     path = '/usuarios_supervisor/' + uid + '.json';
   }
 
+  var btn = document.getElementById('nu-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
   fetch(FIREBASE_URL + path, {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(usuario)
   }).then(fbCheck).then(function(){
-    toast('✓ Usuario creado — ya puede iniciar sesión en ' + (app === 'dashboard' ? 'Dashboard' : 'Supervisor'));
-    document.getElementById('nuevo-usuario-modal').style.display = 'none';
+    document.getElementById('nu-invite-code').textContent = code;
+    document.getElementById('nu-invite-result').style.display = 'block';
+    document.getElementById('nu-btns').style.display = 'none';
+    toast('✓ Invitación enviada');
+    renderConfiguracion();
   }).catch(function(){
-    alert('No se pudo crear el usuario. Inténtalo de nuevo.');
+    alert('No se pudo crear la invitación. Inténtalo de nuevo.');
+    btn.disabled = false;
+    btn.textContent = '📨 Enviar invitación';
   });
+}
+
+// ── Lista de usuarios invitados (pendientes/registrados) de Dashboard y Supervisor ──
+function renderListaUsuariosInvitados(cont) {
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-top:24px';
+  wrap.innerHTML = '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Usuarios invitados</div><div id="lista-usuarios-invitados" style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Cargando…</div>';
+  cont.appendChild(wrap);
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/usuarios_dashboard.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var dash = results[0] || {}, sup = results[1] || {};
+    var lista = document.getElementById('lista-usuarios-invitados');
+    if (!lista) return;
+    var filas = [];
+    Object.keys(dash).forEach(function(uid){ filas.push(_filaUsuarioInvitadoHtml(dash[uid], 'dashboard')); });
+    Object.keys(sup).forEach(function(uid){ filas.push(_filaUsuarioInvitadoHtml(sup[uid], 'supervisor')); });
+    lista.innerHTML = filas.length ? filas.join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Todavía no has invitado a nadie</div>';
+  });
+}
+function _filaUsuarioInvitadoHtml(u, app) {
+  var icon = app === 'dashboard' ? DASH_ICON_B64 : SUPERVISOR_ICON_B64;
+  var registrado = !!u.inviteUsado;
+  var estado = registrado
+    ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Registrado</span>'
+    : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">⏳ Pendiente · ver código</button>';
+  return '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:8px">' +
+    '<img src="' + icon + '" style="width:34px;height:34px;border-radius:9px;object-fit:cover;flex-shrink:0">' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:13px;font-weight:700;color:#fff">' + (u.nombre||'—') + (u.role ? ' <span style="color:var(--text3);font-weight:400">· ' + (u.role==='admin'?'Administrador':'Manager') + '</span>' : '') + '</div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + (u.email||'') + '</div>' +
+    '</div>' +
+    estado +
+  '</div>';
+}
+function verCodigoUsuarioInvitado(code) {
+  var modal = document.getElementById('ver-codigo-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ver-codigo-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="background:var(--surface);border:1px solid rgba(0,230,118,.3);border-radius:16px;max-width:340px;width:100%;padding:22px;text-align:center">' +
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Código de invitación pendiente</div>' +
+    '<div style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--green);letter-spacing:1px;margin-bottom:16px">' + code + '</div>' +
+    '<button onclick="document.getElementById(\'ver-codigo-modal\').style.display=\'none\'" class="edit-btn" style="width:100%">Cerrar</button>' +
+  '</div>';
+  modal.style.display = 'flex';
 }
 
 function renderConductoresScreen() {
