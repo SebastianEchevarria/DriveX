@@ -901,7 +901,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-23-3';
+var APP_VERSION = '2026-08-23-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1962,16 +1962,16 @@ function renderConfiguracion() {
 
   var html = '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:4px">📨 Invitación</div>';
   html += '<div style="font-size:12px;color:var(--text3);margin-bottom:18px">Crea nuevos usuarios de acceso para cada app</div>';
-  html += '<div style="display:flex;gap:16px;flex-wrap:wrap">';
+  html += '<div style="display:flex;gap:14px">';
 
-  html += '<div onclick="abrirNuevoUsuarioModal(\'dashboard\')" style="cursor:pointer;width:160px;text-align:center;background:rgba(0,212,255,.06);border:2.5px solid rgba(0,212,255,.9);border-radius:18px;padding:20px 12px;box-shadow:0 0 14px rgba(0,212,255,.7),0 0 30px rgba(0,212,255,.4)">' +
-    '<img src="' + DASH_ICON_B64 + '" style="width:80px;height:80px;border-radius:16px;object-fit:cover;margin-bottom:10px">' +
-    '<div style="font-size:13px;font-weight:800;color:#fff">Dashboard</div>' +
+  html += '<div onclick="abrirNuevoUsuarioModal(\'dashboard\')" style="cursor:pointer;flex:1;min-width:0;max-width:220px;text-align:center;background:rgba(0,212,255,.06);border:2.5px solid rgba(0,212,255,.9);border-radius:18px;padding:18px 8px;box-shadow:0 0 14px rgba(0,212,255,.7),0 0 30px rgba(0,212,255,.4)">' +
+    '<img src="' + DASH_ICON_B64 + '" style="width:100%;max-width:80px;aspect-ratio:1/1;border-radius:16px;object-fit:cover;margin-bottom:10px">' +
+    '<div style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Dashboard</div>' +
   '</div>';
 
-  html += '<div onclick="abrirNuevoUsuarioModal(\'supervisor\')" style="cursor:pointer;width:160px;text-align:center;background:rgba(254,164,1,.08);border:2.5px solid rgba(254,164,1,.9);border-radius:18px;padding:20px 12px;box-shadow:0 0 14px rgba(254,164,1,.7),0 0 30px rgba(254,164,1,.4)">' +
-    '<img src="' + SUPERVISOR_ICON_B64 + '" style="width:80px;height:80px;border-radius:16px;object-fit:cover;margin-bottom:10px">' +
-    '<div style="font-size:13px;font-weight:800;color:#fff">Supervisor</div>' +
+  html += '<div onclick="abrirNuevoUsuarioModal(\'supervisor\')" style="cursor:pointer;flex:1;min-width:0;max-width:220px;text-align:center;background:rgba(254,164,1,.08);border:2.5px solid rgba(254,164,1,.9);border-radius:18px;padding:18px 8px;box-shadow:0 0 14px rgba(254,164,1,.7),0 0 30px rgba(254,164,1,.4)">' +
+    '<img src="' + SUPERVISOR_ICON_B64 + '" style="width:100%;max-width:80px;aspect-ratio:1/1;border-radius:16px;object-fit:cover;margin-bottom:10px">' +
+    '<div style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Supervisor</div>' +
   '</div>';
 
   html += '</div>';
