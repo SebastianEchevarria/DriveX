@@ -901,7 +901,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-23-4';
+var APP_VERSION = '2026-08-23-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2114,7 +2114,8 @@ function guardarNuevoUsuario() {
 var _usuariosInvitadosCache = { dashboard:{}, supervisor:{} };
 function renderListaUsuariosInvitados(cont) {
   var wrap = document.createElement('div');
-  wrap.style.cssText = 'margin-top:24px';
+  wrap.id = 'seccion-usuarios-invitados';
+  wrap.style.cssText = 'margin-top:24px;display:none';
   wrap.innerHTML = '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Usuarios invitados</div><div id="lista-usuarios-invitados" style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Cargando…</div>';
   cont.appendChild(wrap);
 
@@ -2135,6 +2136,7 @@ function renderListaUsuariosInvitados(cont) {
 function paintUsuariosInvitados() {
   var dash = _usuariosInvitadosCache.dashboard || {};
   var sup = _usuariosInvitadosCache.supervisor || {};
+  var seccionInvitados = document.getElementById('seccion-usuarios-invitados');
   var lista = document.getElementById('lista-usuarios-invitados');
   var miembros = document.getElementById('lista-miembros-equipo');
   if (!lista || !miembros) return;
@@ -2149,7 +2151,8 @@ function paintUsuariosInvitados() {
     (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'supervisor', uid));
   });
 
-  lista.innerHTML = pendientes.length ? pendientes.join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Todavía no has invitado a nadie</div>';
+  if (seccionInvitados) seccionInvitados.style.display = pendientes.length ? 'block' : 'none';
+  lista.innerHTML = pendientes.join('');
   miembros.innerHTML = registrados.length ? registrados.join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Todavía no hay miembros registrados</div>';
 }
 function _filaUsuarioInvitadoHtml(u, app, uid) {
@@ -2160,7 +2163,11 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
   var estado = registrado
     ? '<span style="flex:1;text-align:center;font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:7px 8px">✓ Registrado</span>'
     : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="flex:1;font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:7px 8px;cursor:pointer;font-family:inherit">⏳ Ver código</button>';
-  return '<div style="background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:12px;padding:12px;margin-bottom:10px">' +
+  var ledColor = app === 'dashboard' ? '0,212,255' : '254,164,1';
+  var borderStyle = registrado
+    ? 'border:1.5px solid rgba(' + ledColor + ',.85);box-shadow:0 0 8px rgba(' + ledColor + ',.55),0 0 18px rgba(' + ledColor + ',.25)'
+    : 'border:1px solid var(--border2)';
+  return '<div style="background:rgba(255,255,255,.02);' + borderStyle + ';border-radius:12px;padding:12px;margin-bottom:10px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
       '<img src="' + icon + '" style="width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0">' +
       '<div style="flex:1;min-width:0">' +
