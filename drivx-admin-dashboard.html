@@ -901,7 +901,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-23-1';
+var APP_VERSION = '2026-08-23-2';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2115,40 +2115,97 @@ function guardarNuevoUsuario() {
   });
 }
 
-// ── Lista de usuarios invitados (pendientes/registrados) de Dashboard y Supervisor ──
+// ── Lista de usuarios invitados (pendientes) y miembros del equipo (registrados) de Dashboard y Supervisor ──
+var _usuariosInvitadosCache = { dashboard:{}, supervisor:{} };
 function renderListaUsuariosInvitados(cont) {
   var wrap = document.createElement('div');
   wrap.style.cssText = 'margin-top:24px';
   wrap.innerHTML = '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Usuarios invitados</div><div id="lista-usuarios-invitados" style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Cargando…</div>';
   cont.appendChild(wrap);
 
+  var wrap2 = document.createElement('div');
+  wrap2.style.cssText = 'margin-top:24px';
+  wrap2.innerHTML = '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Miembros del equipo</div><div id="lista-miembros-equipo" style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Cargando…</div>';
+  cont.appendChild(wrap2);
+
   Promise.all([
     fetch(FIREBASE_URL + '/usuarios_dashboard.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var dash = results[0] || {}, sup = results[1] || {};
-    var lista = document.getElementById('lista-usuarios-invitados');
-    if (!lista) return;
-    var filas = [];
-    Object.keys(dash).forEach(function(uid){ filas.push(_filaUsuarioInvitadoHtml(dash[uid], 'dashboard')); });
-    Object.keys(sup).forEach(function(uid){ filas.push(_filaUsuarioInvitadoHtml(sup[uid], 'supervisor')); });
-    lista.innerHTML = filas.length ? filas.join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Todavía no has invitado a nadie</div>';
+    _usuariosInvitadosCache = { dashboard: dash, supervisor: sup };
+    paintUsuariosInvitados();
   });
 }
-function _filaUsuarioInvitadoHtml(u, app) {
+function paintUsuariosInvitados() {
+  var dash = _usuariosInvitadosCache.dashboard || {};
+  var sup = _usuariosInvitadosCache.supervisor || {};
+  var lista = document.getElementById('lista-usuarios-invitados');
+  var miembros = document.getElementById('lista-miembros-equipo');
+  if (!lista || !miembros) return;
+
+  var pendientes = [], registrados = [];
+  Object.keys(dash).forEach(function(uid){
+    var u = dash[uid];
+    (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'dashboard', uid));
+  });
+  Object.keys(sup).forEach(function(uid){
+    var u = sup[uid];
+    (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'supervisor', uid));
+  });
+
+  lista.innerHTML = pendientes.length ? pendientes.join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Todavía no has invitado a nadie</div>';
+  miembros.innerHTML = registrados.length ? registrados.join('') : '<div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0">Todavía no hay miembros registrados</div>';
+}
+function _filaUsuarioInvitadoHtml(u, app, uid) {
   var icon = app === 'dashboard' ? DASH_ICON_B64 : SUPERVISOR_ICON_B64;
   var registrado = !!u.inviteUsado;
+  var btnId = 'del-usr-' + app + '-' + uid;
   var estado = registrado
     ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Registrado</span>'
     : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">⏳ Pendiente · ver código</button>';
-  return '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:8px">' +
+  return '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:8px;flex-wrap:wrap">' +
     '<img src="' + icon + '" style="width:34px;height:34px;border-radius:9px;object-fit:cover;flex-shrink:0">' +
     '<div style="flex:1;min-width:0">' +
       '<div style="font-size:13px;font-weight:700;color:#fff">' + (u.nombre||'—') + (u.role ? ' <span style="color:var(--text3);font-weight:400">· ' + (u.role==='admin'?'Administrador':'Manager') + '</span>' : '') + '</div>' +
-      '<div style="font-size:11px;color:var(--text3)">' + (u.email||'') + '</div>' +
+      '<div style="font-size:11px;color:var(--text3)">' + (u.email||'') + ' <span style="color:var(--text3)">· ' + (app==='dashboard'?'Dashboard':'Supervisor') + '</span></div>' +
     '</div>' +
-    estado +
+    '<div style="display:flex;align-items:center;gap:6px">' +
+      estado +
+      '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:3px 8px;cursor:pointer;font-family:inherit">🗑 Eliminar</button>' +
+    '</div>' +
   '</div>';
+}
+function confirmDeleteUsuarioInvitado(app, uid) {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var btn = document.getElementById('del-usr-' + app + '-' + uid);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    var path = (app === 'dashboard' ? '/usuarios_dashboard/' : '/usuarios_supervisor/') + uid + '.json';
+    btn.disabled = true;
+    btn.textContent = 'Eliminando…';
+    fetch(FIREBASE_URL + path, { method: 'DELETE' }).then(fbCheck).then(function(){
+      if (_usuariosInvitadosCache[app]) delete _usuariosInvitadosCache[app][uid];
+      paintUsuariosInvitados();
+      toast('✓ Usuario eliminado — ya no puede acceder');
+    }).catch(function(err){
+      alert('No se pudo eliminar: ' + err.message);
+      btn.disabled = false;
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar';
+    });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Confirmar';
+  btn.style.background = 'rgba(255,71,87,.25)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑 Eliminar';
+      btn.style.background = 'rgba(255,71,87,.08)';
+    }
+  }, 3000);
 }
 function verCodigoUsuarioInvitado(code) {
   var modal = document.getElementById('ver-codigo-modal');
