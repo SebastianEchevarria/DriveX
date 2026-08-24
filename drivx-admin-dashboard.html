@@ -361,6 +361,17 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ MODAL: RESUMEN GENERAL DE UN VEHÍCULO (FACTURACIÓN) ══════════════ -->
+<div id="veh-resumen-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10002;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2.5px solid rgba(255,215,0,.9);border-radius:20px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(255,215,0,.7),0 0 40px rgba(255,215,0,.4),0 20px 50px rgba(0,0,0,.6)">
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0;z-index:1">
+      <div id="veh-resumen-plate" style="display:flex;align-items:center;gap:10px">—</div>
+      <button class="modal-close" onclick="document.getElementById('veh-resumen-modal').style.display='none'">✕</button>
+    </div>
+    <div id="veh-resumen-body" style="padding:18px 20px 20px"></div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: CONDUCTOR EN FACTURACIÓN ══════════════ -->
 <div id="fact-conductor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)">
@@ -920,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-2';
+var APP_VERSION = '2026-08-24-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2920,6 +2931,291 @@ function recalcularLiquidacionCompleta(cid, matricula, uid) {
   }).catch(function(){});
 }
 
+// ══════════════ RESUMEN GENERAL DE UN VEHÍCULO (en Facturación) ══════════════
+// Mismo cálculo y estructura que el "Resumen general" de la app de
+// Propietario, pero aplicado a un único vehículo: suma la facturación,
+// gastos y pagos de todos sus conductores, y añade el % de gestión y el
+// branding del propietario dueño de esta matrícula (si tiene uno asignado).
+var _vehResumenTicketsCache = { conductor: [], propietario: [] };
+var _vehResumenPagosCache = [];
+function _colorParaConductorVeh(nombre) {
+  var colores = ['var(--cyan)','var(--purple)','var(--green)','var(--amber)','#ff6ec7','#5ad1e6'];
+  var h = 0;
+  for (var i=0;i<(nombre||'').length;i++) h = (h*31 + nombre.charCodeAt(i)) % colores.length;
+  return colores[Math.abs(h)];
+}
+function _turnoOrdenVeh(turno) {
+  var m = (turno||'').match(/(\d{1,2}):/);
+  if (!m) return 3;
+  var h = parseInt(m[1], 10);
+  if (h >= 5 && h < 12) return 0;
+  if (h >= 12 && h < 20) return 1;
+  return 2;
+}
+
+function abrirResumenGeneralVehiculo(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+
+  document.getElementById('veh-resumen-plate').innerHTML = plateHtml(v.matricula) + (v.icon === '⚡' ? evBadgeHtml(30) : '');
+  document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Calculando resumen general…</div>';
+  document.getElementById('veh-resumen-modal').style.display = 'flex';
+
+  var lista = [];
+  v.conductores.forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (c) lista.push({ cid: c.cid, nombre: c.nombre, turno: c.turno, porcentaje: c.porcentaje || 30 });
+  });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula === matricula) lista.push({ cid: cid, nombre: r.nombre || 'Conductor', turno: r.turno, porcentaje: r.porcentaje || 30 });
+  });
+
+  if (!lista.length) {
+    document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Este vehículo no tiene conductores asignados todavía.</div>';
+    return;
+  }
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    Promise.all(lista.map(function(info){
+      var uid = 'fact_' + info.cid;
+      _facturacionConductoresIndex[uid] = { cid: info.cid, nombre: info.nombre, turno: info.turno, esInvitado: false, matricula: matricula, porcentaje: info.porcentaje };
+      return calcularLiquidacionAcumulada(info.cid, matricula, uid).then(function(d){
+        d = d || {};
+        d.nombreConductor = d.nombreConductor || info.nombre;
+        d.turno = info.turno;
+        return d;
+      });
+    }))
+  ]).then(function(results){
+    var propietarios = results[0] || {};
+    var pid = Object.keys(propietarios).find(function(k){ return (propietarios[k].matriculas || []).indexOf(matricula) !== -1; });
+    var propietario = pid ? (propietarios[pid] || {}) : {};
+    var datosConductores = results[1];
+
+    var CAT_LABELS_VEH = { gasolina:'⛽ Combustible', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', otros:'📄 Otros' };
+
+    var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0;
+    var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0;
+    var sueldosTotal=0, pagosARealizarTotal=0, pagosDetalle=[];
+    var ticketsConductor=[], ticketsPropietario=[];
+
+    datosConductores.forEach(function(d){
+      uberTotal += d.uberNetoReal || 0;
+      boltTotal += d.boltNetoReal || 0;
+      cabifyTotal += d.cabifyNetoReal || 0;
+      privadosFacturacionTotal += d.privadosCutTotal || 0;
+      transfersFacturacionTotal += d.transfersCutTotal || 0;
+      sueldosTotal += d.sueldo || 0;
+      pagosARealizarTotal += d.resultado || 0;
+      pagosDetalle.push({ nombre: d.nombreConductor, resultado: d.resultado || 0, turno: d.turno });
+
+      (d.gastosItems || []).forEach(function(t){
+        var importe = Number(t.importe||0);
+        if (t.cat === 'gasolina') combustibleTotal += importe;
+        else if (t.cat === 'peaje') peajesTotal += importe;
+        else if (t.cat === 'parking') parkingTotal += importe;
+        else if (t.cat === 'lavado') limpiezaTotal += importe;
+        else if (t.cat === 'otros') otrosTotal += importe;
+
+        var ticketItem = { catRaw: t.cat, cat: CAT_LABELS_VEH[t.cat] || t.cat, importe: importe, fecha: t.fecha||'', conductor: d.nombreConductor, matricula: matricula, url: t.url||'', propina: Number(t.propina||0) };
+        if (t.pagadoPorPropietario) ticketsPropietario.push(ticketItem); else ticketsConductor.push(ticketItem);
+      });
+    });
+
+    var brandingTotal = Number(propietario.branding || 0);
+    var porcentajeGestion = Number(propietario.porcentajeGestion || 0);
+    var nombreGestion = propietario.nombreCampoGestion || 'INFINITY';
+    var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
+    var facturacionTotal = facturacionAppsTotal + brandingTotal;
+
+    var abonadosPorPropietarioTotal = ticketsPropietario.reduce(function(s,t){ return s+t.importe; }, 0);
+    var infinityTotal = facturacionAppsTotal * (porcentajeGestion / 100);
+    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
+
+    var infinityConIvaTotal = infinityTotal * 1.21;
+    if (infinityTotal > 0) {
+      pagosARealizarTotal += infinityConIvaTotal;
+      pagosDetalle.push({ nombre: nombreGestion, resultado: infinityConIvaTotal, esEmpresa: true });
+    }
+
+    var beneficio = facturacionTotal - gastosTotalGeneral;
+
+    pintarResumenGeneralVehiculo({
+      sinPropietario: !pid,
+      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
+      privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
+      brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
+      combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
+      abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
+      infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
+      gastosTotalGeneral:gastosTotalGeneral,
+      pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
+      beneficio:beneficio,
+      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario
+    });
+  }).catch(function(){
+    document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);font-size:12px">No se pudo calcular el resumen.</div>';
+  });
+}
+
+function pintarResumenGeneralVehiculo(d) {
+  var cont = document.getElementById('veh-resumen-body');
+  if (!cont) return;
+
+  function filaResumen(label, valor, esGasto) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)">' +
+      '<span style="color:#fff">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:' + (esGasto ? 'var(--red)' : '#fff') + '">' + (esGasto ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+
+  var html = '';
+  if (d.sinPropietario) {
+    html += '<div style="font-size:11px;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);border-radius:8px;padding:8px 10px;margin-bottom:14px">⚠ Este vehículo no está asignado a ningún propietario todavía, así que el % de gestión y el branding se muestran en 0.</div>';
+  }
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Facturación</div>';
+  html += filaResumen('Uber', d.uberTotal) +
+    filaResumen('Bolt', d.boltTotal) +
+    filaResumen('Cabify', d.cabifyTotal) +
+    filaResumen('Privados', d.privadosFacturacionTotal) +
+    filaResumen('Transfer', d.transfersFacturacionTotal) +
+    filaResumen('Branding', d.brandingTotal);
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Total facturación</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.8)">€ ' + d.facturacionTotal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Gastos</div>';
+  html += filaResumen('Combustible', d.combustibleTotal, true) +
+    filaResumen('Peajes', d.peajesTotal, true) +
+    filaResumen('Parking', d.parkingTotal, true) +
+    filaResumen('Lavado', d.limpiezaTotal, true) +
+    filaResumen('Otros', d.otrosTotal, true) +
+    filaResumen('Sueldos', d.sueldosTotal, true) +
+    filaResumen(d.nombreGestion + (d.porcentajeGestion ? ' (' + d.porcentajeGestion.toString().replace('.',',') + '%)' : ''), d.infinityTotal, true);
+
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px;font-size:11px;color:var(--text3)">' +
+    '<span>Gastos pagados por el propietario</span>' +
+    '<span style="font-family:var(--mono)">€ ' + d.abonadosPorPropietarioTotal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="display:flex;gap:8px;margin:8px 0 4px">' +
+    '<button onclick="abrirGastosResumenVeh(\'conductor\')" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit">👤 Pagados por conductor (' + d.ticketsConductor.length + ')</button>' +
+    '<button onclick="abrirGastosResumenVeh(\'propietario\')" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid rgba(178,94,225,.5);background:rgba(178,94,225,.08);color:var(--purple);font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit">🏢 Pagados por propietario (' + d.ticketsPropietario.length + ')</button>' +
+  '</div>';
+
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Total gastos</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + d.gastosTotalGeneral.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  _vehResumenTicketsCache = { conductor: d.ticketsConductor, propietario: d.ticketsPropietario };
+  _vehResumenPagosCache = d.pagosDetalle;
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Pagos a realizar</div>';
+  html += '<button onclick="abrirPagosResumenVeh()" style="width:100%;padding:9px;border-radius:9px;border:1.5px solid rgba(255,215,0,.5);background:rgba(255,215,0,.08);color:#ffd700;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px">👥 Ver detalle por conductor y ' + d.nombreGestion + ' (' + d.pagosDetalle.length + ')</button>';
+  var pagosEsPagar = d.pagosARealizarTotal >= 0;
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">' + (pagosEsPagar ? 'Total a pagar (conductores + ' + d.nombreGestion + ')' : 'Total a devolver por conductores') + '</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + (pagosEsPagar ? '#ffd700' : 'var(--red)') + '">€ ' + Math.abs(d.pagosARealizarTotal).toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
+  var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';
+  html += '<div style="margin-top:16px;background:rgba(' + colorBeneficio + ',.1);border:2px solid rgba(' + colorBeneficio + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBeneficio + ',.85),0 0 28px rgba(' + colorBeneficio + ',.5)">' +
+    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO (Total facturación − Total gastos)</div>' +
+    '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorBeneficioVar + '">€ ' + d.beneficio.toFixed(2).replace('.',',') + '</div>' +
+  '</div>';
+
+  cont.innerHTML = html;
+}
+
+function abrirGastosResumenVeh(tipo) {
+  var items = _vehResumenTicketsCache[tipo] || [];
+  var titulo = tipo === 'propietario' ? '🏢 Gastos pagados por el propietario' : '👤 Gastos pagados por el conductor';
+  var colorTema = tipo === 'propietario' ? '178,94,225' : '0,212,255';
+
+  var modal = document.getElementById('veh-gastos-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'veh-gastos-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10003;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+  var total = items.reduce(function(s,t){ return s+t.importe; }, 0);
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.55),0 0 40px rgba(' + colorTema + ',.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:14px;font-weight:900;color:#fff">' + titulo + '</span>';
+  html += '<button onclick="document.getElementById(\'veh-gastos-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:6px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<span style="font-size:11px;color:var(--text3)">' + items.length + ' ticket' + (items.length!==1?'s':'') + '</span>';
+  html += '<span style="font-family:var(--mono);font-size:14px;font-weight:900;color:#fff">€ ' + total.toFixed(2).replace('.',',') + '</span>';
+  html += '</div>';
+  html += '<div style="padding:8px 18px 18px">';
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin tickets en esta categoría</div>';
+  } else {
+    items.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).forEach(function(t){
+      var colorCond = _colorParaConductorVeh(t.conductor);
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">';
+      if (t.url) html += '<img src="' + t.url + '" onclick="window.open(\'' + t.url + '\',\'_blank\')" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0">';
+      else html += '<div style="width:40px;height:40px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧾</div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:12.5px;font-weight:700;color:#fff">€ ' + t.importe.toFixed(2).replace('.',',') + ' <span style="color:var(--text3);font-weight:400">· ' + t.cat + '</span></div>';
+      html += '<div style="font-size:10.5px"><span style="color:' + colorCond + ';font-weight:800">' + t.conductor + '</span><span style="color:var(--text3)"> · ' + (t.fecha||'') + '</span></div>';
+      if (t.propina > 0) html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € ' + t.propina.toFixed(2).replace('.',',') + '</div>';
+      html += '</div></div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function abrirPagosResumenVeh() {
+  var items = (_vehResumenPagosCache || []).slice().sort(function(a,b){
+    if (!!a.esEmpresa !== !!b.esEmpresa) return a.esEmpresa ? 1 : -1;
+    if (a.esEmpresa && b.esEmpresa) return 0;
+    return _turnoOrdenVeh(a.turno) - _turnoOrdenVeh(b.turno);
+  });
+  var modal = document.getElementById('veh-gastos-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'veh-gastos-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10003;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+  var colorTema = '255,215,0';
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.55),0 0 40px rgba(' + colorTema + ',.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:14px;font-weight:900;color:#fff">💰 Pagos a realizar por conductor</span>';
+  html += '<button onclick="document.getElementById(\'veh-gastos-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:8px 18px 18px">';
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin conductores todavía</div>';
+  } else {
+    items.forEach(function(p){
+      var esPagar = p.resultado >= 0;
+      var color = p.esEmpresa ? 'var(--purple)' : (esPagar ? '#ffd700' : 'var(--red)');
+      var colorCond = p.esEmpresa ? 'var(--purple)' : _colorParaConductorVeh(p.nombre);
+      var subt = p.esEmpresa ? 'Pago a la empresa de gestión (IVA 21% incluido)' : (esPagar ? 'Debes pagarle' : 'Te debe devolver');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">';
+      html += '<div><div style="font-size:12.5px;font-weight:800;color:' + colorCond + '">' + (p.esEmpresa ? '🏢 ' : '') + (p.nombre||'—') + '</div>' +
+        '<div style="font-size:10.5px;color:var(--text3)">' + subt + '</div></div>';
+      html += '<span style="font-family:var(--mono);font-weight:900;font-size:13px;color:' + color + '">€ ' + Math.abs(p.resultado).toFixed(2).replace('.',',') + '</span>';
+      html += '</div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
 function pintarLiquidacion(uid, d) {
   var cont = document.getElementById('fact-liq-' + uid);
   if (!cont) return;
@@ -3717,6 +4013,7 @@ function paintFacturacion() {
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
       html += '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar ' + ((v.tipoFacturacion||'semanal') === 'mensual' ? 'mes' : 'semana') + '</button>' +
+      '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Resumen general de este vehículo" style="flex-shrink:0;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Resumen</button>' +
       '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">' +
         '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
       html += '</div>';
