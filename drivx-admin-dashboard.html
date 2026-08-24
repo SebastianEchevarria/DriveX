@@ -929,7 +929,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-12';
+var APP_VERSION = '2026-08-24-13';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2718,6 +2718,9 @@ function abrirTodosConductoresVehiculo(matricula) {
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
+    if (((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal') === 'mensual') {
+      pintarResumenMensual(info.cid, 'fact_' + info.cid);
+    }
   });
 }
 function closeFacturacionMultiModal() {
@@ -2747,6 +2750,7 @@ function openFacturacionConductorModal(uid) {
   pintarUberCabifyGuardado(info.cid);
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
+  if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, uid);
 
   // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
   // así se ve al instante lo que el conductor vaya subiendo desde su app.
@@ -2756,6 +2760,7 @@ function openFacturacionConductorModal(uid) {
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
+    if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, uid);
   }, 8000);
 }
 function closeFacturacionConductorModal() {
@@ -2765,7 +2770,7 @@ function closeFacturacionConductorModal() {
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
   var vTipo = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
-  return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+  var html = '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
     '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Uber</div>' +
@@ -2788,16 +2793,151 @@ function facturacionModalBodyHtml(info) {
         '<button onclick="abrirEdicionManualFact(\'cabify\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(124,92,252,.16);border:2px solid rgba(124,92,252,1);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(124,92,252,.6),0 0 16px rgba(124,92,252,.35)">✏️</button>' +
       '</div>' +
       '<div id="cabify_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
-    '</div>' +
-    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
-      '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
-    '</div>' +
-    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
-      '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
     '</div>';
+
+  if (vTipo === 'mensual') {
+    // Facturación mensual: esquema totalmente distinto a la semanal (nómina
+    // manual + comisión del 35% sobre lo que supere el objetivo de 150€/día
+    // trabajado + propinas). Cabify queda pendiente de definir su fórmula,
+    // así que de momento no entra en el Neto total de apps.
+    html += '<div id="mensual-resumen-' + uid + '" style="margin-top:4px"></div>';
+  } else {
+    html +=
+      '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
+        '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+      '</div>' +
+      '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
+        '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+      '</div>';
+  }
+  return html;
 }
+
+// ══ FACTURACIÓN MENSUAL de un conductor ══
+// Neto Uber    = Ganancias totales − Propinas
+// Neto Bolt    = Ingresos netos − Propinas − Peajes
+// Neto Cabify  = PENDIENTE (fórmula por definir) — no se incluye todavía en el total
+// Neto total apps = Neto Uber + Neto Bolt (+ Neto Cabify cuando se defina)
+// Objetivo     = 150€ × días trabajados (casilla manual)
+// Comisión     = max(Neto total apps − Objetivo, 0) × 35%
+// Propinas     = suma de propinas de las 3 apps
+// Sueldo total = Nómina (manual) + Comisión + Propinas
+// Resultado    = Sueldo total − Efectivo no entregado (manual) − Adelanto en nómina (manual)
+// Banco        = mín(Nómina, Resultado)  ·  Efectivo = Resultado − Banco
+function guardarExtraMensual(cid, uid, campo, valor) {
+  var num = parseFloat(valor);
+  if (isNaN(num) || num < 0) num = 0;
+  fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json', {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ [campo]: num, ts: Date.now() })
+  }).then(fbCheck).then(function(){
+    pintarResumenMensual(cid, uid);
+  }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
+}
+function pintarResumenMensual(cid, uid) {
+  var cont = document.getElementById('mensual-resumen-' + uid);
+  if (!cont) return;
+  Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {}, extra = results[3] || {};
+
+    var netoUber = Number(uber.neto || 0) - Number(uber.propinas || 0);
+    var netoBolt = Number(bolt.ingresosNetos || 0) - Number(bolt.propinas || 0) - Number(bolt.peajes || 0);
+    var netoTotalApps = netoUber + netoBolt; // Cabify pendiente, no se suma todavía
+    var propinasTotal = Number(uber.propinas || 0) + Number(bolt.propinas || 0) + Number(cabify.propinas || 0);
+
+    var diasTrabajados = Number(extra.diasTrabajados || 0);
+    var nomina = Number(extra.nomina || 0);
+    var efectivoNoEntregado = Number(extra.efectivoNoEntregado || 0);
+    var adelantoNomina = Number(extra.adelantoNomina || 0);
+
+    var objetivo = 150 * diasTrabajados;
+    var excedente = Math.max(netoTotalApps - objetivo, 0);
+    var comision = excedente * 0.35;
+    var sueldoTotal = nomina + comision + propinasTotal;
+    var resultado = sueldoTotal - efectivoNoEntregado - adelantoNomina;
+    var banco = resultado > 0 ? Math.min(nomina, resultado) : 0;
+    var efectivo = resultado > 0 ? (resultado - banco) : 0;
+
+    function fila(label, valor, destacado) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.08)">' +
+        '<span style="color:' + (destacado ? '#fff' : 'var(--text3)') + ';font-weight:' + (destacado?'800':'600') + '">' + label + '</span>' +
+        '<span style="font-family:var(--mono);font-weight:800;color:#fff">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
+    }
+    function inputManual(label, sub, campo, valorActual) {
+      return '<div style="margin-bottom:12px">' +
+        '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">' + label + '</div>' +
+        (sub ? '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' + sub + '</div>' : '') +
+        '<input type="number" step="0.01" min="0" value="' + (valorActual||0) + '" onchange="guardarExtraMensual(\'' + cid + '\',\'' + uid + '\',\'' + campo + '\',this.value)" style="width:100%;background:var(--surface2);border:1.5px solid rgba(255,179,0,.6);color:#fff;padding:10px 12px;border-radius:9px;font-size:14px;font-family:var(--mono);font-weight:700">' +
+      '</div>';
+    }
+
+    var html = '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
+    html += '<div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:12px">📅 Resumen mensual</div>';
+
+    html += '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
+    html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt);
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px">' +
+      '<span style="color:var(--text3);font-style:italic">Neto Cabify</span>' +
+      '<span style="font-size:11px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.12);border:1px solid rgba(255,179,0,.4);border-radius:6px;padding:2px 8px">⏳ Pendiente</span>' +
+    '</div>';
+    html += fila('Neto total apps' + ' (sin Cabify)', netoTotalApps, true);
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
+
+    html += inputManual('Nómina (€)', 'Se pone a mano, según lo que se declare en la nómina de este mes', 'nomina', nomina);
+    html += inputManual('Días trabajados este mes', 'Para calcular el objetivo (150€ × días trabajados)', 'diasTrabajados', diasTrabajados);
+
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.08)">' +
+      '<span style="color:var(--text3)">Objetivo (150€ × ' + diasTrabajados + ' días)</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:#fff">€ ' + objetivo.toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+    html += fila('Facturado por encima del objetivo', excedente);
+    html += fila('Comisión (35% del exceso)', comision);
+    html += fila('Total propinas (Uber + Bolt + Cabify)', propinasTotal);
+
+    html += '<div style="margin-top:12px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:12px 14px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff">SUELDO TOTAL A PERCIBIR EN EL MES</span>' +
+      '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan)">€ ' + sueldoTotal.toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
+
+    html += inputManual('Efectivo no entregado (€)', 'Dinero en efectivo que el conductor ya cobró pero aún no ha entregado', 'efectivoNoEntregado', efectivoNoEntregado);
+    html += inputManual('Adelanto en nómina (€)', 'Dinero que ya se le adelantó a cuenta de este mes', 'adelantoNomina', adelantoNomina);
+
+    var colorResultado = resultado >= 0 ? '0,230,118' : '255,71,87';
+    html += '<div style="background:rgba(' + colorResultado + ',.1);border:2px solid rgba(' + colorResultado + ',1);border-radius:10px;padding:12px 14px;margin-bottom:12px;box-shadow:0 0 10px rgba(' + colorResultado + ',.85),0 0 22px rgba(' + colorResultado + ',.5);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff">' + (resultado >= 0 ? 'LE FALTA POR COBRAR' : 'DEBE DEVOLVER') + '</span>' +
+      '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:' + (resultado>=0?'var(--green)':'var(--red)') + '">€ ' + Math.abs(resultado).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+
+    if (resultado > 0) {
+      html += '<div style="display:flex;gap:10px">' +
+        '<div style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px;text-align:center">' +
+          '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">🏦 Banco</div>' +
+          '<div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + banco.toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+        '<div style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px;text-align:center">' +
+          '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">💵 Efectivo</div>' +
+          '<div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + efectivo.toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    html += '</div>';
+    cont.innerHTML = html;
+  }).catch(function(){
+    cont.innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:10px">No se pudo calcular el resumen mensual.</div>';
+  });
+}
+
 
 // Cada apartado (Uber, Bolt, Cabify, Viajes privados) guarda aquí su parte del
 // total, para poder sumarlos todos en la casilla "Facturación neto total".
@@ -2924,6 +3064,15 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
 }
 
 function recalcularLiquidacionCompleta(cid, matricula, uid) {
+  // La liquidación estilo "semanal" (sueldo % + efectivo real) no aplica a
+  // vehículos en facturación mensual — esos usan el resumen mensual propio
+  // (nómina + comisión + propinas), así que no pintamos nada aquí.
+  var vTipoLiq = (getAllVehiculos().find(function(x){ return x.matricula === matricula; }) || {}).tipoFacturacion || 'semanal';
+  if (vTipoLiq === 'mensual') {
+    var contLiq = document.getElementById('fact-liq-' + uid);
+    if (contLiq) contLiq.innerHTML = '';
+    return;
+  }
   calcularLiquidacionAcumulada(cid, matricula, uid).then(function(d){
     if (d) pintarLiquidacion(uid, d);
   }).catch(function(){});
