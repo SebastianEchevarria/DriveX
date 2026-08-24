@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-17';
+var APP_VERSION = '2026-08-24-18';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2921,11 +2921,6 @@ function pintarResumenMensual(cid, matricula, uid) {
     html += fila('Comisión (35% del exceso)', comision);
     html += fila('Total propinas (Uber + Bolt + Cabify)', propinasTotal);
 
-    html += '<div style="margin-top:12px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:12px 14px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
-      '<span style="font-size:12px;font-weight:900;color:#fff">SUELDO TOTAL A PERCIBIR EN EL MES</span>' +
-      '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan)">€ ' + sueldoTotal.toFixed(2).replace('.',',') + '</span>' +
-    '</div>';
-
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
     html += '<div style="margin-bottom:12px">' +
@@ -2936,6 +2931,13 @@ function pintarResumenMensual(cid, matricula, uid) {
         '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
       '</div>' +
     '</div>';
+
+    html += '<div style="margin-top:12px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:12px 14px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff">SUELDO TOTAL A RECIBIR</span>' +
+      '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan)">€ ' + sueldoTotal.toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
     var colorResultado = resultado >= 0 ? '0,230,118' : '255,71,87';
     html += '<div style="background:rgba(' + colorResultado + ',.1);border:2px solid rgba(' + colorResultado + ',1);border-radius:10px;padding:12px 14px;margin-bottom:12px;box-shadow:0 0 10px rgba(' + colorResultado + ',.85),0 0 22px rgba(' + colorResultado + ',.5);display:flex;justify-content:space-between;align-items:center">' +
