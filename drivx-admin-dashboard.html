@@ -375,16 +375,18 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 <!-- ══════════════ MODAL: CONDUCTOR EN FACTURACIÓN ══════════════ -->
 <div id="fact-conductor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
       <div style="flex:1;min-width:0">
         <div id="fact-modal-nombre" style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55)">—</div>
         <div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px">
           <div id="fact-modal-plate"></div>
-          <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
         </div>
         <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
-      <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
+        <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
+      </div>
     </div>
     <div id="fact-modal-body" style="padding:20px 22px 22px"></div>
   </div>
@@ -929,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-14';
+var APP_VERSION = '2026-08-24-15';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2719,7 +2721,7 @@ function abrirTodosConductoresVehiculo(matricula) {
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
     if (((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal') === 'mensual') {
-      pintarResumenMensual(info.cid, 'fact_' + info.cid);
+      pintarResumenMensual(info.cid, info.matricula, 'fact_' + info.cid);
     }
   });
 }
@@ -2750,7 +2752,7 @@ function openFacturacionConductorModal(uid) {
   pintarUberCabifyGuardado(info.cid);
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
-  if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, uid);
+  if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, info.matricula, uid);
 
   // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
   // así se ve al instante lo que el conductor vaya subiendo desde su app.
@@ -2760,7 +2762,7 @@ function openFacturacionConductorModal(uid) {
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
-    if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, uid);
+    if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, info.matricula, uid);
   }, 8000);
 }
 function closeFacturacionConductorModal() {
@@ -2829,27 +2831,30 @@ function facturacionModalBodyHtml(info) {
 // Comisión     = max(Neto total apps − Objetivo, 0) × 35%
 // Propinas     = suma de propinas de las 3 apps
 // Sueldo total = Nómina (manual) + Comisión + Propinas
-// Resultado    = Sueldo total − Efectivo no entregado (manual) − Adelanto en nómina (manual)
+// Resultado    = Sueldo total − Efectivo no entregado (auto, igual que el
+//                "Efectivo real" semanal) − Adelanto en nómina (manual)
 // Banco        = mín(Nómina, Resultado)  ·  Efectivo = Resultado − Banco
-function guardarExtraMensual(cid, uid, campo, valor) {
+function guardarExtraMensual(cid, matricula, uid, campo, valor) {
   var num = parseFloat(valor);
   if (isNaN(num) || num < 0) num = 0;
   fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json', {
     method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ [campo]: num, ts: Date.now() })
   }).then(fbCheck).then(function(){
-    pintarResumenMensual(cid, uid);
+    pintarResumenMensual(cid, matricula, uid);
   }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
 }
-function pintarResumenMensual(cid, uid) {
+function pintarResumenMensual(cid, matricula, uid) {
   var cont = document.getElementById('mensual-resumen-' + uid);
   if (!cont) return;
   Promise.all([
     fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    calcularLiquidacionAcumulada(cid, matricula, uid).catch(function(){ return null; })
   ]).then(function(results){
     var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {}, extra = results[3] || {};
+    var liq = results[4]; // mismo cálculo que usa la semanal — de ahí sacamos el "efectivo real"
 
     var netoUber = Number(uber.neto || 0) - Number(uber.propinas || 0);
     var netoBolt = Number(bolt.ingresosNetos || 0) - Number(bolt.propinas || 0) - Number(bolt.peajes || 0);
@@ -2858,8 +2863,11 @@ function pintarResumenMensual(cid, uid) {
 
     var diasTrabajados = Number(extra.diasTrabajados || 0);
     var nomina = Number(extra.nomina || 0);
-    var efectivoNoEntregado = Number(extra.efectivoNoEntregado || 0);
     var adelantoNomina = Number(extra.adelantoNomina || 0);
+    // Efectivo no entregado = mismo cálculo que el "Efectivo real" de la
+    // semanal: efectivo cobrado en apps/privados/transfers, menos los
+    // gastos del conductor. No es manual, se extrae igual que en semanal.
+    var efectivoNoEntregado = liq ? liq.efectivoReal : 0;
 
     var objetivo = 150 * diasTrabajados;
     var excedente = Math.max(netoTotalApps - objetivo, 0);
@@ -2879,7 +2887,7 @@ function pintarResumenMensual(cid, uid) {
       return '<div style="margin-bottom:12px">' +
         '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">' + label + '</div>' +
         (sub ? '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' + sub + '</div>' : '') +
-        '<input type="number" step="0.01" min="0" value="' + (valorActual||0) + '" onchange="guardarExtraMensual(\'' + cid + '\',\'' + uid + '\',\'' + campo + '\',this.value)" style="width:100%;background:var(--surface2);border:1.5px solid rgba(255,179,0,.6);color:#fff;padding:10px 12px;border-radius:9px;font-size:14px;font-family:var(--mono);font-weight:700">' +
+        '<input type="number" step="0.01" min="0" value="' + (valorActual||0) + '" onchange="guardarExtraMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + campo + '\',this.value)" style="width:100%;background:var(--surface2);border:1.5px solid rgba(255,179,0,.6);color:#fff;padding:10px 12px;border-radius:9px;font-size:14px;font-family:var(--mono);font-weight:700">' +
       '</div>';
     }
 
@@ -2914,7 +2922,14 @@ function pintarResumenMensual(cid, uid) {
 
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
-    html += inputManual('Efectivo no entregado (€)', 'Dinero en efectivo que el conductor ya cobró pero aún no ha entregado', 'efectivoNoEntregado', efectivoNoEntregado);
+    html += '<div style="margin-bottom:12px">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Efectivo no entregado</div>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">Se calcula igual que el "Efectivo real" de la semanal: efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px">' +
+        '<span style="font-size:11px;color:var(--text3)">Extraído automáticamente</span>' +
+        '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
+      '</div>' +
+    '</div>';
     html += inputManual('Adelanto en nómina (€)', 'Dinero que ya se le adelantó a cuenta de este mes', 'adelantoNomina', adelantoNomina);
 
     var colorResultado = resultado >= 0 ? '0,230,118' : '255,71,87';
