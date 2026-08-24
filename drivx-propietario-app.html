@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-4';
+var APP_VERSION = '2026-08-24-5';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1238,147 +1238,70 @@ function cargarFacturacionO() {
 }
 
 // ══ RESUMEN GENERAL — totales de todos los conductores/vehículos del propietario ══
+// ── RESUMEN GENERAL ──
+// IMPORTANTE: esto ya NO se calcula en vivo. Se lee el "snapshot" que el
+// admin/manager genera y envía al pulsar "🔒 Cerrar y enviar" en cada
+// vehículo, desde el Dashboard. Así el propietario nunca ve cifras a medio
+// periodo — solo la facturación ya cerrada de cada coche. Si un vehículo
+// todavía no se ha cerrado nunca, no aporta datos al resumen y se avisa.
 function calcularResumenGeneralO(misVehiculos, invitados) {
   var cont = document.getElementById('resumen-general-o');
   if (!cont) return;
   cont.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text3);font-size:12px">Calculando resumen general…</div>';
 
-  var todosConductores = [];
-  misVehiculos.forEach(function(v){
-    CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid)!==-1) todosConductores.push({cid:c.cid, matricula:v.matricula}); });
-    Object.keys(invitados).forEach(function(cid){
-      var r = invitados[cid];
-      if (r && r.matricula === v.matricula) todosConductores.push({cid:cid, matricula:v.matricula});
-    });
-  });
+  if (!misVehiculos.length) { cont.innerHTML = ''; return; }
 
-  if (!todosConductores.length) { cont.innerHTML = ''; return; }
-
-  Promise.all([
-    fetch(FIREBASE_URL + '/propietarios/' + currentUser.pid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    Promise.all(todosConductores.map(function(info){
-      return Promise.all([
-        fetch(FIREBASE_URL + '/facturacion_uber/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-        fetch(FIREBASE_URL + '/facturacion_bolt/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-        fetch(FIREBASE_URL + '/facturacion_cabify/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-        fetch(FIREBASE_URL + '/hojasruta/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-        fetch(FIREBASE_URL + '/transfers/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-        fetch(FIREBASE_URL + '/gastos/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-        fetch(FIREBASE_URL + '/conductores_registro/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
-      ]).then(function(results){
-        return { cid: info.cid, matricula: info.matricula, uber: results[0]||{}, bolt: results[1]||{}, cabify: results[2]||{}, hojas: results[3]||{}, transfersD: results[4]||{}, gastosD: results[5]||{}, reg: results[6]||{} };
-      });
-    }))
-  ]).then(function(resultadosGenerales){
-    var extra = resultadosGenerales[0] || {};
-    var datosConductores = resultadosGenerales[1];
-    var uberTotal=0, boltTotal=0, cabifyTotal=0;
-    var privadosFacturacionTotal=0, transfersFacturacionTotal=0;
-    var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0;
-    var sueldosTotal=0;
-    var pagosARealizarTotal=0;
-    var pagosDetalle=[];
-    var ticketsConductor=[], ticketsPropietario=[];
-    var CAT_LABELS_O = { gasolina:'⛽ Gasolina', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', datafono:'💳 Datáfono', otros:'📄 Otros' };
-
-    datosConductores.forEach(function(dc){
-      var uber=dc.uber, bolt=dc.bolt, cabify=dc.cabify;
-      var uberNetoReal = (typeof uber.netoReal==='number')?uber.netoReal:((uber.neto||0)-(uber.propinas||0)-(uber.promociones||0));
-      var boltNetoReal = (typeof bolt.netoReal==='number')?bolt.netoReal:((bolt.ingresosNetos||0)-(bolt.peajes||0)-(bolt.ingresosCampanas||0)-(bolt.propinas||0));
-      var cabifyNetoReal = (typeof cabify.netoReal==='number')?cabify.netoReal:((cabify.neto||0)-(cabify.propinas||0)-(cabify.promociones||0));
-      uberTotal += uberNetoReal; boltTotal += boltNetoReal; cabifyTotal += cabifyNetoReal;
-
-      var uberPropinas = Number(uber.propinas||0), boltPropinas = Number(bolt.propinas||0), cabifyPropinas = Number(cabify.propinas||0);
-      var uberPromo = Number(uber.promociones||0), boltCampanas = Number(bolt.ingresosCampanas||0), cabifyPromo = Number(cabify.promociones||0);
-      var uberEfectivo = Number(uber.efectivo||0), boltEfectivo = Number(bolt.efectivoRecaudado||0), cabifyEfectivo = Number(cabify.efectivo||0);
-
-      var nombreConductor = dc.reg.nombre || '';
-      var porcentaje = (typeof dc.reg.porcentaje==='number') ? dc.reg.porcentaje : 30;
-
-      var hojas = dc.hojas, transfersD = dc.transfersD, gastosD = dc.gastosD;
-      var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid===dc.cid; });
-      var privadosTotal = privadosPropios.reduce(function(s,h){ return s+Number(h.cutConductor||0); },0);
-      privadosFacturacionTotal += privadosTotal; // ya es neto: solo el % del conductor (40%)
-      var privadosEfectivoTotal = privadosPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s+Number(h.precioTotal||0); },0);
-      var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid===dc.cid; });
-      var transfersTotal = transfersPropios.reduce(function(s,h){ return s+Number(h.cutConductor||0); },0);
-      transfersFacturacionTotal += transfersTotal; // ya es neto: solo el % del conductor (30%)
-      var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s+Number(h.precioTotal||0); },0);
-
-      var propinasDatafonoConductor = 0;
-      var gastosConductorSolo = 0; // gastos pagados por el propio conductor (excluye los abonados por el propietario) — se usa para calcular el efectivo real
-      ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
-        var catObj = gastosD[cat] || {};
-        Object.keys(catObj).forEach(function(tid){
-          var t = catObj[tid];
-          if (!(t && (t.conductor||'')===nombreConductor)) return;
-          var importe = Number(t.importe||0);
-          // Aquí SÍ contamos todos los gastos, los pague quien los pague —
-          // es dinero real que ha salido del negocio (a diferencia del
-          // desglose por conductor, donde los pagados por el propietario no
-          // restan de lo que le corresponde a él).
-          if (cat === 'gasolina') combustibleTotal += importe;
-          else if (cat === 'peaje') peajesTotal += importe;
-          else if (cat === 'parking') parkingTotal += importe;
-          else if (cat === 'lavado') limpiezaTotal += importe;
-          else if (cat === 'otros') otrosTotal += importe;
-          if (cat === 'datafono') propinasDatafonoConductor += Number(t.propina||0);
-
-          var pagadoPor = t.pagadoPor || 'conductor';
-          if (pagadoPor !== 'propietario') gastosConductorSolo += importe;
-
-          var ticketItem = { catRaw: cat, cat: CAT_LABELS_O[cat] || cat, importe: importe, fecha: t.fecha||'', hora: t.hora||'', conductor: nombreConductor, matricula: dc.matricula, url: t.url||'', nombre: t.nombre||'', propina: Number(t.propina||0) };
-          if (pagadoPor === 'propietario') ticketsPropietario.push(ticketItem);
-          else ticketsConductor.push(ticketItem);
-        });
-      });
-
-      var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
-      var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas + propinasDatafonoConductor;
-      var promoBruto = uberPromo + boltCampanas + cabifyPromo;
-      var umbral = netoAppsTotal + privadosTotal + transfersTotal;
-      var promoRate = umbral >= 1000 ? 0.50 : 0.30;
-      var promoTotal = promoBruto * promoRate;
-      var netoAppsConductor = netoAppsTotal * (porcentaje/100);
-      var sueldo = netoAppsConductor + privadosTotal + transfersTotal + propinasTotal + promoTotal;
-      sueldosTotal += sueldo;
-
-      var efectivoAppsTotal = uberEfectivo + boltEfectivo + cabifyEfectivo;
-      var efectivoReal = (efectivoAppsTotal + privadosEfectivoTotal + transfersEfectivoTotal) - gastosConductorSolo;
-      var resultado = sueldo - efectivoReal;
-      pagosARealizarTotal += resultado;
-      pagosDetalle.push({ nombre: nombreConductor, matricula: dc.matricula, resultado: resultado, turno: dc.reg.turno || '' });
+  Promise.all(misVehiculos.map(function(v){
+    return fetch(FIREBASE_URL + '/facturacion_propietario_snapshot/' + matSlugO(v.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
+  })).then(function(snapshots){
+    var vehiculosConDatos = [], vehiculosSinEnviar = [];
+    snapshots.forEach(function(snap, i){
+      if (snap) vehiculosConDatos.push(snap); else vehiculosSinEnviar.push(misVehiculos[i].matricula);
     });
 
-    // ── FACTURACIÓN ──
-    var brandingTotal = Number(extra.branding || 0);
-    var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
-    var facturacionTotal = facturacionAppsTotal + brandingTotal;
-
-    // ── GASTOS ──
-    var abonadosPorPropietarioTotal = ticketsPropietario.reduce(function(s,t){ return s+t.importe; }, 0); // informativo: ya va incluido dentro de combustible/peajes/parking/lavado/otros
-    var porcentajeGestion = Number(extra.porcentajeGestion || 0);
-    var nombreGestion = extra.nombreCampoGestion || 'INFINITY';
-    var infinityTotal = facturacionAppsTotal * (porcentajeGestion / 100);
-    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
-
-    // ── PAGOS A REALIZAR: se añade el pago a la empresa de gestión (Infinity), con el 21% de IVA sumado ──
-    var infinityConIvaTotal = infinityTotal * 1.21;
-    if (infinityTotal > 0) {
-      pagosARealizarTotal += infinityConIvaTotal;
-      pagosDetalle.push({ nombre: nombreGestion, matricula: '', resultado: infinityConIvaTotal, esEmpresa: true });
+    if (!vehiculosConDatos.length) {
+      cont.innerHTML = '<div style="background:rgba(10,8,2,.88);border:2.5px solid rgba(255,215,0,.9);border-radius:16px;padding:18px;text-align:center;box-shadow:0 0 16px rgba(255,215,0,.7),0 0 34px rgba(255,215,0,.4)">' +
+        '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:8px">📊 RESUMEN GENERAL</div>' +
+        '<div style="font-size:12px;color:var(--text3)">Todavía no se ha cerrado y enviado ningún periodo de facturación desde el Dashboard. En cuanto se envíe, aparecerá aquí.</div>' +
+      '</div>';
+      return;
     }
 
-    // ── BENEFICIO = Total facturación − Total gastos ──
+    var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0, brandingTotal=0;
+    var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0, abonadosPorPropietarioTotal=0;
+    var sueldosTotal=0, infinityTotal=0, pagosARealizarTotal=0;
+    var nombreGestion = 'INFINITY', porcentajeGestion = 0;
+    var pagosDetalle=[], ticketsConductor=[], ticketsPropietario=[];
+
+    vehiculosConDatos.forEach(function(snap){
+      uberTotal += snap.uberTotal||0; boltTotal += snap.boltTotal||0; cabifyTotal += snap.cabifyTotal||0;
+      privadosFacturacionTotal += snap.privadosFacturacionTotal||0; transfersFacturacionTotal += snap.transfersFacturacionTotal||0;
+      brandingTotal += snap.brandingTotal||0;
+      combustibleTotal += snap.combustibleTotal||0; peajesTotal += snap.peajesTotal||0; parkingTotal += snap.parkingTotal||0;
+      limpiezaTotal += snap.limpiezaTotal||0; otrosTotal += snap.otrosTotal||0;
+      abonadosPorPropietarioTotal += snap.abonadosPorPropietarioTotal||0;
+      sueldosTotal += snap.sueldosTotal||0; infinityTotal += snap.infinityTotal||0;
+      pagosARealizarTotal += snap.pagosARealizarTotal||0;
+      nombreGestion = snap.nombreGestion || nombreGestion;
+      porcentajeGestion = snap.porcentajeGestion || porcentajeGestion;
+      (snap.pagosDetalle||[]).forEach(function(p){ pagosDetalle.push(p); });
+      (snap.ticketsConductor||[]).forEach(function(t){ ticketsConductor.push(t); });
+      (snap.ticketsPropietario||[]).forEach(function(t){ ticketsPropietario.push(t); });
+    });
+
+    var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
+    var facturacionTotal = facturacionAppsTotal + brandingTotal;
+    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
     var beneficio = facturacionTotal - gastosTotalGeneral;
 
     pintarResumenGeneralO({
+      vehiculosSinEnviar: vehiculosSinEnviar,
       uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
       privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
       brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
       combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
       abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
-      infinityTotal:infinityTotal, infinityConIvaTotal:infinityConIvaTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
+      infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
       gastosTotalGeneral:gastosTotalGeneral,
       pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
       beneficio:beneficio,
@@ -1388,6 +1311,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     cont.innerHTML = '';
   });
 }
+
 
 var _resumenGeneralTicketsCache = { conductor: [], propietario: [] };
 var _resumenGeneralPagosCache = [];
@@ -1528,6 +1452,10 @@ function pintarResumenGeneralO(d) {
 
   var html = '<div style="background:rgba(10,8,2,.88);border:2.5px solid rgba(255,215,0,.9);border-radius:16px;padding:16px;box-shadow:0 0 16px rgba(255,215,0,.7),0 0 34px rgba(255,215,0,.4)">';
   html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:14px;display:flex;align-items:center;gap:8px">📊 RESUMEN GENERAL</div>';
+
+  if (d.vehiculosSinEnviar && d.vehiculosSinEnviar.length) {
+    html += '<div style="font-size:11px;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);border-radius:8px;padding:8px 10px;margin-bottom:14px">⚠ ' + d.vehiculosSinEnviar.join(', ') + (d.vehiculosSinEnviar.length===1 ? ' todavía no tiene' : ' todavía no tienen') + ' ningún periodo cerrado y enviado, así que no ' + (d.vehiculosSinEnviar.length===1 ? 'está' : 'están') + ' incluidos en este resumen.</div>';
+  }
 
   html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Facturación</div>';
   html += filaResumen('Uber', d.uberTotal) +

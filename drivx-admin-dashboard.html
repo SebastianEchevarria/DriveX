@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-4';
+var APP_VERSION = '2026-08-24-6';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2953,13 +2953,12 @@ function _turnoOrdenVeh(turno) {
   return 2;
 }
 
-function abrirResumenGeneralVehiculo(matricula) {
+// Cálculo puro del resumen de un vehículo, reutilizable tanto para la vista
+// en vivo del admin (abrirResumenGeneralVehiculo) como para el snapshot que
+// se guarda al pulsar "Cerrar y enviar" (lo que verá el propietario).
+function calcularResumenVehiculoParaFacturacion(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
-  if (!v) return;
-
-  document.getElementById('veh-resumen-plate').innerHTML = plateHtml(v.matricula) + (v.icon === '⚡' ? evBadgeHtml(30) : '');
-  document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Calculando resumen general…</div>';
-  document.getElementById('veh-resumen-modal').style.display = 'flex';
+  if (!v) return Promise.resolve(null);
 
   var lista = [];
   v.conductores.forEach(function(cid){
@@ -2971,12 +2970,9 @@ function abrirResumenGeneralVehiculo(matricula) {
     if (r.matricula === matricula) lista.push({ cid: cid, nombre: r.nombre || 'Conductor', turno: r.turno, porcentaje: r.porcentaje || 30 });
   });
 
-  if (!lista.length) {
-    document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Este vehículo no tiene conductores asignados todavía.</div>';
-    return;
-  }
+  if (!lista.length) return Promise.resolve(null);
 
-  Promise.all([
+  return Promise.all([
     fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     Promise.all(lista.map(function(info){
       var uid = 'fact_' + info.cid;
@@ -3042,8 +3038,8 @@ function abrirResumenGeneralVehiculo(matricula) {
 
     var beneficio = facturacionTotal - gastosTotalGeneral;
 
-    pintarResumenGeneralVehiculo({
-      sinPropietario: !pid,
+    return {
+      matricula: matricula, pid: pid || null, sinPropietario: !pid,
       uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
       privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
       brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
@@ -3054,10 +3050,115 @@ function abrirResumenGeneralVehiculo(matricula) {
       pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
       beneficio:beneficio,
       ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario
+    };
+  });
+}
+
+// Guarda el snapshot de este vehículo — es lo único que verá el
+// propietario en su app, y solo se actualiza cuando el admin/manager
+// pulsa "Cerrar y enviar". Así el propietario nunca ve números "en vivo"
+// a medio periodo, solo la facturación ya cerrada y enviada.
+function enviarFacturacionPropietarioSnapshot(matricula) {
+  return calcularResumenVehiculoParaFacturacion(matricula).then(function(d){
+    if (!d) return null;
+    d.enviadoEn = new Date().toISOString();
+    return fetch(FIREBASE_URL + '/facturacion_propietario_snapshot/' + matSlug(matricula) + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(d)
+    }).then(fbCheck).then(function(){ return d; });
+  });
+}
+
+// ══════════════ CORREGIR Y REENVIAR (tras editar algo manualmente) ══════════════
+// Los datos que ve el conductor (facturacion_publicada) y el propietario
+// (facturacion_propietario_snapshot) son "fotos fijas" que solo se
+// actualizan al cerrar el periodo — así ninguno ve números cambiando en
+// vivo. Pero si el admin corrige un error (un ticket mal puesto, un dato
+// de Uber/Bolt/Cabify mal introducido, un porcentaje equivocado...) esa
+// corrección necesita llegar a esas fotos ya publicadas, sin esperar al
+// siguiente cierre ni tocar el histórico ya archivado. Esta función
+// regenera ambas fotos con los datos ya corregidos.
+function republicarFacturacionParaConductor(cid) {
+  return Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(datos){
+    var publicado = { uber: datos[0] || null, bolt: datos[1] || null, cabify: datos[2] || null, publicadoTs: Date.now() };
+    return fetch(FIREBASE_URL + '/facturacion_publicada/' + cid + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(publicado)
     });
+  });
+}
+
+function corregirYReenviarFacturacion(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+
+  var cids = [];
+  (v.conductores||[]).forEach(function(cid){ var c = CONDUCTORES.find(function(x){ return x.cid === cid; }); if (c) cids.push(cid); });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula === matricula) cids.push(cid);
+  });
+
+  if (!cids.length) { toast('⚠ Este vehículo no tiene conductores asignados'); return; }
+
+  var btn = document.getElementById('veh-resumen-corregir-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Reenviando…'; }
+
+  Promise.all(cids.map(function(cid){ return republicarFacturacionParaConductor(cid); }))
+    .then(function(){ return enviarFacturacionPropietarioSnapshot(matricula); })
+    .then(function(){
+      toast('✅ Corrección reenviada al conductor y al propietario');
+      if (btn) { btn.disabled = false; btn.textContent = '🔁 Corregir y reenviar'; }
+      abrirResumenGeneralVehiculo(matricula);
+    }).catch(function(err){
+      alert('No se pudo reenviar la corrección: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = '🔁 Corregir y reenviar'; }
+    });
+}
+
+var _vehResumenMatriculaActual = null;
+var _vehResumenUltimoEnvio = null;
+function abrirResumenGeneralVehiculo(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  _vehResumenMatriculaActual = matricula;
+
+  document.getElementById('veh-resumen-plate').innerHTML = plateHtml(v.matricula) + (v.icon === '⚡' ? evBadgeHtml(30) : '');
+  document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Calculando resumen general…</div>';
+  document.getElementById('veh-resumen-modal').style.display = 'flex';
+
+  Promise.all([
+    calcularResumenVehiculoParaFacturacion(matricula),
+    fetch(FIREBASE_URL + '/facturacion_propietario_snapshot/' + matSlug(matricula) + '/enviadoEn.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var d = results[0];
+    _vehResumenUltimoEnvio = results[1] || null;
+    if (!d) {
+      document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Este vehículo no tiene conductores asignados todavía.</div>';
+      return;
+    }
+    pintarResumenGeneralVehiculo(d);
   }).catch(function(){
     document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);font-size:12px">No se pudo calcular el resumen.</div>';
   });
+}
+
+function editarBrandingDesdeResumenVeh(pid) {
+  if (!pid) { alert('Este vehículo no está asignado a ningún propietario todavía, así que no hay dónde guardar el branding. Asígnalo primero en Propietarios.'); return; }
+  fetch(FIREBASE_URL + '/propietarios/' + pid + '/branding.json').then(function(r){ return r.json(); }).then(function(actual){
+    var nuevo = prompt('Nuevo importe de Branding (€) para este propietario:', (typeof actual === 'number') ? actual : 0);
+    if (nuevo === null) return;
+    var num = parseFloat(nuevo.replace(',','.'));
+    if (isNaN(num)) { alert('Introduce un número válido.'); return; }
+    fetch(FIREBASE_URL + '/propietarios/' + pid + '/branding.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(num)
+    }).then(fbCheck).then(function(){
+      toast('✓ Branding actualizado');
+      if (_vehResumenMatriculaActual) abrirResumenGeneralVehiculo(_vehResumenMatriculaActual);
+    }).catch(function(err){ alert('No se pudo guardar: ' + err.message); });
+  }).catch(function(){ alert('No se pudo leer el branding actual.'); });
 }
 
 function pintarResumenGeneralVehiculo(d) {
@@ -3072,6 +3173,8 @@ function pintarResumenGeneralVehiculo(d) {
   }
 
   var html = '';
+  html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;margin-bottom:10px">👁️ Esto es lo que verá el propietario en su app — pero solo se actualiza cuando pulses <strong style="color:#fff">🔒 Cerrar y enviar</strong>. ' + (_vehResumenUltimoEnvio ? 'Última vez enviado: ' + new Date(_vehResumenUltimoEnvio).toLocaleString('es-ES') : 'Todavía no se ha enviado nada de este vehículo.') + '</div>';
+  html += '<button id="veh-resumen-corregir-btn" onclick="corregirYReenviarFacturacion(\'' + d.matricula.replace(/'/g,"\\'") + '\')" title="Usa esto tras corregir algún dato (Uber/Bolt/Cabify, un ticket, un porcentaje...) para que la corrección llegue ya al conductor y al propietario, sin esperar al próximo cierre" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:14px">🔁 Corregir y reenviar</button>';
   if (d.sinPropietario) {
     html += '<div style="font-size:11px;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);border-radius:8px;padding:8px 10px;margin-bottom:14px">⚠ Este vehículo no está asignado a ningún propietario todavía, así que el % de gestión y el branding se muestran en 0.</div>';
   }
@@ -3081,8 +3184,14 @@ function pintarResumenGeneralVehiculo(d) {
     filaResumen('Bolt', d.boltTotal) +
     filaResumen('Cabify', d.cabifyTotal) +
     filaResumen('Privados', d.privadosFacturacionTotal) +
-    filaResumen('Transfer', d.transfersFacturacionTotal) +
-    filaResumen('Branding', d.brandingTotal);
+    filaResumen('Transfer', d.transfersFacturacionTotal);
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)">' +
+    '<span style="color:#fff">Branding</span>' +
+    '<span style="display:flex;align-items:center;gap:8px">' +
+      '<span style="font-family:var(--mono);font-weight:800;color:#fff">€ ' + Math.abs(d.brandingTotal).toFixed(2).replace('.',',') + '</span>' +
+      '<button onclick="editarBrandingDesdeResumenVeh(' + (d.pid ? "'"+d.pid+"'" : 'null') + ')" title="Editar branding de este propietario" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.5);color:var(--cyan);font-size:10px;font-weight:800;padding:3px 7px;border-radius:7px;cursor:pointer;font-family:inherit">✏️ Editar</button>' +
+    '</span>' +
+  '</div>';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
     '<span style="font-size:12px;font-weight:900;color:#fff">Total facturación</span>' +
     '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.8)">€ ' + d.facturacionTotal.toFixed(2).replace('.',',') + '</span>' +
@@ -4012,11 +4121,13 @@ function paintFacturacion() {
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
-      html += '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar y enviar</button>' +
-      '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Facturación propietario de este vehículo" style="flex-shrink:0;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Facturación propietario</button>' +
-      '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
+      html += '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
+      html += '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+        '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Facturación propietario de este vehículo" style="flex:1;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Facturación propietario</button>' +
+        '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo, y enviar la facturación al propietario" style="flex:1;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar y enviar</button>' +
+      '</div>';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
       html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">👤 Conductores</div>';
       html += '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.8),0 0 18px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
@@ -5941,6 +6052,12 @@ function confirmarCierrePeriodo() {
   Promise.all(writes).then(function(){
     toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
     generarExcelFacturacion();
+    // Además de enviar al conductor, actualizamos el snapshot de
+    // facturación que ve el propietario en su app — solo se actualiza aquí,
+    // nunca en vivo, así el propietario ve siempre datos ya cerrados.
+    enviarFacturacionPropietarioSnapshot(p.matricula).then(function(d){
+      if (d) toast('✅ Facturación enviada al propietario · ' + p.matricula);
+    }).catch(function(){});
   }).catch(function(err){
     alert('No se pudo cerrar el periodo: ' + err.message);
   });
