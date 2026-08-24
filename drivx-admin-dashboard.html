@@ -929,7 +929,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-13';
+var APP_VERSION = '2026-08-24-14';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2770,7 +2770,8 @@ function closeFacturacionConductorModal() {
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
   var vTipo = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
-  var html = '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+
+  var htmlApps =
     '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Uber</div>' +
@@ -2800,19 +2801,23 @@ function facturacionModalBodyHtml(info) {
     // manual + comisión del 35% sobre lo que supere el objetivo de 150€/día
     // trabajado + propinas). Cabify queda pendiente de definir su fórmula,
     // así que de momento no entra en el Neto total de apps.
-    html += '<div id="mensual-resumen-' + uid + '" style="margin-top:4px"></div>';
-  } else {
-    html +=
-      '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
-        '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
-      '</div>' +
-      '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
-        '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
-      '</div>';
+    // El resumen va ARRIBA (es lo que importa de un vistazo) y las 3 apps
+    // (donde se editan/suben los datos brutos) van debajo.
+    return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+      '<div id="mensual-resumen-' + uid + '" style="margin-bottom:16px"></div>' +
+      htmlApps;
   }
-  return html;
+
+  return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+    htmlApps +
+    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
+      '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+    '</div>' +
+    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
+      '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+    '</div>';
 }
 
 // ══ FACTURACIÓN MENSUAL de un conductor ══
