@@ -682,44 +682,44 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-nombre" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
-        <input id="ap-nombre" type="text" placeholder="Ej: María López García" oninput="marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-nombre" type="text" placeholder="Ej: María López García" oninput="marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-doc" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
-        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" oninput="marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
+        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" oninput="marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
       </div>
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-email" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Será su usuario para acceder a la futura app de Propietarios</div>
-        <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-telefono" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono *</label>
-        <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Fecha de alta en la flota</label>
-        <input id="ap-fecha-alta" type="date" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-fecha-alta" type="date" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:18px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Cuenta bancaria / IBAN</label>
-        <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
+        <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
       </div>
 
       <div style="margin-bottom:18px;background:rgba(178,94,225,.06);border:1.5px solid rgba(178,94,225,.4);border-radius:12px;padding:12px 14px">
         <label style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">% de gestión</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aparecerá en el resumen general de la app del propietario, aplicado sobre su facturación total</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input id="ap-porcentaje-gestion" type="number" step="0.1" min="0" max="100" placeholder="0" style="width:90px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);box-sizing:border-box">
+          <input id="ap-porcentaje-gestion" type="number" step="0.1" min="0" max="100" placeholder="0" style="width:90px;background:rgba(178,94,225,.12);border:2px solid rgba(178,94,225,1);color:#fff;padding:11px 12px;border-radius:10px;font-size:16px;font-weight:800;font-family:var(--mono);box-sizing:border-box;box-shadow:0 0 10px rgba(178,94,225,.85),0 0 22px rgba(178,94,225,.5)">
           <div style="display:flex;align-items:center;color:var(--text3);font-size:14px;font-weight:800">%</div>
         </div>
         <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">✏️ Nombre que verá el propietario para este concepto</label>
-        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:10px">
+        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:rgba(178,94,225,.1);border:1.5px solid rgba(178,94,225,.55);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:10px">
         <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">¿Se le suma el 21% de IVA en Pagos a realizar?</label>
         <div style="display:flex;gap:8px">
           <button type="button" id="ap-iva-si" onclick="seleccionarIvaGestion(true)" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">Sí</button>
@@ -930,7 +930,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-9';
+var APP_VERSION = '2026-08-24-10';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
