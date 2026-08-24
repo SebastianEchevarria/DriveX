@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-3';
+var APP_VERSION = '2026-08-24-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4012,13 +4012,15 @@ function paintFacturacion() {
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
-      html += '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar ' + ((v.tipoFacturacion||'semanal') === 'mensual' ? 'mes' : 'semana') + '</button>' +
-      '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Resumen general de este vehículo" style="flex-shrink:0;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Resumen</button>' +
-      '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">' +
-        '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
+      html += '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar y enviar</button>' +
+      '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Facturación propietario de este vehículo" style="flex-shrink:0;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Facturación propietario</button>' +
+      '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
-      html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">👤 Conductores</div>';
+      html += '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.8),0 0 18px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
+      html += '</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
       html += '</div>';
     });
