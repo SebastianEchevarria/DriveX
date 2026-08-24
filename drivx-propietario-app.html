@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-3';
+var APP_VERSION = '2026-08-24-4';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1551,7 +1551,7 @@ function pintarResumenGeneralO(d) {
     filaResumen(d.nombreGestion + (d.porcentajeGestion ? ' (' + d.porcentajeGestion.toString().replace('.',',') + '%)' : ''), d.infinityTotal, true);
 
   html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px;font-size:11px;color:var(--text3)">' +
-    '<span>↳ De los cuales, abonados por el propietario</span>' +
+    '<span>Gastos pagados por el propietario</span>' +
     '<span style="font-family:var(--mono)">€ ' + d.abonadosPorPropietarioTotal.toFixed(2).replace('.',',') + '</span>' +
   '</div>';
 
