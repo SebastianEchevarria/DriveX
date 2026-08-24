@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-16';
+var APP_VERSION = '2026-08-24-17';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2889,16 +2889,16 @@ function pintarResumenMensual(cid, matricula, uid) {
     }
     function inputManual(label, sub, campo, valorActual) {
       return '<div style="margin-bottom:12px">' +
-        '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">' + label + '</div>' +
+        '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">' + label + '</div>' +
         (sub ? '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' + sub + '</div>' : '') +
         '<input type="number" step="0.01" min="0" value="' + (valorActual||0) + '" onchange="guardarExtraMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + campo + '\',this.value)" style="width:100%;background:var(--surface2);border:1.5px solid rgba(255,179,0,.6);color:#fff;padding:10px 12px;border-radius:9px;font-size:14px;font-family:var(--mono);font-weight:700">' +
       '</div>';
     }
 
     var html = '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
-    html += '<div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:12px">📅 Resumen mensual</div>';
+    html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
 
-    html += '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
+    html += '<div style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
     html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt);
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px">' +
       '<span style="color:var(--text3);font-style:italic">Neto Cabify</span>' +
@@ -2909,11 +2909,12 @@ function pintarResumenMensual(cid, matricula, uid) {
 
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
-    html += inputManual('Nómina (€)', 'Se pone a mano, según lo que se declare en la nómina de este mes', 'nomina', nomina);
+    html += inputManual('Nómina (€)', null, 'nomina', nomina);
+    html += inputManual('Adelanto en nómina (€)', 'Dinero que ya se le adelantó a cuenta de este mes', 'adelantoNomina', adelantoNomina);
     html += inputManual('Días trabajados este mes', 'Para calcular el objetivo (150€ × días trabajados)', 'diasTrabajados', diasTrabajados);
 
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.08)">' +
-      '<span style="color:var(--text3)">Objetivo (150€ × ' + diasTrabajados + ' días)</span>' +
+      '<span style="color:#fff;font-weight:900;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6)">Objetivo (150€ × ' + diasTrabajados + ' días)</span>' +
       '<span style="font-family:var(--mono);font-weight:800;color:#fff">€ ' + objetivo.toFixed(2).replace('.',',') + '</span>' +
     '</div>';
     html += fila('Facturado por encima del objetivo', excedente);
@@ -2928,14 +2929,13 @@ function pintarResumenMensual(cid, matricula, uid) {
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
     html += '<div style="margin-bottom:12px">' +
-      '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Efectivo no entregado</div>' +
-      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">Se calcula igual que el "Efectivo real" de la semanal: efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor</div>' +
+      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Efectivo no entregado</div>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor</div>' +
       '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px">' +
         '<span style="font-size:11px;color:var(--text3)">Extraído automáticamente</span>' +
         '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
       '</div>' +
     '</div>';
-    html += inputManual('Adelanto en nómina (€)', 'Dinero que ya se le adelantó a cuenta de este mes', 'adelantoNomina', adelantoNomina);
 
     var colorResultado = resultado >= 0 ? '0,230,118' : '255,71,87';
     html += '<div style="background:rgba(' + colorResultado + ',.1);border:2px solid rgba(' + colorResultado + ',1);border-radius:10px;padding:12px 14px;margin-bottom:12px;box-shadow:0 0 10px rgba(' + colorResultado + ',.85),0 0 22px rgba(' + colorResultado + ',.5);display:flex;justify-content:space-between;align-items:center">' +
