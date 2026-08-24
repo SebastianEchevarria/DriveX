@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-15';
+var APP_VERSION = '2026-08-24-16';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2858,7 +2858,11 @@ function pintarResumenMensual(cid, matricula, uid) {
 
     var netoUber = Number(uber.neto || 0) - Number(uber.propinas || 0);
     var netoBolt = Number(bolt.ingresosNetos || 0) - Number(bolt.propinas || 0) - Number(bolt.peajes || 0);
-    var netoTotalApps = netoUber + netoBolt; // Cabify pendiente, no se suma todavía
+    // Privados y transfers cuentan con el MISMO % que en la semanal (40% y
+    // 30% respectivamente) y entran en el Neto total igual que allí.
+    var privadosCutTotal = liq ? liq.privadosCutTotal : 0;
+    var transfersCutTotal = liq ? liq.transfersCutTotal : 0;
+    var netoTotalApps = netoUber + netoBolt + privadosCutTotal + transfersCutTotal; // Cabify pendiente, no se suma todavía
     var propinasTotal = Number(uber.propinas || 0) + Number(bolt.propinas || 0) + Number(cabify.propinas || 0);
 
     var diasTrabajados = Number(extra.diasTrabajados || 0);
@@ -2900,6 +2904,7 @@ function pintarResumenMensual(cid, matricula, uid) {
       '<span style="color:var(--text3);font-style:italic">Neto Cabify</span>' +
       '<span style="font-size:11px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.12);border:1px solid rgba(255,179,0,.4);border-radius:6px;padding:2px 8px">⏳ Pendiente</span>' +
     '</div>';
+    html += fila('Viajes privados (40%)', privadosCutTotal) + fila('Transfers (30%)', transfersCutTotal);
     html += fila('Neto total apps' + ' (sin Cabify)', netoTotalApps, true);
 
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
