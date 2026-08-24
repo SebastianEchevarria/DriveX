@@ -711,7 +711,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
       </div>
 
-      <div style="margin-bottom:18px;background:rgba(178,94,225,.06);border:1.5px solid rgba(178,94,225,.4);border-radius:12px;padding:12px 14px">
+      <div style="margin-bottom:18px;background:rgba(178,94,225,.1);border:2.5px solid rgba(178,94,225,1);border-radius:12px;padding:12px 14px;box-shadow:0 0 12px rgba(178,94,225,.85),0 0 26px rgba(178,94,225,.5)">
         <label style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">% de gestión</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aparecerá en el resumen general de la app del propietario, aplicado sobre su facturación total</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -930,7 +930,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-10';
+var APP_VERSION = '2026-08-24-11';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
