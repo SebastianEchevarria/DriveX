@@ -711,7 +711,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
       </div>
 
-      <div style="margin-bottom:14px;background:rgba(178,94,225,.06);border:1.5px solid rgba(178,94,225,.4);border-radius:12px;padding:12px 14px">
+      <div style="margin-bottom:18px;background:rgba(178,94,225,.06);border:1.5px solid rgba(178,94,225,.4);border-radius:12px;padding:12px 14px">
         <label style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">% de gestión</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aparecerá en el resumen general de la app del propietario, aplicado sobre su facturación total</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -719,13 +719,12 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
           <div style="display:flex;align-items:center;color:var(--text3);font-size:14px;font-weight:800">%</div>
         </div>
         <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">✏️ Nombre que verá el propietario para este concepto</label>
-        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit">
-      </div>
-
-      <div style="margin-bottom:18px;background:rgba(255,140,0,.06);border:1.5px solid rgba(255,140,0,.4);border-radius:12px;padding:12px 14px">
-        <label style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Branding (€)</label>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Importe fijo que aparecerá como "BRANDING" en el resumen general de su app</div>
-        <input id="ap-branding" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);box-sizing:border-box">
+        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:10px">
+        <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">¿Se le suma el 21% de IVA en Pagos a realizar?</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="ap-iva-si" onclick="seleccionarIvaGestion(true)" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">Sí</button>
+          <button type="button" id="ap-iva-no" onclick="seleccionarIvaGestion(false)" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">No</button>
+        </div>
       </div>
 
       <div style="margin-bottom:20px">
@@ -931,7 +930,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-8';
+var APP_VERSION = '2026-08-24-9';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3030,10 +3029,11 @@ function calcularResumenVehiculoParaFacturacion(matricula) {
     var infinityTotal = facturacionAppsTotal * (porcentajeGestion / 100);
     var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
 
-    var infinityConIvaTotal = infinityTotal * 1.21;
+    var ivaGestion = propietario.ivaGestion !== false; // por defecto sí, salvo que se haya marcado expresamente "No"
+    var infinityConIvaTotal = ivaGestion ? (infinityTotal * 1.21) : infinityTotal;
     if (infinityTotal > 0) {
       pagosARealizarTotal += infinityConIvaTotal;
-      pagosDetalle.push({ nombre: nombreGestion, resultado: infinityConIvaTotal, esEmpresa: true });
+      pagosDetalle.push({ nombre: nombreGestion, resultado: infinityConIvaTotal, esEmpresa: true, conIva: ivaGestion });
     }
 
     var beneficio = facturacionTotal - gastosTotalGeneral;
@@ -3324,7 +3324,7 @@ function abrirPagosResumenVeh() {
       var esPagar = p.resultado >= 0;
       var color = p.esEmpresa ? 'var(--purple)' : (esPagar ? '#ffd700' : 'var(--red)');
       var colorCond = p.esEmpresa ? 'var(--purple)' : _colorParaConductorVeh(p.nombre);
-      var subt = p.esEmpresa ? 'Pago a la empresa de gestión (IVA 21% incluido)' : (esPagar ? 'Debes pagarle' : 'Te debe devolver');
+      var subt = p.esEmpresa ? ('Pago a la empresa de gestión' + (p.conIva ? ' (IVA 21% incluido)' : ' (sin IVA)')) : (esPagar ? 'Debes pagarle' : 'Te debe devolver');
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">';
       html += '<div><div style="font-size:12.5px;font-weight:800;color:' + colorCond + '">' + (p.esEmpresa ? '🏢 ' : '') + (p.nombre||'—') + '</div>' +
         '<div style="font-size:10.5px;color:var(--text3)">' + subt + '</div></div>';
@@ -5722,7 +5722,7 @@ function openAddPropietarioModal() {
   document.getElementById('ap-cuenta').value = '';
   document.getElementById('ap-porcentaje-gestion').value = '';
   document.getElementById('ap-nombre-gestion').value = '';
-  document.getElementById('ap-branding').value = '';
+  seleccionarIvaGestion(true);
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '📨 ENVIAR INVITACIÓN';
@@ -5751,7 +5751,7 @@ function editarPropietarioAbrir(pid) {
   document.getElementById('ap-cuenta').value = p.cuentaBancaria || '';
   document.getElementById('ap-porcentaje-gestion').value = (typeof p.porcentajeGestion === 'number') ? p.porcentajeGestion : '';
   document.getElementById('ap-nombre-gestion').value = p.nombreCampoGestion || '';
-  document.getElementById('ap-branding').value = (typeof p.branding === 'number') ? p.branding : '';
+  seleccionarIvaGestion(p.ivaGestion !== false);
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '💾 GUARDAR CAMBIOS';
@@ -5818,6 +5818,21 @@ function copiarCodigoInvitePropietario() {
   btn.textContent = '✓ Copiado';
   setTimeout(function(){ btn.textContent = old; }, 1500);
 }
+var _ivaGestionSeleccionado = true;
+function seleccionarIvaGestion(valor) {
+  _ivaGestionSeleccionado = valor;
+  var btnSi = document.getElementById('ap-iva-si');
+  var btnNo = document.getElementById('ap-iva-no');
+  if (!btnSi || !btnNo) return;
+  if (valor) {
+    btnSi.style.background = 'rgba(0,230,118,.18)'; btnSi.style.borderColor = 'rgba(0,230,118,1)'; btnSi.style.color = '#fff';
+    btnNo.style.background = 'var(--surface2)'; btnNo.style.borderColor = 'var(--border2)'; btnNo.style.color = 'var(--text3)';
+  } else {
+    btnNo.style.background = 'rgba(255,71,87,.18)'; btnNo.style.borderColor = 'rgba(255,71,87,1)'; btnNo.style.color = '#fff';
+    btnSi.style.background = 'var(--surface2)'; btnSi.style.borderColor = 'var(--border2)'; btnSi.style.color = 'var(--text3)';
+  }
+}
+
 function guardarPropietario() {
   if (!currentUser || currentUser.role !== 'admin') return;
   var nombre = document.getElementById('ap-nombre').value.trim();
@@ -5828,7 +5843,7 @@ function guardarPropietario() {
   var cuenta = document.getElementById('ap-cuenta').value.trim();
   var porcentajeGestion = parseFloat(document.getElementById('ap-porcentaje-gestion').value);
   var nombreGestion = document.getElementById('ap-nombre-gestion').value.trim();
-  var branding = parseFloat(document.getElementById('ap-branding').value);
+  var ivaGestion = _ivaGestionSeleccionado;
   var matriculas = Array.prototype.slice.call(document.querySelectorAll('.ap-mat-check:checked')).map(function(c){ return c.value; });
 
   if (!nombre) { alert('Introduce el nombre completo.'); return; }
@@ -5848,7 +5863,7 @@ function guardarPropietario() {
       fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
       porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
       nombreCampoGestion: nombreGestion || 'INFINITY',
-      branding: isNaN(branding) ? 0 : branding
+      ivaGestion: ivaGestion
     };
     fetch(FIREBASE_URL + '/propietarios/' + pidEdit + '.json', {
       method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(cambios)
@@ -5872,7 +5887,7 @@ function guardarPropietario() {
     fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
     porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
     nombreCampoGestion: nombreGestion || 'INFINITY',
-    branding: isNaN(branding) ? 0 : branding,
+    ivaGestion: ivaGestion,
     inviteCode: code, inviteUsado: false, ts: Date.now()
   };
 

@@ -475,7 +475,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-6';
+var APP_VERSION = '2026-08-24-7';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1421,7 +1421,7 @@ function abrirPagosResumenO() {
       var esPagar = p.resultado >= 0;
       var color = p.esEmpresa ? 'var(--purple)' : (esPagar ? '#ffd700' : 'var(--red)');
       var colorCond = p.esEmpresa ? 'var(--purple)' : _colorParaConductorO(p.nombre);
-      var subt = p.esEmpresa ? 'Pago a la empresa de gestión (IVA 21% incluido)' : (p.matricula + ' · ' + (esPagar ? 'Debes pagarle' : 'Te debe devolver'));
+      var subt = p.esEmpresa ? ('Pago a la empresa de gestión' + (p.conIva ? ' (IVA 21% incluido)' : ' (sin IVA)')) : (p.matricula + ' · ' + (esPagar ? 'Debes pagarle' : 'Te debe devolver'));
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">';
       html += '<div><div style="font-size:12.5px;font-weight:800;color:' + colorCond + '">' + (p.esEmpresa ? '🏢 ' : '') + (p.nombre||'—') + '</div>' +
         '<div style="font-size:10.5px;color:var(--text3)">' + subt + '</div></div>';
