@@ -920,7 +920,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-1';
+var APP_VERSION = '2026-08-24-2';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5754,7 +5754,7 @@ function editarCcaaVehiculo() {
   document.getElementById('cambio-ccaa-modal').style.display = 'flex';
 }
 function _todasLasCcaaDisponibles() {
-  return TODAS_CCAA_ESPANA.concat(CCAA_EXTRA.filter(function(c){ return TODAS_CCAA_ESPANA.indexOf(c) === -1; }));
+  return getCcaaOrder();
 }
 function pintarListaCambioCcaa() {
   var p = _cambioCcaaPendiente;
