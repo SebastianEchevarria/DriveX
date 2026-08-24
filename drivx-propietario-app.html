@@ -479,7 +479,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-2';
+var APP_VERSION = '2026-08-24-3';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1266,7 +1266,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
         fetch(FIREBASE_URL + '/gastos/' + matSlugO(info.matricula) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
         fetch(FIREBASE_URL + '/conductores_registro/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
       ]).then(function(results){
-        return { cid: info.cid, uber: results[0]||{}, bolt: results[1]||{}, cabify: results[2]||{}, hojas: results[3]||{}, transfersD: results[4]||{}, gastosD: results[5]||{}, reg: results[6]||{} };
+        return { cid: info.cid, matricula: info.matricula, uber: results[0]||{}, bolt: results[1]||{}, cabify: results[2]||{}, hojas: results[3]||{}, transfersD: results[4]||{}, gastosD: results[5]||{}, reg: results[6]||{} };
       });
     }))
   ]).then(function(resultadosGenerales){
@@ -1347,7 +1347,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       var efectivoReal = (efectivoAppsTotal + privadosEfectivoTotal + transfersEfectivoTotal) - gastosConductorSolo;
       var resultado = sueldo - efectivoReal;
       pagosARealizarTotal += resultado;
-      pagosDetalle.push({ nombre: nombreConductor, matricula: dc.matricula, resultado: resultado });
+      pagosDetalle.push({ nombre: nombreConductor, matricula: dc.matricula, resultado: resultado, turno: dc.reg.turno || '' });
     });
 
     // ── FACTURACIÓN ──
@@ -1466,8 +1466,20 @@ function abrirGastosResumenO(tipo) {
   modal.style.display = 'flex';
 }
 
+function _turnoOrdenO(turno) {
+  var m = (turno||'').match(/(\d{1,2}):/);
+  if (!m) return 3; // desconocido, al final de los conductores
+  var h = parseInt(m[1], 10);
+  if (h >= 5 && h < 12) return 0;  // mañana
+  if (h >= 12 && h < 20) return 1; // tarde
+  return 2; // noche
+}
 function abrirPagosResumenO() {
-  var items = (_resumenGeneralPagosCache || []).slice().sort(function(a,b){ return Math.abs(b.resultado) - Math.abs(a.resultado); });
+  var items = (_resumenGeneralPagosCache || []).slice().sort(function(a,b){
+    if (!!a.esEmpresa !== !!b.esEmpresa) return a.esEmpresa ? 1 : -1; // la empresa siempre al final
+    if (a.esEmpresa && b.esEmpresa) return 0;
+    return _turnoOrdenO(a.turno) - _turnoOrdenO(b.turno);
+  });
   var modal = document.getElementById('resumen-gastos-modal');
   if (!modal) {
     modal = document.createElement('div');
