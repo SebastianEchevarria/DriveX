@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-6';
+var APP_VERSION = '2026-08-24-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3145,20 +3145,30 @@ function abrirResumenGeneralVehiculo(matricula) {
   });
 }
 
-function editarBrandingDesdeResumenVeh(pid) {
+function guardarBrandingDesdeResumenVeh(pid) {
   if (!pid) { alert('Este vehículo no está asignado a ningún propietario todavía, así que no hay dónde guardar el branding. Asígnalo primero en Propietarios.'); return; }
-  fetch(FIREBASE_URL + '/propietarios/' + pid + '/branding.json').then(function(r){ return r.json(); }).then(function(actual){
-    var nuevo = prompt('Nuevo importe de Branding (€) para este propietario:', (typeof actual === 'number') ? actual : 0);
-    if (nuevo === null) return;
-    var num = parseFloat(nuevo.replace(',','.'));
-    if (isNaN(num)) { alert('Introduce un número válido.'); return; }
-    fetch(FIREBASE_URL + '/propietarios/' + pid + '/branding.json', {
-      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(num)
-    }).then(fbCheck).then(function(){
-      toast('✓ Branding actualizado');
+  var input = document.getElementById('veh-branding-input');
+  if (!input) return;
+  var num = parseFloat(input.value.toString().replace(',','.'));
+  if (isNaN(num)) { toast('⚠ Introduce un número válido'); return; }
+
+  var btn = document.getElementById('veh-branding-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  fetch(FIREBASE_URL + '/propietarios/' + pid + '/branding.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(num)
+  }).then(fbCheck).then(function(){
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+    var msg = document.getElementById('veh-branding-saved-msg');
+    if (msg) msg.style.display = 'block';
+    setTimeout(function(){
+      if (msg) msg.style.display = 'none';
       if (_vehResumenMatriculaActual) abrirResumenGeneralVehiculo(_vehResumenMatriculaActual);
-    }).catch(function(err){ alert('No se pudo guardar: ' + err.message); });
-  }).catch(function(){ alert('No se pudo leer el branding actual.'); });
+    }, 1000);
+  }).catch(function(err){
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+    alert('No se pudo guardar: ' + err.message);
+  });
 }
 
 function pintarResumenGeneralVehiculo(d) {
@@ -3185,11 +3195,13 @@ function pintarResumenGeneralVehiculo(d) {
     filaResumen('Cabify', d.cabifyTotal) +
     filaResumen('Privados', d.privadosFacturacionTotal) +
     filaResumen('Transfer', d.transfersFacturacionTotal);
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)">' +
-    '<span style="color:#fff">Branding</span>' +
-    '<span style="display:flex;align-items:center;gap:8px">' +
-      '<span style="font-family:var(--mono);font-weight:800;color:#fff">€ ' + Math.abs(d.brandingTotal).toFixed(2).replace('.',',') + '</span>' +
-      '<button onclick="editarBrandingDesdeResumenVeh(' + (d.pid ? "'"+d.pid+"'" : 'null') + ')" title="Editar branding de este propietario" style="background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.5);color:var(--cyan);font-size:10px;font-weight:800;padding:3px 7px;border-radius:7px;cursor:pointer;font-family:inherit">✏️ Editar</button>' +
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+    '<span style="color:var(--amber);font-weight:800;text-shadow:0 0 6px rgba(255,179,0,.8)">🟠 Branding</span>' +
+    '<span style="display:flex;align-items:center;gap:6px;position:relative">' +
+      '<span style="color:var(--text3);font-family:var(--mono);font-size:12px">€</span>' +
+      '<input id="veh-branding-input" type="number" step="0.01" value="' + Math.abs(d.brandingTotal).toFixed(2) + '" style="width:80px;padding:6px 8px;border-radius:8px;border:1.5px solid rgba(255,179,0,.6);background:rgba(255,179,0,.06);color:#fff;font-family:var(--mono);font-weight:800;font-size:13px;text-align:right">' +
+      '<button id="veh-branding-save-btn" onclick="guardarBrandingDesdeResumenVeh(' + (d.pid ? "'"+d.pid+"'" : 'null') + ')" style="background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit">💾 Guardar</button>' +
+      '<span id="veh-branding-saved-msg" style="display:none;position:absolute;right:0;top:-26px;background:rgba(0,230,118,.95);color:#04220f;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)">✓ Guardado correctamente</span>' +
     '</span>' +
   '</div>';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
