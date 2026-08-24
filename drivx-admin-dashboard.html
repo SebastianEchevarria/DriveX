@@ -514,14 +514,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <div class="sb-section" style="padding:0 0 10px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Conductores y turnos</div>
       <div id="vd-conductores" style="margin-bottom:14px"></div>
 
-      <button id="vd-invite-btn" onclick="toggleInviteForm()" style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(124,92,252,.15));border:2px solid rgba(0,212,255,.45);color:var(--cyan);font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px">
+      <button id="vd-invite-btn" onclick="toggleInviteForm()" style="width:100%;padding:13px;border-radius:12px;background:rgba(0,212,255,.14);border:2.5px solid rgba(0,212,255,1);color:#fff;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;box-shadow:0 0 12px rgba(0,212,255,.95),0 0 26px rgba(0,212,255,.6)">
         ➕ INVITAR NUEVO CONDUCTOR
       </button>
 
-      <div id="vd-invite-form" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-bottom:22px">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Matrícula</div>
-        <div id="vd-invite-mat" style="font-family:var(--mono);color:var(--cyan);font-weight:800;margin-bottom:14px">—</div>
-
+      <div id="vd-invite-form" style="display:none;background:rgba(0,212,255,.05);border:2.5px solid rgba(0,212,255,1);border-radius:14px;padding:16px;margin-bottom:22px;box-shadow:0 0 14px rgba(0,212,255,.9),0 0 30px rgba(0,212,255,.55)">
         <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Email del conductor</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:6px">El conductor debe facilitarte su email antes de crear la invitación</div>
         <input id="vd-invite-email" type="email" placeholder="conductor@email.com" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
@@ -535,9 +532,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </select>
         <input id="vd-invite-turno-manual" type="text" placeholder="Ej: 08:00–16:00" style="display:none;width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
 
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">% que cobrará de la Facturación Neto Total</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Cada conductor puede tener una condición de cobro distinta</div>
-        <input id="vd-invite-porcentaje" type="number" min="0" max="100" step="1" value="30" placeholder="30" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+        <div id="vd-invite-porcentaje-wrap">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">% que cobrará de la Facturación Neto Total</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Cada conductor puede tener una condición de cobro distinta</div>
+          <input id="vd-invite-porcentaje" type="number" min="0" max="100" step="1" value="30" placeholder="30" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+        </div>
 
         <button onclick="enviarInvitacion()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">📨 ENVIAR INVITACIÓN</button>
 
@@ -930,7 +929,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-11';
+var APP_VERSION = '2026-08-24-12';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -6316,12 +6315,14 @@ function openVehicleDetail(matricula) {
 
   // Reset del formulario de invitación
   document.getElementById('vd-invite-form').style.display = 'none';
-  document.getElementById('vd-invite-mat').innerHTML = plateHtml(v.matricula);
   document.getElementById('vd-invite-email').value = '';
   document.getElementById('vd-invite-turno').value = '06:00–14:00';
   document.getElementById('vd-invite-turno-manual').style.display = 'none';
   document.getElementById('vd-invite-turno-manual').value = '';
   document.getElementById('vd-invite-result').style.display = 'none';
+  // El % de cobro solo aplica a facturación semanal — en mensual no se usa
+  var porcWrap = document.getElementById('vd-invite-porcentaje-wrap');
+  if (porcWrap) porcWrap.style.display = ((v.tipoFacturacion||'semanal') === 'mensual') ? 'none' : 'block';
 
   renderConductoresInvitados(v);
   renderVehicleDocs();
