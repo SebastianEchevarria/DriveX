@@ -458,6 +458,18 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<div id="cambio-ccaa-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10001;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2.5px solid rgba(0,212,255,1);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,1),0 0 40px rgba(0,212,255,.65),0 20px 50px rgba(0,0,0,.6);max-width:420px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 24px">
+    <div style="font-size:38px;text-align:center;margin-bottom:10px">📍</div>
+    <div style="font-size:16px;font-weight:900;color:#fff;text-align:center;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(0,212,255,.6);margin-bottom:18px">Cambiar comunidad autónoma</div>
+    <div id="cambio-ccaa-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('cambio-ccaa-modal').style.display='none'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>
+      <button id="cambio-ccaa-guardar-btn" onclick="confirmarCambioCcaa()" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.18);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5)">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="vehicle-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:560px;width:100%;max-height:88vh;overflow-y:auto">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
@@ -479,6 +491,13 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
         <div id="vd-facturacion" style="font-size:13px;font-weight:700;flex:1">—</div>
         <button onclick="editarTipoFacturacion()" style="background:rgba(255,140,0,.14);border:2px solid rgba(255,140,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 0 8px rgba(255,140,0,.85),0 0 18px rgba(255,140,0,.5)">🔄 Cambiar</button>
+      </div>
+
+      <div class="sb-section" style="padding:0 0 10px">Comunidad autónoma</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
+        <div id="vd-ccaa-led" style="width:11px;height:11px;border-radius:50%;flex-shrink:0"></div>
+        <div id="vd-ccaa-nombre" style="font-size:13px;font-weight:700;flex:1">—</div>
+        <button onclick="editarCcaaVehiculo()" style="background:rgba(0,212,255,.14);border:2px solid rgba(0,212,255,1);color:#fff;font-size:11px;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 0 8px rgba(0,212,255,.85),0 0 18px rgba(0,212,255,.5)">🔄 Cambiar</button>
       </div>
 
       <div class="sb-section" style="padding:0 0 10px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Conductores y turnos</div>
@@ -901,7 +920,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-23-6';
+var APP_VERSION = '2026-08-24-1';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5715,6 +5734,68 @@ function generarExcelFacturacion() {
   });
 }
 
+function hexToRgb(hex) {
+  hex = hex.replace('#','');
+  var r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+  return r + ',' + g + ',' + b;
+}
+
+var _cambioCcaaPendiente = null;
+function editarCcaaVehiculo() {
+  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  var mySlug = matSlug(_vdCurrentMat);
+  var actual = VEHICULOS_EXTRA.find(function(v){ return v.matricula === _vdCurrentMat; });
+  if (!actual) {
+    alert('Este vehículo es uno de los originales del sistema, y su comunidad autónoma está escrita directamente en el código — no se puede editar desde aquí. Dime la matrícula y lo actualizamos juntos.');
+    return;
+  }
+  _cambioCcaaPendiente = { mySlug: mySlug, actual: actual, seleccionada: actual.ccaa };
+  pintarListaCambioCcaa();
+  document.getElementById('cambio-ccaa-modal').style.display = 'flex';
+}
+function _todasLasCcaaDisponibles() {
+  return TODAS_CCAA_ESPANA.concat(CCAA_EXTRA.filter(function(c){ return TODAS_CCAA_ESPANA.indexOf(c) === -1; }));
+}
+function pintarListaCambioCcaa() {
+  var p = _cambioCcaaPendiente;
+  if (!p) return;
+  var html = _todasLasCcaaDisponibles().map(function(cc){
+    var color = CCAA_BORDER[cc] || '#2a4a6e';
+    var sel = (p.seleccionada === cc);
+    return '<button onclick="seleccionarCcaaCambio(\'' + cc.replace(/'/g,"\\'") + '\')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:2px solid ' + (sel ? color : 'var(--border2)') + ';background:' + (sel ? 'rgba(' + hexToRgb(color) + ',.18)' : 'var(--surface2)') + ';color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit' + (sel ? ';box-shadow:0 0 8px ' + color + ',0 0 18px rgba(' + hexToRgb(color) + ',.5)' : '') + '">' +
+      '<span style="width:12px;height:12px;border-radius:50%;background:' + color + ';box-shadow:0 0 6px ' + color + ',0 0 12px ' + color + ';flex-shrink:0"></span>' +
+      '<span style="flex:1">' + (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</span>' +
+      (sel ? '<span style="color:' + color + '">✓</span>' : '') +
+    '</button>';
+  }).join('');
+  document.getElementById('cambio-ccaa-list').innerHTML = html;
+}
+function seleccionarCcaaCambio(cc) {
+  if (!_cambioCcaaPendiente) return;
+  _cambioCcaaPendiente.seleccionada = cc;
+  pintarListaCambioCcaa();
+}
+function confirmarCambioCcaa() {
+  var p = _cambioCcaaPendiente;
+  if (!p) return;
+  if (p.seleccionada === p.actual.ccaa) { document.getElementById('cambio-ccaa-modal').style.display = 'none'; return; }
+  var btn = document.getElementById('cambio-ccaa-guardar-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  fetch(FIREBASE_URL + '/vehiculos_extra/' + p.mySlug + '/ccaa.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(p.seleccionada)
+  }).then(fbCheck).then(function(){
+    p.actual.ccaa = p.seleccionada;
+    document.getElementById('cambio-ccaa-modal').style.display = 'none';
+    openVehicleDetail(_vdCurrentMat);
+    renderFlota();
+    toast('✅ Comunidad autónoma cambiada a ' + p.seleccionada);
+  }).catch(function(err){
+    alert('No se pudo actualizar la comunidad autónoma: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  });
+}
+
 function confirmarCambioTipoFacturacion() {
   var p = _cambioFacturacionPendiente;
   if (!p) return;
@@ -5779,6 +5860,11 @@ function openVehicleDetail(matricula) {
   var esFactMensual = (v.tipoFacturacion === 'mensual');
   factEl.innerHTML = esFactMensual ? '📅 Mensual' : '🗓️ Semanal';
   factEl.style.color = '#fff';
+
+  var ccaaColor = CCAA_BORDER[v.ccaa] || '#2a4a6e';
+  document.getElementById('vd-ccaa-led').style.background = ccaaColor;
+  document.getElementById('vd-ccaa-led').style.boxShadow = '0 0 6px ' + ccaaColor + ', 0 0 14px ' + ccaaColor;
+  document.getElementById('vd-ccaa-nombre').textContent = (CCAA_ICONS[v.ccaa]||'📍') + ' ' + (v.ccaa || 'Sin identificar');
 
   renderConductoresYTurnos(v);
 
