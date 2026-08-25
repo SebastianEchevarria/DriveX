@@ -959,7 +959,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-36';
+var APP_VERSION = '2026-08-25-37';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5319,8 +5319,8 @@ function paintGastos() {
       html += '</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">'+m.modelo+' · '+mCount+' ticket'+(mCount!==1?'s':'')+' · <b style="color:var(--green)">€ '+mTotal.toFixed(2)+'</b></div>';
       html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
-      html += '<button onclick="event.stopPropagation();descargarTodoMatricula(\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn" style="flex:1;min-width:150px;text-align:center;padding:10px;font-weight:800">⬇ DESCARGAR TODO</button>';
-      html += '<button id="delall_'+mgid+'" onclick="event.stopPropagation();confirmEliminarTodoGastos(\''+mgid+'\',\''+m.matSlug+'\',\''+m.matricula+'\')" class="edit-btn" style="flex:1;min-width:150px;text-align:center;padding:10px;color:var(--red);border-color:rgba(255,71,87,.35);font-weight:800">🗑 ELIMINAR TODO</button>';
+      html += '<button onclick="event.stopPropagation();descargarTodoMatricula(\''+m.matSlug+'\',\''+m.matricula+'\')" style="flex:1;min-width:150px;text-align:center;padding:12px;border-radius:11px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.16);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5)">⬇ DESCARGAR TODO</button>';
+      html += '<button id="delall_'+mgid+'" onclick="event.stopPropagation();confirmEliminarTodoGastos(\''+mgid+'\',\''+m.matSlug+'\',\''+m.matricula+'\')" style="flex:1;min-width:150px;text-align:center;padding:12px;border-radius:11px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.16);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.85),0 0 22px rgba(255,71,87,.5)">🗑 ELIMINAR TODO</button>';
       html += '</div>';
       html += '</div>';
 
@@ -5447,19 +5447,19 @@ function confirmEliminarTodoGastos(mgid, mSlug, matricula) {
       btn.disabled = false;
       btn.removeAttribute('data-confirm');
       btn.textContent = '🗑 ELIMINAR TODO';
-      btn.style.background = '';
+      btn.style.background = 'rgba(255,71,87,.16)';
     });
     return;
   }
   // Primera pulsación: pedir confirmación
   btn.setAttribute('data-confirm', '1');
   btn.textContent = '⚠ Confirmar: se borrará todo';
-  btn.style.background = 'rgba(255,71,87,.25)';
+  btn.style.background = 'rgba(255,71,87,.4)';
   setTimeout(function(){
     if (btn.getAttribute('data-confirm') === '1') {
       btn.removeAttribute('data-confirm');
       btn.textContent = '🗑 ELIMINAR TODO';
-      btn.style.background = '';
+      btn.style.background = 'rgba(255,71,87,.16)';
     }
   }, 5000);
 }
