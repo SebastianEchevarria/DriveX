@@ -361,19 +361,36 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<!-- ══════════════ MODAL: RESUMEN GENERAL DE UN VEHÍCULO (FACTURACIÓN) ══════════════ -->
+<div id="veh-resumen-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10002;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2.5px solid rgba(255,215,0,.9);border-radius:20px;max-width:460px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(255,215,0,.7),0 0 40px rgba(255,215,0,.4),0 20px 50px rgba(0,0,0,.6)">
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0;z-index:1">
+      <div id="veh-resumen-plate" style="display:flex;align-items:center;gap:10px">—</div>
+      <button class="modal-close" onclick="document.getElementById('veh-resumen-modal').style.display='none'">✕</button>
+    </div>
+    <div id="veh-resumen-body" style="padding:18px 20px 20px"></div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: CONDUCTOR EN FACTURACIÓN ══════════════ -->
 <div id="fact-conductor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
       <div style="flex:1;min-width:0">
         <div id="fact-modal-nombre" style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55)">—</div>
         <div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px">
           <div id="fact-modal-plate"></div>
-          <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
         </div>
         <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
-      <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
+        <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
+      </div>
+    </div>
+    <div id="fact-modal-nomina-row" style="display:none;padding:0 22px 16px;justify-content:flex-end;background:var(--surface)">
+      <input type="file" id="fact-modal-nomina-input" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this)">
+      <button id="fact-modal-nomina-btn" onclick="document.getElementById('fact-modal-nomina-input').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:flex;align-items:center;gap:8px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:9px 14px">📄 Subir nómina</button>
     </div>
     <div id="fact-modal-body" style="padding:20px 22px 22px"></div>
   </div>
@@ -503,14 +520,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <div class="sb-section" style="padding:0 0 10px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,212,255,.55)">Conductores y turnos</div>
       <div id="vd-conductores" style="margin-bottom:14px"></div>
 
-      <button id="vd-invite-btn" onclick="toggleInviteForm()" style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(124,92,252,.15));border:2px solid rgba(0,212,255,.45);color:var(--cyan);font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px">
+      <button id="vd-invite-btn" onclick="toggleInviteForm()" style="width:100%;padding:13px;border-radius:12px;background:rgba(0,212,255,.14);border:2.5px solid rgba(0,212,255,1);color:#fff;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;box-shadow:0 0 12px rgba(0,212,255,.95),0 0 26px rgba(0,212,255,.6)">
         ➕ INVITAR NUEVO CONDUCTOR
       </button>
 
-      <div id="vd-invite-form" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-bottom:22px">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Matrícula</div>
-        <div id="vd-invite-mat" style="font-family:var(--mono);color:var(--cyan);font-weight:800;margin-bottom:14px">—</div>
-
+      <div id="vd-invite-form" style="display:none;background:rgba(0,212,255,.05);border:2.5px solid rgba(0,212,255,1);border-radius:14px;padding:16px;margin-bottom:22px;box-shadow:0 0 14px rgba(0,212,255,.9),0 0 30px rgba(0,212,255,.55)">
         <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Email del conductor</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:6px">El conductor debe facilitarte su email antes de crear la invitación</div>
         <input id="vd-invite-email" type="email" placeholder="conductor@email.com" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
@@ -524,9 +538,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </select>
         <input id="vd-invite-turno-manual" type="text" placeholder="Ej: 08:00–16:00" style="display:none;width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
 
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">% que cobrará de la Facturación Neto Total</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Cada conductor puede tener una condición de cobro distinta</div>
-        <input id="vd-invite-porcentaje" type="number" min="0" max="100" step="1" value="30" placeholder="30" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+        <div id="vd-invite-porcentaje-wrap">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">% que cobrará de la Facturación Neto Total</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Cada conductor puede tener una condición de cobro distinta</div>
+          <input id="vd-invite-porcentaje" type="number" min="0" max="100" step="1" value="30" placeholder="30" style="width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;margin-bottom:14px;font-family:inherit">
+        </div>
 
         <button onclick="enviarInvitacion()" style="width:100%;padding:14px;border-radius:12px;background:var(--cyan);color:#000;font-size:14px;font-weight:900;border:none;cursor:pointer">📨 ENVIAR INVITACIÓN</button>
 
@@ -671,50 +687,49 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-nombre" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo *</label>
-        <input id="ap-nombre" type="text" placeholder="Ej: María López García" oninput="marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-nombre" type="text" placeholder="Ej: María López García" oninput="marcarCampoRellenoPropietario('ap-nombre','ap-lbl-nombre')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-doc" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">DNI / NIE / Pasaporte *</label>
-        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" oninput="marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
+        <input id="ap-doc" type="text" placeholder="Ej: 12345678A" oninput="marcarCampoRellenoPropietario('ap-doc','ap-lbl-doc')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);text-transform:uppercase">
       </div>
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-email" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Email *</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Será su usuario para acceder a la futura app de Propietarios</div>
-        <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-email" type="email" placeholder="correo@ejemplo.com" oninput="marcarCampoRellenoPropietario('ap-email','ap-lbl-email')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
         <label id="ap-lbl-telefono" style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Teléfono *</label>
-        <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-telefono" type="tel" placeholder="600 123 456" oninput="marcarCampoRellenoPropietario('ap-telefono','ap-lbl-telefono')" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:14px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Fecha de alta en la flota</label>
-        <input id="ap-fecha-alta" type="date" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
+        <input id="ap-fecha-alta" type="date" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit">
       </div>
 
       <div style="margin-bottom:18px">
         <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Cuenta bancaria / IBAN</label>
-        <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
+        <input id="ap-cuenta" type="text" placeholder="ES00 0000 0000 0000 0000 0000" style="width:100%;background:rgba(0,212,255,.08);border:1.5px solid rgba(0,212,255,.55);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono)" oninput="this.value=this.value.toUpperCase()">
       </div>
 
-      <div style="margin-bottom:14px;background:rgba(178,94,225,.06);border:1.5px solid rgba(178,94,225,.4);border-radius:12px;padding:12px 14px">
+      <div style="margin-bottom:18px;background:rgba(178,94,225,.1);border:2.5px solid rgba(178,94,225,1);border-radius:12px;padding:12px 14px;box-shadow:0 0 12px rgba(178,94,225,.85),0 0 26px rgba(178,94,225,.5)">
         <label style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">% de gestión</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aparecerá en el resumen general de la app del propietario, aplicado sobre su facturación total</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input id="ap-porcentaje-gestion" type="number" step="0.1" min="0" max="100" placeholder="0" style="width:90px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);box-sizing:border-box">
+          <input id="ap-porcentaje-gestion" type="number" step="0.1" min="0" max="100" placeholder="0" style="width:90px;background:rgba(178,94,225,.12);border:2px solid rgba(178,94,225,1);color:#fff;padding:11px 12px;border-radius:10px;font-size:16px;font-weight:800;font-family:var(--mono);box-sizing:border-box;box-shadow:0 0 10px rgba(178,94,225,.85),0 0 22px rgba(178,94,225,.5)">
           <div style="display:flex;align-items:center;color:var(--text3);font-size:14px;font-weight:800">%</div>
         </div>
         <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">✏️ Nombre que verá el propietario para este concepto</label>
-        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit">
-      </div>
-
-      <div style="margin-bottom:18px;background:rgba(255,140,0,.06);border:1.5px solid rgba(255,140,0,.4);border-radius:12px;padding:12px 14px">
-        <label style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Branding (€)</label>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Importe fijo que aparecerá como "BRANDING" en el resumen general de su app</div>
-        <input id="ap-branding" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:var(--mono);box-sizing:border-box">
+        <input id="ap-nombre-gestion" type="text" placeholder="INFINITY" style="width:100%;background:rgba(178,94,225,.1);border:1.5px solid rgba(178,94,225,.55);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:10px">
+        <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">¿Se le suma el 21% de IVA en Pagos a realizar?</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" id="ap-iva-si" onclick="seleccionarIvaGestion(true)" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">Sí</button>
+          <button type="button" id="ap-iva-no" onclick="seleccionarIvaGestion(false)" style="flex:1;padding:9px;border-radius:9px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">No</button>
+        </div>
       </div>
 
       <div style="margin-bottom:20px">
@@ -920,7 +935,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-2';
+var APP_VERSION = '2026-08-25-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2688,13 +2703,18 @@ function abrirTodosConductoresVehiculo(matricula) {
   inner.innerHTML = lista.map(function(info){
     var uid = 'fact_' + info.cid;
     _facturacionConductoresIndex[uid] = info;
+    var esMensualCard = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion === 'mensual';
     return '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;width:400px;flex-shrink:0;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3)">' +
       '<div style="padding:18px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0">' +
         '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55);margin-bottom:8px">' + (info.nombre||'Conductor') + '</div>' +
         '<div style="display:flex;align-items:center;gap:8px">' +
           plateHtmlSmall(info.matricula) +
-          '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar ' + ((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion === 'mensual' ? 'mes' : 'semana') + '" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>' +
+          '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar ' + (esMensualCard ? 'mes' : 'semana') + '" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>' +
         '</div>' +
+        (esMensualCard ? ('<div style="display:flex;justify-content:flex-end;margin-top:10px">' +
+          '<input type="file" id="nomina-input-' + uid + '" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this,\'' + info.cid + '\',\'' + info.matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')">' +
+          '<button id="nomina-btn-' + uid + '" onclick="document.getElementById(\'nomina-input-' + uid + '\').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:flex;align-items:center;gap:8px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:9px 14px">📄 Subir nómina</button>' +
+        '</div>') : '') +
       '</div>' +
       '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
     '</div>';
@@ -2709,6 +2729,9 @@ function abrirTodosConductoresVehiculo(matricula) {
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
+    if (((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal') === 'mensual') {
+      pintarResumenMensual(info.cid, info.matricula, 'fact_' + info.cid);
+    }
   });
 }
 function closeFacturacionMultiModal() {
@@ -2729,15 +2752,20 @@ function openFacturacionConductorModal(uid) {
   document.getElementById('fact-modal-plate').innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
   document.getElementById('fact-modal-turno').innerHTML = '🕐 ' + info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
   document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
-  _factModalActual = { cid: info.cid, uid: uid };
+  _factModalActual = { cid: info.cid, uid: uid, matricula: info.matricula };
   var vTipoBtn = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
   var cerrarBtn = document.getElementById('fact-modal-cerrar-btn');
   if (cerrarBtn) cerrarBtn.title = 'Cerrar ' + (vTipoBtn === 'mensual' ? 'mes' : 'semana');
+  var nominaBtn = document.getElementById('fact-modal-nomina-btn');
+  if (nominaBtn) setNominaBtnEstado(nominaBtn, 'azul');
+  var nominaRow = document.getElementById('fact-modal-nomina-row');
+  if (nominaRow) nominaRow.style.display = (vTipoBtn === 'mensual') ? 'flex' : 'none';
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   pintarBoltCsvGuardado(info.cid);
   pintarUberCabifyGuardado(info.cid);
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
+  if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, info.matricula, uid);
 
   // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
   // así se ve al instante lo que el conductor vaya subiendo desde su app.
@@ -2747,6 +2775,7 @@ function openFacturacionConductorModal(uid) {
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
+    if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, info.matricula, uid);
   }, 8000);
 }
 function closeFacturacionConductorModal() {
@@ -2756,7 +2785,8 @@ function closeFacturacionConductorModal() {
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
   var vTipo = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
-  return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+
+  var htmlApps =
     '<div style="background:rgba(255,255,255,.03);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,255,255,.5),0 0 22px rgba(255,255,255,.25)">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Uber</div>' +
@@ -2779,7 +2809,22 @@ function facturacionModalBodyHtml(info) {
         '<button onclick="abrirEdicionManualFact(\'cabify\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(124,92,252,.16);border:2px solid rgba(124,92,252,1);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(124,92,252,.6),0 0 16px rgba(124,92,252,.35)">✏️</button>' +
       '</div>' +
       '<div id="cabify_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
-    '</div>' +
+    '</div>';
+
+  if (vTipo === 'mensual') {
+    // Facturación mensual: esquema totalmente distinto a la semanal (nómina
+    // manual + comisión del 35% sobre lo que supere el objetivo de 150€/día
+    // trabajado + propinas). Cabify queda pendiente de definir su fórmula,
+    // así que de momento no entra en el Neto total de apps.
+    // El resumen va ARRIBA (es lo que importa de un vistazo) y las 3 apps
+    // (donde se editan/suben los datos brutos) van debajo.
+    return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+      '<div id="mensual-resumen-' + uid + '" style="margin-bottom:16px"></div>' +
+      htmlApps;
+  }
+
+  return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
+    htmlApps +
     '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
       '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
       '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
@@ -2789,6 +2834,366 @@ function facturacionModalBodyHtml(info) {
       '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
     '</div>';
 }
+
+// ══ FACTURACIÓN MENSUAL de un conductor ══
+// Neto Uber    = Ganancias totales − Propinas
+// Neto Bolt    = Ingresos netos − Propinas − Peajes
+// Neto Cabify  = Facturación neta (100%, entra entero — el reparto lo hace el objetivo/comisión, no un % fijo)
+//                Pendiente: incorporar campañas/bonos de Cabify cuando haya ejemplos
+// Neto total apps = Neto Uber + Neto Bolt + Neto Cabify + Privados(40%) + Transfers(30%)
+// Objetivo     = 150€ × días trabajados (casilla manual)
+// Comisión     = max(Neto total apps − Objetivo, 0) × 35%
+// Propinas     = suma de propinas de Uber + Bolt
+// Sueldo total = Nómina (manual) + Comisión + Propinas
+// Resultado    = Sueldo total − Efectivo no entregado (auto, igual que el
+//                "Efectivo real" semanal) − Adelanto en nómina (manual)
+// Banco        = mín(Nómina, Resultado)  ·  Efectivo = Resultado − Banco
+function guardarExtraMensual(cid, matricula, uid, campo, valor, entero) {
+  var num = parseFloat(valor);
+  if (isNaN(num) || num < 0) num = 0;
+  if (entero) {
+    num = Math.round(num);
+    if (campo === 'diasTrabajados') {
+      if (num < 1) num = 1;
+      if (num > 31) num = 31;
+    }
+  }
+  fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json', {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ [campo]: num, ts: Date.now() })
+  }).then(fbCheck).then(function(){
+    pintarResumenMensual(cid, matricula, uid);
+  }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
+}
+function registrarEntregaEfectivoMensual(cid, matricula, uid) {
+  var fechaEl = document.getElementById('entrega-fecha-' + uid);
+  var importeEl = document.getElementById('entrega-importe-' + uid);
+  var fecha = fechaEl ? fechaEl.value : '';
+  var importe = parseFloat(importeEl ? importeEl.value : '');
+  if (!fecha) { toast('⚠ Elige una fecha'); return; }
+  if (isNaN(importe) || importe <= 0) { toast('⚠ Introduce un importe válido'); return; }
+  fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json', {
+    method: 'POST', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ fecha: fecha, importe: importe, ts: Date.now() })
+  }).then(fbCheck).then(function(){
+    toast('✓ Entrega registrada');
+    pintarResumenMensual(cid, matricula, uid);
+  }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
+}
+function eliminarEntregaEfectivoMensual(cid, matricula, uid, entregaId) {
+  fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '/' + entregaId + '.json', { method: 'DELETE' })
+    .then(fbCheck).then(function(){
+      toast('🗑 Entrega eliminada');
+      pintarResumenMensual(cid, matricula, uid);
+    }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+}
+// ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
+// ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
+// Si el archivo es un PDF, la IA no puede leerlo directamente — convertimos
+// la primera página a una imagen en el propio navegador (con pdf.js,
+// cargado solo cuando hace falta) antes de mandarla a analizar.
+var _pdfJsCargado = null;
+function cargarPdfJsAdmin() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (_pdfJsCargado) return _pdfJsCargado;
+  _pdfJsCargado = new Promise(function(resolve, reject){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function(){
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve();
+    };
+    s.onerror = function(){ _pdfJsCargado = null; reject(new Error('No se pudo cargar el lector de PDF')); };
+    document.head.appendChild(s);
+  });
+  return _pdfJsCargado;
+}
+function convertirPdfAImagenBase64Admin(base64) {
+  return cargarPdfJsAdmin().then(function(){
+    var raw = atob(base64);
+    var bytes = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return window.pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdf){
+      return pdf.getPage(1);
+    }).then(function(page){
+      var viewport = page.getViewport({ scale: 2 });
+      var canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      var ctx = canvas.getContext('2d');
+      return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        return { base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' };
+      });
+    });
+  });
+}
+function comprimirImagenBase64Admin(base64, mediaType, maxDim, calidad) {
+  return new Promise(function(resolve){
+    try {
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        var maxLado = maxDim || 1500;
+        var scale = Math.min(1, maxLado / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL('image/jpeg', calidad || 0.72);
+        resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+      };
+      img.onerror = function(){ resolve({ base64: base64, mediaType: mediaType }); }; // p.ej. un PDF, se envía tal cual
+      img.src = 'data:' + (mediaType || 'image/jpeg') + ';base64,' + base64;
+    } catch (e) {
+      resolve({ base64: base64, mediaType: mediaType });
+    }
+  });
+}
+function llamarIaNomina(base64, mediaType, prompt) {
+  return fetch('/api/ai', {
+    method: 'POST', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ base64: base64, mediaType: mediaType, prompt: prompt })
+  }).then(function(r){
+    return r.json().then(function(d){
+      if (!r.ok) throw new Error((d && (d.error || d.message)) || ('HTTP ' + r.status));
+      return d;
+    });
+  }).then(function(d){
+    if (typeof d === 'string') return d;
+    if (d.text) return d.text;
+    if (d.content && d.content[0] && d.content[0].text) return d.content[0].text;
+    if (d.completion) return d.completion;
+    throw new Error('respuesta_ia_sin_texto');
+  });
+}
+function parseJSONAdmin(text) {
+  try { return JSON.parse((text||'').replace(/```json?|```/g,'').trim()); } catch(e) { return null; }
+}
+function setNominaBtnEstado(btn, estado) {
+  if (!btn) return;
+  var colores = {
+    azul:  '0,212,255',
+    verde: '0,230,118',
+    rojo:  '255,71,87'
+  };
+  var c = colores[estado] || colores.azul;
+  btn.setAttribute('data-estado', estado);
+  btn.style.borderColor = 'rgba(' + c + ',1)';
+  btn.style.background = 'rgba(' + c + ',.14)';
+  btn.style.boxShadow = '0 0 10px rgba(' + c + ',.8),0 0 22px rgba(' + c + ',.5)';
+}
+function onNominaFile(input, cidParam, matriculaParam, uidParam) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  input.value = '';
+
+  var ctx = (cidParam && uidParam) ? { cid: cidParam, matricula: matriculaParam, uid: uidParam } : _factModalActual;
+  if (!ctx || !ctx.cid) return;
+  var cid = ctx.cid, matricula = ctx.matricula, uid = ctx.uid;
+
+  var btn = document.getElementById(input.id.replace('nomina-input', 'nomina-btn'));
+  setNominaBtnEstado(btn, 'azul');
+
+  toast('🤖 IA leyendo la nómina…');
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var b64raw = e.target.result.split(',')[1];
+    var mtraw = file.type || 'image/jpeg';
+    var esPdf = mtraw === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    var prompt = 'Nómina/recibo de salario español de un conductor VTC. Responde SOLO con JSON sin markdown: {"dias_trabajados":NUMERO,"liquido_a_percibir":NUMERO,"confianza":0.0}. INSTRUCCIONES: dias_trabajados = el campo de días del periodo de liquidación — puede llamarse "Días", "Días trabajados", "Total días" o "Días :" (un número entero pequeño, normalmente entre 1 y 31). liquido_a_percibir = el importe final de la nómina — puede llamarse "Líquido a percibir", "Total líquido a percibir" o "LÍQUIDO A PERCIBIR (A - B)"/"LÍQUIDO TOTAL A PERCIBIR (A-B)" — es el resultado final después de deducciones, NO el total devengado ni el total a deducir. Si un campo no aparece pon 0. Usa punto decimal, sin símbolo de moneda ni separador de miles.';
+
+    var pasoPrevio;
+    if (esPdf) {
+      toast('📄 Convirtiendo el PDF…');
+      pasoPrevio = convertirPdfAImagenBase64Admin(b64raw);
+    } else {
+      pasoPrevio = Promise.resolve({ base64: b64raw, mediaType: mtraw });
+    }
+
+    pasoPrevio.then(function(imgPdfOInicial){
+      return comprimirImagenBase64Admin(imgPdfOInicial.base64, imgPdfOInicial.mediaType, 1500, 0.72);
+    }).then(function(img){
+      llamarIaNomina(img.base64, img.mediaType, prompt).then(function(text){
+        var parsed = parseJSONAdmin(text);
+        if (!parsed) { setNominaBtnEstado(btn, 'rojo'); toast('⚠ No se pudo leer la nómina · Introduce los datos a mano'); return; }
+        var dias = Math.round(parseFloat(parsed.dias_trabajados) || 0);
+        var liquido = parseFloat(parsed.liquido_a_percibir) || 0;
+        if (dias < 1) dias = 1; if (dias > 31) dias = 31;
+
+        fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json', {
+          method: 'PATCH', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ diasTrabajados: dias, nomina: liquido, ts: Date.now() })
+        }).then(fbCheck).then(function(){
+          setNominaBtnEstado(btn, 'verde');
+          toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
+          pintarResumenMensual(cid, matricula, uid);
+        }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo guardar: ' + err.message); });
+      }).catch(function(){ setNominaBtnEstado(btn, 'rojo'); toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
+    }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo convertir el PDF: ' + err.message); });
+  };
+  reader.readAsDataURL(file);
+}
+
+function pintarResumenMensual(cid, matricula, uid) {
+  var cont = document.getElementById('mensual-resumen-' + uid);
+  if (!cont) return;
+  Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    calcularLiquidacionAcumulada(cid, matricula, uid).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {}, extra = results[3] || {};
+    var liq = results[4]; // mismo cálculo que usa la semanal — de ahí sacamos el "efectivo real"
+    var entregasObj = results[5] || {};
+    var entregas = Object.keys(entregasObj).map(function(k){ return Object.assign({ id: k }, entregasObj[k]); })
+      .sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
+
+    var netoUber = Number(uber.neto || 0) - Number(uber.propinas || 0);
+    var netoBolt = Number(bolt.ingresosNetos || 0) - Number(bolt.propinas || 0) - Number(bolt.peajes || 0);
+    // Privados y transfers cuentan con el MISMO % que en la semanal (40% y
+    // 30% respectivamente) y entran en el Neto total igual que allí.
+    var privadosCutTotal = liq ? liq.privadosCutTotal : 0;
+    var transfersCutTotal = liq ? liq.transfersCutTotal : 0;
+    // Cabify: en mensual entra al 100% en el Neto total, igual que Uber y
+    // Bolt — el reparto se hace por el objetivo (150€/día + 35% del
+    // exceso), no por un % fijo como en la semanal.
+    var netoCabify = Number(cabify.neto || 0);
+    var netoTotalApps = netoUber + netoBolt + netoCabify + privadosCutTotal + transfersCutTotal;
+    var propinasTotal = Number(uber.propinas || 0) + Number(bolt.propinas || 0);
+
+    var diasTrabajados = Number(extra.diasTrabajados || 0);
+    var nomina = Number(extra.nomina || 0);
+    var adelantoNomina = Number(extra.adelantoNomina || 0);
+    // Efectivo no entregado = el "Efectivo real" acumulado de todo el mes
+    // (mismo cálculo que la semanal) MENOS lo que el conductor ya te haya
+    // entregado en mano semanalmente durante ese mes (registrado abajo).
+    var efectivoRealAcumulado = liq ? liq.efectivoReal : 0;
+    var totalEntregado = entregas.reduce(function(s,e){ return s + Number(e.importe||0); }, 0);
+    var efectivoNoEntregado = efectivoRealAcumulado - totalEntregado;
+
+    var objetivo = 150 * diasTrabajados;
+    var excedente = Math.max(netoTotalApps - objetivo, 0);
+    var comision = excedente * 0.35;
+    var sueldoTotal = nomina + comision + propinasTotal;
+    var resultado = sueldoTotal - efectivoNoEntregado - adelantoNomina;
+    var banco = resultado > 0 ? Math.min(nomina, resultado) : 0;
+    var efectivo = resultado > 0 ? (resultado - banco) : 0;
+
+    function fila(label, valor, destacado) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.08)">' +
+        '<span style="color:' + (destacado ? '#fff' : 'var(--text3)') + ';font-weight:' + (destacado?'800':'600') + ';min-width:0">' + label + '</span>' +
+        '<span style="font-family:var(--mono);font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
+    }
+    function inputManual(label, sub, campo, valorActual, opts) {
+      opts = opts || {};
+      var step = opts.step || '0.01';
+      var min = (opts.min !== undefined) ? opts.min : 0;
+      var max = (opts.max !== undefined) ? ' max="' + opts.max + '"' : '';
+      var valorMostrado = opts.entero ? Math.round(valorActual || 0) : (valorActual || 0);
+      return '<div style="margin-bottom:12px">' +
+        '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">' + label + '</div>' +
+        (sub ? '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">' + sub + '</div>' : '') +
+        '<input type="number" step="' + step + '" min="' + min + '"' + max + ' value="' + valorMostrado + '" onchange="guardarExtraMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + campo + '\',this.value,' + (opts.entero?'true':'false') + ')" style="width:100%;background:var(--surface2);border:1.5px solid rgba(255,179,0,.6);color:#fff;padding:10px 12px;border-radius:9px;font-size:14px;font-family:var(--mono);font-weight:700">' +
+      '</div>';
+    }
+
+    var html = '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,230,118,.75),0 0 26px rgba(0,230,118,.45)">' +
+      '<style>#entrega-fecha-' + uid + '::-webkit-calendar-picker-indicator{filter:invert(1)}</style>' +
+      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,230,118,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Entregas de efectivo este mes</div>';
+    if (!entregas.length) {
+      html += '<div style="font-size:11px;color:var(--text3);padding:0 0 10px">Todavía no se ha registrado ninguna entrega.</div>';
+    } else {
+      entregas.forEach(function(e){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
+          '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
+          '<span style="font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--green);flex:1;text-align:right;margin-right:6px">€ ' + Number(e.importe||0).toFixed(2).replace('.',',') + '</span>' +
+          '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
+        '</div>';
+      });
+    }
+    html += '<div style="display:flex;gap:8px;margin-top:8px">' +
+      '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="flex:1;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3)">' +
+      '<input id="entrega-importe-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:90px;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono);box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3)">' +
+      '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="flex-shrink:0;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir</button>' +
+    '</div>' +
+    '</div>';
+
+    html += '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
+    html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
+
+    html += '<div style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
+    html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt) + fila('Neto Cabify', netoCabify);
+    html += fila('Viajes privados (40%)', privadosCutTotal) + fila('Transfers (30%)', transfersCutTotal);
+    html += fila('Neto total apps', netoTotalApps, true);
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
+
+    html += inputManual('Nómina (€)', null, 'nomina', nomina);
+    html += inputManual('Adelanto en nómina (€)', 'Dinero que ya se le adelantó a cuenta de este mes', 'adelantoNomina', adelantoNomina);
+    html += inputManual('Días trabajados este mes', 'Para calcular el objetivo (150€ × días trabajados)', 'diasTrabajados', diasTrabajados, { step: '1', min: 1, max: 31, entero: true });
+
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.08)">' +
+      '<span style="color:#fff;font-weight:900;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);min-width:0">Objetivo (150€ × ' + diasTrabajados + ' días)</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0">€ ' + objetivo.toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+    html += fila('Facturado por encima del objetivo', excedente);
+    html += fila('Comisión (35% del exceso)', comision);
+    html += fila('Total propinas (Uber + Bolt)', propinasTotal);
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
+
+    html += '<div style="margin-bottom:12px">' +
+      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Efectivo no entregado</div>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor — menos lo que ya te ha entregado en mano</div>' +
+      fila('Efectivo cobrado en el mes (acumulado)', efectivoRealAcumulado) +
+      fila('Entregado en mano (registrado abajo)', totalEntregado) +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px;margin-top:6px">' +
+        '<span style="font-size:11px;color:var(--text3);min-width:0;font-weight:800">Pendiente de entregar</span>' +
+        '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
+
+    html += '<div style="margin-top:12px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:12px 14px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5);text-align:center">' +
+      '<div style="font-size:12px;font-weight:900;color:#fff;margin-bottom:6px">SUELDO TOTAL A RECIBIR</div>' +
+      '<div style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);white-space:nowrap">€ ' + sueldoTotal.toFixed(2).replace('.',',') + '</div>' +
+    '</div>';
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
+
+    var colorResultado = resultado >= 0 ? '0,230,118' : '255,71,87';
+    html += '<div style="background:rgba(' + colorResultado + ',.1);border:2px solid rgba(' + colorResultado + ',1);border-radius:10px;padding:12px 14px;margin-bottom:12px;box-shadow:0 0 10px rgba(' + colorResultado + ',.85),0 0 22px rgba(' + colorResultado + ',.5);text-align:center">' +
+      '<div style="font-size:12px;font-weight:900;color:#fff;margin-bottom:6px">' + (resultado >= 0 ? 'LE FALTA POR COBRAR' : 'DEBE DEVOLVER') + '</div>' +
+      '<div style="font-family:var(--mono);font-size:18px;font-weight:900;color:' + (resultado>=0?'var(--green)':'var(--red)') + ';white-space:nowrap">€ ' + Math.abs(resultado).toFixed(2).replace('.',',') + '</div>' +
+    '</div>';
+
+    if (resultado > 0) {
+      html += '<div style="display:flex;gap:10px">' +
+        '<div style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px;text-align:center">' +
+          '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">🏦 Banco</div>' +
+          '<div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + banco.toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+        '<div style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px;text-align:center">' +
+          '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">💵 Efectivo</div>' +
+          '<div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + efectivo.toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    html += '</div>';
+    cont.innerHTML = html;
+  }).catch(function(){
+    cont.innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:10px">No se pudo calcular el resumen mensual.</div>';
+  });
+}
+
 
 // Cada apartado (Uber, Bolt, Cabify, Viajes privados) guarda aquí su parte del
 // total, para poder sumarlos todos en la casilla "Facturación neto total".
@@ -2915,9 +3320,425 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
 }
 
 function recalcularLiquidacionCompleta(cid, matricula, uid) {
+  // La liquidación estilo "semanal" (sueldo % + efectivo real) no aplica a
+  // vehículos en facturación mensual — esos usan el resumen mensual propio
+  // (nómina + comisión + propinas), así que no pintamos nada aquí.
+  var vTipoLiq = (getAllVehiculos().find(function(x){ return x.matricula === matricula; }) || {}).tipoFacturacion || 'semanal';
+  if (vTipoLiq === 'mensual') {
+    var contLiq = document.getElementById('fact-liq-' + uid);
+    if (contLiq) contLiq.innerHTML = '';
+    return;
+  }
   calcularLiquidacionAcumulada(cid, matricula, uid).then(function(d){
     if (d) pintarLiquidacion(uid, d);
   }).catch(function(){});
+}
+
+// ══════════════ RESUMEN GENERAL DE UN VEHÍCULO (en Facturación) ══════════════
+// Mismo cálculo y estructura que el "Resumen general" de la app de
+// Propietario, pero aplicado a un único vehículo: suma la facturación,
+// gastos y pagos de todos sus conductores, y añade el % de gestión y el
+// branding del propietario dueño de esta matrícula (si tiene uno asignado).
+var _vehResumenTicketsCache = { conductor: [], propietario: [] };
+var _vehResumenPagosCache = [];
+function _colorParaConductorVeh(nombre) {
+  var colores = ['var(--cyan)','var(--purple)','var(--green)','var(--amber)','#ff6ec7','#5ad1e6'];
+  var h = 0;
+  for (var i=0;i<(nombre||'').length;i++) h = (h*31 + nombre.charCodeAt(i)) % colores.length;
+  return colores[Math.abs(h)];
+}
+function _turnoOrdenVeh(turno) {
+  var m = (turno||'').match(/(\d{1,2}):/);
+  if (!m) return 3;
+  var h = parseInt(m[1], 10);
+  if (h >= 5 && h < 12) return 0;
+  if (h >= 12 && h < 20) return 1;
+  return 2;
+}
+
+// Cálculo puro del resumen de un vehículo, reutilizable tanto para la vista
+// en vivo del admin (abrirResumenGeneralVehiculo) como para el snapshot que
+// se guarda al pulsar "Cerrar y enviar" (lo que verá el propietario).
+function calcularResumenVehiculoParaFacturacion(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return Promise.resolve(null);
+
+  var lista = [];
+  v.conductores.forEach(function(cid){
+    var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+    if (c) lista.push({ cid: c.cid, nombre: c.nombre, turno: c.turno, porcentaje: c.porcentaje || 30 });
+  });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula === matricula) lista.push({ cid: cid, nombre: r.nombre || 'Conductor', turno: r.turno, porcentaje: r.porcentaje || 30 });
+  });
+
+  if (!lista.length) return Promise.resolve(null);
+
+  return Promise.all([
+    fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    Promise.all(lista.map(function(info){
+      var uid = 'fact_' + info.cid;
+      _facturacionConductoresIndex[uid] = { cid: info.cid, nombre: info.nombre, turno: info.turno, esInvitado: false, matricula: matricula, porcentaje: info.porcentaje };
+      return calcularLiquidacionAcumulada(info.cid, matricula, uid).then(function(d){
+        d = d || {};
+        d.nombreConductor = d.nombreConductor || info.nombre;
+        d.turno = info.turno;
+        return d;
+      });
+    }))
+  ]).then(function(results){
+    var propietarios = results[0] || {};
+    var pid = Object.keys(propietarios).find(function(k){ return (propietarios[k].matriculas || []).indexOf(matricula) !== -1; });
+    var propietario = pid ? (propietarios[pid] || {}) : {};
+    var datosConductores = results[1];
+
+    var CAT_LABELS_VEH = { gasolina:'⛽ Combustible', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', otros:'📄 Otros' };
+
+    var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0;
+    var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0;
+    var sueldosTotal=0, pagosARealizarTotal=0, pagosDetalle=[];
+    var ticketsConductor=[], ticketsPropietario=[];
+
+    datosConductores.forEach(function(d){
+      uberTotal += d.uberNetoReal || 0;
+      boltTotal += d.boltNetoReal || 0;
+      cabifyTotal += d.cabifyNetoReal || 0;
+      privadosFacturacionTotal += d.privadosCutTotal || 0;
+      transfersFacturacionTotal += d.transfersCutTotal || 0;
+      sueldosTotal += d.sueldo || 0;
+      pagosARealizarTotal += d.resultado || 0;
+      pagosDetalle.push({ nombre: d.nombreConductor, resultado: d.resultado || 0, turno: d.turno });
+
+      (d.gastosItems || []).forEach(function(t){
+        var importe = Number(t.importe||0);
+        if (t.cat === 'gasolina') combustibleTotal += importe;
+        else if (t.cat === 'peaje') peajesTotal += importe;
+        else if (t.cat === 'parking') parkingTotal += importe;
+        else if (t.cat === 'lavado') limpiezaTotal += importe;
+        else if (t.cat === 'otros') otrosTotal += importe;
+
+        var ticketItem = { catRaw: t.cat, cat: CAT_LABELS_VEH[t.cat] || t.cat, importe: importe, fecha: t.fecha||'', conductor: d.nombreConductor, matricula: matricula, url: t.url||'', propina: Number(t.propina||0) };
+        if (t.pagadoPorPropietario) ticketsPropietario.push(ticketItem); else ticketsConductor.push(ticketItem);
+      });
+    });
+
+    var brandingTotal = Number(propietario.branding || 0);
+    var porcentajeGestion = Number(propietario.porcentajeGestion || 0);
+    var nombreGestion = propietario.nombreCampoGestion || 'INFINITY';
+    var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
+    var facturacionTotal = facturacionAppsTotal + brandingTotal;
+
+    var abonadosPorPropietarioTotal = ticketsPropietario.reduce(function(s,t){ return s+t.importe; }, 0);
+    var infinityTotal = facturacionAppsTotal * (porcentajeGestion / 100);
+    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
+
+    var ivaGestion = propietario.ivaGestion !== false; // por defecto sí, salvo que se haya marcado expresamente "No"
+    var infinityConIvaTotal = ivaGestion ? (infinityTotal * 1.21) : infinityTotal;
+    if (infinityTotal > 0) {
+      pagosARealizarTotal += infinityConIvaTotal;
+      pagosDetalle.push({ nombre: nombreGestion, resultado: infinityConIvaTotal, esEmpresa: true, conIva: ivaGestion });
+    }
+
+    var beneficio = facturacionTotal - gastosTotalGeneral;
+
+    return {
+      matricula: matricula, pid: pid || null, sinPropietario: !pid,
+      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
+      privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
+      brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
+      combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
+      abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
+      infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
+      gastosTotalGeneral:gastosTotalGeneral,
+      pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
+      beneficio:beneficio,
+      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario
+    };
+  });
+}
+
+// Guarda el snapshot de este vehículo — es lo único que verá el
+// propietario en su app, y solo se actualiza cuando el admin/manager
+// pulsa "Cerrar y enviar". Así el propietario nunca ve números "en vivo"
+// a medio periodo, solo la facturación ya cerrada y enviada.
+function enviarFacturacionPropietarioSnapshot(matricula) {
+  return calcularResumenVehiculoParaFacturacion(matricula).then(function(d){
+    if (!d) return null;
+    d.enviadoEn = new Date().toISOString();
+    return fetch(FIREBASE_URL + '/facturacion_propietario_snapshot/' + matSlug(matricula) + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(d)
+    }).then(fbCheck).then(function(){ return d; });
+  });
+}
+
+// ══════════════ CORREGIR Y REENVIAR (tras editar algo manualmente) ══════════════
+// Los datos que ve el conductor (facturacion_publicada) y el propietario
+// (facturacion_propietario_snapshot) son "fotos fijas" que solo se
+// actualizan al cerrar el periodo — así ninguno ve números cambiando en
+// vivo. Pero si el admin corrige un error (un ticket mal puesto, un dato
+// de Uber/Bolt/Cabify mal introducido, un porcentaje equivocado...) esa
+// corrección necesita llegar a esas fotos ya publicadas, sin esperar al
+// siguiente cierre ni tocar el histórico ya archivado. Esta función
+// regenera ambas fotos con los datos ya corregidos.
+function republicarFacturacionParaConductor(cid) {
+  return Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(datos){
+    var publicado = { uber: datos[0] || null, bolt: datos[1] || null, cabify: datos[2] || null, publicadoTs: Date.now() };
+    return fetch(FIREBASE_URL + '/facturacion_publicada/' + cid + '.json', {
+      method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(publicado)
+    });
+  });
+}
+
+function corregirYReenviarFacturacion(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+
+  var cids = [];
+  (v.conductores||[]).forEach(function(cid){ var c = CONDUCTORES.find(function(x){ return x.cid === cid; }); if (c) cids.push(cid); });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    var r = _vdInvitadosCacheGlobal[cid];
+    if (r.matricula === matricula) cids.push(cid);
+  });
+
+  if (!cids.length) { toast('⚠ Este vehículo no tiene conductores asignados'); return; }
+
+  var btn = document.getElementById('veh-resumen-corregir-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Reenviando…'; }
+
+  Promise.all(cids.map(function(cid){ return republicarFacturacionParaConductor(cid); }))
+    .then(function(){ return enviarFacturacionPropietarioSnapshot(matricula); })
+    .then(function(){
+      toast('✅ Corrección reenviada al conductor y al propietario');
+      if (btn) { btn.disabled = false; btn.textContent = '🔁 Corregir y reenviar'; }
+      abrirResumenGeneralVehiculo(matricula);
+    }).catch(function(err){
+      alert('No se pudo reenviar la corrección: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = '🔁 Corregir y reenviar'; }
+    });
+}
+
+var _vehResumenMatriculaActual = null;
+var _vehResumenUltimoEnvio = null;
+function abrirResumenGeneralVehiculo(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  _vehResumenMatriculaActual = matricula;
+
+  document.getElementById('veh-resumen-plate').innerHTML = plateHtml(v.matricula) + (v.icon === '⚡' ? evBadgeHtml(30) : '');
+  document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Calculando resumen general…</div>';
+  document.getElementById('veh-resumen-modal').style.display = 'flex';
+
+  Promise.all([
+    calcularResumenVehiculoParaFacturacion(matricula),
+    fetch(FIREBASE_URL + '/facturacion_propietario_snapshot/' + matSlug(matricula) + '/enviadoEn.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var d = results[0];
+    _vehResumenUltimoEnvio = results[1] || null;
+    if (!d) {
+      document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Este vehículo no tiene conductores asignados todavía.</div>';
+      return;
+    }
+    pintarResumenGeneralVehiculo(d);
+  }).catch(function(){
+    document.getElementById('veh-resumen-body').innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);font-size:12px">No se pudo calcular el resumen.</div>';
+  });
+}
+
+function guardarBrandingDesdeResumenVeh(pid) {
+  if (!pid) { alert('Este vehículo no está asignado a ningún propietario todavía, así que no hay dónde guardar el branding. Asígnalo primero en Propietarios.'); return; }
+  var input = document.getElementById('veh-branding-input');
+  if (!input) return;
+  var num = parseFloat(input.value.toString().replace(',','.'));
+  if (isNaN(num)) { toast('⚠ Introduce un número válido'); return; }
+
+  var btn = document.getElementById('veh-branding-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  fetch(FIREBASE_URL + '/propietarios/' + pid + '/branding.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(num)
+  }).then(fbCheck).then(function(){
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+    var msg = document.getElementById('veh-branding-saved-msg');
+    if (msg) msg.style.display = 'block';
+    setTimeout(function(){
+      if (msg) msg.style.display = 'none';
+      if (_vehResumenMatriculaActual) abrirResumenGeneralVehiculo(_vehResumenMatriculaActual);
+    }, 1000);
+  }).catch(function(err){
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
+    alert('No se pudo guardar: ' + err.message);
+  });
+}
+
+function pintarResumenGeneralVehiculo(d) {
+  var cont = document.getElementById('veh-resumen-body');
+  if (!cont) return;
+
+  function filaResumen(label, valor, esGasto) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)">' +
+      '<span style="color:#fff">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:' + (esGasto ? 'var(--red)' : '#fff') + '">' + (esGasto ? '− ' : '') + '€ ' + Math.abs(valor).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+
+  var html = '';
+  html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;margin-bottom:10px">👁️ Esto es lo que verá el propietario en su app — pero solo se actualiza cuando pulses <strong style="color:#fff">🔒 Cerrar y enviar</strong>. ' + (_vehResumenUltimoEnvio ? 'Última vez enviado: ' + new Date(_vehResumenUltimoEnvio).toLocaleString('es-ES') : 'Todavía no se ha enviado nada de este vehículo.') + '</div>';
+  html += '<button id="veh-resumen-corregir-btn" onclick="corregirYReenviarFacturacion(\'' + d.matricula.replace(/'/g,"\\'") + '\')" title="Usa esto tras corregir algún dato (Uber/Bolt/Cabify, un ticket, un porcentaje...) para que la corrección llegue ya al conductor y al propietario, sin esperar al próximo cierre" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:14px">🔁 Corregir y reenviar</button>';
+  if (d.sinPropietario) {
+    html += '<div style="font-size:11px;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);border-radius:8px;padding:8px 10px;margin-bottom:14px">⚠ Este vehículo no está asignado a ningún propietario todavía, así que el % de gestión y el branding se muestran en 0.</div>';
+  }
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Facturación</div>';
+  html += filaResumen('Uber', d.uberTotal) +
+    filaResumen('Bolt', d.boltTotal) +
+    filaResumen('Cabify', d.cabifyTotal) +
+    filaResumen('Privados', d.privadosFacturacionTotal) +
+    filaResumen('Transfer', d.transfersFacturacionTotal);
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+    '<span style="color:var(--amber);font-weight:800;text-shadow:0 0 6px rgba(255,179,0,.8)">Branding</span>' +
+    '<span style="display:flex;align-items:center;gap:6px;position:relative">' +
+      '<span style="color:var(--text3);font-family:var(--mono);font-size:12px">€</span>' +
+      '<input id="veh-branding-input" type="number" step="0.01" value="' + Math.abs(d.brandingTotal).toFixed(2) + '" style="width:80px;padding:6px 8px;border-radius:8px;border:1.5px solid rgba(255,179,0,.6);background:rgba(255,179,0,.06);color:#fff;font-family:var(--mono);font-weight:800;font-size:13px;text-align:right">' +
+      '<button id="veh-branding-save-btn" onclick="guardarBrandingDesdeResumenVeh(' + (d.pid ? "'"+d.pid+"'" : 'null') + ')" style="background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit">💾 Guardar</button>' +
+      '<span id="veh-branding-saved-msg" style="display:none;position:absolute;right:0;top:-26px;background:rgba(0,230,118,.95);color:#04220f;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)">✓ Guardado correctamente</span>' +
+    '</span>' +
+  '</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Total facturación</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.8)">€ ' + d.facturacionTotal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px">Gastos</div>';
+  html += filaResumen('Combustible', d.combustibleTotal, true) +
+    filaResumen('Peajes', d.peajesTotal, true) +
+    filaResumen('Parking', d.parkingTotal, true) +
+    filaResumen('Lavado', d.limpiezaTotal, true) +
+    filaResumen('Otros', d.otrosTotal, true) +
+    filaResumen('Sueldos', d.sueldosTotal, true) +
+    filaResumen(d.nombreGestion + (d.porcentajeGestion ? ' (' + d.porcentajeGestion.toString().replace('.',',') + '%)' : ''), d.infinityTotal, true);
+
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px;font-size:11px;color:var(--text3)">' +
+    '<span>Gastos pagados por el propietario</span>' +
+    '<span style="font-family:var(--mono)">€ ' + d.abonadosPorPropietarioTotal.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="display:flex;gap:8px;margin:8px 0 4px">' +
+    '<button onclick="abrirGastosResumenVeh(\'conductor\')" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);color:var(--cyan);font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit">👤 Pagados por conductor (' + d.ticketsConductor.length + ')</button>' +
+    '<button onclick="abrirGastosResumenVeh(\'propietario\')" style="flex:1;padding:8px;border-radius:9px;border:1.5px solid rgba(178,94,225,.5);background:rgba(178,94,225,.08);color:var(--purple);font-size:10.5px;font-weight:800;cursor:pointer;font-family:inherit">🏢 Pagados por propietario (' + d.ticketsPropietario.length + ')</button>' +
+  '</div>';
+
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">Total gastos</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + d.gastosTotalGeneral.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  _vehResumenTicketsCache = { conductor: d.ticketsConductor, propietario: d.ticketsPropietario };
+  _vehResumenPagosCache = d.pagosDetalle;
+
+  html += '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Pagos a realizar</div>';
+  html += '<button onclick="abrirPagosResumenVeh()" style="width:100%;padding:9px;border-radius:9px;border:1.5px solid rgba(255,215,0,.5);background:rgba(255,215,0,.08);color:#ffd700;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px">👥 Ver detalle por conductor y ' + d.nombreGestion + ' (' + d.pagosDetalle.length + ')</button>';
+  var pagosEsPagar = d.pagosARealizarTotal >= 0;
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px">' +
+    '<span style="font-size:12px;font-weight:900;color:#fff">' + (pagosEsPagar ? 'Total a pagar (conductores + ' + d.nombreGestion + ')' : 'Total a devolver por conductores') + '</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + (pagosEsPagar ? '#ffd700' : 'var(--red)') + '">€ ' + Math.abs(d.pagosARealizarTotal).toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
+  var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';
+  html += '<div style="margin-top:16px;background:rgba(' + colorBeneficio + ',.1);border:2px solid rgba(' + colorBeneficio + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBeneficio + ',.85),0 0 28px rgba(' + colorBeneficio + ',.5)">' +
+    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO (Total facturación − Total gastos)</div>' +
+    '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorBeneficioVar + '">€ ' + d.beneficio.toFixed(2).replace('.',',') + '</div>' +
+  '</div>';
+
+  cont.innerHTML = html;
+}
+
+function abrirGastosResumenVeh(tipo) {
+  var items = _vehResumenTicketsCache[tipo] || [];
+  var titulo = tipo === 'propietario' ? '🏢 Gastos pagados por el propietario' : '👤 Gastos pagados por el conductor';
+  var colorTema = tipo === 'propietario' ? '178,94,225' : '0,212,255';
+
+  var modal = document.getElementById('veh-gastos-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'veh-gastos-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10003;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+  var total = items.reduce(function(s,t){ return s+t.importe; }, 0);
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.55),0 0 40px rgba(' + colorTema + ',.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:14px;font-weight:900;color:#fff">' + titulo + '</span>';
+  html += '<button onclick="document.getElementById(\'veh-gastos-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:6px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<span style="font-size:11px;color:var(--text3)">' + items.length + ' ticket' + (items.length!==1?'s':'') + '</span>';
+  html += '<span style="font-family:var(--mono);font-size:14px;font-weight:900;color:#fff">€ ' + total.toFixed(2).replace('.',',') + '</span>';
+  html += '</div>';
+  html += '<div style="padding:8px 18px 18px">';
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin tickets en esta categoría</div>';
+  } else {
+    items.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).forEach(function(t){
+      var colorCond = _colorParaConductorVeh(t.conductor);
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">';
+      if (t.url) html += '<img src="' + t.url + '" onclick="window.open(\'' + t.url + '\',\'_blank\')" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0">';
+      else html += '<div style="width:40px;height:40px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧾</div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:12.5px;font-weight:700;color:#fff">€ ' + t.importe.toFixed(2).replace('.',',') + ' <span style="color:var(--text3);font-weight:400">· ' + t.cat + '</span></div>';
+      html += '<div style="font-size:10.5px"><span style="color:' + colorCond + ';font-weight:800">' + t.conductor + '</span><span style="color:var(--text3)"> · ' + (t.fecha||'') + '</span></div>';
+      if (t.propina > 0) html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € ' + t.propina.toFixed(2).replace('.',',') + '</div>';
+      html += '</div></div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function abrirPagosResumenVeh() {
+  var items = (_vehResumenPagosCache || []).slice().sort(function(a,b){
+    if (!!a.esEmpresa !== !!b.esEmpresa) return a.esEmpresa ? 1 : -1;
+    if (a.esEmpresa && b.esEmpresa) return 0;
+    return _turnoOrdenVeh(a.turno) - _turnoOrdenVeh(b.turno);
+  });
+  var modal = document.getElementById('veh-gastos-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'veh-gastos-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10003;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+  var colorTema = '255,215,0';
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.55),0 0 40px rgba(' + colorTema + ',.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:14px;font-weight:900;color:#fff">💰 Pagos a realizar por conductor</span>';
+  html += '<button onclick="document.getElementById(\'veh-gastos-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:8px 18px 18px">';
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin conductores todavía</div>';
+  } else {
+    items.forEach(function(p){
+      var esPagar = p.resultado >= 0;
+      var color = p.esEmpresa ? 'var(--purple)' : (esPagar ? '#ffd700' : 'var(--red)');
+      var colorCond = p.esEmpresa ? 'var(--purple)' : _colorParaConductorVeh(p.nombre);
+      var subt = p.esEmpresa ? ('Pago a la empresa de gestión' + (p.conIva ? ' (IVA 21% incluido)' : ' (sin IVA)')) : (esPagar ? 'Debes pagarle' : 'Te debe devolver');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">';
+      html += '<div><div style="font-size:12.5px;font-weight:800;color:' + colorCond + '">' + (p.esEmpresa ? '🏢 ' : '') + (p.nombre||'—') + '</div>' +
+        '<div style="font-size:10.5px;color:var(--text3)">' + subt + '</div></div>';
+      html += '<span style="font-family:var(--mono);font-weight:900;font-size:13px;color:' + color + '">€ ' + Math.abs(p.resultado).toFixed(2).replace('.',',') + '</span>';
+      html += '</div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
 }
 
 function pintarLiquidacion(uid, d) {
@@ -3255,9 +4076,24 @@ function pintarUberCabifyGuardado(cid) {
           '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:' + textColor + ';text-shadow:0 0 5px rgba(' + color + ',.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
         '</div>';
       }
-      var netoRealPlat = Number((typeof datos.netoReal === 'number' ? datos.netoReal : (datos.neto - (datos.propinas||0) - (datos.promociones||0)))||0);
+      var netoRealPlat = (plat === 'cabify')
+        ? Number(datos.neto || 0)
+        : Number((typeof datos.netoReal === 'number' ? datos.netoReal : (datos.neto - (datos.propinas||0) - (datos.promociones||0)))||0);
       _facturacionTotales[cid][plat] = netoRealPlat;
       recalcularTotalFacturacion(uid, cid);
+
+      if (plat === 'cabify') {
+        cont.innerHTML =
+          '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">' + (datos.editadoPorAdmin ? 'Editado manualmente por el admin' : 'Subido por el conductor') + ' · ' + (datos.fecha || '') + '</div>' +
+          casilla('Facturación neta', datos.neto) +
+          casilla('Pagado a bordo (efectivo)', datos.efectivo) +
+          '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
+            '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+            '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoRealPlat.toFixed(2).replace('.',',') + '</span>' +
+          '</div>' +
+          '<button onclick="pedirBorrarPlat(\'' + plat + '\',\'' + cid + '\',\'' + uid + '\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px">🗑 Eliminar datos</button>';
+        return;
+      }
 
       cont.innerHTML =
         '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">' + (datos.editadoPorAdmin ? 'Editado manualmente por el admin' : 'Subido por el conductor') + ' · ' + (datos.fecha || '') + '</div>' +
@@ -3280,7 +4116,7 @@ var _factEditContext = null;
 var FACT_EDIT_COLORS = { uber:'255,255,255', bolt:'0,230,118', cabify:'124,92,252' };
 var FACT_EDIT_FIELDS = {
   uber:   [['neto','Ganancias totales'],['propinas','Propina'],['promociones','Promociones/Campañas'],['efectivo','Efectivo cobrado']],
-  cabify: [['neto','Ganancias totales / neto'],['propinas','Propina'],['promociones','Promociones/Campañas'],['efectivo','Efectivo cobrado']],
+  cabify: [['neto','Facturación neta'],['efectivo','Pagado a bordo (efectivo en mano)']],
   bolt:   [['ingresosNetos','Ingresos netos'],['peajes','Peajes'],['ingresosCampanas','Ingresos de campañas'],['propinas','Propinas de pasajeros'],['efectivoRecaudado','Efectivo recaudado']]
 };
 function abrirEdicionManualFact(plat, cid, uid) {
@@ -3335,7 +4171,7 @@ function guardarEdicionManualFact() {
       cerrarEdicionManualFact();
     }).catch(function(){ toast('❌ No se pudo guardar'); });
   } else {
-    datos.netoReal = datos.neto - datos.propinas - datos.promociones;
+    datos.netoReal = (plat === 'cabify') ? datos.neto : (datos.neto - datos.propinas - datos.promociones);
     fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + cid + '.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(datos)
     }).then(function(){
@@ -3716,12 +4552,17 @@ function paintFacturacion() {
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
-      html += '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo" style="margin-left:auto;flex-shrink:0;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar ' + ((v.tipoFacturacion||'semanal') === 'mensual' ? 'mes' : 'semana') + '</button>' +
-      '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">' +
-        '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:11px;font-weight:800;padding:7px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
+      html += '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
-      html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>';
+      html += '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+        '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Facturación propietario de este vehículo" style="flex:1;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Facturación propietario</button>' +
+        '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo, y enviar la facturación al propietario" style="flex:1;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar y enviar</button>' +
+      '</div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">👤 Conductores</div>';
+      html += '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.8),0 0 18px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
+      html += '</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
       html += '</div>';
     });
@@ -5300,7 +6141,7 @@ function openAddPropietarioModal() {
   document.getElementById('ap-cuenta').value = '';
   document.getElementById('ap-porcentaje-gestion').value = '';
   document.getElementById('ap-nombre-gestion').value = '';
-  document.getElementById('ap-branding').value = '';
+  seleccionarIvaGestion(true);
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '📨 ENVIAR INVITACIÓN';
@@ -5329,7 +6170,7 @@ function editarPropietarioAbrir(pid) {
   document.getElementById('ap-cuenta').value = p.cuentaBancaria || '';
   document.getElementById('ap-porcentaje-gestion').value = (typeof p.porcentajeGestion === 'number') ? p.porcentajeGestion : '';
   document.getElementById('ap-nombre-gestion').value = p.nombreCampoGestion || '';
-  document.getElementById('ap-branding').value = (typeof p.branding === 'number') ? p.branding : '';
+  seleccionarIvaGestion(p.ivaGestion !== false);
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '💾 GUARDAR CAMBIOS';
@@ -5396,6 +6237,21 @@ function copiarCodigoInvitePropietario() {
   btn.textContent = '✓ Copiado';
   setTimeout(function(){ btn.textContent = old; }, 1500);
 }
+var _ivaGestionSeleccionado = true;
+function seleccionarIvaGestion(valor) {
+  _ivaGestionSeleccionado = valor;
+  var btnSi = document.getElementById('ap-iva-si');
+  var btnNo = document.getElementById('ap-iva-no');
+  if (!btnSi || !btnNo) return;
+  if (valor) {
+    btnSi.style.background = 'rgba(0,230,118,.18)'; btnSi.style.borderColor = 'rgba(0,230,118,1)'; btnSi.style.color = '#fff';
+    btnNo.style.background = 'var(--surface2)'; btnNo.style.borderColor = 'var(--border2)'; btnNo.style.color = 'var(--text3)';
+  } else {
+    btnNo.style.background = 'rgba(255,71,87,.18)'; btnNo.style.borderColor = 'rgba(255,71,87,1)'; btnNo.style.color = '#fff';
+    btnSi.style.background = 'var(--surface2)'; btnSi.style.borderColor = 'var(--border2)'; btnSi.style.color = 'var(--text3)';
+  }
+}
+
 function guardarPropietario() {
   if (!currentUser || currentUser.role !== 'admin') return;
   var nombre = document.getElementById('ap-nombre').value.trim();
@@ -5406,7 +6262,7 @@ function guardarPropietario() {
   var cuenta = document.getElementById('ap-cuenta').value.trim();
   var porcentajeGestion = parseFloat(document.getElementById('ap-porcentaje-gestion').value);
   var nombreGestion = document.getElementById('ap-nombre-gestion').value.trim();
-  var branding = parseFloat(document.getElementById('ap-branding').value);
+  var ivaGestion = _ivaGestionSeleccionado;
   var matriculas = Array.prototype.slice.call(document.querySelectorAll('.ap-mat-check:checked')).map(function(c){ return c.value; });
 
   if (!nombre) { alert('Introduce el nombre completo.'); return; }
@@ -5426,7 +6282,7 @@ function guardarPropietario() {
       fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
       porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
       nombreCampoGestion: nombreGestion || 'INFINITY',
-      branding: isNaN(branding) ? 0 : branding
+      ivaGestion: ivaGestion
     };
     fetch(FIREBASE_URL + '/propietarios/' + pidEdit + '.json', {
       method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(cambios)
@@ -5450,7 +6306,7 @@ function guardarPropietario() {
     fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
     porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
     nombreCampoGestion: nombreGestion || 'INFINITY',
-    branding: isNaN(branding) ? 0 : branding,
+    ivaGestion: ivaGestion,
     inviteCode: code, inviteUsado: false, ts: Date.now()
   };
 
@@ -5637,11 +6493,25 @@ function confirmarCierrePeriodo() {
         });
       })
     );
+
+    if (p.tipo === 'mensual') {
+      // Al cerrar el mes, los datos manuales (nómina, días trabajados,
+      // adelanto) y las entregas de efectivo registradas son de ESE mes —
+      // hay que resetearlos para que el mes siguiente empiece de cero.
+      writes.push(fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + r.cid + '.json', { method: 'DELETE' }));
+      writes.push(fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + r.cid + '.json', { method: 'DELETE' }));
+    }
   });
 
   Promise.all(writes).then(function(){
     toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
     generarExcelFacturacion();
+    // Además de enviar al conductor, actualizamos el snapshot de
+    // facturación que ve el propietario en su app — solo se actualiza aquí,
+    // nunca en vivo, así el propietario ve siempre datos ya cerrados.
+    enviarFacturacionPropietarioSnapshot(p.matricula).then(function(d){
+      if (d) toast('✅ Facturación enviada al propietario · ' + p.matricula);
+    }).catch(function(){});
   }).catch(function(err){
     alert('No se pudo cerrar el periodo: ' + err.message);
   });
@@ -5873,12 +6743,14 @@ function openVehicleDetail(matricula) {
 
   // Reset del formulario de invitación
   document.getElementById('vd-invite-form').style.display = 'none';
-  document.getElementById('vd-invite-mat').innerHTML = plateHtml(v.matricula);
   document.getElementById('vd-invite-email').value = '';
   document.getElementById('vd-invite-turno').value = '06:00–14:00';
   document.getElementById('vd-invite-turno-manual').style.display = 'none';
   document.getElementById('vd-invite-turno-manual').value = '';
   document.getElementById('vd-invite-result').style.display = 'none';
+  // El % de cobro solo aplica a facturación semanal — en mensual no se usa
+  var porcWrap = document.getElementById('vd-invite-porcentaje-wrap');
+  if (porcWrap) porcWrap.style.display = ((v.tipoFacturacion||'semanal') === 'mensual') ? 'none' : 'block';
 
   renderConductoresInvitados(v);
   renderVehicleDocs();
