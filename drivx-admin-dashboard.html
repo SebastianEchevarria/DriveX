@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-21';
+var APP_VERSION = '2026-08-25-22';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -7454,17 +7454,19 @@ function paintVehicleDocs() {
   var html = '';
   DOC_TYPES.forEach(function(dt){
     var doc = _vdDocsCache[dt.key] || null;
-    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">';
+    html += '<div style="padding:12px 0;border-bottom:1px solid var(--border)">';
+    html += '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">';
     html += '<div style="width:36px;height:36px;border-radius:9px;background:rgba(0,212,255,.08);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + dt.icon + '</div>';
     html += '<div style="flex:1;min-width:0">';
-    html += '<div style="font-size:13px;font-weight:700">' + dt.label + '</div>';
+    html += '<div style="font-size:13px;font-weight:700;line-height:1.35">' + dt.label + '</div>';
     html += doc && doc.uploading
-      ? '<div style="font-size:11px;color:var(--amber)">⏳ Subiendo…</div>'
+      ? '<div style="font-size:11px;color:var(--amber);margin-top:2px">⏳ Subiendo…</div>'
       : doc
-      ? '<div style="font-size:11px;color:var(--green)">✓ Subido ' + doc.fecha + (doc.paginas && doc.paginas.length > 1 ? ' · ' + doc.paginas.length + ' páginas' : '') + '</div>'
-      : '<div style="font-size:11px;color:var(--text3)">No adjuntado</div>';
+      ? '<div style="font-size:11px;color:var(--green);margin-top:2px">✓ Subido ' + doc.fecha + (doc.paginas && doc.paginas.length > 1 ? ' · ' + doc.paginas.length + ' páginas' : '') + '</div>'
+      : '<div style="font-size:11px;color:var(--text3);margin-top:2px">No adjuntado</div>';
     html += '</div>';
-    html += '<div style="display:flex;gap:6px;flex-shrink:0">';
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-left:48px">';
     if (doc && doc.url) html += '<button class="edit-btn" onclick="viewVehicleDoc(\'' + dt.key + '\')">Ver</button>';
     if (isAdmin && !(doc && doc.uploading)) {
       html += '<label class="edit-btn" style="display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden">' + (doc ? 'Reemplazar' : 'Subir') +
