@@ -603,15 +603,8 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div><div class="plat-name">Cabify</div><div class="plat-sub">Earnings · hoy</div></div>
       </div>
       <div class="plat-amounts" style="grid-template-columns:1fr 1fr">
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Ganancias totales</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-propinas">€ —</div><div class="plat-amt-lbl">Propina</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-promos">€ —</div><div class="plat-amt-lbl">Promociones/Campañas</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-efectivo">€ —</div><div class="plat-amt-lbl">Efectivo cobrado</div></div>
-      </div>
-      <div style="font-size:10px;color:#e8f6ff;margin:2px 0 8px;text-align:center;font-style:italic">Neto real = Ganancias totales − Propina − Promociones/Campañas</div>
-      <div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:12px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>
-        <span id="cabify-netoreal" style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ —</span>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Facturación neta</div></div>
+        <div class="plat-amt"><div class="plat-amt-val" id="cabify-efectivo">€ —</div><div class="plat-amt-lbl">Pagado a bordo</div></div>
       </div>
       <input type="file" id="input-cabify" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'cabify')">
       <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
@@ -1198,7 +1191,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-1';
+var APP_VERSION = '2026-08-24-2';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2954,7 +2947,7 @@ function onPlatFile(input, plat) {
     } else if (plat === 'uber') {
       prompt = 'Captura de la app Uber Driver de un conductor VTC (pantalla de Ganancias, Estadisticas o Desglose). Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"ganancias_totales":NUMERO,"propina":NUMERO,"promociones":NUMERO,"efectivo_cobrado":NUMERO,"efectivo_encontrado":true_o_false,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: ganancias_totales = campo "Ganancias totales" (el total final del desglose — NO uses "Precio neto", que es solo un subtotal parcial). propina = campo "Propina"/"Propinas", si no aparece pon 0. promociones = SOLO el campo cuyo nombre contenga literalmente la palabra "Promoción"/"Promociones"/"Campaña"/"Campañas"/"Bonus" — IMPORTANTE: el campo "Otras ganancias" NO es una promoción ni una campaña, es un concepto distinto; si el único campo disponible es "Otras ganancias" y no hay ningún campo con la palabra "Promoción" o "Campaña", pon promociones en 0. efectivo_cobrado = campo "Efectivo cobrado"/"Efectivo recibido" (suele estar dentro de "Otros importes"; puede aparecer en negativo, en ese caso usa el valor absoluto). efectivo_encontrado = true SOLO si ese campo "Efectivo cobrado"/"Efectivo recibido" aparece literalmente visible en la captura (aunque su valor sea 0), o false si esa captura NO muestra ese campo en absoluto (por ejemplo, porque el conductor no llegó a bajar hasta "Otros importes" o hizo la foto de otra pantalla). Si efectivo_encontrado es false, pon efectivo_cobrado en 0. viajes = numero de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     } else {
-      prompt = 'Captura de la app Cabify de un conductor VTC. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"neto":NUMERO,"propinas":NUMERO,"efectivo_mano":NUMERO,"viajes":NUMERO,"confianza":0.0}. INSTRUCCIONES: neto = ganancias netas totales del periodo (Earnings/Ganancias/Ganancias netas). propinas = importe de propinas (Tips), si no aparece pon 0. efectivo_mano = dinero en efectivo cobrado a pasajeros (Cash/Efectivo/Cash trips/Efectivo en mano), si no aparece pon 0. viajes = número de viajes si aparece, si no pon 0. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
+      prompt = 'Captura de la app Cabify de un conductor VTC — pantalla "Ganancias" con el desglose. Puede estar en cualquier idioma. Responde SOLO con JSON sin markdown: {"neto":NUMERO,"efectivo_mano":NUMERO,"confianza":0.0}. INSTRUCCIONES: neto = el importe grande de arriba, la "Facturación neta"/Ganancias totales del periodo (el número grande justo debajo de "Desglose de ganancias"). efectivo_mano = campo "Pagado a bordo" (dentro de "Otros conceptos"), que es el efectivo que el conductor tiene en mano. IGNORA por completo los campos "Viajes pago en la app" y "Viajes en efectivo" que aparecen bajo "Cómo te pagaron" — no los uses para nada. Si un campo no aparece pon 0. Solo numeros decimales sin simbolo de moneda.';
     }
 
     comprimirImagenBase64(b64raw, mtraw, 1500, 0.72).then(function(img){
@@ -2973,7 +2966,7 @@ function onPlatFile(input, plat) {
           avisarEfectivoNoEncontradoUber(file);
         }
       } else {
-        applyPlatData(plat, parseFloat(parsed.neto)||0, parseFloat(parsed.propinas)||0, 0, parseInt(parsed.viajes)||0, parseFloat(parsed.efectivo_mano)||0);
+        applyPlatData(plat, parseFloat(parsed.neto)||0, 0, 0, 0, parseFloat(parsed.efectivo_mano)||0);
       }
     }).catch(function() { proc.classList.remove('visible'); toast('❌ Error leyendo captura'); });
     }); // fin comprimirImagenBase64
@@ -3054,19 +3047,23 @@ function applyPlatData(plat, neto, propinas, campanyas, viajes, efectivoMano) {
     toast('✓ Bolt · Neto real €'+netoReal.toFixed(2));
   } else {
     document.getElementById(plat+'-neto').textContent = '€ ' + neto.toFixed(2).replace('.',',');
-    document.getElementById(plat+'-propinas').textContent = '€ ' + propinas.toFixed(2).replace('.',',');
+    var propEl = document.getElementById(plat+'-propinas');
+    if (propEl) propEl.textContent = '€ ' + propinas.toFixed(2).replace('.',',');
     var efEl = document.getElementById(plat+'-efectivo');
     if (efEl) efEl.textContent = '€ ' + (efectivoMano||0).toFixed(2).replace('.',',');
     var promoEl = document.getElementById(plat+'-promos');
     if (promoEl) { promoEl.textContent = '€ ' + (campanyas||0).toFixed(2).replace('.',','); platData[plat].promociones = campanyas||0; }
-    if (plat === 'uber' || plat === 'cabify') {
+    if (plat === 'uber') {
       var netoRealCalc = neto - propinas - (campanyas||0);
       platData[plat].netoReal = netoRealCalc;
       var nrEl = document.getElementById(plat+'-netoreal');
       if (nrEl) nrEl.textContent = '€ ' + netoRealCalc.toFixed(2).replace('.',',');
+    } else if (plat === 'cabify') {
+      // Cabify ya reporta un neto directo — no se le resta nada más.
+      platData.cabify.netoReal = neto;
     }
     toast('✓ '+plat.charAt(0).toUpperCase()+plat.slice(1)+' · Ganancias €'+neto.toFixed(2));
-    var netoRealParaEnviar = (plat === 'uber' || plat === 'cabify') ? (neto - propinas - (campanyas||0)) : neto;
+    var netoRealParaEnviar = (plat === 'uber') ? (neto - propinas - (campanyas||0)) : neto;
     pushUberCabifyFirebase(plat, neto, propinas, campanyas||0, efectivoMano||0, netoRealParaEnviar);
   }
 
@@ -4267,17 +4264,12 @@ function cargarCabifyDesdeAdmin() {
     var datos = publicado && publicado.cabify;
     if (!datos) return;
     platData.cabify.neto = Number(datos.neto||0);
-    platData.cabify.propinas = Number(datos.propinas||0);
-    platData.cabify.promociones = Number(datos.promociones||0);
     platData.cabify.efectivo = Number(datos.efectivo||0);
-    var netoReal = (typeof datos.netoReal === 'number') ? datos.netoReal : (platData.cabify.neto - platData.cabify.propinas - platData.cabify.promociones);
-    platData.cabify.netoReal = netoReal;
+    // Cabify ya reporta el neto directamente — no se le resta nada más.
+    platData.cabify.netoReal = platData.cabify.neto;
 
     var netoEl = document.getElementById('cabify-neto'); if (netoEl) netoEl.textContent = '€ ' + platData.cabify.neto.toFixed(2).replace('.',',');
-    var propEl = document.getElementById('cabify-propinas'); if (propEl) propEl.textContent = '€ ' + platData.cabify.propinas.toFixed(2).replace('.',',');
-    var promoEl = document.getElementById('cabify-promos'); if (promoEl) promoEl.textContent = '€ ' + platData.cabify.promociones.toFixed(2).replace('.',',');
     var efEl = document.getElementById('cabify-efectivo'); if (efEl) efEl.textContent = '€ ' + platData.cabify.efectivo.toFixed(2).replace('.',',');
-    var nrEl = document.getElementById('cabify-netoreal'); if (nrEl) nrEl.textContent = '€ ' + netoReal.toFixed(2).replace('.',',');
 
     updateBillingTotal();
   }).catch(function(){});

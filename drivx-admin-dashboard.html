@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-19';
+var APP_VERSION = '2026-08-24-20';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2862,8 +2862,11 @@ function pintarResumenMensual(cid, matricula, uid) {
     // 30% respectivamente) y entran en el Neto total igual que allí.
     var privadosCutTotal = liq ? liq.privadosCutTotal : 0;
     var transfersCutTotal = liq ? liq.transfersCutTotal : 0;
-    var netoTotalApps = netoUber + netoBolt + privadosCutTotal + transfersCutTotal; // Cabify pendiente, no se suma todavía
-    var propinasTotal = Number(uber.propinas || 0) + Number(bolt.propinas || 0) + Number(cabify.propinas || 0);
+    // Cabify: de su facturación neta, el conductor se lleva el 30% — igual
+    // criterio que Transfers.
+    var netoCabify = Number(cabify.neto || 0) * 0.30;
+    var netoTotalApps = netoUber + netoBolt + netoCabify + privadosCutTotal + transfersCutTotal;
+    var propinasTotal = Number(uber.propinas || 0) + Number(bolt.propinas || 0);
 
     var diasTrabajados = Number(extra.diasTrabajados || 0);
     var nomina = Number(extra.nomina || 0);
@@ -2899,13 +2902,9 @@ function pintarResumenMensual(cid, matricula, uid) {
     html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
 
     html += '<div style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
-    html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt);
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px">' +
-      '<span style="color:var(--text3);font-style:italic">Neto Cabify</span>' +
-      '<span style="font-size:11px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.12);border:1px solid rgba(255,179,0,.4);border-radius:6px;padding:2px 8px">⏳ Pendiente</span>' +
-    '</div>';
+    html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt) + fila('Neto Cabify (30%)', netoCabify);
     html += fila('Viajes privados (40%)', privadosCutTotal) + fila('Transfers (30%)', transfersCutTotal);
-    html += fila('Neto total apps' + ' (sin Cabify)', netoTotalApps, true);
+    html += fila('Neto total apps', netoTotalApps, true);
 
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
@@ -2919,7 +2918,7 @@ function pintarResumenMensual(cid, matricula, uid) {
     '</div>';
     html += fila('Facturado por encima del objetivo', excedente);
     html += fila('Comisión (35% del exceso)', comision);
-    html += fila('Total propinas (Uber + Bolt + Cabify)', propinasTotal);
+    html += fila('Total propinas (Uber + Bolt)', propinasTotal);
 
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
@@ -3847,9 +3846,24 @@ function pintarUberCabifyGuardado(cid) {
           '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:' + textColor + ';text-shadow:0 0 5px rgba(' + color + ',.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
         '</div>';
       }
-      var netoRealPlat = Number((typeof datos.netoReal === 'number' ? datos.netoReal : (datos.neto - (datos.propinas||0) - (datos.promociones||0)))||0);
+      var netoRealPlat = (plat === 'cabify')
+        ? Number(datos.neto || 0)
+        : Number((typeof datos.netoReal === 'number' ? datos.netoReal : (datos.neto - (datos.propinas||0) - (datos.promociones||0)))||0);
       _facturacionTotales[cid][plat] = netoRealPlat;
       recalcularTotalFacturacion(uid, cid);
+
+      if (plat === 'cabify') {
+        cont.innerHTML =
+          '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">' + (datos.editadoPorAdmin ? 'Editado manualmente por el admin' : 'Subido por el conductor') + ' · ' + (datos.fecha || '') + '</div>' +
+          casilla('Facturación neta', datos.neto) +
+          casilla('Pagado a bordo (efectivo)', datos.efectivo) +
+          '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:10px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55),0 0 42px rgba(0,212,255,.3);display:flex;justify-content:space-between;align-items:center">' +
+            '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+            '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoRealPlat.toFixed(2).replace('.',',') + '</span>' +
+          '</div>' +
+          '<button onclick="pedirBorrarPlat(\'' + plat + '\',\'' + cid + '\',\'' + uid + '\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px">🗑 Eliminar datos</button>';
+        return;
+      }
 
       cont.innerHTML =
         '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">' + (datos.editadoPorAdmin ? 'Editado manualmente por el admin' : 'Subido por el conductor') + ' · ' + (datos.fecha || '') + '</div>' +
@@ -3872,7 +3886,7 @@ var _factEditContext = null;
 var FACT_EDIT_COLORS = { uber:'255,255,255', bolt:'0,230,118', cabify:'124,92,252' };
 var FACT_EDIT_FIELDS = {
   uber:   [['neto','Ganancias totales'],['propinas','Propina'],['promociones','Promociones/Campañas'],['efectivo','Efectivo cobrado']],
-  cabify: [['neto','Ganancias totales / neto'],['propinas','Propina'],['promociones','Promociones/Campañas'],['efectivo','Efectivo cobrado']],
+  cabify: [['neto','Facturación neta'],['efectivo','Pagado a bordo (efectivo en mano)']],
   bolt:   [['ingresosNetos','Ingresos netos'],['peajes','Peajes'],['ingresosCampanas','Ingresos de campañas'],['propinas','Propinas de pasajeros'],['efectivoRecaudado','Efectivo recaudado']]
 };
 function abrirEdicionManualFact(plat, cid, uid) {
@@ -3927,7 +3941,7 @@ function guardarEdicionManualFact() {
       cerrarEdicionManualFact();
     }).catch(function(){ toast('❌ No se pudo guardar'); });
   } else {
-    datos.netoReal = datos.neto - datos.propinas - datos.promociones;
+    datos.netoReal = (plat === 'cabify') ? datos.neto : (datos.neto - datos.propinas - datos.promociones);
     fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + cid + '.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(datos)
     }).then(function(){
