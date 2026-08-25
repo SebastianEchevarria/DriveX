@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-13';
+var APP_VERSION = '2026-08-25-14';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3055,7 +3055,7 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           uploadToCloudinary(archivoParaGuardar).then(function(res){
             var url = res && res.secure_url ? res.secure_url : null;
             if (!url) return;
-            return fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '.json', {
+            return fetch(FIREBASE_URL + '/nominas_conductor_pendiente/' + cid + '.json', {
               method: 'POST', headers: { 'Content-Type':'application/json' },
               body: JSON.stringify({
                 url: url, esPdf: false, diasTrabajados: dias, liquido: liquido,
@@ -3071,12 +3071,28 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
 }
 
 function eliminarNominaConductor(cid, matricula, uid, nominaId) {
-  if (!confirm('¿Eliminar esta nómina? También desaparecerá de la app del conductor.')) return;
-  fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '/' + nominaId + '.json', { method: 'DELETE' })
-    .then(fbCheck).then(function(){
-      toast('🗑 Nómina eliminada');
-      pintarResumenMensual(cid, matricula, uid);
-    }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+  var btn = document.getElementById('del-nomina-' + nominaId);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    fetch(FIREBASE_URL + '/nominas_conductor_pendiente/' + cid + '/' + nominaId + '.json', { method: 'DELETE' })
+      .then(fbCheck).then(function(){
+        toast('🗑 Nómina eliminada');
+        pintarResumenMensual(cid, matricula, uid);
+      }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠';
+  btn.style.borderColor = 'rgba(255,71,87,.6)';
+  btn.style.background = 'rgba(255,71,87,.15)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑';
+      btn.style.borderColor = 'transparent';
+      btn.style.background = 'none';
+    }
+  }, 3000);
 }
 function pintarResumenMensual(cid, matricula, uid) {
   var cont = document.getElementById('mensual-resumen-' + uid);
@@ -3088,7 +3104,7 @@ function pintarResumenMensual(cid, matricula, uid) {
     fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     calcularLiquidacionAcumulada(cid, matricula, uid).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/nominas_conductor_pendiente/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {}, extra = results[3] || {};
     var liq = results[4]; // mismo cálculo que usa la semanal — de ahí sacamos el "efectivo real"
@@ -3169,20 +3185,23 @@ function pintarResumenMensual(cid, matricula, uid) {
     '</div>' +
     '</div>';
 
-    // ── Nóminas subidas para este conductor (visibles también en su app) ──
+    // ── Nóminas subidas para este conductor (pendientes de enviar hasta el cierre) ──
     html += '<div style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,212,255,.75),0 0 26px rgba(0,212,255,.45)">' +
-      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📄 Nóminas subidas</div>';
+      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📄 Nóminas subidas</div>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">El conductor no las verá en su app hasta que pulses "Cerrar mes" y confirmes el cierre</div>';
     if (!nominas.length) {
       html += '<div style="font-size:11px;color:var(--text3);padding:0 0 4px">Todavía no se ha subido ninguna nómina.</div>';
     } else {
       nominas.forEach(function(n){
+        var delBtnId = 'del-nomina-' + n.id;
         html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
           '<div style="min-width:0">' +
             '<div style="font-size:11.5px;font-weight:800;color:#fff">' + (n.fecha||'') + '</div>' +
             '<div style="font-size:10.5px;color:var(--text3)">' + (n.diasTrabajados||0) + ' días · € ' + Number(n.liquido||0).toFixed(2).replace('.',',') + '</div>' +
+            '<div style="font-size:9.5px;color:var(--amber);font-weight:800;margin-top:2px">⏳ Pendiente de enviar</div>' +
           '</div>' +
           '<a href="' + n.url + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:10.5px;font-weight:800;color:var(--cyan);text-decoration:none;padding:6px 8px;border:1px solid rgba(0,212,255,.5);border-radius:7px">Ver</a>' +
-          '<button onclick="eliminarNominaConductor(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + n.id + '\')" title="Eliminar esta nómina (también se borra de la app del conductor)" style="flex-shrink:0;background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:0 2px">🗑</button>' +
+          '<button id="' + delBtnId + '" onclick="eliminarNominaConductor(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + n.id + '\')" title="Eliminar esta nómina" style="flex-shrink:0;background:none;border:1px solid transparent;color:var(--red);font-size:11px;font-weight:800;cursor:pointer;padding:5px 7px;border-radius:6px;font-family:inherit">🗑</button>' +
         '</div>';
       });
     }
@@ -6564,6 +6583,24 @@ function confirmarCierrePeriodo() {
       // hay que resetearlos para que el mes siguiente empiece de cero.
       writes.push(fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + r.cid + '.json', { method: 'DELETE' }));
       writes.push(fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + r.cid + '.json', { method: 'DELETE' }));
+
+      // Las nóminas que se subieron durante el mes estaban "pendientes" —
+      // el conductor no las veía. Ahora, al confirmar el cierre, se
+      // publican de verdad (se copian al sitio que lee su app) y se
+      // limpia lo pendiente.
+      writes.push(
+        fetch(FIREBASE_URL + '/nominas_conductor_pendiente/' + r.cid + '.json').then(function(res){ return res.json(); }).then(function(pendientes){
+          if (!pendientes) return;
+          var subWrites = Object.keys(pendientes).map(function(k){
+            return fetch(FIREBASE_URL + '/nominas_conductor/' + r.cid + '.json', {
+              method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(pendientes[k])
+            });
+          });
+          return Promise.all(subWrites).then(function(){
+            return fetch(FIREBASE_URL + '/nominas_conductor_pendiente/' + r.cid + '.json', { method: 'DELETE' });
+          });
+        })
+      );
     }
   });
 
