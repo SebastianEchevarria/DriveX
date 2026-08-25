@@ -959,7 +959,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-39';
+var APP_VERSION = '2026-08-25-40';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1866,6 +1866,31 @@ function esSoloVisual() {
   return !!(currentUser && currentUser.role === 'visual');
 }
 
+// ══ REGISTRO DE ACTIVIDAD ══
+// Se llama desde cualquier acción que crea/edita/elimina algo, para poder
+// saber después quién hizo qué y cuándo. Nunca debe poder romper la acción
+// real: si falla el guardado del registro (sin conexión, etc.), se ignora
+// en silencio y la acción original sigue su curso con normalidad.
+var REGISTRO_ACTIVIDAD_SECCIONES = ['Flota','Gastos','Citas','Facturación','Propietarios','Conductores','Configuración'];
+function registrarActividad(seccion, accion, detalle) {
+  try {
+    if (!currentUser) return;
+    var ROLE_LABELS_LOG = { admin:'MASTER', visual:'Visual', ccaa_manager:'Manager', supervisor:'Supervisor' };
+    var rolLabel = ROLE_LABELS_LOG[currentUser.role] || currentUser.role || '—';
+    fetch(FIREBASE_URL + '/registro_actividad.json', {
+      method: 'POST', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        ts: Date.now(),
+        usuario: currentUser.nombre || currentUser.email || 'Desconocido',
+        rol: rolLabel,
+        seccion: seccion,
+        accion: accion,
+        detalle: detalle || ''
+      })
+    }).catch(function(){});
+  } catch(e) {}
+}
+
 function renderFlota() {
   var container = document.getElementById('flota-list');
   if (!container) return;
@@ -2068,7 +2093,109 @@ function renderConfiguracion() {
   html += '</div>';
   cont.innerHTML = html;
   renderListaUsuariosInvitados(cont);
+
+  if (currentUser && currentUser.role === 'admin') {
+    var wrapLog = document.createElement('div');
+    wrapLog.style.cssText = 'margin-top:28px';
+    wrapLog.innerHTML = '<div onclick="abrirRegistroActividad()" style="cursor:pointer;background:rgba(124,92,252,.06);border:2.5px solid rgba(124,92,252,.85);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 0 12px rgba(124,92,252,.6),0 0 26px rgba(124,92,252,.35)">' +
+      '<div style="font-size:26px;flex-shrink:0">📋</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:14px;font-weight:900;color:#fff">Registro de actividad del Dashboard</div>' +
+        '<div style="font-size:11.5px;color:var(--text3)">Quién hizo qué y cuándo — creaciones, ediciones, borrados, invitaciones, cierres de facturación...</div>' +
+      '</div>' +
+      '<div style="color:var(--purple);font-size:20px;flex-shrink:0">›</div>' +
+    '</div>';
+    cont.appendChild(wrapLog);
+  }
 }
+// ══ REGISTRO DE ACTIVIDAD — visor (solo Administrador MASTER) ══
+var _registroActividadCache = [];
+var _registroActividadTab = 'Todas';
+var ACCION_COLORES = {
+  'Creó': '0,230,118', 'Invitó': '0,230,118', 'Subió': '0,230,118', 'Cerró': '0,212,255',
+  'Editó': '255,179,0', 'Eliminó': '255,71,87'
+};
+function _colorAccionLog(accion) {
+  var k = Object.keys(ACCION_COLORES).find(function(prefijo){ return (accion||'').indexOf(prefijo) === 0; });
+  return ACCION_COLORES[k] || '124,92,252';
+}
+function abrirRegistroActividad() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var modal = document.getElementById('registro-actividad-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'registro-actividad-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:10010;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="background:var(--surface);border:2px solid rgba(124,92,252,.85);border-radius:20px;max-width:720px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 18px rgba(124,92,252,.6),0 0 40px rgba(124,92,252,.35)">' +
+    '<div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">' +
+      '<div><div style="font-size:16px;font-weight:900;color:#fff">📋 Registro de actividad</div><div style="font-size:11px;color:var(--text3)">Solo lo ve el Administrador MASTER</div></div>' +
+      '<button class="modal-close" onclick="document.getElementById(\'registro-actividad-modal\').style.display=\'none\'">✕</button>' +
+    '</div>' +
+    '<div style="padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0">' +
+      '<input id="ra-filtro" type="text" placeholder="🔍 Buscar por usuario, matrícula, nombre..." oninput="pintarRegistroActividad()" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:#fff;padding:10px 12px;border-radius:10px;font-size:13px;font-family:inherit;box-sizing:border-box;margin-bottom:10px">' +
+      '<div id="ra-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>' +
+    '</div>' +
+    '<div id="ra-lista" style="padding:14px 20px 20px;overflow-y:auto;flex:1">Cargando…</div>' +
+  '</div>';
+  modal.style.display = 'flex';
+  _registroActividadTab = 'Todas';
+
+  fetch(FIREBASE_URL + '/registro_actividad.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    _registroActividadCache = Object.keys(data).map(function(k){ return data[k]; }).sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+    pintarTabsRegistroActividad();
+    pintarRegistroActividad();
+    // Limpieza silenciosa de entradas de más de 6 meses — no bloquea nada,
+    // simplemente evita que esto crezca sin control con el tiempo.
+    var limite = Date.now() - (183 * 24 * 60 * 60 * 1000);
+    Object.keys(data).forEach(function(k){
+      if ((data[k].ts || 0) < limite) fetch(FIREBASE_URL + '/registro_actividad/' + k + '.json', { method: 'DELETE' }).catch(function(){});
+    });
+  }).catch(function(){
+    document.getElementById('ra-lista').innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:20px">No se pudo cargar el registro.</div>';
+  });
+}
+function pintarTabsRegistroActividad() {
+  var el = document.getElementById('ra-tabs');
+  if (!el) return;
+  var secciones = ['Todas'].concat(REGISTRO_ACTIVIDAD_SECCIONES);
+  el.innerHTML = secciones.map(function(s){
+    var activa = s === _registroActividadTab;
+    return '<button onclick="_registroActividadTab=\'' + s + '\';pintarRegistroActividad();pintarTabsRegistroActividad()" style="padding:6px 12px;border-radius:8px;border:1.5px solid ' + (activa?'rgba(124,92,252,1)':'var(--border2)') + ';background:' + (activa?'rgba(124,92,252,.2)':'var(--surface2)') + ';color:' + (activa?'#fff':'var(--text3)') + ';font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">' + s + '</button>';
+  }).join('');
+}
+function pintarRegistroActividad() {
+  var el = document.getElementById('ra-lista');
+  if (!el) return;
+  var filtro = (document.getElementById('ra-filtro').value || '').toLowerCase().trim();
+  var items = _registroActividadCache.filter(function(it){
+    if (_registroActividadTab !== 'Todas' && it.seccion !== _registroActividadTab) return false;
+    if (!filtro) return true;
+    var texto = ((it.usuario||'') + ' ' + (it.accion||'') + ' ' + (it.detalle||'')).toLowerCase();
+    return texto.indexOf(filtro) !== -1;
+  });
+
+  if (!items.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:30px 0">Sin actividad registrada todavía en esta sección.</div>';
+    return;
+  }
+
+  el.innerHTML = items.map(function(it){
+    var color = _colorAccionLog(it.accion);
+    var fechaTxt = it.ts ? new Date(it.ts).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    return '<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="width:8px;flex-shrink:0;border-radius:4px;background:rgba(' + color + ',.9);box-shadow:0 0 6px rgba(' + color + ',.7)"></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:12.5px;font-weight:800;color:#fff">' + (it.accion||'') + '</div>' +
+        '<div style="font-size:11.5px;color:var(--text2);margin-top:1px">' + (it.detalle||'') + '</div>' +
+        '<div style="font-size:10.5px;color:var(--text3);margin-top:3px">' + (it.usuario||'—') + ' · ' + (it.rol||'') + ' · ' + (it.seccion||'') + ' · ' + fechaTxt + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
 var _nuevoUsuarioApp = null;
 function abrirNuevoUsuarioModal(app) {
   _nuevoUsuarioApp = app;
@@ -2256,6 +2383,7 @@ function guardarNuevoUsuario() {
     document.getElementById('nu-btns').style.display = 'none';
     toast('✓ Invitación enviada');
     renderConfiguracion();
+    registrarActividad('Configuración', 'Invitó usuario', (app==='dashboard'?'Dashboard':'Supervisor') + ' · ' + nombre + ' (' + email + ')');
   }).catch(function(){
     alert('No se pudo crear la invitación. Inténtalo de nuevo.');
     btn.disabled = false;
@@ -2343,12 +2471,15 @@ function confirmDeleteUsuarioInvitado(app, uid) {
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
     var path = (app === 'dashboard' ? '/usuarios_dashboard/' : '/usuarios_supervisor/') + uid + '.json';
+    var uLog = _usuariosInvitadosCache[app] && _usuariosInvitadosCache[app][uid];
+    var nombreUsuarioLog = uLog ? uLog.nombre : uid;
     btn.disabled = true;
     btn.textContent = 'Eliminando…';
     fetch(FIREBASE_URL + path, { method: 'DELETE' }).then(fbCheck).then(function(){
       if (_usuariosInvitadosCache[app]) delete _usuariosInvitadosCache[app][uid];
       paintUsuariosInvitados();
       toast('✓ Usuario eliminado — ya no puede acceder');
+      registrarActividad('Configuración', 'Eliminó usuario', (app==='dashboard'?'Dashboard':'Supervisor') + ' · ' + nombreUsuarioLog);
     }).catch(function(err){
       alert('No se pudo eliminar: ' + err.message);
       btn.disabled = false;
@@ -2465,12 +2596,15 @@ function guardarEdicionUsuario() {
   fetch(FIREBASE_URL + path, {
     method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(cambios)
   }).then(fbCheck).then(function(){
+    var uLog = _usuariosInvitadosCache[app] && _usuariosInvitadosCache[app][uid];
+    var nombreEditLog = uLog ? uLog.nombre : uid;
     if (_usuariosInvitadosCache[app] && _usuariosInvitadosCache[app][uid]) {
       Object.assign(_usuariosInvitadosCache[app][uid], cambios);
     }
     document.getElementById('editar-usuario-modal').style.display = 'none';
     paintUsuariosInvitados();
     toast('✓ Permisos actualizados');
+    registrarActividad('Configuración', 'Editó permisos de usuario', (app==='dashboard'?'Dashboard':'Supervisor') + ' · ' + nombreEditLog);
   }).catch(function(err2){
     btn.disabled = false;
     btn.textContent = 'Guardar';
@@ -3354,6 +3488,7 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           btns.forEach(function(b){ setNominaBtnEstado(b, 'verde'); });
           toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
           pintarResumenMensual(cid, matricula, uid);
+          registrarActividad('Facturación', 'Subió nómina', matricula + ' · ' + dias + ' días · €' + liquido.toFixed(2));
         }).catch(function(err){ btns.forEach(function(b){ setNominaBtnEstado(b, 'rojo'); }); toast('❌ No se pudo guardar: ' + err.message); });
       }).catch(function(){ btns.forEach(function(b){ setNominaBtnEstado(b, 'rojo'); }); toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
     }).catch(function(err){ btns.forEach(function(b){ setNominaBtnEstado(b, 'rojo'); }); toast('❌ No se pudo convertir el PDF: ' + err.message); });
@@ -6049,6 +6184,7 @@ function confirmDeleteCita(id) {
   if (btn.getAttribute('data-confirm') === '1') {
     btn.disabled = true;
     btn.textContent = 'Eliminando…';
+    var citaLog = _citasCache.find(function(c){ return c.id === id; });
     fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
       lista = lista || [];
       if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
@@ -6060,6 +6196,7 @@ function confirmDeleteCita(id) {
       closeCitaDetail();
       renderCitas();
       renderProximasCitasInicio();
+      registrarActividad('Citas', 'Eliminó cita', citaLog ? (citaLog.matricula + ' · ' + citaLog.tipo + ' · ' + citaLog.fecha) : ('id ' + id));
     }).catch(function(err){
       alert('No se pudo eliminar la cita: ' + err.message);
       btn.disabled = false;
@@ -6186,10 +6323,12 @@ function guardarNuevaCitaDashboard() {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(lista)
     }).then(fbCheck);
   }).then(function(){
+    var eraEdicion = !!_editandoCitaId;
     _editandoCitaId = null;
     closeAddCitaModal();
     renderCitas();
     renderProximasCitasInicio();
+    registrarActividad('Citas', eraEdicion ? 'Editó cita' : 'Creó cita', matricula + ' · ' + tipo + ' · ' + fecha);
   }).catch(function(err){
     alert('No se pudo guardar la cita: ' + err.message);
   });
@@ -6423,8 +6562,10 @@ function confirmDeletePropietario(pid) {
   var btn = document.getElementById('delprop_' + pid);
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
+    var nombreProp = (_propietariosCache[pid] && _propietariosCache[pid].nombre) || pid;
     fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', { method: 'DELETE' }).then(fbCheck).then(function(){
       renderPropietarios();
+      registrarActividad('Propietarios', 'Eliminó propietario', nombreProp);
     }).catch(function(err){ alert('No se pudo eliminar: ' + err.message); });
     return;
   }
@@ -6711,6 +6852,7 @@ function guardarPropietario() {
       Object.assign(_propietariosCache[pidEdit], cambios);
       toast('✓ Propietario actualizado');
       closeAddPropietarioModal();
+      registrarActividad('Propietarios', 'Editó propietario', nombre);
     }).catch(function(){
       alert('No se pudo guardar. Inténtalo de nuevo.');
       btn.disabled = false;
@@ -6737,6 +6879,7 @@ function guardarPropietario() {
     document.getElementById('ap-invite-code').textContent = code;
     document.getElementById('ap-invite-result').style.display = 'block';
     btn.textContent = '✓ Guardado';
+    registrarActividad('Propietarios', 'Creó propietario', nombre);
   }).catch(function(err){
     alert('No se pudo guardar el propietario: ' + err.message);
     btn.disabled = false;
@@ -6945,6 +7088,7 @@ function confirmarCierrePeriodo() {
   Promise.all(writes).then(function(){
     toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
     generarExcelFacturacion();
+    registrarActividad('Facturación', 'Cerró periodo (' + p.tipo + ')', p.matricula);
     // Además de enviar al conductor, actualizamos el snapshot de
     // facturación que ve el propietario en su app — solo se actualiza aquí,
     // nunca en vivo, así el propietario ve siempre datos ya cerrados.
@@ -7431,6 +7575,7 @@ function guardarNuevoVehiculo() {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✓ Guardar vehículo'; }
     closeAddVehicleModal();
     renderFlota();
+    registrarActividad('Flota', 'Creó vehículo', matricula + ' · ' + modelo + ' · ' + ccaa);
   }).catch(function(err){
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✓ Guardar vehículo'; }
     alert('No se pudo guardar el vehículo: ' + err.message);
@@ -7443,6 +7588,7 @@ function confirmDeleteVehicle() {
   if (btn.getAttribute('data-confirm') === '1') {
     // Segunda pulsación: eliminar de verdad
     var mySlug = matSlug(_vdCurrentMat);
+    var matriculaLog = _vdCurrentMat;
     Promise.all([
       fetch(FIREBASE_URL + '/vehiculos_ocultos/' + mySlug + '.json', {
         method: 'PUT', headers: { 'Content-Type':'application/json' }, body: 'true'
@@ -7451,6 +7597,7 @@ function confirmDeleteVehicle() {
     ]).then(function(){
       closeVehicleDetail();
       renderFlota();
+      registrarActividad('Flota', 'Eliminó vehículo', matriculaLog);
     }).catch(function(err){
       alert('No se pudo eliminar el vehículo: ' + err.message);
       btn.removeAttribute('data-confirm');
@@ -7688,6 +7835,8 @@ function confirmDeleteConductor(cid) {
   if (btn.getAttribute('data-confirm') === '1') {
     // Segunda pulsación: eliminar de verdad
     var code = _vdInvitadosCache[cid] && _vdInvitadosCache[cid].code;
+    var nombreCondLog = (_vdInvitadosCache[cid] && _vdInvitadosCache[cid].nombre) || cid;
+    var matriculaCondLog = _vdCurrentMat;
     Promise.all([
       fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', { method:'DELETE' }),
       code ? fetch(FIREBASE_URL + '/invites/' + code + '.json', { method:'DELETE' }) : Promise.resolve()
@@ -7696,6 +7845,7 @@ function confirmDeleteConductor(cid) {
       paintConductoresInvitados();
       var v = getAllVehiculos().find(function(x){ return x.matricula === _vdCurrentMat; });
       if (v) renderConductoresYTurnos(v);
+      registrarActividad('Conductores', 'Eliminó conductor', nombreCondLog + ' · vehículo ' + matriculaCondLog);
     }).catch(function(){ alert('No se pudo eliminar. Revisa tu conexión.'); });
     return;
   }

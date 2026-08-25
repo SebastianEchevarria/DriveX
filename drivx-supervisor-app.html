@@ -1166,7 +1166,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-3';
+var APP_VERSION = '2026-08-25-4';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1951,6 +1951,8 @@ function confirmDeleteCitaSup(id) {
       toast('✅ Cita eliminada');
       pullCitasFromFirebase().then(function(){ renderHomeProximas(); });
       if (typeof renderCalendar === 'function') renderCalendar();
+      var cLog = _citaDetailSupActual;
+      registrarActividadSup('Citas', 'Eliminó cita', cLog ? (cLog.matricula + ' · ' + cLog.tipo + ' · ' + cLog.fecha) : ('id ' + id));
     }).catch(function(err){
       alert('No se pudo eliminar la cita: ' + err.message);
       btn.disabled = false;
@@ -2011,6 +2013,7 @@ function guardarCitaTallerMat() {
   renderVehiculosHome();
   // Refresh citas in modal
   renderMatCitas(v);
+  registrarActividadSup('Citas', 'Creó cita', v.matricula + ' · ' + tipo + ' · ' + fecha);
 }
 
 // ══ CLOUDINARY (almacenamiento compartido de documentos) ══
@@ -2036,6 +2039,29 @@ function uploadToCloudinary(file) {
     xhr.onerror = function() { reject(new Error('Error de red al subir el archivo')); };
     xhr.send(fd);
   });
+}
+
+// ══ REGISTRO DE ACTIVIDAD ══
+// Igual que en el Dashboard, se escribe en el mismo sitio de Firebase — así
+// el Administrador MASTER puede ver también las acciones que hace el
+// supervisor. Nunca puede romper la acción real: si falla el guardado del
+// registro, se ignora en silencio.
+function registrarActividadSup(seccion, accion, detalle) {
+  try {
+    var u = window.currentSupervisorUser;
+    if (!u) return;
+    fetch(FIREBASE_URL + '/registro_actividad.json', {
+      method: 'POST', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        ts: Date.now(),
+        usuario: u.nombre || u.email || 'Supervisor',
+        rol: 'Supervisor',
+        seccion: seccion,
+        accion: accion,
+        detalle: detalle || ''
+      })
+    }).catch(function(){});
+  } catch(e) {}
 }
 
 // ══ PÓLIZA PDF ══
@@ -2256,6 +2282,7 @@ function deleteCita(id) {
   var allKey = 'drivx_citas';
   var allCitas = [];
   try { allCitas = JSON.parse(localStorage.getItem(allKey)||'[]'); } catch(e){}
+  var citaLog = allCitas.find(function(c){ return c.id === id; });
   allCitas = allCitas.filter(function(c){ return c.id !== id; });
   localStorage.setItem(allKey, JSON.stringify(allCitas));
   syncAllCitasToFirebase(allCitas);
@@ -2273,6 +2300,7 @@ function deleteCita(id) {
   if (_currentMat) renderMatCitas(_currentMat);
   renderVehiculosHome();
   toast('🗑 Cita eliminada');
+  registrarActividadSup('Citas', 'Eliminó cita', citaLog ? (citaLog.matricula + ' · ' + citaLog.tipo + ' · ' + citaLog.fecha) : ('id ' + id));
 }
 
 
@@ -2474,6 +2502,7 @@ function guardarCitaTaller() {
   renderNotifCitas();
   renderITVAlerts();
   renderVehiculosHome();
+  registrarActividadSup('Citas', 'Creó cita', mat + ' · ' + tipo + ' · ' + fecha);
 }
 
 
@@ -2631,6 +2660,7 @@ function guardarCitaTallerModal() {
   renderITVAlerts();
   renderVehiculosHome();
   var _fb2={getAttribute:function(){return v.matricula;}};verMatAlerta(_fb2);
+  registrarActividadSup('Citas', 'Creó cita', v.matricula + ' · ' + tipo + ' · ' + fecha);
 }
 
 
@@ -2753,6 +2783,7 @@ function guardarCitaTallerVer() {
   toast('✅ Cita creada · '+v.matricula+' · '+tipo);
   renderNotifCitas(); renderITVAlerts(); renderVehiculosHome(); renderHomeProximas();
   verMatAlerta({getAttribute:function(){return v.matricula;}});
+  registrarActividadSup('Citas', 'Creó cita', v.matricula + ' · ' + tipo + ' · ' + fecha);
 }
 
 
@@ -3205,6 +3236,7 @@ function confirmDelCita() {
   renderCalendar();
   if(savedDay) selectCalDay(savedDay);
   toast('\uD83D\uDDD1 Cita eliminada');
+  registrarActividadSup('Citas', 'Eliminó cita', mat + ' · ' + tipo + ' · ' + fecha);
 }
 
 var _toastTimer = null;
