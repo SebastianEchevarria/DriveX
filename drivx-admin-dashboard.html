@@ -147,6 +147,15 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   0%, 100% { box-shadow: 0 0 14px rgba(255,71,87,1), 0 0 30px rgba(255,71,87,.7), 0 0 50px rgba(255,71,87,.4); }
   50% { box-shadow: 0 0 22px rgba(255,71,87,1), 0 0 46px rgba(255,71,87,.9), 0 0 74px rgba(255,71,87,.55); }
 }
+/* Facturación de un conductor — en escritorio se abre a pantalla casi
+   completa con el Resumen general a la derecha, en vez de la ventana
+   estrecha vertical que se usa en móvil. */
+@media (min-width:861px){
+  #fact-conductor-modal .fcm-outer{max-width:1400px !important;width:92vw !important;height:90vh !important;max-height:90vh !important}
+  #fact-modal-body.fcm-body{display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start;padding:24px 28px 28px}
+  .fcm-main{min-width:0;grid-column:1;grid-row:1}
+  .fcm-summary{grid-column:2;grid-row:1;position:sticky;top:0}
+}
 </style>
 </head>
 <body>
@@ -374,7 +383,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
 <!-- ══════════════ MODAL: CONDUCTOR EN FACTURACIÓN ══════════════ -->
 <div id="fact-conductor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)">
+  <div class="fcm-outer" style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6)">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0;z-index:1">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
@@ -393,7 +402,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
       </div>
     </div>
-    <div id="fact-modal-body" style="padding:20px 22px 22px"></div>
+    <div id="fact-modal-body" class="fcm-body" style="padding:20px 22px 22px"></div>
   </div>
 </div>
 
@@ -936,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-22';
+var APP_VERSION = '2026-08-25-23';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2824,22 +2833,32 @@ function facturacionModalBodyHtml(info) {
     // manual + comisión del 35% sobre lo que supere el objetivo de 150€/día
     // trabajado + propinas). Cabify queda pendiente de definir su fórmula,
     // así que de momento no entra en el Neto total de apps.
-    // El resumen va ARRIBA (es lo que importa de un vistazo) y las 3 apps
-    // (donde se editan/suben los datos brutos) van debajo.
-    return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
-      '<div id="mensual-resumen-' + uid + '" style="margin-bottom:16px"></div>' +
-      htmlApps;
+    // En escritorio: el Resumen mensual va a la derecha (columna fija) y
+    // todo lo demás a la izquierda — en móvil sigue apilado, resumen
+    // arriba, exactamente como antes (el orden en el HTML es el mismo,
+    // solo cambia con CSS Grid en pantallas anchas).
+    return '<div class="fcm-summary">' +
+        '<div id="mensual-resumen-' + uid + '"></div>' +
+      '</div>' +
+      '<div class="fcm-main">' +
+        '<div id="fact-liq-' + uid + '"></div>' +
+        htmlApps +
+      '</div>';
   }
 
-  return '<div id="fact-liq-' + uid + '" style="margin-bottom:12px"></div>' +
-    htmlApps +
-    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
-      '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+  return '<div class="fcm-summary">' +
+      '<div id="fact-liq-' + uid + '"></div>' +
     '</div>' +
-    '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
-      '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
-      '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+    '<div class="fcm-main">' +
+      htmlApps +
+      '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>' +
+        '<div id="privados_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+      '</div>' +
+      '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:12px;padding:14px 16px;box-shadow:0 0 10px rgba(255,140,0,.55),0 0 22px rgba(255,140,0,.3)">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>' +
+        '<div id="transfers_body_' + uid + '" style="font-size:11px;color:var(--text3)">Cargando…</div>' +
+      '</div>' +
     '</div>';
 }
 
