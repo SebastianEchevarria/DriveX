@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-12';
+var APP_VERSION = '2026-08-25-13';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3070,6 +3070,14 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
   reader.readAsDataURL(file);
 }
 
+function eliminarNominaConductor(cid, matricula, uid, nominaId) {
+  if (!confirm('¿Eliminar esta nómina? También desaparecerá de la app del conductor.')) return;
+  fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '/' + nominaId + '.json', { method: 'DELETE' })
+    .then(fbCheck).then(function(){
+      toast('🗑 Nómina eliminada');
+      pintarResumenMensual(cid, matricula, uid);
+    }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+}
 function pintarResumenMensual(cid, matricula, uid) {
   var cont = document.getElementById('mensual-resumen-' + uid);
   if (!cont) return;
@@ -3079,13 +3087,17 @@ function pintarResumenMensual(cid, matricula, uid) {
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     calcularLiquidacionAcumulada(cid, matricula, uid).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {}, extra = results[3] || {};
     var liq = results[4]; // mismo cálculo que usa la semanal — de ahí sacamos el "efectivo real"
     var entregasObj = results[5] || {};
     var entregas = Object.keys(entregasObj).map(function(k){ return Object.assign({ id: k }, entregasObj[k]); })
       .sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
+    var nominasObj = results[6] || {};
+    var nominas = Object.keys(nominasObj).map(function(k){ return Object.assign({ id: k }, nominasObj[k]); })
+      .sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
 
     var netoUber = Number(uber.neto || 0) - Number(uber.propinas || 0);
     var netoBolt = Number(bolt.ingresosNetos || 0) - Number(bolt.propinas || 0) - Number(bolt.peajes || 0);
@@ -3156,6 +3168,25 @@ function pintarResumenMensual(cid, matricula, uid) {
       '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="flex-shrink:0;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir</button>' +
     '</div>' +
     '</div>';
+
+    // ── Nóminas subidas para este conductor (visibles también en su app) ──
+    html += '<div style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,212,255,.75),0 0 26px rgba(0,212,255,.45)">' +
+      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📄 Nóminas subidas</div>';
+    if (!nominas.length) {
+      html += '<div style="font-size:11px;color:var(--text3);padding:0 0 4px">Todavía no se ha subido ninguna nómina.</div>';
+    } else {
+      nominas.forEach(function(n){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
+          '<div style="min-width:0">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#fff">' + (n.fecha||'') + '</div>' +
+            '<div style="font-size:10.5px;color:var(--text3)">' + (n.diasTrabajados||0) + ' días · € ' + Number(n.liquido||0).toFixed(2).replace('.',',') + '</div>' +
+          '</div>' +
+          '<a href="' + n.url + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:10.5px;font-weight:800;color:var(--cyan);text-decoration:none;padding:6px 8px;border:1px solid rgba(0,212,255,.5);border-radius:7px">Ver</a>' +
+          '<button onclick="eliminarNominaConductor(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + n.id + '\')" title="Eliminar esta nómina (también se borra de la app del conductor)" style="flex-shrink:0;background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:0 2px">🗑</button>' +
+        '</div>';
+      });
+    }
+    html += '</div>';
 
     html += '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
     html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
