@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-14';
+var APP_VERSION = '2026-08-25-15';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3040,9 +3040,6 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           method: 'PATCH', headers: { 'Content-Type':'application/json' },
           body: JSON.stringify({ diasTrabajados: dias, nomina: liquido, ts: Date.now() })
         }).then(fbCheck).then(function(){
-          setNominaBtnEstado(btn, 'verde');
-          toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
-          pintarResumenMensual(cid, matricula, uid);
           // Además de extraer los datos, guardamos una IMAGEN en Cloudinary
           // para que el conductor pueda verla/descargarla desde su propia
           // app, en el apartado "Nómina". Si el original era un PDF, NUNCA
@@ -3052,7 +3049,7 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           var archivoParaGuardar = esPdf
             ? base64ToBlobAdmin(img.base64, img.mediaType)
             : file;
-          uploadToCloudinary(archivoParaGuardar).then(function(res){
+          return uploadToCloudinary(archivoParaGuardar).then(function(res){
             var url = res && res.secure_url ? res.secure_url : null;
             if (!url) return;
             return fetch(FIREBASE_URL + '/nominas_conductor_pendiente/' + cid + '.json', {
@@ -3062,7 +3059,14 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
                 fecha: new Date().toISOString().slice(0,10), ts: Date.now()
               })
             });
-          }).catch(function(err){ toast('⚠ Los datos se guardaron, pero no se pudo subir el archivo de la nómina: ' + err.message); });
+          });
+        }).then(function(){
+          // Repintamos AL FINAL, cuando ya está todo guardado (datos +
+          // archivo en Cloudinary + registro de la nómina) — así aparece
+          // en "Nóminas subidas" al instante, sin tener que reabrir.
+          setNominaBtnEstado(btn, 'verde');
+          toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
+          pintarResumenMensual(cid, matricula, uid);
         }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo guardar: ' + err.message); });
       }).catch(function(){ setNominaBtnEstado(btn, 'rojo'); toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
     }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo convertir el PDF: ' + err.message); });
