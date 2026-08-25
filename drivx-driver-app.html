@@ -1193,7 +1193,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-1';
+var APP_VERSION = '2026-08-25-2';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1363,7 +1363,7 @@ function _pwaAlreadyStandalone() {
 }
 
 function _pwaWasInstalledBefore() {
-  try { return localStorage.getItem('drivx_pwa_installed') === '1'; } catch(e) { return false; }
+  try { return localStorage.getItem('drivx_pwa_installed_driver') === '1'; } catch(e) { return false; }
 }
 
 function _pwaHideInstallButtons() {
@@ -1389,7 +1389,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
 window.addEventListener('appinstalled', function() {
   _pwaIsInstalled = true;
   _pwaDeferredPrompt = null;
-  try { localStorage.setItem('drivx_pwa_installed', '1'); } catch(e) {}
+  try { localStorage.setItem('drivx_pwa_installed_driver', '1'); } catch(e) {}
   var loginBtn = document.getElementById('pwa-install-btn'); if (loginBtn) loginBtn.style.display = 'none';
   var banner = document.getElementById('pwa-install-banner'); if (banner) banner.style.display = 'none';
   _pwaHideInstallButtons();

@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-32';
+var APP_VERSION = '2026-08-25-33';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -981,7 +981,7 @@ function _pwaAlreadyStandalone() {
 }
 
 function _pwaWasInstalledBefore() {
-  try { return localStorage.getItem('drivx_pwa_installed') === '1'; } catch(e) { return false; }
+  try { return localStorage.getItem('drivx_pwa_installed_dashboard') === '1'; } catch(e) { return false; }
 }
 
 function _pwaHideInstallButtons() {
@@ -1003,7 +1003,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
 window.addEventListener('appinstalled', function() {
   _pwaIsInstalled = true;
   _pwaDeferredPrompt = null;
-  try { localStorage.setItem('drivx_pwa_installed', '1'); } catch(e) {}
+  try { localStorage.setItem('drivx_pwa_installed_dashboard', '1'); } catch(e) {}
   var loginBtn = document.getElementById('pwa-install-btn'); if (loginBtn) loginBtn.style.display = 'none';
   var banner = document.getElementById('pwa-install-banner'); if (banner) banner.style.display = 'none';
   _pwaHideInstallButtons();
