@@ -557,6 +557,8 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <span class="processing-text" id="billing-processing-text">Analizando captura...</span>
     </div>
 
+    <div id="nomina-driver-section" style="margin-bottom:14px"></div>
+
     <div id="liquidacion-driver-box" style="margin-bottom:14px"></div>
 
     <div class="total-bar">
@@ -1191,7 +1193,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-3';
+var APP_VERSION = '2026-08-25-1';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1850,6 +1852,8 @@ function loginAs(u) {
   setInterval(cargarBoltDesdeAdmin, 12000);
   cargarCabifyDesdeAdmin();
   setInterval(cargarCabifyDesdeAdmin, 12000);
+  cargarNominasConductor();
+  setInterval(cargarNominasConductor, 20000);
   sincronizarUberCabifyDesdeServidor();
   setInterval(sincronizarUberCabifyDesdeServidor, 12000);
   setInterval(loadPoliza, 30000);
@@ -4267,6 +4271,36 @@ function sincronizarUberCabifyDesdeServidor() {
 // no la "foto publicada" — esa solo se actualiza al Cerrar y enviar, y si
 // hubiera una foto antigua de un periodo ya cerrado, cada 12s pisaría los
 // números recién subidos con esos datos viejos.
+// El admin sube tu nómina (foto o PDF) desde el Dashboard para extraer tus
+// días trabajados y tu líquido a percibir — pero además guarda el archivo
+// original aquí, para que también puedas verlo y descargarlo tú mismo.
+function cargarNominasConductor() {
+  if (!currentUser) return;
+  fetch(FIREBASE_URL + '/nominas_conductor/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+    var cont = document.getElementById('nomina-driver-section');
+    if (!cont) return;
+    if (!datos) { cont.innerHTML = ''; return; }
+
+    var nominas = Object.keys(datos).map(function(k){ return datos[k]; })
+      .sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+    if (!nominas.length) { cont.innerHTML = ''; return; }
+
+    var html = '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,.9);border-radius:14px;padding:14px 16px;box-shadow:0 0 12px rgba(0,212,255,.75),0 0 26px rgba(0,212,255,.4)">';
+    html += '<div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.6);margin-bottom:10px">📄 NÓMINA</div>';
+    nominas.forEach(function(n){
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(0,212,255,.35);border-radius:10px;padding:10px 12px;margin-bottom:8px">' +
+        '<div style="min-width:0">' +
+          '<div style="font-size:12.5px;font-weight:800;color:#fff">' + (n.fecha||'') + '</div>' +
+          '<div style="font-size:11px;color:var(--text3)">' + (n.diasTrabajados||0) + ' días · Líquido € ' + Number(n.liquido||0).toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+        '<a href="' + n.url + '" target="_blank" rel="noopener" style="flex-shrink:0;background:rgba(0,212,255,.16);border:1.5px solid rgba(0,212,255,1);color:#fff;font-size:11.5px;font-weight:800;padding:8px 12px;border-radius:8px;text-decoration:none;white-space:nowrap">⬇️ Ver / Descargar</a>' +
+      '</div>';
+    });
+    html += '</div>';
+    cont.innerHTML = html;
+  }).catch(function(){});
+}
+
 function cargarCabifyDesdeAdmin() {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/facturacion_cabify/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){

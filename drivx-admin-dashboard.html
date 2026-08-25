@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-10';
+var APP_VERSION = '2026-08-25-11';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3037,6 +3037,20 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           setNominaBtnEstado(btn, 'verde');
           toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
           pintarResumenMensual(cid, matricula, uid);
+          // Además de extraer los datos, guardamos el archivo original en
+          // Cloudinary para que el conductor pueda verlo/descargarlo desde
+          // su propia app, en el apartado "Nómina".
+          uploadToCloudinary(file).then(function(res){
+            var url = res && res.secure_url ? res.secure_url : null;
+            if (!url) return;
+            return fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '.json', {
+              method: 'POST', headers: { 'Content-Type':'application/json' },
+              body: JSON.stringify({
+                url: url, esPdf: esPdf, diasTrabajados: dias, liquido: liquido,
+                fecha: new Date().toISOString().slice(0,10), ts: Date.now()
+              })
+            });
+          }).catch(function(err){ toast('⚠ Los datos se guardaron, pero no se pudo subir el archivo de la nómina: ' + err.message); });
         }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo guardar: ' + err.message); });
       }).catch(function(){ setNominaBtnEstado(btn, 'rojo'); toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
     }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo convertir el PDF: ' + err.message); });
