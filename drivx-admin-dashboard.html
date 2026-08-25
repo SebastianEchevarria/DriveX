@@ -384,6 +384,8 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <input type="file" id="fact-modal-nomina-input" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this)">
+        <button id="fact-modal-nomina-btn" onclick="document.getElementById('fact-modal-nomina-input').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" style="display:none;width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:15px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);align-items:center;justify-content:center;padding:0">📄</button>
         <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
         <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
       </div>
@@ -931,7 +933,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-4';
+var APP_VERSION = '2026-08-25-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2699,12 +2701,15 @@ function abrirTodosConductoresVehiculo(matricula) {
   inner.innerHTML = lista.map(function(info){
     var uid = 'fact_' + info.cid;
     _facturacionConductoresIndex[uid] = info;
+    var esMensualCard = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion === 'mensual';
     return '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;width:400px;flex-shrink:0;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3)">' +
       '<div style="padding:18px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0">' +
         '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55);margin-bottom:8px">' + (info.nombre||'Conductor') + '</div>' +
         '<div style="display:flex;align-items:center;gap:8px">' +
           plateHtmlSmall(info.matricula) +
-          '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar ' + ((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion === 'mensual' ? 'mes' : 'semana') + '" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>' +
+          (esMensualCard ? ('<input type="file" id="nomina-input-' + uid + '" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this,\'' + info.cid + '\',\'' + info.matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')">' +
+          '<button onclick="document.getElementById(\'nomina-input-' + uid + '\').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:15px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);display:flex;align-items:center;justify-content:center;padding:0">📄</button>') : '') +
+          '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar ' + (esMensualCard ? 'mes' : 'semana') + '" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>' +
         '</div>' +
       '</div>' +
       '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
@@ -2743,10 +2748,12 @@ function openFacturacionConductorModal(uid) {
   document.getElementById('fact-modal-plate').innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
   document.getElementById('fact-modal-turno').innerHTML = '🕐 ' + info.turno + (info.esInvitado ? ' · ✉ invitado' : '');
   document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
-  _factModalActual = { cid: info.cid, uid: uid };
+  _factModalActual = { cid: info.cid, uid: uid, matricula: info.matricula };
   var vTipoBtn = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
   var cerrarBtn = document.getElementById('fact-modal-cerrar-btn');
   if (cerrarBtn) cerrarBtn.title = 'Cerrar ' + (vTipoBtn === 'mensual' ? 'mes' : 'semana');
+  var nominaBtn = document.getElementById('fact-modal-nomina-btn');
+  if (nominaBtn) nominaBtn.style.display = (vTipoBtn === 'mensual') ? 'flex' : 'none';
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   pintarBoltCsvGuardado(info.cid);
   pintarUberCabifyGuardado(info.cid);
@@ -2873,6 +2880,89 @@ function eliminarEntregaEfectivoMensual(cid, matricula, uid, entregaId) {
       pintarResumenMensual(cid, matricula, uid);
     }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
 }
+// ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
+function comprimirImagenBase64Admin(base64, mediaType, maxDim, calidad) {
+  return new Promise(function(resolve){
+    try {
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        var maxLado = maxDim || 1500;
+        var scale = Math.min(1, maxLado / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL('image/jpeg', calidad || 0.72);
+        resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+      };
+      img.onerror = function(){ resolve({ base64: base64, mediaType: mediaType }); }; // p.ej. un PDF, se envía tal cual
+      img.src = 'data:' + (mediaType || 'image/jpeg') + ';base64,' + base64;
+    } catch (e) {
+      resolve({ base64: base64, mediaType: mediaType });
+    }
+  });
+}
+function llamarIaNomina(base64, mediaType, prompt) {
+  return fetch('/api/ai', {
+    method: 'POST', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ base64: base64, mediaType: mediaType, prompt: prompt })
+  }).then(function(r){
+    return r.json().then(function(d){
+      if (!r.ok) throw new Error((d && (d.error || d.message)) || ('HTTP ' + r.status));
+      return d;
+    });
+  }).then(function(d){
+    if (typeof d === 'string') return d;
+    if (d.text) return d.text;
+    if (d.content && d.content[0] && d.content[0].text) return d.content[0].text;
+    if (d.completion) return d.completion;
+    throw new Error('respuesta_ia_sin_texto');
+  });
+}
+function parseJSONAdmin(text) {
+  try { return JSON.parse((text||'').replace(/```json?|```/g,'').trim()); } catch(e) { return null; }
+}
+function onNominaFile(input, cidParam, matriculaParam, uidParam) {
+  if (!input.files[0]) return;
+  var file = input.files[0];
+  input.value = '';
+
+  var ctx = (cidParam && uidParam) ? { cid: cidParam, matricula: matriculaParam, uid: uidParam } : _factModalActual;
+  if (!ctx || !ctx.cid) return;
+  var cid = ctx.cid, matricula = ctx.matricula, uid = ctx.uid;
+
+  toast('🤖 IA leyendo la nómina…');
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var b64raw = e.target.result.split(',')[1];
+    var mtraw = file.type || 'image/jpeg';
+    var prompt = 'Nómina/recibo de salario español de un conductor VTC. Responde SOLO con JSON sin markdown: {"dias_trabajados":NUMERO,"liquido_a_percibir":NUMERO,"confianza":0.0}. INSTRUCCIONES: dias_trabajados = el campo de días del periodo de liquidación — puede llamarse "Días", "Días trabajados", "Total días" o "Días :" (un número entero pequeño, normalmente entre 1 y 31). liquido_a_percibir = el importe final de la nómina — puede llamarse "Líquido a percibir", "Total líquido a percibir" o "LÍQUIDO A PERCIBIR (A - B)"/"LÍQUIDO TOTAL A PERCIBIR (A-B)" — es el resultado final después de deducciones, NO el total devengado ni el total a deducir. Si un campo no aparece pon 0. Usa punto decimal, sin símbolo de moneda ni separador de miles.';
+
+    comprimirImagenBase64Admin(b64raw, mtraw, 1500, 0.72).then(function(img){
+      llamarIaNomina(img.base64, img.mediaType, prompt).then(function(text){
+        var parsed = parseJSONAdmin(text);
+        if (!parsed) { toast('⚠ No se pudo leer la nómina · Introduce los datos a mano'); return; }
+        var dias = Math.round(parseFloat(parsed.dias_trabajados) || 0);
+        var liquido = parseFloat(parsed.liquido_a_percibir) || 0;
+        if (dias < 1) dias = 1; if (dias > 31) dias = 31;
+
+        fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json', {
+          method: 'PATCH', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ diasTrabajados: dias, nomina: liquido, ts: Date.now() })
+        }).then(fbCheck).then(function(){
+          toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
+          pintarResumenMensual(cid, matricula, uid);
+        }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
+      }).catch(function(){ toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
 function pintarResumenMensual(cid, matricula, uid) {
   var cont = document.getElementById('mensual-resumen-' + uid);
   if (!cont) return;
