@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-17';
+var APP_VERSION = '2026-08-25-18';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3177,15 +3177,15 @@ function pintarResumenMensual(cid, matricula, uid) {
       '</div>';
     }
 
-    var html = '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,230,118,.75),0 0 26px rgba(0,230,118,.45)">' +
-      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,230,118,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Entregas de efectivo este mes</div>';
+    var html = '<div style="background:rgba(0,230,118,.08);border:3px solid rgba(0,230,118,1);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.55)">' +
+      '<div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,230,118,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Entregas de efectivo este mes</div>';
     if (!entregas.length) {
       html += '<div style="font-size:11px;color:var(--text3);padding:0 0 10px">Todavía no se ha registrado ninguna entrega.</div>';
     } else {
       entregas.forEach(function(e){
         var debeE = Number(e.debe||0), entregoE = Number(e.entrego||0);
         var difE = entregoE - debeE;
-        var colorDif = difE >= 0 ? 'var(--green)' : 'var(--red)';
+        var colorDifRgb = difE >= 0 ? '0,230,118' : '255,71,87';
         html += '<div style="background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:9px 10px;margin-bottom:6px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
             '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
@@ -3193,7 +3193,7 @@ function pintarResumenMensual(cid, matricula, uid) {
           '</div>' +
           '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3)"><span>Debe entregar</span><span style="font-family:var(--mono);color:#fff">€ ' + debeE.toFixed(2).replace('.',',') + '</span></div>' +
           '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3)"><span>Entregó</span><span style="font-family:var(--mono);color:#fff">€ ' + entregoE.toFixed(2).replace('.',',') + '</span></div>' +
-          '<div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;margin-top:2px;padding-top:4px;border-top:1px solid rgba(255,255,255,.08)"><span style="color:#fff">Diferencia</span><span style="font-family:var(--mono);color:' + colorDif + '">' + (difE>=0?'+':'') + '€ ' + difE.toFixed(2).replace('.',',') + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(' + colorDifRgb + ',.14);border:1px solid rgba(' + colorDifRgb + ',.6)"><span style="color:#fff;font-size:12px;font-weight:900">Diferencia</span><span style="font-family:var(--mono);font-size:14px;font-weight:900;color:rgb(' + colorDifRgb + ')">' + (difE>=0?'+':'') + '€ ' + difE.toFixed(2).replace('.',',') + '</span></div>' +
         '</div>';
       });
     }
@@ -3264,10 +3264,11 @@ function pintarResumenMensual(cid, matricula, uid) {
       '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">diferencia entre lo que debía entregar cada semana y lo que entregó de verdad, según el registro de abajo</div>' +
       fila('Efectivo cobrado en el mes (referencia, automático)', efectivoRealAcumulado) +
       fila('Debe entregar (registrado abajo)', totalDebeSemanal) +
-      fila('Entregado en mano (registrado abajo)', totalEntregado) +
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px;margin-top:6px">' +
-        '<span style="font-size:11px;color:var(--text3);min-width:0;font-weight:800">Pendiente de entregar</span>' +
-        '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
+      fila('Entregado en mano (registrado abajo)', totalEntregado);
+    var colorPendiente = efectivoNoEntregado > 0 ? '255,71,87' : (efectivoNoEntregado < 0 ? '0,230,118' : '255,179,0');
+    html += '<div style="margin-top:10px;background:rgba(' + colorPendiente + ',.12);border:2.5px solid rgba(' + colorPendiente + ',1);border-radius:10px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorPendiente + ',.9),0 0 30px rgba(' + colorPendiente + ',.55)">' +
+        '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.95);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pendiente de entregar</div>' +
+        '<div style="font-family:var(--mono);font-size:24px;font-weight:900;color:rgb(' + colorPendiente + ');text-shadow:0 0 8px rgba(' + colorPendiente + ',.9)">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</div>' +
       '</div>' +
     '</div>';
 
