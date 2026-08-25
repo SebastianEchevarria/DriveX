@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-27';
+var APP_VERSION = '2026-08-25-28';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2205,26 +2205,24 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
   var btnId = 'del-usr-' + app + '-' + uid;
   var subt = (u.role ? (u.role==='admin'?'Administrador':'Manager') : (app==='dashboard'?'Dashboard':'Supervisor'));
   var estado = registrado
-    ? '<span style="flex:1;text-align:center;font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:7px 8px">✓ Registrado</span>'
-    : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="flex:1;font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:7px 8px;cursor:pointer;font-family:inherit">⏳ Ver código</button>';
+    ? '<span style="flex-shrink:0;text-align:center;font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:7px 10px;white-space:nowrap">✓ Registrado</span>'
+    : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">⏳ Ver código</button>';
   var ledColor = app === 'dashboard' ? '0,212,255' : '254,164,1';
   var borderStyle = registrado
     ? 'border:1.5px solid rgba(' + ledColor + ',.85);box-shadow:0 0 8px rgba(' + ledColor + ',.55),0 0 18px rgba(' + ledColor + ',.25)'
     : 'border:1px solid var(--border2)';
-  return '<div style="background:rgba(15,20,28,.92);' + borderStyle + ';border-radius:12px;padding:12px;margin-bottom:10px">' +
-    '<div style="display:flex;align-items:center;gap:8px">' +
-      '<img src="' + icon + '" style="width:50px;height:50px;border-radius:12px;object-fit:cover;flex-shrink:0">' +
-      '<div style="flex:1;min-width:0">' +
+  return '<div class="miembro-card" style="background:rgba(15,20,28,.92);' + borderStyle + ';border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+      '<img src="' + icon + '" style="width:40px;height:40px;border-radius:10px;object-fit:cover;flex-shrink:0">' +
+      '<div style="flex:1;min-width:150px">' +
         '<div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.nombre||'—') + '</div>' +
         '<div style="font-size:11px;color:var(--text3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + subt + ' · ' + (app==='dashboard'?'Dashboard':'Supervisor') + '</div>' +
       '</div>' +
-    '</div>' +
-    '<div style="font-size:11px;color:var(--text3);margin-top:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.email||'') + '</div>' +
-    '<div style="display:flex;gap:8px;margin-top:10px">' +
-      estado +
-      '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="flex:1;font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:7px 8px;cursor:pointer;font-family:inherit">🗑 Eliminar</button>' +
-    '</div>' +
-  '</div>';
+      '<div class="miembro-card-email" style="flex:1;min-width:150px;font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.email||'') + '</div>' +
+      '<div style="display:flex;gap:8px;flex-shrink:0">' +
+        estado +
+        '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">🗑 Eliminar</button>' +
+      '</div>' +
+    '</div>';
 }
 function confirmDeleteUsuarioInvitado(app, uid) {
   if (!currentUser || currentUser.role !== 'admin') return;
