@@ -1191,7 +1191,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-2';
+var APP_VERSION = '2026-08-24-3';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4230,17 +4230,23 @@ var _citaInterval = null;
 // ya no hace falta que subas tú la captura de Bolt, se refleja aquí sola.
 // Si el admin borra los datos de Uber/Cabify desde el Dashboard, esta función
 // se encarga de reflejarlo también aquí (igual que ya pasa con Bolt).
+// Si el admin borra los datos de Uber/Cabify desde el Dashboard (botón 🗑
+// "Eliminar datos", que borra /facturacion_uber o /facturacion_cabify — el
+// dato en bruto, NO la foto publicada), esta función limpia también la
+// pantalla del conductor. IMPORTANTE: hay que mirar el dato en bruto, no
+// la "foto publicada" (que solo se actualiza al Cerrar y enviar) — si no,
+// cada captura recién subida se borraría sola a los pocos segundos, porque
+// todavía no habría llegado a esa foto publicada.
 function sincronizarUberCabifyDesdeServidor() {
   if (!currentUser) return;
-  fetch(FIREBASE_URL + '/facturacion_publicada/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(publicado){
-    ['uber','cabify'].forEach(function(plat){
-      var datos = publicado && publicado[plat];
-      if (datos) return; // sigue existiendo en lo publicado, no hay nada que limpiar
+  ['uber','cabify'].forEach(function(plat){
+    fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
+      if (datos) return; // sigue existiendo en bruto, no hay nada que limpiar
       var habiaAlgoLocal = platData[plat].neto || platData[plat].propinas || platData[plat].efectivo || platData[plat].promociones;
       if (!habiaAlgoLocal) return;
       platData[plat] = plat === 'uber'
         ? { neto:0, propinas:0, efectivo:0, promociones:0, netoReal:0 }
-        : { neto:0, propinas:0, efectivo:0 };
+        : { neto:0, efectivo:0, netoReal:0 };
       ['neto','propinas','efectivo','promos'].forEach(function(campo){
         var el = document.getElementById(plat + '-' + campo);
         if (el) el.textContent = '€ —';
@@ -4251,17 +4257,19 @@ function sincronizarUberCabifyDesdeServidor() {
       }
       updateBillingTotal();
       syncData();
-    });
-  }).catch(function(){});
+    }).catch(function(){});
+  });
 }
 
 // Sincroniza Cabify con lo que haya en el servidor — ya sea porque tú mismo
 // subiste una captura, o porque tu administrador lo introdujo/editó a mano
-// desde el Dashboard (en ese caso también verás su "Neto real" actualizado).
+// desde el Dashboard. IMPORTANTE: mira el dato en bruto (/facturacion_cabify),
+// no la "foto publicada" — esa solo se actualiza al Cerrar y enviar, y si
+// hubiera una foto antigua de un periodo ya cerrado, cada 12s pisaría los
+// números recién subidos con esos datos viejos.
 function cargarCabifyDesdeAdmin() {
   if (!currentUser) return;
-  fetch(FIREBASE_URL + '/facturacion_publicada/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(publicado){
-    var datos = publicado && publicado.cabify;
+  fetch(FIREBASE_URL + '/facturacion_cabify/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
     if (!datos) return;
     platData.cabify.neto = Number(datos.neto||0);
     platData.cabify.efectivo = Number(datos.efectivo||0);
