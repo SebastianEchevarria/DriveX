@@ -151,7 +151,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
    completa con el Resumen general a la derecha, en vez de la ventana
    estrecha vertical que se usa en móvil. */
 @media (min-width:861px){
-  #fact-conductor-modal .fcm-outer{max-width:1400px !important;width:92vw !important;height:90vh !important;max-height:90vh !important}
+  #fact-conductor-modal .fcm-outer{max-width:1400px !important;width:92vw !important;height:auto !important;max-height:90vh !important}
   #fact-modal-body.fcm-body{display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start;padding:24px 28px 28px}
   .fcm-main{min-width:0;grid-column:1;grid-row:1}
   .fcm-summary{grid-column:2;grid-row:1;position:sticky;top:0}
@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-24';
+var APP_VERSION = '2026-08-25-25';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
