@@ -819,8 +819,13 @@ function paintVehiculosHome() {
   function dU(s) { if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d - hoy) / 86400000); }
   function fD(s) { return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
-  // Group vehicles by CCAA
-  var ccaaOrder = getCcaaOrder();
+  // Group vehicles by CCAA — si el supervisor tiene comunidades asignadas,
+  // solo se muestran esas (ni siquiera como botón vacío); si no tiene
+  // restricción, se ven todas como hasta ahora.
+  var uSup = window.currentSupervisorUser;
+  var ccaaOrder = (uSup && Array.isArray(uSup.ccaasAsignadas) && uSup.ccaasAsignadas.length)
+    ? uSup.ccaasAsignadas
+    : getCcaaOrder();
   var allVehiculos = getAllVehiculos();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; }); // así se ve la comunidad aunque no tenga vehículos aún

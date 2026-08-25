@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-31';
+var APP_VERSION = '2026-08-25-32';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1621,7 +1621,7 @@ function renderFichajeAlerts() {
     if (!late.length) { container.innerHTML = ''; return; }
 
     var ccaaIcons = CCAA_ICONS;
-    var ccaaOrder = getCcaaOrder();
+    var ccaaOrder = getCcaaOrderVisible();
     var groups = {};
     late.forEach(function(l){ (groups[l.ccaa] = groups[l.ccaa] || []).push(l); });
     var ccaasPresentes = Object.keys(groups).sort(function(a,b){
@@ -1775,6 +1775,14 @@ var VEHICULOS_EXTRA = [];
 var CCAA_BASE = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
 var CCAA_EXTRA = [];
 function getCcaaOrder() { return CCAA_BASE.concat(CCAA_EXTRA); }
+// Versión que respeta la restricción de un Manager: si tiene una CCAA
+// asignada, es la ÚNICA que debe poder ver o elegir en cualquier sitio de
+// la app (grupos de Flota, selects, filtros...). Para todos los demás
+// roles (MASTER, Visual) se comporta igual que getCcaaOrder().
+function getCcaaOrderVisible() {
+  if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) return [currentUser.ccaaAsignada];
+  return getCcaaOrder();
+}
 var TODAS_CCAA_ESPANA = [
   'Andalucía','Aragón','Asturias','Islas Baleares','Canarias','Cantabria',
   'Castilla-La Mancha','Castilla y León','Cataluña','Comunidad Valenciana',
@@ -1880,7 +1888,7 @@ function paintFlota() {
   function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
-  var ccaaOrder = getCcaaOrder();
+  var ccaaOrder = getCcaaOrderVisible();
   var allVehiculos = getAllVehiculos();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; }); // asegura que las 3 CCAA existan aunque no tengan vehículos
@@ -2310,6 +2318,7 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
       '<div class="miembro-card-email" style="flex:1;min-width:150px;font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.email||'') + '</div>' +
       '<div style="display:flex;gap:8px;flex-shrink:0">' +
         estado +
+        '<button onclick="abrirEditarUsuarioModal(\'' + app + '\',\'' + uid + '\')" title="Editar rol / comunidades autónomas" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--cyan);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">✏️ Editar</button>' +
         '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">🗑 Eliminar</button>' +
       '</div>' +
     '</div>';
@@ -2345,6 +2354,116 @@ function confirmDeleteUsuarioInvitado(app, uid) {
     }
   }, 3000);
 }
+// ══ EDITAR PERMISOS DE UN USUARIO YA CREADO (rol / CCAA asignada) ══
+var _editUsuarioActual = null;
+function abrirEditarUsuarioModal(app, uid) {
+  if (!puedeEditar()) return;
+  var u = (_usuariosInvitadosCache[app] || {})[uid];
+  if (!u) return;
+  _editUsuarioActual = { app: app, uid: uid };
+
+  var modal = document.getElementById('editar-usuario-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'editar-usuario-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:10005;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+
+  var esDash = app === 'dashboard';
+  var colorTema = esDash ? '0,212,255' : '254,164,1';
+  var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.9);border-radius:20px;max-width:400px;width:100%;padding:22px;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.7),0 0 38px rgba(' + colorTema + ',.4)">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:4px">✏️ Editar permisos</div>';
+  html += '<div style="font-size:11px;color:var(--text3);margin-bottom:16px">' + (u.nombre||'') + ' · ' + (u.email||'') + '</div>';
+
+  if (esDash) {
+    html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Rol</label>';
+    html += '<select id="eu-role" onchange="toggleEuCcaaWrap()" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:16px;box-sizing:border-box">' +
+      '<option value="admin"' + (u.role==='admin'?' selected':'') + '>👑 Administrador MASTER</option>' +
+      '<option value="visual"' + (u.role==='visual'?' selected':'') + '>📊 Administrador Visual</option>' +
+      '<option value="ccaa_manager"' + (u.role==='ccaa_manager'?' selected':'') + '>🗺️ Manager</option>' +
+    '</select>';
+    html += '<div id="eu-ccaa-wrap" style="display:none;margin-bottom:16px">' +
+      '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma asignada</label>' +
+      '<select id="eu-ccaa" style="width:100%;background:var(--surface2);border:1.5px solid rgba(0,212,255,.6);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">' +
+        getCcaaOrder().map(function(cc){ return '<option value="' + cc + '"' + (u.ccaaAsignada===cc?' selected':'') + '>' + (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</option>'; }).join('') +
+      '</select>' +
+    '</div>';
+  } else {
+    html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidades autónomas que gestionará</label>';
+    html += '<div style="font-size:10.5px;color:var(--text3);margin-bottom:8px">Marca una o varias.</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1.5px solid rgba(254,164,1,.5);border-radius:10px;padding:10px;margin-bottom:16px">' +
+      getCcaaOrder().map(function(cc){
+        var marcado = (u.ccaasAsignadas || []).indexOf(cc) !== -1;
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#fff;cursor:pointer">' +
+          '<input type="checkbox" class="eu-ccaa-sup-check" value="' + cc + '"' + (marcado?' checked':'') + ' style="width:16px;height:16px;accent-color:#fea401">' +
+          (CCAA_ICONS[cc]||'📍') + ' ' + cc +
+        '</label>';
+      }).join('') +
+    '</div>';
+  }
+
+  html += '<div id="eu-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:10px"></div>';
+  html += '<div style="display:flex;gap:10px">' +
+    '<button onclick="document.getElementById(\'editar-usuario-modal\').style.display=\'none\'" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>' +
+    '<button id="eu-save-btn" onclick="guardarEdicionUsuario()" style="flex:1;padding:13px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit">Guardar</button>' +
+  '</div>';
+  html += '</div>';
+
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+  if (esDash) toggleEuCcaaWrap();
+}
+function toggleEuCcaaWrap() {
+  var sel = document.getElementById('eu-role');
+  var wrap = document.getElementById('eu-ccaa-wrap');
+  if (!sel || !wrap) return;
+  wrap.style.display = (sel.value === 'ccaa_manager') ? 'block' : 'none';
+}
+function guardarEdicionUsuario() {
+  if (!_editUsuarioActual) return;
+  var app = _editUsuarioActual.app, uid = _editUsuarioActual.uid;
+  var err = document.getElementById('eu-error');
+  var cambios = {};
+
+  if (app === 'dashboard') {
+    var role = document.getElementById('eu-role').value;
+    cambios.role = role;
+    if (role === 'ccaa_manager') {
+      var ccaa = document.getElementById('eu-ccaa').value;
+      if (!ccaa) { err.textContent = 'Elige una comunidad autónoma.'; err.style.display = 'block'; return; }
+      cambios.ccaaAsignada = ccaa;
+    } else {
+      cambios.ccaaAsignada = null; // ya no aplica, se quita si tenía una de antes
+    }
+  } else {
+    var marcadas = Array.prototype.slice.call(document.querySelectorAll('.eu-ccaa-sup-check:checked')).map(function(c){ return c.value; });
+    if (!marcadas.length) { err.textContent = 'Marca al menos una comunidad autónoma.'; err.style.display = 'block'; return; }
+    cambios.ccaasAsignadas = marcadas;
+  }
+  err.style.display = 'none';
+
+  var btn = document.getElementById('eu-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  var path = (app === 'dashboard' ? '/usuarios_dashboard/' : '/usuarios_supervisor/') + uid + '.json';
+
+  fetch(FIREBASE_URL + path, {
+    method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(cambios)
+  }).then(fbCheck).then(function(){
+    if (_usuariosInvitadosCache[app] && _usuariosInvitadosCache[app][uid]) {
+      Object.assign(_usuariosInvitadosCache[app][uid], cambios);
+    }
+    document.getElementById('editar-usuario-modal').style.display = 'none';
+    paintUsuariosInvitados();
+    toast('✓ Permisos actualizados');
+  }).catch(function(err2){
+    btn.disabled = false;
+    btn.textContent = 'Guardar';
+    alert('No se pudo guardar: ' + err2.message);
+  });
+}
+
 function verCodigoUsuarioInvitado(code) {
   var modal = document.getElementById('ver-codigo-modal');
   if (!modal) {
@@ -2376,7 +2495,7 @@ function paintConductoresScreen() {
   var container = document.getElementById('conductores-list');
   if (!container) return;
 
-  var ccaaOrder = getCcaaOrder();
+  var ccaaOrder = getCcaaOrderVisible();
   var allVehiculos = getAllVehiculos();
   var matriculaToCcaa = {};
   allVehiculos.forEach(function(v){ matriculaToCcaa[v.matricula] = v.ccaa; });
@@ -4748,7 +4867,7 @@ function paintFacturacion() {
   var container = document.getElementById('facturacion-list');
   if (!container) return;
 
-  var ccaaOrder = getCcaaOrder();
+  var ccaaOrder = getCcaaOrderVisible();
   var allVehiculos = getAllVehiculos().filter(function(v){
     return (v.tipoFacturacion || 'semanal') === _facturacionTabActual;
   });
@@ -5101,7 +5220,7 @@ function paintGastos() {
   var vehByMatSlug = {};
   getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
 
-  var ccaaOrder = getCcaaOrder();
+  var ccaaOrder = getCcaaOrderVisible();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; });
 
@@ -5597,7 +5716,7 @@ function paintCitas() {
   var vehByMatSlug = {};
   getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
 
-  var ccaaOrder = getCcaaOrder();
+  var ccaaOrder = getCcaaOrderVisible();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; });
   _citasCache.forEach(function(cita){
@@ -5950,10 +6069,10 @@ function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
   document.getElementById('ac-save-btn').textContent = '✓ Guardar cita';
 
   var ccaaSel = document.getElementById('ac-ccaa');
-  ccaaSel.innerHTML = getCcaaOrder().map(function(cc){
+  ccaaSel.innerHTML = getCcaaOrderVisible().map(function(cc){
     return '<option value="'+cc+'">'+(CCAA_ICONS[cc]||'📍')+' '+cc+'</option>';
   }).join('');
-  ccaaSel.value = ccaaPreseleccionada || getCcaaOrder()[0];
+  ccaaSel.value = ccaaPreseleccionada || getCcaaOrderVisible()[0];
   filtrarMatriculasPorCcaa();
 
   document.getElementById('ac-tipo').value = 'ITV';
@@ -5971,7 +6090,7 @@ function editarCitaDashboard() {
   if (!cita) return;
 
   var v = getAllVehiculos().find(function(x){ return x.matricula === cita.matricula; });
-  openAddCitaModal(v ? v.ccaa : getCcaaOrder()[0]);
+  openAddCitaModal(v ? v.ccaa : getCcaaOrderVisible()[0]);
 
   _editandoCitaId = cita.id;
   document.getElementById('ac-modal-title').textContent = 'Editar cita';
@@ -6101,7 +6220,7 @@ function paintPropietarios() {
   var vehByMatSlug = {};
   getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
 
-  var ccaaOrder = getCcaaOrder();
+  var ccaaOrder = getCcaaOrderVisible();
   var groups = {};
   ccaaOrder.forEach(function(cc){ groups[cc] = []; });
 
@@ -6914,7 +7033,7 @@ function editarCcaaVehiculo() {
   document.getElementById('cambio-ccaa-modal').style.display = 'flex';
 }
 function _todasLasCcaaDisponibles() {
-  return getCcaaOrder();
+  return getCcaaOrderVisible();
 }
 function pintarListaCambioCcaa() {
   var p = _cambioCcaaPendiente;
@@ -7208,8 +7327,8 @@ function openAddVehicleModal(ccaa) {
   document.getElementById('av-combustible').value = 'electrico';
   document.getElementById('av-facturacion').value = 'semanal';
   var ccaaSelect = document.getElementById('av-ccaa');
-  ccaaSelect.innerHTML = getCcaaOrder().map(function(cc){ return '<option value="'+cc+'">'+cc+'</option>'; }).join('');
-  ccaaSelect.value = ccaa || getCcaaOrder()[0];
+  ccaaSelect.innerHTML = getCcaaOrderVisible().map(function(cc){ return '<option value="'+cc+'">'+cc+'</option>'; }).join('');
+  ccaaSelect.value = ccaa || getCcaaOrderVisible()[0];
   _avPendingFiles = {};
   renderAvDocsList();
   document.getElementById('add-vehicle-modal').style.display = 'flex';
