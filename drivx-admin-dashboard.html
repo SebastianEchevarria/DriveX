@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-3';
+var APP_VERSION = '2026-08-25-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2940,7 +2940,28 @@ function pintarResumenMensual(cid, matricula, uid) {
       '</div>';
     }
 
-    var html = '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
+    var html = '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,230,118,.75),0 0 26px rgba(0,230,118,.45)">' +
+      '<style>#entrega-fecha-' + uid + '::-webkit-calendar-picker-indicator{filter:invert(1)}</style>' +
+      '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,230,118,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Entregas de efectivo este mes</div>';
+    if (!entregas.length) {
+      html += '<div style="font-size:11px;color:var(--text3);padding:0 0 10px">Todavía no se ha registrado ninguna entrega.</div>';
+    } else {
+      entregas.forEach(function(e){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
+          '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
+          '<span style="font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--green);flex:1;text-align:right;margin-right:6px">€ ' + Number(e.importe||0).toFixed(2).replace('.',',') + '</span>' +
+          '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
+        '</div>';
+      });
+    }
+    html += '<div style="display:flex;gap:8px;margin-top:8px">' +
+      '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="flex:1;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3)">' +
+      '<input id="entrega-importe-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:90px;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono);box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3)">' +
+      '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="flex-shrink:0;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir</button>' +
+    '</div>' +
+    '</div>';
+
+    html += '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
     html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
 
     html += '<div style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
@@ -2973,27 +2994,6 @@ function pintarResumenMensual(cid, matricula, uid) {
         '<span style="font-size:11px;color:var(--text3);min-width:0;font-weight:800">Pendiente de entregar</span>' +
         '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
       '</div>' +
-    '</div>';
-
-    // ── Entregas de efectivo registradas (semanales, dentro del mes) ──
-    html += '<div style="margin-bottom:12px">' +
-      '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📥 Entregas de efectivo este mes</div>';
-    if (!entregas.length) {
-      html += '<div style="font-size:11px;color:var(--text3);padding:6px 0 8px">Todavía no se ha registrado ninguna entrega.</div>';
-    } else {
-      entregas.forEach(function(e){
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
-          '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
-          '<span style="font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--green);flex:1;text-align:right;margin-right:6px">€ ' + Number(e.importe||0).toFixed(2).replace('.',',') + '</span>' +
-          '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
-        '</div>';
-      });
-    }
-    html += '<div style="display:flex;gap:8px;margin-top:6px">' +
-      '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit">' +
-      '<input id="entrega-importe-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:90px;background:var(--surface2);border:1.5px solid var(--border2);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono)">' +
-      '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="flex-shrink:0;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir</button>' +
-    '</div>' +
     '</div>';
 
     html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
