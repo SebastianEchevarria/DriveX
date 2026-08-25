@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-28';
+var APP_VERSION = '2026-08-25-30';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1099,7 +1099,7 @@ function doLogin() {
 
   // Usuarios fijos de siempre (se mantienen, para no romper nada)
   var u = USERS_DASH[email];
-  if (u && u.pass === pass && u.role === currentRole) {
+  if (u && u.pass === pass) {
     err.style.display = 'none';
     currentUser = u;
     localStorage.setItem('drivx_admin_user', email);
@@ -1108,12 +1108,15 @@ function doLogin() {
   }
 
   // Usuarios creados desde Configuración → Invitación (guardados en Firebase)
+  // El rol (MASTER / Visual / Manager) va guardado con el propio usuario —
+  // no hace falta elegir ninguna pestaña antes de entrar, solo el email y
+  // la contraseña identifican quién es y qué puede ver/hacer.
   fetch(FIREBASE_URL + '/usuarios_dashboard.json').then(function(r){ return r.json(); }).then(function(data){
     data = data || {};
     var match = null;
     Object.keys(data).forEach(function(uid){
       var uu = data[uid];
-      if (uu && uu.email === email && uu.pass === pass && uu.role === currentRole) match = uu;
+      if (uu && uu.email === email && uu.pass === pass) match = uu;
     });
     if (match) {
       err.style.display = 'none';
@@ -1239,9 +1242,13 @@ function enterShell() {
 
 
   var isAdmin = currentUser.role === 'admin';
-  document.getElementById('sb-avatar').textContent = isAdmin ? '👑' : '📊';
+  var etiquetaRol = currentUser.role === 'admin' ? 'Administrador MASTER'
+    : currentUser.role === 'ccaa_manager' ? ('Manager · ' + (currentUser.ccaaAsignada || 'sin CCAA'))
+    : 'Administrador Visual (solo lectura)';
+  var iconoRol = currentUser.role === 'admin' ? '👑' : currentUser.role === 'ccaa_manager' ? '🗺️' : '📊';
+  document.getElementById('sb-avatar').textContent = iconoRol;
   document.getElementById('sb-name').textContent = currentUser.nombre;
-  document.getElementById('sb-role').textContent = isAdmin ? 'Administrador' : 'Manager (solo lectura)';
+  document.getElementById('sb-role').textContent = etiquetaRol;
 
   renderInicioStats();
   renderFlota();
@@ -1816,7 +1823,25 @@ function ccaaGroupGlow(cc) {
 }
 var VEHICULOS_OCULTOS = {};
 function getAllVehiculos() {
-  return VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlug(v.matricula)]; });
+  var todos = VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlug(v.matricula)]; });
+  // Un Manager con CCAA asignada solo puede ver (y por tanto solo puede
+  // haber datos de) los vehículos de SU comunidad autónoma. Al filtrar
+  // aquí, en el único punto que alimenta Flota, Facturación, Gastos y
+  // Citas, la restricción se aplica automáticamente en todo el Dashboard.
+  if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) {
+    todos = todos.filter(function(v){ return v.ccaa === currentUser.ccaaAsignada; });
+  }
+  return todos;
+}
+// ══ PERMISOS POR ROL ══
+// admin        = Administrador MASTER: acceso y edición total (rol clásico "admin", sin cambios).
+// visual       = Administrador Visual: ve todo, no puede editar nada (antes se llamaba "manager").
+// ccaa_manager = Manager: puede editar, pero solo ve/opera sobre su Comunidad Autónoma asignada.
+function puedeEditar() {
+  return !!(currentUser && (currentUser.role === 'admin' || currentUser.role === 'ccaa_manager'));
+}
+function esSoloVisual() {
+  return !!(currentUser && currentUser.role === 'visual');
 }
 
 function renderFlota() {
@@ -1875,7 +1900,7 @@ function paintFlota() {
   var ccaaIcons  = CCAA_ICONS;
   var ccBg       = CCAA_BG;
   var ccBorder   = CCAA_BORDER;
-  var isAdmin = currentUser && currentUser.role === 'admin';
+  var isAdmin = puedeEditar();
 
   var html = '';
   html += '<div class="dual-btn-row" style="margin-bottom:16px">';
@@ -2049,10 +2074,19 @@ function abrirNuevoUsuarioModal(app) {
 
   if (esDash) {
     html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Rol</label>';
-    html += '<select id="nu-role" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:16px;box-sizing:border-box">' +
-      '<option value="admin">👑 Administrador</option>' +
-      '<option value="manager">📊 Manager</option>' +
+    html += '<select id="nu-role" onchange="toggleNuCcaaWrap()" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:6px;box-sizing:border-box">' +
+      '<option value="admin">👑 Administrador MASTER</option>' +
+      '<option value="visual">📊 Administrador Visual</option>' +
+      '<option value="ccaa_manager">🗺️ Manager</option>' +
     '</select>';
+    html += '<div id="nu-role-desc" style="font-size:10.5px;color:var(--text3);margin-bottom:12px"></div>';
+    html += '<div id="nu-ccaa-wrap" style="display:none;margin-bottom:16px">' +
+      '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma asignada</label>' +
+      '<select id="nu-ccaa" style="width:100%;background:var(--surface2);border:1.5px solid rgba(0,212,255,.6);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">' +
+        getCcaaOrder().map(function(cc){ return '<option value="' + cc + '">' + (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</option>'; }).join('') +
+      '</select>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-top:4px">Este usuario, al iniciar sesión, solo verá los vehículos y datos de esta comunidad.</div>' +
+    '</div>';
   }
 
   html += '<div id="nu-error" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px">Rellena todos los campos.</div>';
@@ -2073,6 +2107,7 @@ function abrirNuevoUsuarioModal(app) {
 
   modal.innerHTML = html;
   modal.style.display = 'flex';
+  if (esDash) toggleNuCcaaWrap();
 }
 
 function copiarCodigoInviteUsuario() {
@@ -2110,6 +2145,22 @@ function copyInviteCodeUsuario() {
   }
 }
 
+function toggleNuCcaaWrap() {
+  var sel = document.getElementById('nu-role');
+  var wrap = document.getElementById('nu-ccaa-wrap');
+  var desc = document.getElementById('nu-role-desc');
+  if (!sel || !wrap) return;
+  var val = sel.value;
+  wrap.style.display = (val === 'ccaa_manager') ? 'block' : 'none';
+  if (desc) {
+    desc.textContent = val === 'admin'
+      ? 'Acceso y edición completa, igual que tú.'
+      : val === 'visual'
+      ? 'Ve todo el Dashboard, pero no puede crear, editar ni eliminar nada.'
+      : 'Puede editar, pero solo dentro de la comunidad autónoma que le asignes abajo.';
+  }
+}
+
 function guardarNuevoUsuario() {
   var app = _nuevoUsuarioApp;
   var nombre = document.getElementById('nu-nombre').value.trim();
@@ -2119,8 +2170,19 @@ function guardarNuevoUsuario() {
   var err = document.getElementById('nu-error');
 
   if (!nombre || !email || email.indexOf('@') === -1) {
+    err.textContent = 'Rellena todos los campos.';
     err.style.display = 'block';
     return;
+  }
+  var ccaaAsignada = null;
+  if (app === 'dashboard' && role === 'ccaa_manager') {
+    var ccaaEl = document.getElementById('nu-ccaa');
+    ccaaAsignada = ccaaEl ? ccaaEl.value : null;
+    if (!ccaaAsignada) {
+      err.textContent = 'Elige la comunidad autónoma para este Manager.';
+      err.style.display = 'block';
+      return;
+    }
   }
   err.style.display = 'none';
 
@@ -2130,6 +2192,7 @@ function guardarNuevoUsuario() {
   var path;
   if (app === 'dashboard') {
     usuario.role = role;
+    if (role === 'ccaa_manager') usuario.ccaaAsignada = ccaaAsignada;
     path = '/usuarios_dashboard/' + uid + '.json';
   } else {
     path = '/usuarios_supervisor/' + uid + '.json';
@@ -2203,7 +2266,8 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
   var icon = app === 'dashboard' ? DASH_ICON_B64 : SUPERVISOR_ICON_B64;
   var registrado = !!u.inviteUsado;
   var btnId = 'del-usr-' + app + '-' + uid;
-  var subt = (u.role ? (u.role==='admin'?'Administrador':'Manager') : (app==='dashboard'?'Dashboard':'Supervisor'));
+  var ROLE_LABELS = { admin:'Administrador MASTER', visual:'Administrador Visual', ccaa_manager:'Manager' };
+  var subt = u.role ? (ROLE_LABELS[u.role] || u.role) + (u.role === 'ccaa_manager' && u.ccaaAsignada ? ' · ' + u.ccaaAsignada : '') : (app==='dashboard'?'Dashboard':'Supervisor');
   var estado = registrado
     ? '<span style="flex-shrink:0;text-align:center;font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:7px 10px;white-space:nowrap">✓ Registrado</span>'
     : '<button onclick="verCodigoUsuarioInvitado(\'' + (u.inviteCode||'') + '\')" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">⏳ Ver código</button>';
@@ -2225,7 +2289,7 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
     '</div>';
 }
 function confirmDeleteUsuarioInvitado(app, uid) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('del-usr-' + app + '-' + uid);
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
@@ -4891,7 +4955,7 @@ function updateDocBadge(matricula) {
 }
 
 function confirmDeleteCcaa(gid, cc) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('delccaa_' + gid);
   if (!btn) return;
 
@@ -5193,7 +5257,7 @@ function paintGastos() {
 }
 
 function confirmEliminarTodoGastos(mgid, mSlug, matricula) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('delall_' + mgid);
   if (!btn) return;
 
@@ -5322,7 +5386,7 @@ function onTicketCheckChange(mgid) {
   }
 }
 function eliminarSeleccionados(mgid, mSlug) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('delsel_' + mgid);
   var checked = Array.prototype.slice.call(document.querySelectorAll('.ticket-row[data-mgid="' + mgid + '"] .ticket-check:checked'));
   if (!checked.length) return;
@@ -5803,7 +5867,7 @@ function openCitaDetail(id) {
   document.getElementById('cita-detail-modal').style.display = 'flex';
 }
 function confirmDeleteCita(id) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('cd-delete-btn');
   if (!btn) return;
 
@@ -5853,7 +5917,7 @@ function closeCitaDetail() {
 
 var _editandoCitaId = null;
 function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   _editandoCitaId = null;
   document.getElementById('ac-modal-title').textContent = 'Nueva cita';
   document.getElementById('ac-modal-subtitle').textContent = 'Visible para todos los conductores del vehículo';
@@ -5876,7 +5940,7 @@ function openAddCitaModal(ccaaPreseleccionada, fechaPreseleccionada) {
   document.getElementById('add-cita-modal').style.display = 'flex';
 }
 function editarCitaDashboard() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var cita = _citasCache.find(function(c){ return c.id === _citaDetailAbiertaId; });
   if (!cita) return;
 
@@ -5909,7 +5973,7 @@ function closeAddCitaModal() {
   document.getElementById('add-cita-modal').style.display = 'none';
 }
 function guardarNuevaCitaDashboard() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var matricula = document.getElementById('ac-matricula').value;
   var tipo = document.getElementById('ac-tipo').value;
   var fecha = document.getElementById('ac-fecha').value;
@@ -5977,6 +6041,22 @@ function renderPropietarios() {
     VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
     VEHICULOS_OCULTOS = ocultos;
     CCAA_EXTRA = Object.keys(comunidadesExtra).filter(function(cc){ return comunidadesExtra[cc]; });
+    // Un Manager solo debe ver propietarios que tengan AL MENOS UN vehículo
+    // en su comunidad autónoma asignada (aunque también tengan coches en
+    // otras). getAllVehiculos() ya devuelve solo los vehículos de su CCAA
+    // cuando el usuario es Manager, así que basta con comprobar si alguna
+    // de las matrículas del propietario está en esa lista.
+    if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) {
+      var matsVisibles = {};
+      getAllVehiculos().forEach(function(v){ matsVisibles[v.matricula] = true; });
+      var filtrados = {};
+      Object.keys(_propietariosCache).forEach(function(pid){
+        var p = _propietariosCache[pid];
+        var tieneVehiculoAqui = (p.matriculas || []).some(function(m){ return matsVisibles[m]; });
+        if (tieneVehiculoAqui) filtrados[pid] = p;
+      });
+      _propietariosCache = filtrados;
+    }
     try { paintPropietarios(); }
     catch (err) {
       container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar propietarios: ' + err.message + '<br><br>' +
@@ -6131,7 +6211,7 @@ function copiarCuentaPropietario(pid) {
 // confirmación (pulsar dos veces en 5s). Solo lo desvincula de ese
 // propietario: el vehículo sigue existiendo en la Flota igual que antes.
 function eliminarVehiculoDePropietario(pid, matricula, btnId) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById(btnId);
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
@@ -6164,7 +6244,7 @@ function eliminarVehiculoDePropietario(pid, matricula, btnId) {
 }
 
 function confirmDeletePropietario(pid) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('delprop_' + pid);
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
@@ -6219,7 +6299,7 @@ function filtrarMatriculasPorCcaaYTexto() {
 
 var _avpPid = null;
 function openAddVehiculoPropietario(pid) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var p = _propietariosCache[pid];
   if (!p) return;
   _avpPid = pid;
@@ -6257,7 +6337,7 @@ function closeAddVehiculoPropietario() {
   document.getElementById('add-vehiculo-propietario-modal').style.display = 'none';
 }
 function guardarVehiculoPropietario() {
-  if (!currentUser || currentUser.role !== 'admin' || !_avpPid) return;
+  if (!puedeEditar() || !_avpPid) return;
   var seleccionadas = Array.prototype.slice.call(document.querySelectorAll('.avp-mat-check:checked')).map(function(c){ return c.value; });
   if (!seleccionadas.length) { alert('Selecciona al menos un vehículo.'); return; }
 
@@ -6296,7 +6376,7 @@ function copiarCodigoVer() {
 
 var _editandoPropietarioPid = null;
 function openAddPropietarioModal() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   _editandoPropietarioPid = null;
   document.getElementById('ap-modal-title').textContent = 'Nuevo propietario';
   document.getElementById('ap-nombre').value = '';
@@ -6323,7 +6403,7 @@ function openAddPropietarioModal() {
 }
 
 function editarPropietarioAbrir(pid) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var p = _propietariosCache[pid];
   if (!p) return;
   _editandoPropietarioPid = pid;
@@ -6419,7 +6499,7 @@ function seleccionarIvaGestion(valor) {
 }
 
 function guardarPropietario() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var nombre = document.getElementById('ap-nombre').value.trim();
   var doc = document.getElementById('ap-doc').value.trim();
   var email = document.getElementById('ap-email').value.trim().toLowerCase();
@@ -6491,7 +6571,7 @@ function guardarPropietario() {
 
 var _cambioFacturacionPendiente = null;
 function editarTipoFacturacion() {
-  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  if (!puedeEditar() || !_vdCurrentMat) return;
   var mySlug = matSlug(_vdCurrentMat);
   var actual = VEHICULOS_EXTRA.find(function(v){ return v.matricula === _vdCurrentMat; });
   if (!actual) {
@@ -6796,7 +6876,7 @@ function hexToRgb(hex) {
 
 var _cambioCcaaPendiente = null;
 function editarCcaaVehiculo() {
-  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  if (!puedeEditar() || !_vdCurrentMat) return;
   var mySlug = matSlug(_vdCurrentMat);
   var actual = VEHICULOS_EXTRA.find(function(v){ return v.matricula === _vdCurrentMat; });
   if (!actual) {
@@ -6869,7 +6949,7 @@ function confirmarCambioTipoFacturacion() {
 }
 
 function editarFechaItv() {
-  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  if (!puedeEditar() || !_vdCurrentMat) return;
   var mySlug = matSlug(_vdCurrentMat);
   var actual = VEHICULOS_EXTRA.find(function(v){ return v.matricula === _vdCurrentMat; });
   if (!actual) {
@@ -7060,7 +7140,7 @@ function renderConductoresYTurnos(v) {
 
 // ══ AGREGAR COMUNIDAD AUTÓNOMA ══
 function openAddCcaaModal() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var existentes = getCcaaOrder();
   var disponibles = TODAS_CCAA_ESPANA.filter(function(cc){ return existentes.indexOf(cc) === -1; });
 
@@ -7092,7 +7172,7 @@ function agregarComunidad(cc) {
 // ══ AGREGAR VEHÍCULO ══
 var _avPendingFiles = {};
 function openAddVehicleModal(ccaa) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   document.getElementById('av-matricula').value = '';
   document.getElementById('av-marca').value = '';
   document.getElementById('av-modelo').value = '';
@@ -7134,7 +7214,7 @@ function handleAvFileSelected(inputEl, docType) {
   renderAvDocsList();
 }
 function guardarNuevoVehiculo() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var matricula = (document.getElementById('av-matricula').value || '').trim().toUpperCase();
   var marca = (document.getElementById('av-marca').value || '').trim();
   var modelo = (document.getElementById('av-modelo').value || '').trim();
@@ -7183,7 +7263,7 @@ function guardarNuevoVehiculo() {
 }
 
 function confirmDeleteVehicle() {
-  if (!currentUser || currentUser.role !== 'admin' || !_vdCurrentMat) return;
+  if (!puedeEditar() || !_vdCurrentMat) return;
   var btn = document.getElementById('vd-delete-btn');
   if (btn.getAttribute('data-confirm') === '1') {
     // Segunda pulsación: eliminar de verdad
@@ -7238,7 +7318,7 @@ function generateInviteCode() {
   return code;
 }
 function enviarInvitacion() {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var v = getAllVehiculos().find(function(x){ return x.matricula === _vdCurrentMat; });
   if (!v) return;
 
@@ -7427,7 +7507,7 @@ function toggleConductorInvitado(cid) {
   if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 function confirmDeleteConductor(cid) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var btn = document.getElementById('del-cond-' + cid);
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
@@ -7472,7 +7552,7 @@ function renderVehicleDocs() {
 }
 
 function paintVehicleDocs() {
-  var isAdmin = currentUser && currentUser.role === 'admin';
+  var isAdmin = puedeEditar();
   var html = '';
   DOC_TYPES.forEach(function(dt){
     var doc = _vdDocsCache[dt.key] || null;
@@ -7526,7 +7606,7 @@ function uploadToCloudinary(file) {
 }
 
 function handleDocFileSelected(inputEl, docType) {
-  if (!currentUser || currentUser.role !== 'admin') return;
+  if (!puedeEditar()) return;
   var file = inputEl.files[0];
   inputEl.value = '';
   if (!file || !_vdCurrentMat) return;
@@ -7622,7 +7702,7 @@ function viewVehicleDoc(docType) {
 }
 
 function deleteVehicleDoc(docType) {
-  if (!_vdCurrentMat || !currentUser || currentUser.role !== 'admin') return;
+  if (!_vdCurrentMat || !puedeEditar()) return;
   if (!confirm('¿Eliminar este documento?')) return;
   var mySlug = matSlug(_vdCurrentMat);
   fbDeleteDoc(mySlug, docType).then(function(){
