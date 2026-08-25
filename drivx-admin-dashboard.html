@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-26';
+var APP_VERSION = '2026-08-25-27';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3343,13 +3343,13 @@ function pintarResumenMensual(cid, matricula, uid) {
 
     if (resultado > 0) {
       html += '<div style="display:flex;gap:10px">' +
-        '<div style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px;text-align:center">' +
-          '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">🏦 Banco</div>' +
-          '<div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + banco.toFixed(2).replace('.',',') + '</div>' +
+        '<div style="flex:1;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:12px;text-align:center;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5)">' +
+          '<div style="font-size:10px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;text-shadow:0 0 5px rgba(255,255,255,.9)">🏦 Banco</div>' +
+          '<div style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9)">€ ' + banco.toFixed(2).replace('.',',') + '</div>' +
         '</div>' +
-        '<div style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px;text-align:center">' +
-          '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">💵 Efectivo</div>' +
-          '<div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff">€ ' + efectivo.toFixed(2).replace('.',',') + '</div>' +
+        '<div style="flex:1;background:rgba(0,230,118,.1);border:2px solid rgba(0,230,118,1);border-radius:10px;padding:12px;text-align:center;box-shadow:0 0 10px rgba(0,230,118,.85),0 0 22px rgba(0,230,118,.5)">' +
+          '<div style="font-size:10px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;text-shadow:0 0 5px rgba(255,255,255,.9)">💵 Efectivo</div>' +
+          '<div style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--green);text-shadow:0 0 6px rgba(0,230,118,.9)">€ ' + efectivo.toFixed(2).replace('.',',') + '</div>' +
         '</div>' +
       '</div>';
     }
