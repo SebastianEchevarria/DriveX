@@ -945,7 +945,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-23';
+var APP_VERSION = '2026-08-25-24';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2841,6 +2841,7 @@ function facturacionModalBodyHtml(info) {
         '<div id="mensual-resumen-' + uid + '"></div>' +
       '</div>' +
       '<div class="fcm-main">' +
+        '<div id="mensual-extra-' + uid + '"></div>' +
         '<div id="fact-liq-' + uid + '"></div>' +
         htmlApps +
       '</div>';
@@ -3153,6 +3154,7 @@ function eliminarNominaConductor(cid, matricula, uid, nominaId) {
 }
 function pintarResumenMensual(cid, matricula, uid) {
   var cont = document.getElementById('mensual-resumen-' + uid);
+  var contExtra = document.getElementById('mensual-extra-' + uid);
   if (!cont) return;
   Promise.all([
     fetch(FIREBASE_URL + '/facturacion_uber/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
@@ -3227,16 +3229,16 @@ function pintarResumenMensual(cid, matricula, uid) {
       '</div>';
     }
 
-    var html = '<div style="background:rgba(0,230,118,.08);border:3px solid rgba(0,230,118,1);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.55)">' +
+    var htmlExtra = '<div style="background:rgba(0,230,118,.08);border:3px solid rgba(0,230,118,1);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.55)">' +
       '<div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(0,230,118,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Entregas de efectivo este mes</div>';
     if (!entregas.length) {
-      html += '<div style="font-size:11px;color:var(--text3);padding:0 0 10px">Todavía no se ha registrado ninguna entrega.</div>';
+      htmlExtra += '<div style="font-size:11px;color:var(--text3);padding:0 0 10px">Todavía no se ha registrado ninguna entrega.</div>';
     } else {
       entregas.forEach(function(e){
         var debeE = Number(e.debe||0), entregoE = Number(e.entrego||0);
         var difE = entregoE - debeE;
         var colorDifRgb = difE >= 0 ? '0,230,118' : '255,71,87';
-        html += '<div style="background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:9px 10px;margin-bottom:6px">' +
+        htmlExtra += '<div style="background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:9px 10px;margin-bottom:6px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
             '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
             '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
@@ -3247,7 +3249,7 @@ function pintarResumenMensual(cid, matricula, uid) {
         '</div>';
       });
     }
-    html += '<div style="margin-top:8px">' +
+    htmlExtra += '<div style="margin-top:8px">' +
       '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="width:100%;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);color-scheme:dark;box-sizing:border-box;margin-bottom:8px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
         '<div style="flex:1;min-width:110px">' +
@@ -3264,15 +3266,15 @@ function pintarResumenMensual(cid, matricula, uid) {
     '</div>';
 
     // ── Nóminas subidas para este conductor (pendientes de enviar hasta el cierre) ──
-    html += '<div style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,212,255,.75),0 0 26px rgba(0,212,255,.45)">' +
+    htmlExtra += '<div style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.9);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 12px rgba(0,212,255,.75),0 0 26px rgba(0,212,255,.45)">' +
       '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(0,212,255,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📄 Nóminas subidas</div>' +
       '<div style="font-size:10.5px;color:var(--text3);margin-bottom:10px">El conductor no las verá en su app hasta que pulses "Cerrar mes" y confirmes el cierre</div>';
     if (!nominas.length) {
-      html += '<div style="font-size:11px;color:var(--text3);padding:0 0 4px">Todavía no se ha subido ninguna nómina.</div>';
+      htmlExtra += '<div style="font-size:11px;color:var(--text3);padding:0 0 4px">Todavía no se ha subido ninguna nómina.</div>';
     } else {
       nominas.forEach(function(n){
         var delBtnId = 'del-nomina-' + n.id;
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
+        htmlExtra += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
           '<div style="min-width:0">' +
             '<div style="font-size:11.5px;font-weight:800;color:#fff">' + (n.fecha||'') + '</div>' +
             '<div style="font-size:10.5px;color:var(--text3)">' + (n.diasTrabajados||0) + ' días · € ' + Number(n.liquido||0).toFixed(2).replace('.',',') + '</div>' +
@@ -3283,9 +3285,9 @@ function pintarResumenMensual(cid, matricula, uid) {
         '</div>';
       });
     }
-    html += '</div>';
+    htmlExtra += '</div>';
 
-    html += '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
+    var html = '<div style="background:rgba(255,179,0,.05);border:2px solid rgba(255,179,0,.9);border-radius:14px;padding:16px;box-shadow:0 0 12px rgba(255,179,0,.75),0 0 26px rgba(255,179,0,.45)">';
     html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
 
     html += '<div style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
@@ -3352,6 +3354,7 @@ function pintarResumenMensual(cid, matricula, uid) {
 
     html += '</div>';
     cont.innerHTML = html;
+    if (contExtra) contExtra.innerHTML = htmlExtra;
   }).catch(function(){
     cont.innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:10px">No se pudo calcular el resumen mensual.</div>';
   });
