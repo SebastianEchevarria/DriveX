@@ -933,7 +933,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-5';
+var APP_VERSION = '2026-08-25-6';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2881,6 +2881,45 @@ function eliminarEntregaEfectivoMensual(cid, matricula, uid, entregaId) {
     }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
 }
 // ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
+// ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
+// Si el archivo es un PDF, la IA no puede leerlo directamente — convertimos
+// la primera página a una imagen en el propio navegador (con pdf.js,
+// cargado solo cuando hace falta) antes de mandarla a analizar.
+var _pdfJsCargado = null;
+function cargarPdfJsAdmin() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (_pdfJsCargado) return _pdfJsCargado;
+  _pdfJsCargado = new Promise(function(resolve, reject){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = function(){
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve();
+    };
+    s.onerror = function(){ _pdfJsCargado = null; reject(new Error('No se pudo cargar el lector de PDF')); };
+    document.head.appendChild(s);
+  });
+  return _pdfJsCargado;
+}
+function convertirPdfAImagenBase64Admin(base64) {
+  return cargarPdfJsAdmin().then(function(){
+    var raw = atob(base64);
+    var bytes = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return window.pdfjsLib.getDocument({ data: bytes }).promise.then(function(pdf){
+      return pdf.getPage(1);
+    }).then(function(page){
+      var viewport = page.getViewport({ scale: 2 });
+      var canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      var ctx = canvas.getContext('2d');
+      return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        return { base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' };
+      });
+    });
+  });
+}
 function comprimirImagenBase64Admin(base64, mediaType, maxDim, calidad) {
   return new Promise(function(resolve){
     try {
@@ -2940,9 +2979,20 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
   reader.onload = function(e){
     var b64raw = e.target.result.split(',')[1];
     var mtraw = file.type || 'image/jpeg';
+    var esPdf = mtraw === 'application/pdf' || /\.pdf$/i.test(file.name || '');
     var prompt = 'Nómina/recibo de salario español de un conductor VTC. Responde SOLO con JSON sin markdown: {"dias_trabajados":NUMERO,"liquido_a_percibir":NUMERO,"confianza":0.0}. INSTRUCCIONES: dias_trabajados = el campo de días del periodo de liquidación — puede llamarse "Días", "Días trabajados", "Total días" o "Días :" (un número entero pequeño, normalmente entre 1 y 31). liquido_a_percibir = el importe final de la nómina — puede llamarse "Líquido a percibir", "Total líquido a percibir" o "LÍQUIDO A PERCIBIR (A - B)"/"LÍQUIDO TOTAL A PERCIBIR (A-B)" — es el resultado final después de deducciones, NO el total devengado ni el total a deducir. Si un campo no aparece pon 0. Usa punto decimal, sin símbolo de moneda ni separador de miles.';
 
-    comprimirImagenBase64Admin(b64raw, mtraw, 1500, 0.72).then(function(img){
+    var pasoPrevio;
+    if (esPdf) {
+      toast('📄 Convirtiendo el PDF…');
+      pasoPrevio = convertirPdfAImagenBase64Admin(b64raw);
+    } else {
+      pasoPrevio = Promise.resolve({ base64: b64raw, mediaType: mtraw });
+    }
+
+    pasoPrevio.then(function(imgPdfOInicial){
+      return comprimirImagenBase64Admin(imgPdfOInicial.base64, imgPdfOInicial.mediaType, 1500, 0.72);
+    }).then(function(img){
       llamarIaNomina(img.base64, img.mediaType, prompt).then(function(text){
         var parsed = parseJSONAdmin(text);
         if (!parsed) { toast('⚠ No se pudo leer la nómina · Introduce los datos a mano'); return; }
@@ -2958,7 +3008,7 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           pintarResumenMensual(cid, matricula, uid);
         }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
       }).catch(function(){ toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
-    });
+    }).catch(function(err){ toast('❌ No se pudo convertir el PDF: ' + err.message); });
   };
   reader.readAsDataURL(file);
 }
