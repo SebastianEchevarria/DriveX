@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-2';
+var APP_VERSION = '2026-08-25-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2851,6 +2851,28 @@ function guardarExtraMensual(cid, matricula, uid, campo, valor, entero) {
     pintarResumenMensual(cid, matricula, uid);
   }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
 }
+function registrarEntregaEfectivoMensual(cid, matricula, uid) {
+  var fechaEl = document.getElementById('entrega-fecha-' + uid);
+  var importeEl = document.getElementById('entrega-importe-' + uid);
+  var fecha = fechaEl ? fechaEl.value : '';
+  var importe = parseFloat(importeEl ? importeEl.value : '');
+  if (!fecha) { toast('⚠ Elige una fecha'); return; }
+  if (isNaN(importe) || importe <= 0) { toast('⚠ Introduce un importe válido'); return; }
+  fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json', {
+    method: 'POST', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ fecha: fecha, importe: importe, ts: Date.now() })
+  }).then(fbCheck).then(function(){
+    toast('✓ Entrega registrada');
+    pintarResumenMensual(cid, matricula, uid);
+  }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
+}
+function eliminarEntregaEfectivoMensual(cid, matricula, uid, entregaId) {
+  fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '/' + entregaId + '.json', { method: 'DELETE' })
+    .then(fbCheck).then(function(){
+      toast('🗑 Entrega eliminada');
+      pintarResumenMensual(cid, matricula, uid);
+    }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+}
 function pintarResumenMensual(cid, matricula, uid) {
   var cont = document.getElementById('mensual-resumen-' + uid);
   if (!cont) return;
@@ -2859,10 +2881,14 @@ function pintarResumenMensual(cid, matricula, uid) {
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_cabify/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    calcularLiquidacionAcumulada(cid, matricula, uid).catch(function(){ return null; })
+    calcularLiquidacionAcumulada(cid, matricula, uid).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {}, extra = results[3] || {};
     var liq = results[4]; // mismo cálculo que usa la semanal — de ahí sacamos el "efectivo real"
+    var entregasObj = results[5] || {};
+    var entregas = Object.keys(entregasObj).map(function(k){ return Object.assign({ id: k }, entregasObj[k]); })
+      .sort(function(a,b){ return (a.fecha||'').localeCompare(b.fecha||''); });
 
     var netoUber = Number(uber.neto || 0) - Number(uber.propinas || 0);
     var netoBolt = Number(bolt.ingresosNetos || 0) - Number(bolt.propinas || 0) - Number(bolt.peajes || 0);
@@ -2880,10 +2906,12 @@ function pintarResumenMensual(cid, matricula, uid) {
     var diasTrabajados = Number(extra.diasTrabajados || 0);
     var nomina = Number(extra.nomina || 0);
     var adelantoNomina = Number(extra.adelantoNomina || 0);
-    // Efectivo no entregado = mismo cálculo que el "Efectivo real" de la
-    // semanal: efectivo cobrado en apps/privados/transfers, menos los
-    // gastos del conductor. No es manual, se extrae igual que en semanal.
-    var efectivoNoEntregado = liq ? liq.efectivoReal : 0;
+    // Efectivo no entregado = el "Efectivo real" acumulado de todo el mes
+    // (mismo cálculo que la semanal) MENOS lo que el conductor ya te haya
+    // entregado en mano semanalmente durante ese mes (registrado abajo).
+    var efectivoRealAcumulado = liq ? liq.efectivoReal : 0;
+    var totalEntregado = entregas.reduce(function(s,e){ return s + Number(e.importe||0); }, 0);
+    var efectivoNoEntregado = efectivoRealAcumulado - totalEntregado;
 
     var objetivo = 150 * diasTrabajados;
     var excedente = Math.max(netoTotalApps - objetivo, 0);
@@ -2938,12 +2966,37 @@ function pintarResumenMensual(cid, matricula, uid) {
 
     html += '<div style="margin-bottom:12px">' +
       '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Efectivo no entregado</div>' +
-      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor</div>' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px">' +
-        '<span style="font-size:11px;color:var(--text3);min-width:0">Extraído automáticamente</span>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor — menos lo que ya te ha entregado en mano</div>' +
+      fila('Efectivo cobrado en el mes (acumulado)', efectivoRealAcumulado) +
+      fila('Entregado en mano (registrado abajo)', totalEntregado) +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px;margin-top:6px">' +
+        '<span style="font-size:11px;color:var(--text3);min-width:0;font-weight:800">Pendiente de entregar</span>' +
         '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0">€ ' + efectivoNoEntregado.toFixed(2).replace('.',',') + '</span>' +
       '</div>' +
     '</div>';
+
+    // ── Entregas de efectivo registradas (semanales, dentro del mes) ──
+    html += '<div style="margin-bottom:12px">' +
+      '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📥 Entregas de efectivo este mes</div>';
+    if (!entregas.length) {
+      html += '<div style="font-size:11px;color:var(--text3);padding:6px 0 8px">Todavía no se ha registrado ninguna entrega.</div>';
+    } else {
+      entregas.forEach(function(e){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
+          '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
+          '<span style="font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--green);flex:1;text-align:right;margin-right:6px">€ ' + Number(e.importe||0).toFixed(2).replace('.',',') + '</span>' +
+          '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
+        '</div>';
+      });
+    }
+    html += '<div style="display:flex;gap:8px;margin-top:6px">' +
+      '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="flex:1;background:var(--surface2);border:1.5px solid var(--border2);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit">' +
+      '<input id="entrega-importe-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:90px;background:var(--surface2);border:1.5px solid var(--border2);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono)">' +
+      '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="flex-shrink:0;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir</button>' +
+    '</div>' +
+    '</div>';
+
+    html += '<div style="margin:14px 0 10px;border-top:1px solid rgba(255,255,255,.1)"></div>';
 
     html += '<div style="margin-top:12px;background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:12px 14px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.5);text-align:center">' +
       '<div style="font-size:12px;font-weight:900;color:#fff;margin-bottom:6px">SUELDO TOTAL A RECIBIR</div>' +
@@ -6277,6 +6330,14 @@ function confirmarCierrePeriodo() {
         });
       })
     );
+
+    if (p.tipo === 'mensual') {
+      // Al cerrar el mes, los datos manuales (nómina, días trabajados,
+      // adelanto) y las entregas de efectivo registradas son de ESE mes —
+      // hay que resetearlos para que el mes siguiente empiece de cero.
+      writes.push(fetch(FIREBASE_URL + '/facturacion_mensual_extra/' + r.cid + '.json', { method: 'DELETE' }));
+      writes.push(fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + r.cid + '.json', { method: 'DELETE' }));
+    }
   });
 
   Promise.all(writes).then(function(){
