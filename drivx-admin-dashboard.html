@@ -931,7 +931,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-24-20';
+var APP_VERSION = '2026-08-24-21';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2825,11 +2825,12 @@ function facturacionModalBodyHtml(info) {
 // ══ FACTURACIÓN MENSUAL de un conductor ══
 // Neto Uber    = Ganancias totales − Propinas
 // Neto Bolt    = Ingresos netos − Propinas − Peajes
-// Neto Cabify  = PENDIENTE (fórmula por definir) — no se incluye todavía en el total
-// Neto total apps = Neto Uber + Neto Bolt (+ Neto Cabify cuando se defina)
+// Neto Cabify  = Facturación neta (100%, entra entero — el reparto lo hace el objetivo/comisión, no un % fijo)
+//                Pendiente: incorporar campañas/bonos de Cabify cuando haya ejemplos
+// Neto total apps = Neto Uber + Neto Bolt + Neto Cabify + Privados(40%) + Transfers(30%)
 // Objetivo     = 150€ × días trabajados (casilla manual)
 // Comisión     = max(Neto total apps − Objetivo, 0) × 35%
-// Propinas     = suma de propinas de las 3 apps
+// Propinas     = suma de propinas de Uber + Bolt
 // Sueldo total = Nómina (manual) + Comisión + Propinas
 // Resultado    = Sueldo total − Efectivo no entregado (auto, igual que el
 //                "Efectivo real" semanal) − Adelanto en nómina (manual)
@@ -2862,9 +2863,10 @@ function pintarResumenMensual(cid, matricula, uid) {
     // 30% respectivamente) y entran en el Neto total igual que allí.
     var privadosCutTotal = liq ? liq.privadosCutTotal : 0;
     var transfersCutTotal = liq ? liq.transfersCutTotal : 0;
-    // Cabify: de su facturación neta, el conductor se lleva el 30% — igual
-    // criterio que Transfers.
-    var netoCabify = Number(cabify.neto || 0) * 0.30;
+    // Cabify: en mensual entra al 100% en el Neto total, igual que Uber y
+    // Bolt — el reparto se hace por el objetivo (150€/día + 35% del
+    // exceso), no por un % fijo como en la semanal.
+    var netoCabify = Number(cabify.neto || 0);
     var netoTotalApps = netoUber + netoBolt + netoCabify + privadosCutTotal + transfersCutTotal;
     var propinasTotal = Number(uber.propinas || 0) + Number(bolt.propinas || 0);
 
@@ -2902,7 +2904,7 @@ function pintarResumenMensual(cid, matricula, uid) {
     html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.95),0 0 14px rgba(255,179,0,.65);margin-bottom:12px">📅 Resumen mensual</div>';
 
     html += '<div style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Neto por app (Ganancias − Propinas − Peajes según app)</div>';
-    html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt) + fila('Neto Cabify (30%)', netoCabify);
+    html += fila('Neto Uber', netoUber) + fila('Neto Bolt', netoBolt) + fila('Neto Cabify', netoCabify);
     html += fila('Viajes privados (40%)', privadosCutTotal) + fila('Transfers (30%)', transfersCutTotal);
     html += fila('Neto total apps', netoTotalApps, true);
 
