@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-15';
+var APP_VERSION = '2026-08-25-16';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2874,14 +2874,18 @@ function guardarExtraMensual(cid, matricula, uid, campo, valor, entero) {
 }
 function registrarEntregaEfectivoMensual(cid, matricula, uid) {
   var fechaEl = document.getElementById('entrega-fecha-' + uid);
-  var importeEl = document.getElementById('entrega-importe-' + uid);
+  var debeEl = document.getElementById('entrega-debe-' + uid);
+  var entregoEl = document.getElementById('entrega-entrego-' + uid);
   var fecha = fechaEl ? fechaEl.value : '';
-  var importe = parseFloat(importeEl ? importeEl.value : '');
+  var debe = parseFloat(debeEl ? debeEl.value : '');
+  var entrego = parseFloat(entregoEl ? entregoEl.value : '');
   if (!fecha) { toast('⚠ Elige una fecha'); return; }
-  if (isNaN(importe) || importe <= 0) { toast('⚠ Introduce un importe válido'); return; }
+  if (isNaN(debe) || debe < 0) debe = 0;
+  if (isNaN(entrego) || entrego < 0) entrego = 0;
+  if (debe === 0 && entrego === 0) { toast('⚠ Introduce al menos un importe'); return; }
   fetch(FIREBASE_URL + '/entregas_efectivo_mensual/' + cid + '.json', {
     method: 'POST', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ fecha: fecha, importe: importe, ts: Date.now() })
+    body: JSON.stringify({ fecha: fecha, debe: debe, entrego: entrego, ts: Date.now() })
   }).then(fbCheck).then(function(){
     toast('✓ Entrega registrada');
     pintarResumenMensual(cid, matricula, uid);
@@ -2894,7 +2898,6 @@ function eliminarEntregaEfectivoMensual(cid, matricula, uid, entregaId) {
       pintarResumenMensual(cid, matricula, uid);
     }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
 }
-// ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
 // ══════════════ SUBIR NÓMINA (extrae Días trabajados + Líquido a percibir) ══════════════
 // Si el archivo es un PDF, la IA no puede leerlo directamente — convertimos
 // la primera página a una imagen en el propio navegador (con pdf.js,
@@ -3137,9 +3140,11 @@ function pintarResumenMensual(cid, matricula, uid) {
     var adelantoNomina = Number(extra.adelantoNomina || 0);
     // Efectivo no entregado = el "Efectivo real" acumulado de todo el mes
     // (mismo cálculo que la semanal) MENOS lo que el conductor ya te haya
-    // entregado en mano semanalmente durante ese mes (registrado abajo).
+    // entregado en mano semanalmente durante ese mes (registrado abajo,
+    // sumando lo que efectivamente ENTREGÓ cada semana).
     var efectivoRealAcumulado = liq ? liq.efectivoReal : 0;
-    var totalEntregado = entregas.reduce(function(s,e){ return s + Number(e.importe||0); }, 0);
+    var totalDebeSemanal = entregas.reduce(function(s,e){ return s + Number(e.debe||0); }, 0);
+    var totalEntregado = entregas.reduce(function(s,e){ return s + Number(e.entrego||0); }, 0);
     var efectivoNoEntregado = efectivoRealAcumulado - totalEntregado;
 
     var objetivo = 150 * diasTrabajados;
@@ -3175,17 +3180,33 @@ function pintarResumenMensual(cid, matricula, uid) {
       html += '<div style="font-size:11px;color:var(--text3);padding:0 0 10px">Todavía no se ha registrado ninguna entrega.</div>';
     } else {
       entregas.forEach(function(e){
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:8px 10px;margin-bottom:6px">' +
-          '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
-          '<span style="font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--green);flex:1;text-align:right;margin-right:6px">€ ' + Number(e.importe||0).toFixed(2).replace('.',',') + '</span>' +
-          '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
+        var debeE = Number(e.debe||0), entregoE = Number(e.entrego||0);
+        var difE = entregoE - debeE;
+        var colorDif = difE >= 0 ? 'var(--green)' : 'var(--red)';
+        html += '<div style="background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.35);border-radius:8px;padding:9px 10px;margin-bottom:6px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+            '<span style="font-size:11px;color:var(--text3)">' + (e.fecha||'') + '</span>' +
+            '<button onclick="eliminarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\',\'' + e.id + '\')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 2px">✕</button>' +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3)"><span>Debe entregar</span><span style="font-family:var(--mono);color:#fff">€ ' + debeE.toFixed(2).replace('.',',') + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3)"><span>Entregó</span><span style="font-family:var(--mono);color:#fff">€ ' + entregoE.toFixed(2).replace('.',',') + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;margin-top:2px;padding-top:4px;border-top:1px solid rgba(255,255,255,.08)"><span style="color:#fff">Diferencia</span><span style="font-family:var(--mono);color:' + colorDif + '">' + (difE>=0?'+':'') + '€ ' + difE.toFixed(2).replace('.',',') + '</span></div>' +
         '</div>';
       });
     }
-    html += '<div style="display:flex;gap:8px;margin-top:8px">' +
-      '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="flex:1;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);color-scheme:dark">' +
-      '<input id="entrega-importe-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:90px;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono);box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3)">' +
-      '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="flex-shrink:0;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir</button>' +
+    html += '<div style="margin-top:8px">' +
+      '<input id="entrega-fecha-' + uid + '" type="date" value="' + new Date().toISOString().slice(0,10) + '" style="width:100%;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);color-scheme:dark;box-sizing:border-box;margin-bottom:8px">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:110px">' +
+          '<div style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">Debe entregar</div>' +
+          '<input id="entrega-debe-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:100%;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono);box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);box-sizing:border-box">' +
+        '</div>' +
+        '<div style="flex:1;min-width:110px">' +
+          '<div style="font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">Entregó</div>' +
+          '<input id="entrega-entrego-' + uid + '" type="number" step="0.01" min="0" placeholder="€" style="width:100%;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.85);color:#fff;padding:9px 10px;border-radius:8px;font-size:12.5px;font-family:var(--mono);box-shadow:0 0 8px rgba(0,230,118,.55),0 0 16px rgba(0,230,118,.3);box-sizing:border-box">' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="registrarEntregaEfectivoMensual(\'' + cid + '\',\'' + matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')" style="width:100%;margin-top:8px;background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:12px;font-weight:800;padding:10px 12px;border-radius:8px;cursor:pointer;font-family:inherit">+ Añadir entrega semanal</button>' +
     '</div>' +
     '</div>';
 
@@ -3239,6 +3260,7 @@ function pintarResumenMensual(cid, matricula, uid) {
       '<div style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9),0 0 12px rgba(255,179,0,.6);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Efectivo no entregado</div>' +
       '<div style="font-size:10.5px;color:var(--text3);margin-bottom:6px">efectivo cobrado en Uber/Bolt/Cabify/privados/transfers, menos los gastos del conductor — menos lo que ya te ha entregado en mano</div>' +
       fila('Efectivo cobrado en el mes (acumulado)', efectivoRealAcumulado) +
+      fila('Debe entregar (registrado abajo)', totalDebeSemanal) +
       fila('Entregado en mano (registrado abajo)', totalEntregado) +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:9px;padding:10px 12px;margin-top:6px">' +
         '<span style="font-size:11px;color:var(--text3);min-width:0;font-weight:800">Pendiente de entregar</span>' +
