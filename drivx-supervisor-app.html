@@ -744,7 +744,17 @@ function plateHtml(matricula) {
   '</div>';
 }
 function getAllVehiculos() {
-  return VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlugV(v.matricula)]; });
+  var todos = VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlugV(v.matricula)]; });
+  // Si este supervisor tiene comunidades autónomas asignadas desde el
+  // Dashboard, solo debe ver los vehículos (y por tanto todo lo derivado:
+  // citas, ITV, facturación...) de esas comunidades. Si no tiene ninguna
+  // asignada (usuarios antiguos / de prueba), se le muestra todo, como
+  // hasta ahora.
+  var u = window.currentSupervisorUser;
+  if (u && Array.isArray(u.ccaasAsignadas) && u.ccaasAsignadas.length) {
+    todos = todos.filter(function(v){ return u.ccaasAsignadas.indexOf(v.ccaa) !== -1; });
+  }
+  return todos;
 }
 function normalizeVehiculoExtra(v, key) {
   v = v || {};
@@ -1123,7 +1133,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-15-13';
+var APP_VERSION = '2026-08-25-1';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1423,7 +1433,7 @@ function renderHomeProximas() {
     if (seen[k]) return; seen[k]=true; allCitas.push(c);
   }
   try { JSON.parse(localStorage.getItem('drivx_citas')||'[]').forEach(addCita); } catch(e){}
-  VEHICULOS.concat(VEHICULOS_EXTRA).forEach(function(v){
+  getAllVehiculos().forEach(function(v){
     v.conductores.forEach(function(cid){
       try { JSON.parse(localStorage.getItem('drivx_citas_'+cid)||'[]').forEach(addCita); } catch(e){}
     });
@@ -2220,7 +2230,7 @@ function renderITVAlerts() {
   function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
-  var rows = VEHICULOS
+  var rows = getAllVehiculos()
     .filter(function(v){ return v.matricula !== '0000 TST'; })
     .map(function(v){ return {v:v, days:dU(v.docs.itv.fecha)}; })
     .sort(function(a,b){ return a.days - b.days; });
@@ -2275,7 +2285,7 @@ function renderITVAlerts() {
   list.querySelectorAll('.alerta-reg-btn').forEach(function(btn){
     btn.onclick = function(){
       var mat = btn.getAttribute('data-mat');
-      var v = VEHICULOS.find(function(x){ return x.matricula===mat; });
+      var v = getAllVehiculos().find(function(x){ return x.matricula===mat; });
       if (!v) return;
       _verMatActual = v;
       var sel = document.getElementById('cita-conductor');
@@ -2293,7 +2303,7 @@ function openITVUrl() {
 }
 
 function openITVDetail(matricula) {
-  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   var now = new Date();
   function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
@@ -2353,7 +2363,7 @@ function openITVDetail(matricula) {
 }
 
 function preSelectMat(matricula) {
-  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v || !v.conductores.length) return;
   var sel = document.getElementById('cita-conductor');
   if (sel) sel.value = v.conductores[0];
@@ -2364,7 +2374,7 @@ function initTallerSelect() {
   var sel = document.getElementById('taller-mat');
   if (!sel) return;
   sel.innerHTML = '<option value="">Selecciona matrícula...</option>';
-  VEHICULOS.forEach(function(v) {
+  getAllVehiculos().forEach(function(v) {
     if (v.matricula === '0000 TST') return;
     sel.innerHTML += '<option value="'+v.matricula+'">'+v.matricula+' — '+v.modelo+' ('+v.ciudad+')</option>';
   });
@@ -2383,10 +2393,8 @@ function guardarCitaTaller() {
   var hoyLimiteSup = new Date(); hoyLimiteSup.setHours(0,0,0,0);
   if (new Date(fecha + 'T00:00:00') < hoyLimiteSup) { toast('⚠ No se pueden crear citas en días pasados'); return; }
 
-  var v = VEHICULOS.find(function(x){ return x.matricula === mat; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === mat; });
   if (!v) return;
-
-  // Save to all conductores of this vehicle
   v.conductores.forEach(function(cid) {
     var key = 'drivx_citas_' + cid;
     var citas = [];
@@ -2423,7 +2431,7 @@ function renderITVAlerts() {
   function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
   function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
 
-  var sorted = VEHICULOS
+  var sorted = getAllVehiculos()
     .filter(function(v){ return v.matricula !== '0000 TST'; })
     .map(function(v){ return {v:v, days:dU(v.docs.itv.fecha)}; })
     .sort(function(a,b){ return a.days - b.days; });
@@ -2577,7 +2585,7 @@ var _verMatActual = null;
 
 function verMatAlerta(btn) {
   var matricula = btn.getAttribute('data-mat');
-  var v = VEHICULOS.find(function(x){ return x.matricula === matricula; });
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   _verMatActual = v;
 
