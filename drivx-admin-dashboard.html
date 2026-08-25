@@ -379,16 +379,17 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div id="fact-modal-nombre" style="font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55)">—</div>
+          <button id="fact-modal-cerrar-mensual-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar el mes de facturación" style="display:none;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);padding:8px 12px;white-space:nowrap">Cerrar mes</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 6px">
+          <div id="fact-modal-plate"></div>
           <input type="file" id="fact-modal-nomina-input" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this)">
           <button id="fact-modal-nomina-btn" onclick="document.getElementById('fact-modal-nomina-input').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:none;align-items:center;gap:8px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:8px 12px;white-space:nowrap">📄 Subir nómina</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px">
-          <div id="fact-modal-plate"></div>
         </div>
         <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
+        <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar la semana de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
         <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
       </div>
     </div>
@@ -935,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-8';
+var APP_VERSION = '2026-08-25-9';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2754,12 +2755,15 @@ function openFacturacionConductorModal(uid) {
   document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
   _factModalActual = { cid: info.cid, uid: uid, matricula: info.matricula };
   var vTipoBtn = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
+  var esMensualModal = vTipoBtn === 'mensual';
   var cerrarBtn = document.getElementById('fact-modal-cerrar-btn');
-  if (cerrarBtn) cerrarBtn.title = 'Cerrar ' + (vTipoBtn === 'mensual' ? 'mes' : 'semana');
+  if (cerrarBtn) cerrarBtn.style.display = esMensualModal ? 'none' : 'flex';
+  var cerrarMensualBtn = document.getElementById('fact-modal-cerrar-mensual-btn');
+  if (cerrarMensualBtn) cerrarMensualBtn.style.display = esMensualModal ? 'flex' : 'none';
   var nominaBtn = document.getElementById('fact-modal-nomina-btn');
   if (nominaBtn) {
     setNominaBtnEstado(nominaBtn, 'azul');
-    nominaBtn.style.display = (vTipoBtn === 'mensual') ? 'flex' : 'none';
+    nominaBtn.style.display = esMensualModal ? 'flex' : 'none';
   }
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   pintarBoltCsvGuardado(info.cid);
