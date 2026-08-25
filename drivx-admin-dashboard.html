@@ -384,11 +384,13 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div id="fact-modal-turno" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:900;color:var(--amber);background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.65);border-radius:8px;padding:5px 10px;box-shadow:0 0 8px rgba(255,179,0,.5),0 0 16px rgba(255,179,0,.28)">—</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <input type="file" id="fact-modal-nomina-input" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this)">
-        <button id="fact-modal-nomina-btn" onclick="document.getElementById('fact-modal-nomina-input').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" style="display:none;width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:15px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);align-items:center;justify-content:center;padding:0">📄</button>
         <button id="fact-modal-cerrar-btn" onclick="cerrarPeriodoConductorDesdeModal()" title="Cerrar periodo de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>
         <button class="modal-close" onclick="closeFacturacionConductorModal()">✕</button>
       </div>
+    </div>
+    <div id="fact-modal-nomina-row" style="display:none;padding:0 22px 16px;justify-content:flex-end;background:var(--surface)">
+      <input type="file" id="fact-modal-nomina-input" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this)">
+      <button id="fact-modal-nomina-btn" onclick="document.getElementById('fact-modal-nomina-input').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:flex;align-items:center;gap:8px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:9px 14px">📄 Subir nómina</button>
     </div>
     <div id="fact-modal-body" style="padding:20px 22px 22px"></div>
   </div>
@@ -933,7 +935,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-6';
+var APP_VERSION = '2026-08-25-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2707,10 +2709,12 @@ function abrirTodosConductoresVehiculo(matricula) {
         '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85),0 0 12px rgba(0,212,255,.55);margin-bottom:8px">' + (info.nombre||'Conductor') + '</div>' +
         '<div style="display:flex;align-items:center;gap:8px">' +
           plateHtmlSmall(info.matricula) +
-          (esMensualCard ? ('<input type="file" id="nomina-input-' + uid + '" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this,\'' + info.cid + '\',\'' + info.matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')">' +
-          '<button onclick="document.getElementById(\'nomina-input-' + uid + '\').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:15px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);display:flex;align-items:center;justify-content:center;padding:0">📄</button>') : '') +
           '<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar ' + (esMensualCard ? 'mes' : 'semana') + '" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>' +
         '</div>' +
+        (esMensualCard ? ('<div style="display:flex;justify-content:flex-end;margin-top:10px">' +
+          '<input type="file" id="nomina-input-' + uid + '" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this,\'' + info.cid + '\',\'' + info.matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')">' +
+          '<button id="nomina-btn-' + uid + '" onclick="document.getElementById(\'nomina-input-' + uid + '\').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:flex;align-items:center;gap:8px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:9px 14px">📄 Subir nómina</button>' +
+        '</div>') : '') +
       '</div>' +
       '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
     '</div>';
@@ -2753,7 +2757,9 @@ function openFacturacionConductorModal(uid) {
   var cerrarBtn = document.getElementById('fact-modal-cerrar-btn');
   if (cerrarBtn) cerrarBtn.title = 'Cerrar ' + (vTipoBtn === 'mensual' ? 'mes' : 'semana');
   var nominaBtn = document.getElementById('fact-modal-nomina-btn');
-  if (nominaBtn) nominaBtn.style.display = (vTipoBtn === 'mensual') ? 'flex' : 'none';
+  if (nominaBtn) setNominaBtnEstado(nominaBtn, 'azul');
+  var nominaRow = document.getElementById('fact-modal-nomina-row');
+  if (nominaRow) nominaRow.style.display = (vTipoBtn === 'mensual') ? 'flex' : 'none';
   document.getElementById('fact-conductor-modal').style.display = 'flex';
   pintarBoltCsvGuardado(info.cid);
   pintarUberCabifyGuardado(info.cid);
@@ -2964,6 +2970,19 @@ function llamarIaNomina(base64, mediaType, prompt) {
 function parseJSONAdmin(text) {
   try { return JSON.parse((text||'').replace(/```json?|```/g,'').trim()); } catch(e) { return null; }
 }
+function setNominaBtnEstado(btn, estado) {
+  if (!btn) return;
+  var colores = {
+    azul:  '0,212,255',
+    verde: '0,230,118',
+    rojo:  '255,71,87'
+  };
+  var c = colores[estado] || colores.azul;
+  btn.setAttribute('data-estado', estado);
+  btn.style.borderColor = 'rgba(' + c + ',1)';
+  btn.style.background = 'rgba(' + c + ',.14)';
+  btn.style.boxShadow = '0 0 10px rgba(' + c + ',.8),0 0 22px rgba(' + c + ',.5)';
+}
 function onNominaFile(input, cidParam, matriculaParam, uidParam) {
   if (!input.files[0]) return;
   var file = input.files[0];
@@ -2972,6 +2991,9 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
   var ctx = (cidParam && uidParam) ? { cid: cidParam, matricula: matriculaParam, uid: uidParam } : _factModalActual;
   if (!ctx || !ctx.cid) return;
   var cid = ctx.cid, matricula = ctx.matricula, uid = ctx.uid;
+
+  var btn = document.getElementById(input.id.replace('nomina-input', 'nomina-btn'));
+  setNominaBtnEstado(btn, 'azul');
 
   toast('🤖 IA leyendo la nómina…');
 
@@ -2995,7 +3017,7 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
     }).then(function(img){
       llamarIaNomina(img.base64, img.mediaType, prompt).then(function(text){
         var parsed = parseJSONAdmin(text);
-        if (!parsed) { toast('⚠ No se pudo leer la nómina · Introduce los datos a mano'); return; }
+        if (!parsed) { setNominaBtnEstado(btn, 'rojo'); toast('⚠ No se pudo leer la nómina · Introduce los datos a mano'); return; }
         var dias = Math.round(parseFloat(parsed.dias_trabajados) || 0);
         var liquido = parseFloat(parsed.liquido_a_percibir) || 0;
         if (dias < 1) dias = 1; if (dias > 31) dias = 31;
@@ -3004,11 +3026,12 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           method: 'PATCH', headers: { 'Content-Type':'application/json' },
           body: JSON.stringify({ diasTrabajados: dias, nomina: liquido, ts: Date.now() })
         }).then(fbCheck).then(function(){
+          setNominaBtnEstado(btn, 'verde');
           toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
           pintarResumenMensual(cid, matricula, uid);
-        }).catch(function(err){ toast('❌ No se pudo guardar: ' + err.message); });
-      }).catch(function(){ toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
-    }).catch(function(err){ toast('❌ No se pudo convertir el PDF: ' + err.message); });
+        }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo guardar: ' + err.message); });
+      }).catch(function(){ setNominaBtnEstado(btn, 'rojo'); toast('❌ Error leyendo la nómina · Introduce los datos a mano'); });
+    }).catch(function(err){ setNominaBtnEstado(btn, 'rojo'); toast('❌ No se pudo convertir el PDF: ' + err.message); });
   };
   reader.readAsDataURL(file);
 }
