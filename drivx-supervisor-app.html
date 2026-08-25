@@ -743,6 +743,34 @@ function plateHtml(matricula) {
     '<div style="position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.25) 45%,rgba(255,255,255,.08) 52%,transparent 62%);pointer-events:none"></div>' +
   '</div>';
 }
+// Si el admin cambia desde el Dashboard qué comunidades gestiona este
+// supervisor, aquí se refleja casi al instante — sin tener que cerrar
+// sesión y volver a entrar. Se revisa cada 6s (mismo ciclo que ya
+// refrescaba los vehículos).
+function sincronizarPermisosSupervisor() {
+  var u = window.currentSupervisorUser;
+  if (!u || !u.email) { renderVehiculosHome(); renderITVAlerts(); return; }
+  fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var match = null;
+    Object.keys(data).forEach(function(uid){
+      var uu = data[uid];
+      if (uu && uu.email === u.email) match = uu;
+    });
+    if (match) {
+      var antes = JSON.stringify((u.ccaasAsignadas||[]).slice().sort());
+      var despues = JSON.stringify((match.ccaasAsignadas||[]).slice().sort());
+      window.currentSupervisorUser = match;
+      if (antes !== despues) toast('🔄 Tus comunidades asignadas se han actualizado');
+    }
+    renderVehiculosHome();
+    renderITVAlerts();
+  }).catch(function(){
+    renderVehiculosHome();
+    renderITVAlerts();
+  });
+}
+
 function getAllVehiculos() {
   var todos = VEHICULOS.concat(VEHICULOS_EXTRA).filter(function(v){ return !VEHICULOS_OCULTOS[matSlugV(v.matricula)]; });
   // Si este supervisor tiene comunidades autónomas asignadas desde el
@@ -1138,7 +1166,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-1';
+var APP_VERSION = '2026-08-25-2';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1609,13 +1637,13 @@ function startSync() {
     renderHomeProximas();
   });
   setTimeout(initLugarAutocomplete, 500);
+  sincronizarPermisosSupervisor();
   renderVehiculosHome();
   renderITVAlerts();
   initTallerSelect();
   setInterval(function(){
     syncFromDrivers();
-    renderVehiculosHome();
-    renderITVAlerts();
+    sincronizarPermisosSupervisor();
   }, 6000);
   setInterval(function(){
     pullCitasFromFirebase().then(function(){
