@@ -936,7 +936,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-11';
+var APP_VERSION = '2026-08-25-12';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2978,6 +2978,12 @@ function llamarIaNomina(base64, mediaType, prompt) {
 function parseJSONAdmin(text) {
   try { return JSON.parse((text||'').replace(/```json?|```/g,'').trim()); } catch(e) { return null; }
 }
+function base64ToBlobAdmin(base64, mediaType) {
+  var raw = atob(base64);
+  var bytes = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new Blob([bytes], { type: mediaType || 'image/jpeg' });
+}
 function setNominaBtnEstado(btn, estado) {
   if (!btn) return;
   var colores = {
@@ -3037,16 +3043,22 @@ function onNominaFile(input, cidParam, matriculaParam, uidParam) {
           setNominaBtnEstado(btn, 'verde');
           toast('✓ Nómina leída · ' + dias + ' días · € ' + liquido.toFixed(2).replace('.',','));
           pintarResumenMensual(cid, matricula, uid);
-          // Además de extraer los datos, guardamos el archivo original en
-          // Cloudinary para que el conductor pueda verlo/descargarlo desde
-          // su propia app, en el apartado "Nómina".
-          uploadToCloudinary(file).then(function(res){
+          // Además de extraer los datos, guardamos una IMAGEN en Cloudinary
+          // para que el conductor pueda verla/descargarla desde su propia
+          // app, en el apartado "Nómina". Si el original era un PDF, NUNCA
+          // subimos el PDF crudo — Cloudinary bloquea por defecto la
+          // entrega pública de PDFs (error 401) — subimos la página ya
+          // convertida a imagen que usamos para la IA.
+          var archivoParaGuardar = esPdf
+            ? base64ToBlobAdmin(img.base64, img.mediaType)
+            : file;
+          uploadToCloudinary(archivoParaGuardar).then(function(res){
             var url = res && res.secure_url ? res.secure_url : null;
             if (!url) return;
             return fetch(FIREBASE_URL + '/nominas_conductor/' + cid + '.json', {
               method: 'POST', headers: { 'Content-Type':'application/json' },
               body: JSON.stringify({
-                url: url, esPdf: esPdf, diasTrabajados: dias, liquido: liquido,
+                url: url, esPdf: false, diasTrabajados: dias, liquido: liquido,
                 fecha: new Date().toISOString().slice(0,10), ts: Date.now()
               })
             });
