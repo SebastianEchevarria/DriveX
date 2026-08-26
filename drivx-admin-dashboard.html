@@ -963,7 +963,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-6';
+var APP_VERSION = '2026-08-26-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5649,7 +5649,14 @@ function abrirHistorialPropietario(pid) {
     VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
     VEHICULOS_OCULTOS = ocultos;
     try {
-      paintHistorialPropietario(pid);
+      // Si solo tiene un vehículo, vamos directos a su calendario — la
+      // pregunta de "¿qué vehículo quieres ver?" solo tiene sentido si
+      // hay más de uno donde elegir.
+      if ((p.matriculas || []).length > 1) {
+        mostrarSelectorHistorialPropietario(pid);
+      } else {
+        paintHistorialPropietario(pid);
+      }
     } catch (err) {
       var body = document.getElementById('historial-propietario-body');
       if (body) body.innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:20px">Error al mostrar el historial: ' + err.message + '</div>';
@@ -5660,7 +5667,7 @@ function abrirHistorialPropietario(pid) {
   });
 }
 
-function paintHistorialPropietario(pid) {
+function paintHistorialPropietario(pid, soloMatricula) {
   var body = document.getElementById('historial-propietario-body');
   if (!body) return;
   var p = _propietariosCache[pid];
@@ -5669,8 +5676,9 @@ function paintHistorialPropietario(pid) {
   var vehByMatSlug = {};
   getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
 
+  var matriculasAMostrar = soloMatricula ? [soloMatricula] : (p.matriculas || []);
   var mats = [];
-  (p.matriculas || []).forEach(function(matricula){
+  matriculasAMostrar.forEach(function(matricula){
     var mSlug = matSlug(matricula);
     var periodos = Object.keys(_historialCierresVehCache[mSlug] || {}).sort().reverse();
     if (!periodos.length) return;
@@ -5679,12 +5687,16 @@ function paintHistorialPropietario(pid) {
     mats.push({ matSlug: mSlug, matricula: matricula, modelo: v ? v.modelo : '', periodos: periodos });
   });
 
+  var volverBtn = (p.matriculas || []).length > 1
+    ? '<button onclick="mostrarSelectorHistorialPropietario(\''+pid+'\')" style="background:none;border:none;color:var(--cyan);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;padding:0;margin-bottom:14px">← Elegir otro vehículo</button><br>'
+    : '';
+
   if (!mats.length) {
-    body.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px 0">Todavía no hay ningún cierre semanal guardado para los vehículos de este propietario.</div>';
+    body.innerHTML = volverBtn + '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px 0">Todavía no hay ningún cierre semanal guardado' + (soloMatricula ? ' para ' + soloMatricula : ' para los vehículos de este propietario') + '.</div>';
     return;
   }
 
-  var html = '';
+  var html = volverBtn;
   mats.forEach(function(m){
     var mgid = 'hm' + m.matSlug;
     html += '<div style="margin-bottom:16px;border:2.5px solid rgba(0,212,255,1);border-radius:16px;overflow:hidden;background:rgba(10,16,26,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)">';
@@ -5698,9 +5710,86 @@ function paintHistorialPropietario(pid) {
     html += '</div>';
     html += '</div>';
   });
+  // Si el vehículo se abrió directo (uno solo), lo desplegamos ya
+  if (mats.length === 1 && soloMatricula) {
+    body.innerHTML = html;
+    toggleMatHistorial('hm' + mats[0].matSlug);
+    return;
+  }
 
   body.innerHTML = html;
 }
+
+// ── Pregunta "¿Qué vehículo quieres ver?" cuando el propietario tiene más
+// de un vehículo — deja elegir uno concreto, o el resumen combinado. ──
+function mostrarSelectorHistorialPropietario(pid) {
+  var body = document.getElementById('historial-propietario-body');
+  if (!body) return;
+  var p = _propietariosCache[pid];
+  if (!p) return;
+
+  var html = '<div style="font-size:12.5px;font-weight:800;color:#fff;margin-bottom:14px">¿Qué vehículo quieres ver?</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">';
+  (p.matriculas || []).forEach(function(matricula){
+    html += '<button onclick="paintHistorialPropietario(\''+pid+'\',\''+matricula.replace(/'/g,"\\'")+'\')" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:2px solid rgba(0,212,255,.7);background:rgba(0,212,255,.08);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,212,255,.4)">🚗 ' + matricula + '</button>';
+  });
+  html += '</div>';
+  html += '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">o bien</div>';
+  html += '<button onclick="paintHistorialResumenPropietario(\''+pid+'\')" style="width:100%;text-align:center;padding:13px;border-radius:12px;border:2.5px solid rgba(255,215,0,1);background:rgba(255,215,0,.1);color:#ffd700;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.7),0 0 22px rgba(255,215,0,.4)">📊 RESUMEN DEL PROPIETARIO (todos sus vehículos)</button>';
+
+  body.innerHTML = html;
+}
+
+// ── Resumen combinado de TODOS los vehículos del propietario, semana a
+// semana: un solo calendario con la unión de las semanas cerradas de
+// cualquiera de sus matrículas; al elegir una, se suman los datos de
+// todos los vehículos que tengan cierre esa semana. ──
+function paintHistorialResumenPropietario(pid) {
+  var body = document.getElementById('historial-propietario-body');
+  if (!body) return;
+  var p = _propietariosCache[pid];
+  if (!p) return;
+
+  var periodosUnion = {};
+  (p.matriculas || []).forEach(function(matricula){
+    var mSlug = matSlug(matricula);
+    Object.keys(_historialCierresVehCache[mSlug] || {}).forEach(function(periodo){ periodosUnion[periodo] = true; });
+  });
+  var periodos = Object.keys(periodosUnion).sort().reverse();
+
+  var volverBtn = '<button onclick="mostrarSelectorHistorialPropietario(\''+pid+'\')" style="background:none;border:none;color:var(--cyan);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;padding:0;margin-bottom:14px">← Elegir otro vehículo</button><br>';
+
+  if (!periodos.length) {
+    body.innerHTML = volverBtn + '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px 0">Todavía no hay ningún cierre semanal guardado para los vehículos de este propietario.</div>';
+    return;
+  }
+
+  var mgid = 'hr' + pid;
+  _historialResumenPidActual = pid;
+  var html = volverBtn +
+    '<div style="margin-bottom:6px;border:2.5px solid rgba(255,215,0,1);border-radius:16px;overflow:hidden;background:rgba(10,16,26,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 0 12px rgba(255,215,0,.7),0 0 26px rgba(255,215,0,.4)">' +
+      '<div style="padding:18px;display:flex;align-items:center;gap:14px">' +
+        '<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#ffd700,var(--purple));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📊</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff">Resumen del propietario</div><div style="font-size:12px;color:var(--text2);margin-top:4px">' + (p.matriculas||[]).length + ' vehículos · ' + periodos.length + ' semana' + (periodos.length!==1?'s':'') + ' con datos</div></div>' +
+      '</div>' +
+      '<div style="padding:0 16px 16px;border-top:1px solid rgba(255,215,0,.2);background:rgba(7,11,18,.4)">' +
+        generarFiltroYCalendarioMesResumen(mgid, pid, periodos) +
+      '</div>' +
+    '</div>';
+  body.innerHTML = html;
+
+  // Mostramos el mes actual nada más entrar, en vez de dejar el
+  // calendario vacío hasta que el usuario toque algo.
+  var hoy = new Date();
+  var selMes = document.getElementById('cal-mes-'+mgid);
+  var selAnio = document.getElementById('cal-anio-'+mgid);
+  if (selMes) selMes.value = hoy.getMonth();
+  if (selAnio) selAnio.value = hoy.getFullYear();
+  cambiarMesCalendarioHistorialResumen(mgid, pid);
+}
+var _historialResumenPidActual = null;
+
+
 
 var _historialPeriodosPorMatricula = {};
 var NOMBRES_MES_HIST = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -5738,7 +5827,9 @@ function periodoDeLunesHist(lunes) {
 
 // Calendario grande de UN mes, con cada semana-con-cierre en un color
 // distinto (de una paleta corta) para que se diferencien entre sí.
-function generarCalendarioMesUnico(mSlug, matricula, periodosConDatos, anio, mes) {
+// Si se pasa resumenPid, las semanas abren el resumen combinado de TODOS
+// los vehículos del propietario en vez del detalle de un solo vehículo.
+function generarCalendarioMesUnico(mSlug, matricula, periodosConDatos, anio, mes, resumenPid) {
   var setConDatos = {};
   periodosConDatos.forEach(function(p){ setConDatos[p] = true; });
 
@@ -5774,7 +5865,12 @@ function generarCalendarioMesUnico(mSlug, matricula, periodosConDatos, anio, mes
     var estiloFila = tieneDatos
       ? 'background:rgba('+color+',.28);box-shadow:0 0 10px rgba('+color+',.6) inset;cursor:pointer'
       : 'background:transparent;cursor:default';
-    var onclickAttr = tieneDatos ? ' onclick="abrirDetalleHistorial(\''+mSlug+'\',\''+periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')"' : '';
+    var onclickAttr = '';
+    if (tieneDatos) {
+      onclickAttr = resumenPid
+        ? ' onclick="abrirResumenPropietarioAgregado(\''+resumenPid+'\',\''+periodo+'\')"'
+        : ' onclick="abrirDetalleHistorial(\''+mSlug+'\',\''+periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')"';
+    }
     return '<div' + onclickAttr + ' title="Semana del ' + rango + (tieneDatos ? ' — cierre guardado, toca para verlo' : ' — sin cierre') + '" style="display:flex;border-radius:8px;padding:8px 0;margin-bottom:4px;' + estiloFila + '">' + celdas + '</div>';
   }).join('');
 
@@ -5785,6 +5881,85 @@ function generarCalendarioMesUnico(mSlug, matricula, periodosConDatos, anio, mes
     '</div>' +
     filasHtml +
   '</div>';
+}
+
+// Versión del filtro mes/año + calendario para el RESUMEN combinado del
+// propietario (usa la unión de semanas de todos sus vehículos).
+function generarFiltroYCalendarioMesResumen(mgid, pid, periodos) {
+  var hoy = new Date();
+  var opcionesMes = NOMBRES_MES_HIST.map(function(n, i){ return '<option value="'+i+'">'+n+'</option>'; }).join('');
+  var opcionesAnio = '';
+  for (var a = hoy.getFullYear(); a >= hoy.getFullYear() - 3; a--) opcionesAnio += '<option value="'+a+'">'+a+'</option>';
+
+  _historialPeriodosResumenPorPid[pid] = periodos;
+
+  return '<div style="padding:14px 0 10px">' +
+    '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">' +
+      '<select id="cal-mes-'+mgid+'" onchange="cambiarMesCalendarioHistorialResumen(\''+mgid+'\',\''+pid+'\')" style="flex:1;min-width:120px;background:var(--surface2);border:1.5px solid rgba(255,215,0,.5);color:#fff;padding:9px 10px;border-radius:9px;font-size:13px;font-family:inherit">' + opcionesMes + '</select>' +
+      '<select id="cal-anio-'+mgid+'" onchange="cambiarMesCalendarioHistorialResumen(\''+mgid+'\',\''+pid+'\')" style="width:90px;background:var(--surface2);border:1.5px solid rgba(255,215,0,.5);color:#fff;padding:9px 10px;border-radius:9px;font-size:13px;font-family:inherit">' + opcionesAnio + '</select>' +
+    '</div>' +
+    '<div id="cal-grid-'+mgid+'"></div>' +
+  '</div>';
+}
+var _historialPeriodosResumenPorPid = {};
+function cambiarMesCalendarioHistorialResumen(mgid, pid) {
+  var mes = parseInt(document.getElementById('cal-mes-'+mgid).value, 10);
+  var anio = parseInt(document.getElementById('cal-anio-'+mgid).value, 10);
+  var grid = document.getElementById('cal-grid-'+mgid);
+  if (!grid) return;
+  var periodos = _historialPeriodosResumenPorPid[pid] || [];
+  grid.innerHTML = generarCalendarioMesUnico(null, null, periodos, anio, mes, pid);
+}
+
+// ── Al elegir una semana en el RESUMEN combinado: sumamos los datos de
+// todos los vehículos del propietario que tengan cierre esa semana
+// (misma cuenta que hace la propia app del Propietario al agregar varios
+// vehículos), y lo mostramos con el mismo componente de siempre. ──
+function abrirResumenPropietarioAgregado(pid, periodo) {
+  var p = _propietariosCache[pid];
+  if (!p) return;
+
+  var snapsDeEstaSemana = [];
+  (p.matriculas || []).forEach(function(matricula){
+    var mSlug = matSlug(matricula);
+    var snap = (_historialCierresVehCache[mSlug] || {})[periodo];
+    if (snap) snapsDeEstaSemana.push(snap);
+  });
+  if (!snapsDeEstaSemana.length) return;
+
+  var acc = {
+    matricula: (p.matriculas||[]).join(', '), pid: pid, sinPropietario: false,
+    uberTotal:0, boltTotal:0, cabifyTotal:0, privadosFacturacionTotal:0, transfersFacturacionTotal:0, brandingTotal:0,
+    combustibleTotal:0, peajesTotal:0, parkingTotal:0, limpiezaTotal:0, otrosTotal:0, abonadosPorPropietarioTotal:0,
+    sueldosTotal:0, infinityTotal:0, pagosARealizarTotal:0, nombreGestion:'INFINITY', porcentajeGestion:0,
+    pagosDetalle:[], ticketsConductor:[], ticketsPropietario:[], kmSemana:{ total:0, porConductor:[] }
+  };
+  snapsDeEstaSemana.forEach(function(snap){
+    acc.uberTotal += snap.uberTotal||0; acc.boltTotal += snap.boltTotal||0; acc.cabifyTotal += snap.cabifyTotal||0;
+    acc.privadosFacturacionTotal += snap.privadosFacturacionTotal||0; acc.transfersFacturacionTotal += snap.transfersFacturacionTotal||0;
+    acc.brandingTotal += snap.brandingTotal||0;
+    acc.combustibleTotal += snap.combustibleTotal||0; acc.peajesTotal += snap.peajesTotal||0; acc.parkingTotal += snap.parkingTotal||0;
+    acc.limpiezaTotal += snap.limpiezaTotal||0; acc.otrosTotal += snap.otrosTotal||0;
+    acc.abonadosPorPropietarioTotal += snap.abonadosPorPropietarioTotal||0;
+    acc.sueldosTotal += snap.sueldosTotal||0; acc.infinityTotal += snap.infinityTotal||0;
+    acc.pagosARealizarTotal += snap.pagosARealizarTotal||0;
+    acc.nombreGestion = snap.nombreGestion || acc.nombreGestion;
+    acc.porcentajeGestion = snap.porcentajeGestion || acc.porcentajeGestion;
+    (snap.pagosDetalle||[]).forEach(function(x){ acc.pagosDetalle.push(x); });
+    (snap.ticketsConductor||[]).forEach(function(x){ acc.ticketsConductor.push(x); });
+    (snap.ticketsPropietario||[]).forEach(function(x){ acc.ticketsPropietario.push(x); });
+    if (snap.kmSemana && snap.kmSemana.total > 0) {
+      acc.kmSemana.total += snap.kmSemana.total;
+      (snap.kmSemana.porConductor||[]).forEach(function(k){ acc.kmSemana.porConductor.push(k); });
+    }
+  });
+  acc.facturacionTotal = acc.uberTotal + acc.boltTotal + acc.cabifyTotal + acc.privadosFacturacionTotal + acc.transfersFacturacionTotal + acc.brandingTotal;
+  acc.gastosTotalGeneral = acc.combustibleTotal + acc.peajesTotal + acc.parkingTotal + acc.limpiezaTotal + acc.otrosTotal + acc.sueldosTotal + acc.infinityTotal;
+  acc.beneficio = acc.facturacionTotal - acc.gastosTotalGeneral;
+
+  document.getElementById('veh-resumen-plate').innerHTML = '<div style="font-size:14px;font-weight:900;color:#fff">' + (p.nombre||'') + '</div><div style="font-size:11px;color:var(--text3)">' + (p.matriculas||[]).length + ' vehículos combinados</div>';
+  document.getElementById('veh-resumen-modal').style.display = 'flex';
+  pintarResumenGeneralVehiculo(acc, true);
 }
 
 function toggleMatHistorial(mgid) {
@@ -7167,7 +7342,7 @@ function paintPropietarios() {
           '<button onclick="event.stopPropagation();copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
         '</div>';
       }
-      html += '<button onclick="event.stopPropagation();abrirHistorialPropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--cyan);border-color:rgba(0,212,255,.4);width:100%;text-align:center;margin-bottom:6px">📜 Ver historial de facturación</button>';
+      html += '<button onclick="event.stopPropagation();abrirHistorialPropietario(\''+item.pid+'\')" style="width:100%;text-align:center;margin-bottom:6px;padding:9px;border-radius:10px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)">📜 Ver historial de facturación</button>';
       html += '<button onclick="event.stopPropagation();editarPropietarioAbrir(\''+item.pid+'\')" class="edit-btn" style="color:var(--cyan);border-color:rgba(0,212,255,.4);width:100%;text-align:center;margin-bottom:6px">✏️ Editar propietario</button>';
       html += '<button id="delprop_'+item.pid+'" onclick="event.stopPropagation();confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';      html += '</div>';
       html += '</div>';
