@@ -173,11 +173,6 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <img id="login-logo-img" alt="DRIVX VTC Fleet" style="max-width:340px;width:100%;height:auto;margin-bottom:24px">
     </div>
 
-    <div class="role-toggle">
-      <button class="role-btn active" id="role-admin" onclick="setRole('admin')">👑 Administrador</button>
-      <button class="role-btn" id="role-manager" onclick="setRole('manager')">📊 Manager</button>
-    </div>
-
     <div id="dash-step-login">
     <div class="login-error" id="login-error">Credenciales incorrectas.</div>
 
@@ -958,9 +953,8 @@ var USERS_DASH = {
   'manager@vtcinfinity.com': { pass:'manager123', nombre:'Manager VTC', role:'manager' }
 };
 
-var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-42';
+var APP_VERSION = '2026-08-25-44';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -980,12 +974,6 @@ document.addEventListener('visibilitychange', function(){ if (!document.hidden) 
 window.addEventListener('focus', checkForNewVersion);
 
 var currentUser = null;
-
-function setRole(r) {
-  currentRole = r;
-  document.getElementById('role-admin').classList.toggle('active', r === 'admin');
-  document.getElementById('role-manager').classList.toggle('active', r === 'manager');
-}
 
 // ══════════════ INSTALACIÓN COMO APP (PWA) ══════════════
 var _pwaDeferredPrompt = null;
@@ -1106,7 +1094,7 @@ function doLogin() {
   // Usuario tester — mismo acceso rápido que en las apps de conductor y supervisor
   if (email === '1111' && pass === '1111') {
     err.style.display = 'none';
-    currentUser = { nombre: 'Test User', role: currentRole };
+    currentUser = { nombre: 'Test User', role: 'admin' };
     localStorage.setItem('drivx_admin_user', '1111');
     finishLoginWithBiometricOffer(email, pass);
     return;
@@ -2721,6 +2709,12 @@ function paintConductoresScreen() {
     if (!groups[cc]) groups[cc] = [];
     groups[cc].push(c);
   });
+  // Un Manager con CCAA asignada no debe ver ni el cajón "Sin asignar" ni
+  // conductores de vehículos de otras comunidades — si su matrícula no
+  // pertenece a la lista ya filtrada de vehículos visibles, se descarta.
+  if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) {
+    delete groups['Sin asignar'];
+  }
 
   var ccaas = Object.keys(groups).sort(function(a,b){
     var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
