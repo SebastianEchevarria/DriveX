@@ -548,6 +548,10 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </div>
       </div>
 
+      <div style="display:none;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;margin-bottom:22px">
+        <span id="vd-tendencia" style="font-size:12px;font-weight:700;color:var(--text3)">—</span>
+      </div>
+
       <div class="sb-section" style="padding:0 0 10px">Tipo de facturación</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
         <div id="vd-facturacion" style="font-size:13px;font-weight:700;flex:1">—</div>
@@ -992,7 +996,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-17';
+var APP_VERSION = '2026-08-26-18';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -6124,6 +6128,105 @@ function formatearPeriodoSemanal(periodo) {
   return lunesTxt + ' – ' + domingoTxt;
 }
 
+// ── Rentabilidad a lo largo del tiempo: gráfico de barras con
+// facturación y beneficio de TODAS las semanas cerradas de un vehículo,
+// usando los mismos datos que ya archiva el Historial (nada nuevo que
+// calcular, solo pintarlo en orden cronológico). ──
+function abrirEvolucionVehiculo(mSlug, matricula) {
+  var datos = _historialCierresVehCache[mSlug] || {};
+  var periodosOrdenados = Object.keys(datos).sort(); // ascendente, del más antiguo al más reciente
+  if (!periodosOrdenados.length) return;
+  var puntos = periodosOrdenados.map(function(p){ return { periodo: p, snap: datos[p] }; });
+
+  var maxVal = 1;
+  puntos.forEach(function(pt){
+    maxVal = Math.max(maxVal, pt.snap.facturacionTotal||0, Math.abs(pt.snap.beneficio||0));
+  });
+
+  var barrasHtml = puntos.map(function(pt){
+    var altFact = Math.max(4, Math.round((pt.snap.facturacionTotal||0) / maxVal * 110));
+    var altBenef = Math.max(4, Math.round(Math.abs(pt.snap.beneficio||0) / maxVal * 110));
+    var colorBenef = (pt.snap.beneficio||0) >= 0 ? '0,230,118' : '255,71,87';
+    var rango = formatearPeriodoSemanal(pt.periodo);
+    var etiquetaCorta = rango.split('–')[0].trim();
+    var tooltip = 'Semana del ' + rango + ' — Facturación € ' + (pt.snap.facturacionTotal||0).toFixed(2).replace('.',',') + ' · Beneficio € ' + (pt.snap.beneficio||0).toFixed(2).replace('.',',');
+    return '<div title="' + tooltip + '" style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;width:48px">' +
+      '<div style="display:flex;align-items:flex-end;gap:3px;height:120px">' +
+        '<div style="width:9px;height:' + altFact + 'px;background:var(--cyan);border-radius:3px 3px 0 0;box-shadow:0 0 6px rgba(0,212,255,.7)"></div>' +
+        '<div style="width:9px;height:' + altBenef + 'px;background:rgba(' + colorBenef + ',1);border-radius:3px 3px 0 0;box-shadow:0 0 6px rgba(' + colorBenef + ',.7)"></div>' +
+      '</div>' +
+      '<div style="font-size:8.5px;color:var(--text3);text-align:center;line-height:1.2">' + etiquetaCorta + '</div>' +
+    '</div>';
+  }).join('');
+
+  var totalFact = puntos.reduce(function(s,pt){ return s + (pt.snap.facturacionTotal||0); }, 0);
+  var totalBenef = puntos.reduce(function(s,pt){ return s + (pt.snap.beneficio||0); }, 0);
+  var mediaFact = totalFact / puntos.length;
+  var mediaBenef = totalBenef / puntos.length;
+
+  var modal = document.getElementById('evolucion-vehiculo-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'evolucion-vehiculo-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);z-index:10030;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.85);border-radius:20px;max-width:640px;width:100%;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 18px rgba(0,212,255,.6),0 0 40px rgba(0,212,255,.35)">' +
+    '<div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">' +
+      '<div><div style="font-size:15px;font-weight:900;color:#fff">📈 Evolución</div><div style="font-size:11.5px;color:var(--text3)">' + matricula + ' · ' + puntos.length + ' semana' + (puntos.length!==1?'s':'') + ' cerrada' + (puntos.length!==1?'s':'') + '</div></div>' +
+      '<button class="modal-close" onclick="document.getElementById(\'evolucion-vehiculo-modal\').style.display=\'none\'">✕</button>' +
+    '</div>' +
+    '<div style="padding:18px 20px 20px;overflow:auto;flex:1">' +
+      '<div style="display:flex;gap:16px;margin-bottom:16px;font-size:10.5px">' +
+        '<span style="display:flex;align-items:center;gap:5px;color:var(--text2)"><span style="width:10px;height:10px;border-radius:3px;background:var(--cyan);display:inline-block"></span>Facturación</span>' +
+        '<span style="display:flex;align-items:center;gap:5px;color:var(--text2)"><span style="width:10px;height:10px;border-radius:3px;background:var(--green);display:inline-block"></span>Beneficio</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;align-items:flex-end">' + barrasHtml + '</div>' +
+      '<div style="display:flex;gap:12px;margin-top:16px">' +
+        '<div style="flex:1;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.3);border-radius:10px;padding:10px 12px;text-align:center">' +
+          '<div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Media facturación / semana</div>' +
+          '<div style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ ' + mediaFact.toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+        '<div style="flex:1;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:10px 12px;text-align:center">' +
+          '<div style="font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Media beneficio / semana</div>' +
+          '<div style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + (mediaBenef>=0?'var(--green)':'var(--red)') + '">€ ' + mediaBenef.toFixed(2).replace('.',',') + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+  modal.style.display = 'flex';
+}
+
+// ── Tendencia reciente del beneficio (últimas 4 semanas cerradas), para
+// avisar en Flota sin tener que ir a buscarlo. ──
+function calcularTendenciaBeneficio(datosVeh) {
+  var periodos = Object.keys(datosVeh || {}).sort();
+  if (periodos.length < 2) return null;
+  var ultimos = periodos.slice(-4).map(function(p){ return datosVeh[p].beneficio || 0; });
+  var primero = ultimos[0], ultimo = ultimos[ultimos.length - 1];
+  var bajando = true, subiendo = true;
+  for (var i = 1; i < ultimos.length; i++) {
+    if (ultimos[i] > ultimos[i-1]) bajando = false;
+    if (ultimos[i] < ultimos[i-1]) subiendo = false;
+  }
+  var cambioPct = primero !== 0 ? ((ultimo - primero) / Math.abs(primero)) * 100 : 0;
+  if (bajando && cambioPct <= -10) return { texto: '📉 Beneficio bajando ' + ultimos.length + ' semanas seguidas', color: 'var(--red)' };
+  if (subiendo && cambioPct >= 10) return { texto: '📈 Beneficio subiendo ' + ultimos.length + ' semanas seguidas', color: 'var(--green)' };
+  return { texto: '➡️ Beneficio estable en las últimas semanas', color: 'var(--text3)' };
+}
+function cargarTendenciaVehiculo(matricula) {
+  var el = document.getElementById('vd-tendencia');
+  if (!el) return;
+  var mSlug = matSlug(matricula);
+  fetch(FIREBASE_URL + '/facturacion_cierres_vehiculo/' + mSlug + '.json').then(function(r){ return r.json(); }).then(function(datosVeh){
+    var t = calcularTendenciaBeneficio(datosVeh);
+    if (!t) { el.parentNode.style.display = 'none'; return; }
+    el.parentNode.style.display = 'flex';
+    el.textContent = t.texto;
+    el.style.color = t.color;
+  }).catch(function(){ el.parentNode.style.display = 'none'; });
+}
+
 // ── Historial de facturación de UN propietario (modal, se abre desde su
 // tarjeta en Propietarios) — mismo sistema de calendario que antes, pero
 // ahora limitado solo a los vehículos de ese propietario. ──
@@ -6217,6 +6320,7 @@ function paintHistorialPropietario(pid, soloMatricula) {
     html += '</div>';
     html += '<div id="'+mgid+'" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(0,212,255,.2);background:rgba(7,11,18,.4)">';
     html += generarFiltroYCalendarioMes(mgid, m.matSlug);
+    html += '<button onclick="abrirEvolucionVehiculo(\''+m.matSlug+'\',\''+m.matricula.replace(/'/g,"\\'")+'\')" style="width:100%;margin-top:14px;padding:10px;border-radius:10px;border:2px solid rgba(0,230,118,.85);background:rgba(0,230,118,.1);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.5),0 0 18px rgba(0,230,118,.3)">📈 Ver evolución (' + m.periodos.length + ' semana' + (m.periodos.length!==1?'s':'') + ')</button>';
     html += '</div>';
     html += '</div>';
   });
@@ -8751,6 +8855,7 @@ function openVehicleDetail(matricula) {
 
   renderConductoresYTurnos(v);
   cargarKmTotalVehiculo(v.matricula);
+  cargarTendenciaVehiculo(v.matricula);
 
   var delBtn = document.getElementById('vd-delete-btn');
   if (delBtn) { delBtn.removeAttribute('data-confirm'); delBtn.textContent = '🗑 Eliminar vehículo'; delBtn.style.background = 'rgba(255,71,87,.08)'; }
@@ -9174,6 +9279,7 @@ function renderConductoresInvitados(v) {
     _vdInvitadosCache = mios;
     renderConductoresYTurnos(v);
     cargarKmTotalVehiculo(v.matricula);
+    cargarTendenciaVehiculo(v.matricula);
   }).catch(function(){
     document.getElementById('vd-conductores').innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
   });
@@ -9302,6 +9408,7 @@ function confirmDeleteConductor(cid) {
       var v = getAllVehiculos().find(function(x){ return x.matricula === _vdCurrentMat; });
       if (v) renderConductoresYTurnos(v);
       if (v) cargarKmTotalVehiculo(v.matricula);
+      if (v) cargarTendenciaVehiculo(v.matricula);
       registrarActividad('Conductores', 'Eliminó conductor', nombreCondLog + ' · vehículo ' + matriculaCondLog);
     }).catch(function(){ alert('No se pudo eliminar. Revisa tu conexión.'); });
     return;
