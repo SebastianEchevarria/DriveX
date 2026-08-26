@@ -960,7 +960,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-41';
+var APP_VERSION = '2026-08-25-42';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1088,7 +1088,7 @@ function activarCuentaDash() {
       method: 'PATCH', headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({ pass: pass1, inviteUsado: true })
     }).then(function(){
-      currentUser = { nombre: u.nombre, email: email, role: u.role || 'admin' };
+      currentUser = { nombre: u.nombre, email: email, role: u.role || 'admin', ccaaAsignada: u.ccaaAsignada || null };
       localStorage.setItem('drivx_admin_user', email);
       finishLoginWithBiometricOffer(email, pass1);
     });
