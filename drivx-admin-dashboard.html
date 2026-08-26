@@ -963,7 +963,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-10';
+var APP_VERSION = '2026-08-26-11';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2962,6 +2962,7 @@ function conductorPerfilBodyHtml(c) {
 
   var html = '';
   html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">✉️ <b>Email:</b> ' + (c.email || '—') + '</div>';
+  html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">📱 <b>Teléfono:</b> ' + (c.telefono || '—') + '</div>';
   html += '<div style="font-size:12px;color:var(--text2);margin-bottom:16px">📅 <b>Fecha de alta:</b> ' + (c.fechaRegistro || '—') + '</div>';
 
   var cuid = 'pdocs_' + c.cid;
@@ -8346,10 +8347,9 @@ function renderConductoresYTurnos(v) {
     html += '</div>';
 
     html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
-    html += '<div style="padding-top:12px;font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <b>Email:</b> ' + (r.email || '—') + '</div>';
-    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3);margin:10px 0 12px">Los datos personales (DNI, carnet, email, teléfono, cuenta bancaria) se gestionan ahora desde el apartado <b style="color:#fff">Conductores</b> del menú.</div>';
 
-    html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
+    html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
       '<span style="font-size:18px;flex-shrink:0">🕐</span>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Turno</div>' +
@@ -8357,31 +8357,6 @@ function renderConductoresYTurnos(v) {
       '</div>' +
       '<button onclick="event.stopPropagation();guardarTurnoConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
     '</div>';
-
-    html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
-      bancoIconImg(20) +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Cuenta bancaria</div>' +
-        '<input id="cuenta-' + cid + '" value="' + (r.cuentaBancaria || '').replace(/"/g,'&quot;') + '" placeholder="No proporcionada" onclick="event.stopPropagation()" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(0,212,255,.4);color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 0">' +
-      '</div>' +
-      '<button onclick="event.stopPropagation();guardarCuentaConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
-    '</div>';
-
-    if (r.bizum) {
-      html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(124,92,252,.06);border:1px solid rgba(124,92,252,.3);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
-        bizumIconImg(20) +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Bizum</div>' +
-          '<div style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--purple)">' + r.bizum + '</div>' +
-        '</div>' +
-      '</div>';
-    }
-
-    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
-    html += '<div style="margin-bottom:12px">' + docThumb(r.dniFrenteUrl, 'Frontal') + docThumb(r.dniDorsoUrl, 'Dorso') + '</div>';
-
-    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🪪 Carnet de conducir</div>';
-    html += '<div style="margin-bottom:14px">' + docThumb(r.carnetFrenteUrl, 'Frontal') + docThumb(r.carnetDorsoUrl, 'Dorso') + '</div>';
 
     html += '<button id="del-cond-' + cid + '" onclick="confirmDeleteConductor(\'' + cid + '\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3);width:100%;text-align:center">🗑 Eliminar conductor</button>';
     html += '</div></div>';
@@ -8672,10 +8647,9 @@ function paintConductoresInvitados() {
     html += '</div>';
 
     html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
-    html += '<div style="padding-top:12px;font-size:12px;color:var(--text2);margin-bottom:4px">✉️ <b>Email:</b> ' + (r.email || '—') + '</div>';
-    html += '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">📱 <b>Teléfono:</b> ' + (r.telefono || '—') + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3);margin:10px 0 12px">Los datos personales (DNI, carnet, email, teléfono, cuenta bancaria) se gestionan ahora desde el apartado <b style="color:#fff">Conductores</b> del menú.</div>';
 
-    html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
+    html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
       '<span style="font-size:18px;flex-shrink:0">🕐</span>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Turno</div>' +
@@ -8683,31 +8657,6 @@ function paintConductoresInvitados() {
       '</div>' +
       '<button onclick="event.stopPropagation();guardarTurnoConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
     '</div>';
-
-    html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
-      bancoIconImg(20) +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Cuenta bancaria</div>' +
-        '<input id="cuenta-' + cid + '" value="' + (r.cuentaBancaria || '').replace(/"/g,'&quot;') + '" placeholder="No proporcionada" onclick="event.stopPropagation()" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(0,212,255,.4);color:var(--cyan);font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 0">' +
-      '</div>' +
-      '<button onclick="event.stopPropagation();guardarCuentaConductor(\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
-    '</div>';
-
-    if (r.bizum) {
-      html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(124,92,252,.06);border:1px solid rgba(124,92,252,.3);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
-        bizumIconImg(20) +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Bizum</div>' +
-          '<div style="font-size:13px;font-weight:700;font-family:var(--mono);color:var(--purple)">' + r.bizum + '</div>' +
-        '</div>' +
-      '</div>';
-    }
-
-    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🆔 DNI</div>';
-    html += '<div style="margin-bottom:12px">' + docThumb(r.dniFrenteUrl, 'Frontal') + docThumb(r.dniDorsoUrl, 'Dorso') + '</div>';
-
-    html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🪪 Carnet de conducir</div>';
-    html += '<div style="margin-bottom:14px">' + docThumb(r.carnetFrenteUrl, 'Frontal') + docThumb(r.carnetDorsoUrl, 'Dorso') + '</div>';
 
     html += '<button id="del-cond-' + cid + '" onclick="confirmDeleteConductor(\'' + cid + '\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.3);width:100%;text-align:center">🗑 Eliminar conductor</button>';
     html += '</div></div>';
