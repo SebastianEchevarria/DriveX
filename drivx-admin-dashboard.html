@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-44';
+var APP_VERSION = '2026-08-25-45';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1431,17 +1431,20 @@ function renderInvitacionesPendientesInicio() {
     var dash = results[0] || {}, sup = results[1] || {}, props = results[2] || {}, invites = results[3] || {};
     var pendientes = [];
 
+    // Solo entran aquí las que TODAVÍA no se han aceptado — en cuanto el
+    // usuario activa su cuenta (inviteUsado/usado pasa a true), desaparece
+    // de este aviso automáticamente.
     Object.keys(dash).forEach(function(uid){
-      var u = dash[uid]; if (u && !u.inviteUsado) pendientes.push({ tipo:'Dashboard', icono:'👑', color:'0,212,255', nombre:u.nombre||u.email||'—', ts:u.ts||0 });
+      var u = dash[uid]; if (u && !u.inviteUsado) pendientes.push({ tipo:'Dashboard', icono:'👑', color:'0,212,255', nombre:u.nombre||u.email||'—', ts:u.ts||0, code:u.inviteCode||'', path:'/usuarios_dashboard/'+uid+'.json', id:'d_'+uid });
     });
     Object.keys(sup).forEach(function(uid){
-      var u = sup[uid]; if (u && !u.inviteUsado) pendientes.push({ tipo:'Supervisor', icono:'🗺️', color:'254,164,1', nombre:u.nombre||u.email||'—', ts:u.ts||0 });
+      var u = sup[uid]; if (u && !u.inviteUsado) pendientes.push({ tipo:'Supervisor', icono:'🗺️', color:'254,164,1', nombre:u.nombre||u.email||'—', ts:u.ts||0, code:u.inviteCode||'', path:'/usuarios_supervisor/'+uid+'.json', id:'s_'+uid });
     });
     Object.keys(props).forEach(function(pid){
-      var p = props[pid]; if (p && !p.inviteUsado) pendientes.push({ tipo:'Propietario', icono:'💼', color:'124,92,252', nombre:p.nombre||'—', ts:p.ts||0 });
+      var p = props[pid]; if (p && !p.inviteUsado) pendientes.push({ tipo:'Propietario', icono:'💼', color:'124,92,252', nombre:p.nombre||'—', ts:p.ts||0, code:p.inviteCode||'', path:'/propietarios/'+pid+'.json', id:'p_'+pid });
     });
     Object.keys(invites).forEach(function(code){
-      var inv = invites[code]; if (inv && !inv.usado) pendientes.push({ tipo:'Conductor', icono:'🚗', color:'0,230,118', nombre:(inv.email||'—') + ' · ' + (inv.matricula||''), ts:inv.creadoTs||0 });
+      var inv = invites[code]; if (inv && !inv.usado) pendientes.push({ tipo:'Conductor', icono:'🚗', color:'0,230,118', nombre:(inv.email||'—') + ' · ' + (inv.matricula||''), ts:inv.creadoTs||0, code:code, path:'/invites/'+code+'.json', id:'c_'+code });
     });
 
     if (!pendientes.length) { cont.innerHTML = ''; return; }
@@ -1450,14 +1453,47 @@ function renderInvitacionesPendientesInicio() {
     var html = '<div style="background:rgba(255,179,0,.06);border:2.5px solid rgba(255,179,0,.9);border-radius:16px;padding:16px 18px;margin-bottom:18px;box-shadow:0 0 12px rgba(255,179,0,.6),0 0 26px rgba(255,179,0,.35)">' +
       '<div style="font-size:14px;font-weight:900;color:#fff;margin-bottom:10px">⏳ Invitaciones pendientes (' + pendientes.length + ')</div>';
     pendientes.forEach(function(p){
-      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)">' +
-        '<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:rgba(' + p.color + ',.25);border:1px solid rgba(' + p.color + ',.7);border-radius:7px;padding:4px 8px;white-space:nowrap">' + p.icono + ' ' + p.tipo + '</span>' +
-        '<span style="flex:1;min-width:0;font-size:12.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.nombre + '</span>' +
+      html += '<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+          '<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:rgba(' + p.color + ',.25);border:1px solid rgba(' + p.color + ',.7);border-radius:7px;padding:4px 8px;white-space:nowrap">' + p.icono + ' ' + p.tipo + '</span>' +
+          '<span style="flex:1;min-width:0;font-size:12.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.nombre + '</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="flex:1;min-width:0;font-family:var(--mono);font-size:13px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.4);border-radius:8px;padding:7px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.code||'—') + '</span>' +
+          '<button onclick="copiarCodigoInvitacionInicio(\'' + p.code.replace(/'/g,"\\'") + '\')" title="Copiar código" style="flex-shrink:0;background:rgba(0,212,255,.14);border:1.5px solid rgba(0,212,255,.7);color:#fff;font-size:12px;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit">📋</button>' +
+          '<button id="del-inv-' + p.id + '" onclick="eliminarInvitacionPendienteInicio(\'' + p.id + '\',\'' + p.path + '\')" title="Eliminar invitación" style="flex-shrink:0;background:rgba(255,71,87,.1);border:1.5px solid rgba(255,71,87,.6);color:var(--red);font-size:12px;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit">🗑</button>' +
+        '</div>' +
       '</div>';
     });
     html += '</div>';
     cont.innerHTML = html;
   }).catch(function(){});
+}
+function copiarCodigoInvitacionInicio(code) {
+  if (!code) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(code);
+  toast('✓ Código copiado');
+}
+function eliminarInvitacionPendienteInicio(id, path) {
+  var btn = document.getElementById('del-inv-' + id);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    fetch(FIREBASE_URL + path, { method: 'DELETE' }).then(fbCheck).then(function(){
+      toast('🗑 Invitación eliminada');
+      renderInvitacionesPendientesInicio();
+    }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠';
+  btn.style.background = 'rgba(255,71,87,.35)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑';
+      btn.style.background = 'rgba(255,71,87,.1)';
+    }
+  }, 3000);
 }
 
 function renderProximasCitasInicio() {
