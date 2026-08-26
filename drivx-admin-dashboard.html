@@ -963,7 +963,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-7';
+var APP_VERSION = '2026-08-26-8';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -7314,14 +7314,21 @@ function paintPropietarios() {
 
       html += '<div class="prop-card" data-nombre="'+(p.nombre||'').toUpperCase()+'" data-matriculas="'+(p.matriculas||[]).join(',').replace(/\s/g,'').toUpperCase()+'" style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1.5px solid rgba(0,212,255,.65);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 10px rgba(0,212,255,.55),0 0 22px rgba(0,212,255,.32)">';
       html += '<div onclick="togglePropDetail(\''+item.pid+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer">';
-      html += '<div><div style="font-size:14px;font-weight:800">'+(p.nombre||'—')+'</div>';
-      html += '<div style="font-size:11px;color:var(--text3)">'+(p.matriculas||[]).length+' vehículo'+((p.matriculas||[]).length!==1?'s':'')+'</div></div>';
+      html += '<div style="min-width:0"><div style="font-size:14px;font-weight:800">'+(p.nombre||'—')+'</div>';
+      html += '<div style="font-size:11px;color:var(--text3);margin-bottom:'+((p.matriculas||[]).length?'6px':'0')+'">'+(p.matriculas||[]).length+' vehículo'+((p.matriculas||[]).length!==1?'s':'')+'</div>';
+      if ((p.matriculas||[]).length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:5px">' + (p.matriculas||[]).map(function(m){ return plateHtmlSmall(m); }).join('') + '</div>';
+      }
+      html += '</div>';
       html += '<span id="propchev_'+item.pid+'" style="color:var(--cyan);font-size:16px;flex-shrink:0">⌄</span>';
       html += '</div>';
       html += '<div id="propbody_'+item.pid+'" style="display:none;margin-top:12px">';
       html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">';
-      html += '<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+(p.doc||'—')+'</div>';
-      html += estadoInvite;
+      html += '<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div style="font-size:11px;color:var(--text3);font-family:var(--mono)">'+(p.doc||'—')+'</div>' + estadoInvite + '</div>';
+      html += '<div style="display:flex;gap:6px;flex-shrink:0">' +
+        '<button onclick="event.stopPropagation();editarPropietarioAbrir(\''+item.pid+'\')" title="Editar propietario" style="width:32px;height:32px;border-radius:8px;border:1.5px solid rgba(0,212,255,.6);background:rgba(0,212,255,.1);color:var(--cyan);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✏️</button>' +
+        '<button id="delprop_'+item.pid+'" onclick="event.stopPropagation();confirmDeletePropietario(\''+item.pid+'\')" title="Eliminar propietario" style="width:32px;height:32px;border-radius:8px;border:1.5px solid rgba(255,71,87,.6);background:rgba(255,71,87,.1);color:var(--red);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">🗑</button>' +
+      '</div>';
       html += '</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:4px">✉️ '+(p.email||'—')+(p.telefono?' · 📱 '+p.telefono:'')+'</div>';
       html += '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📅 Alta: '+(p.fechaAlta||'—')+'</div>';
@@ -7342,9 +7349,8 @@ function paintPropietarios() {
           '<button onclick="event.stopPropagation();copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
         '</div>';
       }
-      html += '<button onclick="event.stopPropagation();abrirHistorialPropietario(\''+item.pid+'\')" style="width:100%;text-align:center;margin-bottom:6px;padding:9px;border-radius:10px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)">📜 Ver historial de facturación</button>';
-      html += '<button onclick="event.stopPropagation();editarPropietarioAbrir(\''+item.pid+'\')" class="edit-btn" style="color:var(--cyan);border-color:rgba(0,212,255,.4);width:100%;text-align:center;margin-bottom:6px">✏️ Editar propietario</button>';
-      html += '<button id="delprop_'+item.pid+'" onclick="event.stopPropagation();confirmDeletePropietario(\''+item.pid+'\')" class="edit-btn" style="color:var(--red);border-color:rgba(255,71,87,.35);width:100%;text-align:center">🗑 Eliminar propietario</button>';      html += '</div>';
+      html += '<button onclick="event.stopPropagation();abrirHistorialPropietario(\''+item.pid+'\')" style="width:100%;text-align:center;padding:9px;border-radius:10px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)">📜 Ver historial de facturación</button>';
+      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
