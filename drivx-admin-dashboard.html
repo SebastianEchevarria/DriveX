@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-50';
+var APP_VERSION = '2026-08-25-51';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1241,6 +1241,13 @@ function enterShell() {
   if (!localStorage.getItem(_pwaFlagKey)) {
     localStorage.setItem(_pwaFlagKey, '1');
     setTimeout(maybeShowPwaBanner, 900);
+  }
+
+  // El registro de actividad se limpia solo — cualquier entrada de más de
+  // 72h se borra, aunque nadie llegue a abrir el visor.
+  if (typeof limpiarRegistroActividadAntiguo === 'function') {
+    limpiarRegistroActividadAntiguo();
+    setInterval(limpiarRegistroActividadAntiguo, 60 * 60 * 1000);
   }
 
   // Si el MASTER le cambia el rol o la CCAA asignada a este usuario desde
@@ -2241,18 +2248,33 @@ function abrirRegistroActividad() {
 
   fetch(FIREBASE_URL + '/registro_actividad.json').then(function(r){ return r.json(); }).then(function(data){
     data = data || {};
-    _registroActividadCache = Object.keys(data).map(function(k){ return data[k]; }).sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+    // Los registros de más de 72 horas se consideran caducados — no se
+    // muestran (aunque todavía no se hayan borrado del todo de Firebase).
+    var limite = Date.now() - (72 * 60 * 60 * 1000);
+    var vigentes = {};
+    Object.keys(data).forEach(function(k){ if ((data[k].ts || 0) >= limite) vigentes[k] = data[k]; });
+    _registroActividadCache = Object.keys(vigentes).map(function(k){ return vigentes[k]; }).sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
     pintarTabsRegistroActividad();
     pintarRegistroActividad();
-    // Limpieza silenciosa de entradas de más de 6 meses — no bloquea nada,
-    // simplemente evita que esto crezca sin control con el tiempo.
-    var limite = Date.now() - (183 * 24 * 60 * 60 * 1000);
-    Object.keys(data).forEach(function(k){
-      if ((data[k].ts || 0) < limite) fetch(FIREBASE_URL + '/registro_actividad/' + k + '.json', { method: 'DELETE' }).catch(function(){});
-    });
+    limpiarRegistroActividadAntiguo(data);
   }).catch(function(){
     document.getElementById('ra-lista').innerHTML = '<div style="text-align:center;color:var(--red);font-size:12px;padding:20px">No se pudo cargar el registro.</div>';
   });
+}
+// Borra de Firebase, en cualquier parte, cualquier entrada del registro de
+// actividad que lleve más de 72 horas desde que se creó. Se llama tanto al
+// abrir el visor como periódicamente en segundo plano (aunque nadie lo
+// abra), para que de verdad se vaya despejando solo.
+function limpiarRegistroActividadAntiguo(dataYaCargada) {
+  var limite = Date.now() - (72 * 60 * 60 * 1000);
+  var procesar = function(data){
+    data = data || {};
+    Object.keys(data).forEach(function(k){
+      if ((data[k].ts || 0) < limite) fetch(FIREBASE_URL + '/registro_actividad/' + k + '.json', { method: 'DELETE' }).catch(function(){});
+    });
+  };
+  if (dataYaCargada) { procesar(dataYaCargada); return; }
+  fetch(FIREBASE_URL + '/registro_actividad.json').then(function(r){ return r.json(); }).then(procesar).catch(function(){});
 }
 function pintarTabsRegistroActividad() {
   var el = document.getElementById('ra-tabs');
