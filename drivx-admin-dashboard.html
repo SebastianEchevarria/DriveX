@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-47';
+var APP_VERSION = '2026-08-25-48';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1241,6 +1241,29 @@ function enterShell() {
   if (!localStorage.getItem(_pwaFlagKey)) {
     localStorage.setItem(_pwaFlagKey, '1');
     setTimeout(maybeShowPwaBanner, 900);
+  }
+
+  // Si el MASTER le cambia el rol o la CCAA asignada a este usuario desde
+  // Configuración mientras ya tiene la sesión abierta, esto lo detecta solo
+  // (cada 15s) y recarga para que los permisos nuevos se apliquen de
+  // verdad en todas las pantallas, sin tener que cerrar sesión a mano.
+  if (currentUser.email) {
+    setInterval(function(){
+      fetch(FIREBASE_URL + '/usuarios_dashboard.json').then(function(r){ return r.json(); }).then(function(data){
+        data = data || {};
+        var match = null;
+        Object.keys(data).forEach(function(uid){
+          if (data[uid] && data[uid].email === currentUser.email) match = data[uid];
+        });
+        if (!match) return;
+        var cambioRol = match.role !== currentUser.role;
+        var cambioCcaa = (match.ccaaAsignada || null) !== (currentUser.ccaaAsignada || null);
+        if (cambioRol || cambioCcaa) {
+          toast('🔄 Tus permisos han cambiado — actualizando…');
+          setTimeout(function(){ location.reload(); }, 1600);
+        }
+      }).catch(function(){});
+    }, 15000);
   }
 
 
