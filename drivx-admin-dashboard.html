@@ -977,7 +977,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-13';
+var APP_VERSION = '2026-08-26-14';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3244,6 +3244,36 @@ function renderEstadisticas() {
   });
 }
 
+// Suma el gasto de combustible ('gasolina') archivado en el cierre de un
+// conductor concreto. Los cierres anteriores a esta mejora no tienen
+// gastosItems archivados — en ese caso se trata como 0 (no se puede
+// reconstruir a posteriori).
+function combustibleConductorCierre(c) {
+  return (c.gastosItems || []).filter(function(g){ return g.cat === 'gasolina'; })
+    .reduce(function(s,g){ return s + Number(g.importe||0); }, 0);
+}
+// La métrica de la competición: neto de apps + viajes privados + transfers,
+// menos lo que ese conductor se ha gastado en combustible esa semana.
+function metricaCompeticionConductor(c) {
+  var combustible = combustibleConductorCierre(c);
+  return (c.netoAppsTotal||0) + (c.privadosCutTotal||0) + (c.transfersCutTotal||0) - combustible;
+}
+// Lo mismo pero a nivel de vehículo (con el gasto de combustible que ya
+// venía agregado en el snapshot del propietario).
+function metricaCompeticionVehiculo(snap) {
+  return (snap.uberTotal||0) + (snap.boltTotal||0) + (snap.cabifyTotal||0) +
+    (snap.privadosFacturacionTotal||0) + (snap.transfersFacturacionTotal||0) - (snap.combustibleTotal||0);
+}
+function euroFmt(n) { return '€ ' + (n||0).toFixed(2).replace('.',','); }
+function toggleEstadisticaBox(id) {
+  var body = document.getElementById('body_' + id);
+  var chev = document.getElementById('chev_' + id);
+  if (!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 function barraEstadistica(label, valor, maxValor, color, sufijo) {
   var pct = maxValor > 0 ? Math.max(4, Math.round((valor / maxValor) * 100)) : 4;
   return '<div style="margin-bottom:10px">' +
@@ -3253,6 +3283,7 @@ function barraEstadistica(label, valor, maxValor, color, sufijo) {
     '</div>' +
   '</div>';
 }
+function colorPosicion(idx) { return idx===0?'#ffd700':idx===1?'#c0c0c0':idx===2?'#cd7f32':'var(--cyan)'; }
 
 function paintEstadisticas(cierresVeh, cierresCond) {
   var container = document.getElementById('estadisticas-list');
@@ -3268,44 +3299,61 @@ function paintEstadisticas(cierresVeh, cierresCond) {
     var periodos = Object.keys(cierresVeh[mSlug] || {}).sort().reverse();
     if (!periodos.length) return;
     var periodo = periodos[0];
+    var snap = cierresVeh[mSlug][periodo];
+    var kmVeh = (snap.kmSemana && snap.kmSemana.total) || 0;
+    var metricaVeh = metricaCompeticionVehiculo(snap);
     vehiculosConDatos.push({
-      matSlug: mSlug, matricula: v.matricula, modelo: v.modelo, periodo: periodo,
-      snap: cierresVeh[mSlug][periodo]
+      matSlug: mSlug, matricula: v.matricula, modelo: v.modelo, periodo: periodo, snap: snap,
+      metrica: metricaVeh, km: kmVeh, rendimiento: kmVeh > 0 ? metricaVeh / kmVeh : null
     });
   });
 
-  var html = '';
-
   if (!vehiculosConDatos.length) {
-    html = '<div style="padding:30px 20px;text-align:center;color:var(--text3)">' +
+    container.innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--text3)">' +
       '<div style="font-size:40px;margin-bottom:10px">🏆</div>' +
       'Todavía no hay ninguna semana cerrada de un vehículo de facturación semanal.<br>' +
       'En cuanto se cierre la primera semana, aquí aparecerá la competición.' +
     '</div>';
-    container.innerHTML = html;
     return;
   }
 
-  // ── Ranking global de vehículos, por facturación total de su última semana cerrada ──
-  var rankingVeh = vehiculosConDatos.slice().sort(function(a,b){ return (b.snap.facturacionTotal||0) - (a.snap.facturacionTotal||0); });
-  var maxFactVeh = rankingVeh[0].snap.facturacionTotal || 0;
+  var html = '<div style="font-size:10.5px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;margin-bottom:16px">📐 Métrica: neto de apps + privados + transfers − gasto en combustible de esa semana. El €/km es esa misma cifra dividida entre los km recorridos.</div>';
+
+  // ── RANKING GENERAL (vehículos) — top 3 minimizado, se expande para ver el resto y las métricas ──
+  var rankingVeh = vehiculosConDatos.slice().sort(function(a,b){ return b.metrica - a.metrica; });
+  var maxMetricaVeh = rankingVeh[0].metrica || 1;
 
   html += '<div style="border:2.5px solid rgba(255,215,0,1);border-radius:16px;padding:18px;margin-bottom:20px;background:rgba(10,16,26,.72);box-shadow:0 0 14px rgba(255,215,0,.7),0 0 30px rgba(255,215,0,.4)">';
-  html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:4px">📊 Ranking de vehículos — facturación semanal</div>';
-  html += '<div style="font-size:11px;color:var(--text3);margin-bottom:16px">Cada uno con la última semana que tiene ya cerrada</div>';
-  rankingVeh.forEach(function(item, idx){
-    var medalla = PALETA_MEDALLAS[idx] || ('#' + (idx+1));
-    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
-      '<span style="font-size:16px;width:28px;text-align:center;flex-shrink:0">' + medalla + '</span>' +
+  html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:14px">🏆 Ranking general — vehículos</div>';
+
+  // Top 3 minimizado (siempre visible)
+  rankingVeh.slice(0,3).forEach(function(item, idx){
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;' + (idx<2?'border-bottom:1px solid rgba(255,255,255,.08)':'') + '">' +
+      '<span style="font-size:20px;width:30px;text-align:center;flex-shrink:0">' + PALETA_MEDALLAS[idx] + '</span>' +
       '<div style="flex:1;min-width:0">' + plateHtmlSmall(item.matricula) + '</div>' +
-      '<div style="font-size:9.5px;color:var(--text3);flex-shrink:0">Sem. ' + formatearPeriodoSemanal(item.periodo) + '</div>' +
+      '<span style="font-family:var(--mono);font-size:13px;font-weight:900;color:' + colorPosicion(idx) + '">' + euroFmt(item.metrica) + '</span>' +
     '</div>';
-    html += barraEstadistica('', '€ ' + (item.snap.facturacionTotal||0).toFixed(2).replace('.',','), maxFactVeh, idx===0?'#ffd700':idx===1?'#c0c0c0':idx===2?'#cd7f32':'var(--cyan)');
+  });
+
+  html += '<button onclick="toggleEstadisticaBox(\'rankveh\')" style="width:100%;margin-top:12px;padding:9px;border-radius:10px;border:1.5px solid rgba(255,215,0,.5);background:rgba(255,215,0,.08);color:#ffd700;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">Ver clasificación completa y métricas <span id="chev_rankveh" style="transition:transform .2s">▾</span></button>';
+
+  html += '<div id="body_rankveh" style="display:none;margin-top:14px">';
+  rankingVeh.forEach(function(item, idx){
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
+      '<span style="font-size:16px;width:28px;text-align:center;flex-shrink:0">' + (PALETA_MEDALLAS[idx] || ('#'+(idx+1))) + '</span>' +
+      '<div style="flex:1;min-width:0">' + plateHtmlSmall(item.matricula) + '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' +
+        '<div style="font-size:9.5px;color:var(--text3)">Sem. ' + formatearPeriodoSemanal(item.periodo) + '</div>' +
+        '<div style="font-size:9.5px;color:var(--text3);font-family:var(--mono)">🚗 ' + Math.round(item.km).toLocaleString('es-ES') + ' km' + (item.rendimiento!==null ? ' · ' + item.rendimiento.toFixed(2).replace('.',',') + ' €/km' : '') + '</div>' +
+      '</div>' +
+    '</div>';
+    html += barraEstadistica('', euroFmt(item.metrica), maxMetricaVeh, colorPosicion(idx));
   });
   html += '</div>';
+  html += '</div>';
 
-  // ── Un tablón por vehículo: competición interna de sus propios conductores ──
-  vehiculosConDatos.forEach(function(item){
+  // ── UN TABLÓN POR MATRÍCULA — colapsado, con la competición interna de sus conductores ──
+  vehiculosConDatos.forEach(function(item, vIdx){
     var condCierres = cierresCond[item.matSlug] || {};
     var lista = [];
     Object.keys(condCierres).forEach(function(cid){
@@ -3313,27 +3361,39 @@ function paintEstadisticas(cierresVeh, cierresCond) {
       if (c) lista.push(c);
     });
     if (!lista.length) return;
-    lista.sort(function(a,b){ return (b.netoAppsTotal||0) - (a.netoAppsTotal||0); });
-    var maxNeto = lista[0].netoAppsTotal || 0;
 
-    // Km de cada conductor esa semana, si los hay (del propio snapshot del vehículo)
     var kmPorNombre = {};
     (item.snap.kmSemana && item.snap.kmSemana.porConductor || []).forEach(function(k){ kmPorNombre[k.nombre] = k.km; });
 
-    html += '<div style="border:2px solid rgba(0,212,255,.85);border-radius:16px;padding:18px;margin-bottom:16px;background:rgba(10,16,26,.72);box-shadow:0 0 12px rgba(0,212,255,.6),0 0 26px rgba(0,212,255,.35)">';
-    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">' + plateHtmlSmall(item.matricula) + '<span style="font-size:11px;color:var(--text3)">' + item.modelo + '</span></div>';
-    html += '<div style="font-size:11px;color:var(--text3);margin-bottom:14px">Competición entre sus conductores · Semana del ' + formatearPeriodoSemanal(item.periodo) + '</div>';
+    lista.forEach(function(c){
+      c._metrica = metricaCompeticionConductor(c);
+      c._km = kmPorNombre[c.nombreConductor] || 0;
+      c._rendimiento = c._km > 0 ? c._metrica / c._km : null;
+    });
+    lista.sort(function(a,b){ return b._metrica - a._metrica; });
+    var maxMetricaCond = lista[0]._metrica || 1;
+    var boxId = 'veh' + vIdx;
+
+    html += '<div style="border:2px solid rgba(0,212,255,.85);border-radius:16px;margin-bottom:14px;background:rgba(10,16,26,.72);box-shadow:0 0 12px rgba(0,212,255,.6),0 0 26px rgba(0,212,255,.35);overflow:hidden">';
+    html += '<div onclick="toggleEstadisticaBox(\'' + boxId + '\')" style="padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:10px">';
+    html += '<div style="flex:1;min-width:0">' + plateHtmlSmall(item.matricula) +
+      '<div style="font-size:11px;color:var(--text3);margin-top:4px">🥇 ' + (lista[0].nombreConductor||'Conductor') + ' · ' + euroFmt(lista[0]._metrica) + '</div>' +
+    '</div>';
+    html += '<span id="chev_' + boxId + '" style="color:var(--cyan);font-size:16px;flex-shrink:0;transition:transform .2s">▾</span>';
+    html += '</div>';
+
+    html += '<div id="body_' + boxId + '" style="display:none;padding:0 18px 18px;border-top:1px solid rgba(0,212,255,.2)">';
+    html += '<div style="font-size:11px;color:var(--text3);margin:14px 0">' + item.modelo + ' · Semana del ' + formatearPeriodoSemanal(item.periodo) + '</div>';
 
     lista.forEach(function(c, idx){
-      var medalla = PALETA_MEDALLAS[idx] || ('#' + (idx+1));
-      var km = kmPorNombre[c.nombreConductor];
       html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">' +
-        '<span style="font-size:16px;width:28px;text-align:center;flex-shrink:0">' + medalla + '</span>' +
+        '<span style="font-size:16px;width:28px;text-align:center;flex-shrink:0">' + (PALETA_MEDALLAS[idx] || ('#'+(idx+1))) + '</span>' +
         '<span style="flex:1;font-size:13px;font-weight:800;color:#fff">' + (c.nombreConductor||'Conductor') + '</span>' +
-        (typeof km === 'number' ? '<span style="font-size:10.5px;color:var(--text3);font-family:var(--mono)">🚗 ' + Math.round(km).toLocaleString('es-ES') + ' km</span>' : '') +
+        '<span style="font-size:10px;color:var(--text3);font-family:var(--mono);text-align:right">🚗 ' + Math.round(c._km).toLocaleString('es-ES') + ' km' + (c._rendimiento!==null ? '<br>' + c._rendimiento.toFixed(2).replace('.',',') + ' €/km' : '') + '</span>' +
       '</div>';
-      html += barraEstadistica('Facturación neta (Uber+Bolt+Cabify)', '€ ' + (c.netoAppsTotal||0).toFixed(2).replace('.',','), maxNeto, idx===0?'#ffd700':idx===1?'#c0c0c0':idx===2?'#cd7f32':'var(--cyan)');
+      html += barraEstadistica('Neto apps + privados + transfers − combustible', euroFmt(c._metrica), maxMetricaCond, colorPosicion(idx));
     });
+    html += '</div>';
     html += '</div>';
   });
 
