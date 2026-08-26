@@ -960,7 +960,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-2';
+var APP_VERSION = '2026-08-26-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3993,7 +3993,7 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
         var importe = Number(t.importe||0);
         var propinaTicket = Number(t.propina||0);
         var pagadoPorPropietario = t.pagadoPor === 'propietario';
-        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'', propina: propinaTicket, importeOriginal: Number(t.importeOriginal||importe), pagadoPorPropietario: pagadoPorPropietario };
+        var item = { tid: tid, cat: cat, importe: importe, url: t.url||'', fecha: t.fecha||'', hora: t.hora||'', nombre: t.nombre||'', propina: propinaTicket, importeOriginal: Number(t.importeOriginal||importe), pagadoPorPropietario: pagadoPorPropietario, ts: Number(t.ts||0) };
         // Los pagados directamente por el propietario no cuentan como
         // gasto del conductor (se reflejarán en la cuenta del propietario),
         // pero se siguen mostrando en la lista para que quede constancia.
@@ -5700,6 +5700,7 @@ function paintHistorialFacturacion() {
       html += '</div>';
 
       html += '<div id="'+mgid+'" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(0,212,255,.2);background:rgba(7,11,18,.4)">';
+      html += generarHeatmapSemanas(m.matSlug, m.matricula, m.periodos);
       m.periodos.forEach(function(periodo){
         var snap = _historialCierresVehCache[m.matSlug][periodo] || {};
         var colorBenef = (snap.beneficio||0) >= 0 ? '0,230,118' : '255,71,87';
@@ -5757,6 +5758,46 @@ function paintHistorialFacturacion() {
     };
   });
 }
+// ── Calendario visual (mapa de calor) para encontrar una semana concreta
+// de un vistazo: cada cuadradito es una semana pasada — brilla en cian si
+// hay un cierre guardado (y se puede tocar para abrirlo), y se ve apagado
+// si esa semana no tiene nada archivado. Cubre el último año.
+function generarHeatmapSemanas(mSlug, matricula, periodosConDatos) {
+  var setConDatos = {};
+  periodosConDatos.forEach(function(p){ setConDatos[p] = true; });
+
+  var hoy = new Date();
+  var diaSemana = hoy.getDay() || 7;
+  var lunesActual = new Date(hoy);
+  lunesActual.setDate(hoy.getDate() - diaSemana + 1);
+
+  var semanas = [];
+  for (var i = 0; i < 52; i++) {
+    var lunes = new Date(lunesActual);
+    lunes.setDate(lunesActual.getDate() - (i * 7));
+    var periodo = lunes.getFullYear() + '-S' + String(lunes.getMonth()+1).padStart(2,'0') + String(lunes.getDate()).padStart(2,'0');
+    semanas.push({ periodo: periodo, lunes: lunes, tieneDatos: !!setConDatos[periodo] });
+  }
+  semanas.reverse(); // de más antigua a más reciente, para leer igual que un calendario
+
+  var celdas = semanas.map(function(s){
+    var rango = formatearPeriodoSemanal(s.periodo);
+    if (s.tieneDatos) {
+      return '<div onclick="abrirDetalleHistorial(\''+mSlug+'\',\''+s.periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')" title="Semana del '+rango+' — cierre guardado, toca para verlo" style="width:15px;height:15px;border-radius:4px;background:rgba(0,212,255,.9);box-shadow:0 0 5px rgba(0,212,255,.9),0 0 10px rgba(0,212,255,.6);cursor:pointer;flex-shrink:0"></div>';
+    }
+    return '<div title="Semana del '+rango+' — sin cierre" style="width:15px;height:15px;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);flex-shrink:0"></div>';
+  }).join('');
+
+  return '<div style="padding:14px 0 4px">' +
+    '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Calendario del último año — toca una semana con cierre</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;max-width:100%">' + celdas + '</div>' +
+    '<div style="display:flex;align-items:center;gap:14px;margin-top:8px;font-size:9.5px;color:var(--text3)">' +
+      '<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(0,212,255,.9);box-shadow:0 0 4px rgba(0,212,255,.8)"></span>Con cierre</span>' +
+      '<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)"></span>Sin cierre</span>' +
+    '</div>' +
+  '</div>';
+}
+
 function toggleMatHistorial(mgid) {
   var el = document.getElementById(mgid);
   var chev = document.getElementById('chvm_'+mgid);
@@ -5766,16 +5807,18 @@ function toggleMatHistorial(mgid) {
   if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
-// ── Detalle de un cierre concreto: resumen del propietario + cada conductor ──
+// ── Detalle de un cierre concreto: mismo aspecto que la Facturación en
+// vivo (una tarjeta por conductor, lado a lado) + botón para ver el
+// resumen que recibió el propietario esa semana ──
+var _historialTicketsCache = {};
 function abrirDetalleHistorial(mSlug, periodo, matricula) {
   var modal = document.getElementById('historial-detalle-modal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'historial-detalle-modal';
-    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:10010;align-items:center;justify-content:center;padding:20px';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10010;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
     document.body.appendChild(modal);
   }
-  var snap = (_historialCierresVehCache[mSlug] || {})[periodo] || {};
   var conductoresCierres = _historialCierresCondCache[mSlug] || {};
   var conductoresDeEstaSemana = [];
   Object.keys(conductoresCierres).forEach(function(cid){
@@ -5783,42 +5826,195 @@ function abrirDetalleHistorial(mSlug, periodo, matricula) {
     if (c) conductoresDeEstaSemana.push(c);
   });
 
-  var html = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.85);border-radius:20px;max-width:500px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 18px rgba(0,212,255,.6),0 0 40px rgba(0,212,255,.35)">' +
+  var html = '<div style="width:100%;max-width:1400px">' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px">' +
+      '<button onclick="document.getElementById(\'historial-detalle-modal\').style.display=\'none\'" style="padding:10px 18px;border-radius:10px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.7),0 0 22px rgba(255,71,87,.4)">← ATRÁS</button>' +
+      '<button onclick="abrirResumenPropietarioHistorial(\''+mSlug+'\',\''+periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')" style="padding:10px 18px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.7),0 0 22px rgba(0,212,255,.4)">👁️ Ver resumen del propietario</button>' +
+      '<div style="color:#fff;font-size:13px;font-weight:800;margin-left:6px">' + matricula + ' · Semana del ' + formatearPeriodoSemanal(periodo) + '</div>' +
+    '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">';
+
+  if (!conductoresDeEstaSemana.length) {
+    html += '<div style="color:var(--text3);font-size:13px;padding:20px">No se encontró el detalle individual de esta semana.</div>';
+  }
+  conductoresDeEstaSemana.forEach(function(c, idx){
+    var uidLocal = 'hist_' + mSlug + '_' + periodo + '_' + idx;
+    _historialTicketsCache[uidLocal] = { gastos: c.gastosItems || [], datafono: c.datafonoItems || [] };
+    html += '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;width:400px;flex-shrink:0;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3)">' +
+      '<div style="padding:18px 20px;border-bottom:1px solid var(--border)">' +
+        '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:10px">' + (c.nombreConductor||'Conductor') + '</div>' +
+        plateHtmlSmall(matricula) +
+      '</div>' +
+      '<div style="padding:18px 20px 20px">' + pintarLiquidacionHistorialHtml(uidLocal, c) + '</div>' +
+    '</div>';
+  });
+
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+// Clon de pintarLiquidacion pero de solo lectura, sobre datos archivados de
+// un cierre concreto (en vez de sobre el cálculo en vivo).
+function pintarLiquidacionHistorialHtml(uidLocal, d) {
+  var esPagar = (d.resultado||0) >= 0;
+  var colorResultado = esPagar ? '255,215,0' : '255,71,87';
+  var colorResultadoVar = esPagar ? '#ffd700' : 'var(--red)';
+  var etiquetaResultado = esPagar ? 'EL PROPIETARIO PAGA AL CONDUCTOR' : 'EL CONDUCTOR DEVUELVE AL PROPIETARIO';
+
+  function linea(label, valor, esNegativo) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:11px">' +
+      '<span style="color:#fff">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:700;color:' + (esNegativo ? 'var(--red)' : '#fff') + '">' + (esNegativo ? '− ' : '') + '€ ' + Math.abs(valor||0).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+
+  var totalNeto = (d.uberNetoReal||0) + (d.boltNetoReal||0) + (d.cabifyNetoReal||0) + (d.privadosCutTotal||0) + (d.transfersCutTotal||0);
+  var tieneDesgloseGastos = typeof d.gastosSinDatafonoTotal === 'number';
+  var html = '';
+
+  html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">' +
+    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>' +
+    '<div style="font-family:var(--mono);font-size:26px;font-weight:900;color:' + colorResultadoVar + ';text-shadow:0 0 8px rgba(' + colorResultado + ',.9)">€ ' + Math.abs(d.resultado||0).toFixed(2).replace('.',',') + '</div>' +
+    '<div style="font-size:9px;color:#fff;margin-top:6px">Sueldo (€' + (d.sueldo||0).toFixed(2).replace('.',',') + ') − Efectivo real (€' + (d.efectivoReal||0).toFixed(2).replace('.',',') + ')</div>' +
+  '</div>';
+
+  html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 16px rgba(0,212,255,.95),0 0 34px rgba(0,212,255,.65);display:flex;justify-content:space-between;align-items:center">' +
+    '<span style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">FACTURACIÓN NETO TOTAL</span>' +
+    '<span style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95)">€ ' + totalNeto.toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  html += '<div style="background:rgba(0,230,118,.06);border:2px solid rgba(0,230,118,1);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 14px rgba(0,230,118,.8),0 0 30px rgba(0,230,118,.5)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+    '<span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">💵 SUELDO</span>' +
+    '<span style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--green);text-shadow:0 0 6px rgba(0,230,118,.9)">€ ' + (d.sueldo||0).toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+  html += '<div style="border-top:1px solid rgba(0,230,118,.25);padding-top:6px">' +
+    linea((typeof d.porcentajeConductor === 'number' ? d.porcentajeConductor : '?') + '% del neto Uber+Bolt+Cabify (de €' + (d.netoAppsTotal||0).toFixed(2).replace('.',',') + ')', d.netoAppsConductor) +
+    linea('40% viajes privados', d.privadosCutTotal) +
+    linea('30% transfers', d.transfersCutTotal) +
+    linea('100% propinas' + (d.propinasDatafonoTotal > 0 ? ' (incl. €' + d.propinasDatafonoTotal.toFixed(2).replace('.',',') + ' de datáfono)' : ''), d.propinasTotal) +
+    (typeof d.promoRate === 'number' ? linea('Promociones/campañas (' + (d.promoRate*100) + '% de €' + (d.promoBruto||0).toFixed(2).replace('.',',') + ')', d.promoTotal) : '') +
+  '</div>';
+  if (typeof d.umbral === 'number') html += '<div style="font-size:9px;color:#fff;margin-top:6px;font-style:italic">Umbral para el 50%: Facturación apps + privados + transfers ≥ €1.000 (actual: €' + d.umbral.toFixed(2).replace('.',',') + ')</div>';
+  html += '</div>';
+
+  html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,1);border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 0 14px rgba(0,212,255,.8),0 0 30px rgba(0,212,255,.5)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+    '<span style="font-size:13px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">🪙 EFECTIVO REAL</span>' +
+    '<span style="font-family:var(--mono);font-size:17px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9)">€ ' + (d.efectivoReal||0).toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+  html += '<div style="border-top:1px solid rgba(0,212,255,.25);padding-top:6px">' +
+    linea('Efectivo Uber + Bolt + Cabify', d.efectivoAppsTotal) +
+    linea('Privados cobrados en efectivo', d.privadosEfectivoTotal) +
+    linea('Transfers cobrados en efectivo', d.transfersEfectivoTotal) +
+    (tieneDesgloseGastos ? (linea('Gastos', d.gastosSinDatafonoTotal, true) + linea('Datáfono', d.datafonoTotal, true)) : linea('Gastos', d.gastosTotal, true)) +
+  '</div>';
+  var gastosItemsLen = (d.gastosItems||[]).length, datafonoItemsLen = (d.datafonoItems||[]).length;
+  if (gastosItemsLen || datafonoItemsLen) {
+    html += '<div style="display:flex;gap:8px;margin-top:8px">' +
+      '<button onclick="abrirTicketsHistorialModal(\'' + uidLocal + '\',\'gastos\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver gastos (' + gastosItemsLen + ')</button>' +
+      '<button onclick="abrirTicketsHistorialModal(\'' + uidLocal + '\',\'datafono\')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🧾 Ver datáfono (' + datafonoItemsLen + ')</button>' +
+    '</div>';
+  } else {
+    html += '<div style="font-size:9.5px;color:var(--text3);margin-top:8px;font-style:italic">Este cierre es anterior a la mejora del Historial — no se guardaron los tickets individuales de esta semana, solo los totales.</div>';
+  }
+  html += '</div>';
+
+  return html;
+}
+
+// Reutiliza el mismo visor de tickets que la Facturación en vivo, pero
+// sobre los tickets ya archivados de un cierre concreto (sin botón editar).
+function abrirTicketsHistorialModal(uidLocal, tipo) {
+  var cache = _historialTicketsCache[uidLocal];
+  if (!cache) return;
+  var items = tipo === 'datafono' ? cache.datafono : cache.gastos;
+  var titulo = tipo === 'datafono' ? '💳 Tickets de datáfono' : '🧾 Tickets de gastos';
+
+  var modal = document.getElementById('tickets-historial-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'tickets-historial-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10011;align-items:center;justify-content:center;padding:16px';
+    document.body.appendChild(modal);
+  }
+  var html = '<div style="background:var(--surface);border:2px solid rgba(255,71,87,.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(255,71,87,.55),0 0 40px rgba(255,71,87,.3)">';
+  html += '<div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0">';
+  html += '<span style="font-size:15px;font-weight:900;color:#fff">' + titulo + '</span>';
+  html += '<button onclick="document.getElementById(\'tickets-historial-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div style="padding:14px 18px 18px">';
+  if (!items.length) {
+    html += '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Sin tickets en esta categoría</div>';
+  } else {
+    items.forEach(function(t){
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">';
+      if (t.url) {
+        html += '<img src="' + t.url + '" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border2);cursor:pointer;flex-shrink:0" onclick="window.open(\'' + t.url + '\',\'_blank\')">';
+      } else {
+        html += '<div style="width:44px;height:44px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🧾</div>';
+      }
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:13px;font-weight:700;color:#fff">€ ' + Number(t.importe||0).toFixed(2).replace('.',',') + (t.nombre ? ' <span style="color:var(--text3);font-weight:400">· ' + t.nombre + '</span>' : '') + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3)">' + (t.fecha||'') + ' ' + (t.hora||'') + '</div>';
+      if (t.propina > 0) html += '<div style="font-size:10px;color:var(--amber);font-weight:800;margin-top:2px">💰 Con propina € ' + t.propina.toFixed(2).replace('.',',') + '</div>';
+      if (t.pagadoPorPropietario) html += '<div style="font-size:10px;color:var(--purple);font-weight:800;margin-top:2px">🏢 Pagado por el propietario</div>';
+      html += '</div></div>';
+    });
+  }
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+// ── Resumen del propietario para una semana concreta (desde el Historial) ──
+function abrirResumenPropietarioHistorial(mSlug, periodo, matricula) {
+  var modal = document.getElementById('historial-propietario-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'historial-propietario-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10012;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  var snap = (_historialCierresVehCache[mSlug] || {})[periodo] || {};
+
+  var html = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.85);border-radius:20px;max-width:460px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 18px rgba(0,212,255,.6),0 0 40px rgba(0,212,255,.35)">' +
     '<div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">' +
-      '<div><div style="font-size:15px;font-weight:900;color:#fff">📜 ' + matricula + '</div><div style="font-size:11.5px;color:var(--text3)">Semana del ' + formatearPeriodoSemanal(periodo) + '</div></div>' +
-      '<button class="modal-close" onclick="document.getElementById(\'historial-detalle-modal\').style.display=\'none\'">✕</button>' +
+      '<div><div style="font-size:15px;font-weight:900;color:#fff">👁️ Resumen del propietario</div><div style="font-size:11.5px;color:var(--text3)">' + matricula + ' · Semana del ' + formatearPeriodoSemanal(periodo) + '</div></div>' +
+      '<button class="modal-close" onclick="document.getElementById(\'historial-propietario-modal\').style.display=\'none\'">✕</button>' +
     '</div>' +
     '<div style="padding:16px 20px 20px;overflow-y:auto;flex:1">';
 
-  html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Resumen enviado al propietario</div>';
-  html += '<div style="background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.4);border-radius:12px;padding:12px 14px;margin-bottom:16px">' +
-    filaHistorial('Facturación total', snap.facturacionTotal) +
-    filaHistorial('Total gastos', -(snap.gastosTotalGeneral||0)) +
-    (snap.kmSemana && snap.kmSemana.total > 0 ? filaHistorialTexto('Km recorridos', Math.round(snap.kmSemana.total).toLocaleString('es-ES') + ' km') : '') +
-    '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px;border-top:1px solid rgba(255,255,255,.1)">' +
-      '<span style="font-size:12.5px;font-weight:900;color:#fff">Beneficio</span>' +
-      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + ((snap.beneficio||0)>=0?'var(--green)':'var(--red)') + '">€ ' + (snap.beneficio||0).toFixed(2).replace('.',',') + '</span>' +
-    '</div>' +
+  html += filaHistorial('Facturación Uber', snap.uberTotal) + filaHistorial('Facturación Bolt', snap.boltTotal) + filaHistorial('Facturación Cabify', snap.cabifyTotal) +
+    filaHistorial('Viajes privados', snap.privadosFacturacionTotal) + filaHistorial('Transfers', snap.transfersFacturacionTotal);
+  if (snap.brandingTotal) html += filaHistorial('Branding', snap.brandingTotal);
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin:6px 0;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)">' +
+    '<span style="font-size:12.5px;font-weight:900;color:#fff">Facturación total</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ ' + (snap.facturacionTotal||0).toFixed(2).replace('.',',') + '</span>' +
   '</div>';
 
-  html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Cierre de cada conductor</div>';
-  if (!conductoresDeEstaSemana.length) {
-    html += '<div style="font-size:12px;color:var(--text3);padding:6px 0">No se encontró el detalle individual de esta semana.</div>';
-  }
-  conductoresDeEstaSemana.forEach(function(c){
-    var colorRes = (c.resultado||0) >= 0 ? '0,230,118' : '255,71,87';
-    html += '<div style="background:rgba(255,255,255,.03);border:1.5px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:10px">' +
-      '<div style="font-size:12.5px;font-weight:900;color:#fff;margin-bottom:6px">' + (c.nombreConductor||'Conductor') + '</div>' +
-      filaHistorial('Neto Uber+Bolt+Cabify', c.netoAppsTotal) +
-      filaHistorial('Propinas', c.propinasTotal) +
-      filaHistorial('Sueldo', c.sueldo) +
-      filaHistorial('Gastos', -(c.gastosTotal||0)) +
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;margin-top:4px;border-top:1px solid rgba(255,255,255,.08)">' +
-        '<span style="font-size:11.5px;font-weight:800;color:#fff">' + ((c.resultado||0)>=0?'Le falta por cobrar':'Debe devolver') + '</span>' +
-        '<span style="font-family:var(--mono);font-size:13px;font-weight:900;color:rgb(' + colorRes + ')">€ ' + Math.abs(c.resultado||0).toFixed(2).replace('.',',') + '</span>' +
-      '</div>' +
+  html += filaHistorial('Combustible', -(snap.combustibleTotal||0)) + filaHistorial('Peajes', -(snap.peajesTotal||0)) +
+    filaHistorial('Parking', -(snap.parkingTotal||0)) + filaHistorial('Limpieza', -(snap.limpiezaTotal||0)) + filaHistorial('Otros gastos', -(snap.otrosTotal||0)) +
+    filaHistorial('Sueldos conductores', -(snap.sueldosTotal||0));
+  if (snap.infinityTotal) filaHistorial(snap.nombreGestion || 'Gestión', -(snap.infinityTotal||0));
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin:6px 0 16px;border-bottom:1px solid rgba(255,255,255,.1)">' +
+    '<span style="font-size:12.5px;font-weight:900;color:#fff">Total gastos</span>' +
+    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + (snap.gastosTotalGeneral||0).toFixed(2).replace('.',',') + '</span>' +
+  '</div>';
+
+  if (snap.kmSemana && snap.kmSemana.total > 0) {
+    html += '<div style="background:rgba(0,212,255,.06);border:1.5px solid rgba(0,212,255,.5);border-radius:12px;padding:12px 14px;margin-bottom:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:900;color:#fff">🚗 Km recorridos</span><span style="font-family:var(--mono);color:var(--cyan);font-weight:900">' + Math.round(snap.kmSemana.total).toLocaleString('es-ES') + ' km</span></div>' +
+      (snap.kmSemana.porConductor||[]).filter(function(k){return k.km>0;}).map(function(k){ return '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:2px 0"><span>'+k.nombre+'</span><span style="font-family:var(--mono);color:#fff">'+Math.round(k.km).toLocaleString('es-ES')+' km</span></div>'; }).join('') +
     '</div>';
-  });
+  }
+
+  var colorBenef = (snap.beneficio||0) >= 0 ? '0,230,118' : '255,71,87';
+  html += '<div style="background:rgba(' + colorBenef + ',.1);border:2px solid rgba(' + colorBenef + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBenef + ',.85),0 0 28px rgba(' + colorBenef + ',.5)">' +
+    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO</div>' +
+    '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + ((snap.beneficio||0)>=0?'var(--green)':'var(--red)') + '">€ ' + (snap.beneficio||0).toFixed(2).replace('.',',') + '</div>' +
+  '</div>';
 
   html += '</div></div>';
   modal.innerHTML = html;
@@ -7427,17 +7623,29 @@ function iniciarCierrePeriodo(matricula, tipo, cids) {
         'efectivoReal','efectivoAppsTotal','privadosEfectivoTotal','transfersEfectivoTotal','gastosTotal','resultado',
         'uberNetoReal','uberPropinas','uberPromo','uberEfectivo',
         'boltIngresosNetos','boltPeajes','boltCampanas','boltPropinas','boltEfectivo','boltNetoReal',
-        'cabifyNetoReal','cabifyPropinas','cabifyPromo','cabifyEfectivo'
+        'cabifyNetoReal','cabifyPropinas','cabifyPromo','cabifyEfectivo',
+        'gastosSinDatafonoTotal','datafonoTotal','propinasDatafonoTotal'
       ];
       camposNumericos.forEach(function(k){
         delta[k] = (acumulado[k]||0) - (baseline[k]||0);
       });
 
-      // Solo los viajes privados / transfers NUEVOS desde el último cierre
-      // de este conductor (así el Excel no repite lo ya cerrado antes)
+      // Estos son "estado actual", no algo que se vaya acumulando — se
+      // guardan tal cual para poder reconstruir el mismo desglose visual
+      // que se ve en Facturación en vivo, dentro del Historial.
+      delta.porcentajeConductor = acumulado.porcentajeConductor;
+      delta.promoRate = acumulado.promoRate;
+      delta.promoBruto = acumulado.promoBruto;
+      delta.umbral = acumulado.umbral;
+
+      // Solo los viajes privados / transfers / tickets NUEVOS desde el
+      // último cierre de este conductor (así no se repite en el Historial
+      // lo que ya se archivó en un cierre anterior)
       var ultimoCierreTs = baseline.ultimoCierreTs || 0;
       delta.privadosItems  = (acumulado.privadosItems  || []).filter(function(x){ return (x.ts||0) > ultimoCierreTs; });
       delta.transfersItems = (acumulado.transfersItems || []).filter(function(x){ return (x.ts||0) > ultimoCierreTs; });
+      delta.gastosItems    = (acumulado.gastosItems    || []).filter(function(x){ return (x.ts||0) > ultimoCierreTs; });
+      delta.datafonoItems  = (acumulado.datafonoItems  || []).filter(function(x){ return (x.ts||0) > ultimoCierreTs; });
 
       return { cid: info.cid, nombre: info.nombre, acumulado: acumulado, baseline: baseline, delta: delta };
     });
@@ -7501,7 +7709,8 @@ function confirmarCierrePeriodo() {
     'efectivoReal','efectivoAppsTotal','privadosEfectivoTotal','transfersEfectivoTotal','gastosTotal','resultado',
     'uberNetoReal','uberPropinas','uberPromo','uberEfectivo',
     'boltIngresosNetos','boltPeajes','boltCampanas','boltPropinas','boltEfectivo','boltNetoReal',
-    'cabifyNetoReal','cabifyPropinas','cabifyPromo','cabifyEfectivo'
+    'cabifyNetoReal','cabifyPropinas','cabifyPromo','cabifyEfectivo',
+    'gastosSinDatafonoTotal','datafonoTotal','propinasDatafonoTotal'
   ];
 
   var writes = [];
