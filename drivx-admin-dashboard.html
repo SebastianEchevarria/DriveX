@@ -467,7 +467,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 </div>
 
 <!-- ══════════════ MODAL: PERFIL DEL CONDUCTOR ══════════════ -->
-<div id="conductor-perfil-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
+<div id="conductor-perfil-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:10025;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2.5px solid rgba(0,212,255,1);border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 0 20px rgba(0,212,255,1),0 0 44px rgba(0,212,255,.7),0 0 70px rgba(0,212,255,.4)">
     <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0;z-index:1">
       <div style="flex:1;min-width:0">
@@ -815,6 +815,20 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   </div>
 </div>
 
+<div id="docs-conductor-detalle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:440px;width:100%;max-height:82vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+      <div style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:rgba(0,0,0,.25);border:2px solid rgba(0,212,255,.9);box-shadow:0 0 6px rgba(0,212,255,.75),0 0 14px rgba(0,212,255,.45);flex-shrink:0;font-size:22px">🪪</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900">DNI y carnet de conducir</div>
+        <div style="font-size:12px;color:var(--text3)">Documentación de los conductores</div>
+      </div>
+      <button onclick="closeDocsConductorDetalle()" class="modal-close">✕</button>
+    </div>
+    <div id="docs-conductor-detalle-body" style="padding:16px 22px 22px"></div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: DETALLE DE CITA ══════════════ -->
 <div id="cita-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div id="cd-box" style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:420px;width:100%;max-height:85vh;overflow-y:auto">
@@ -978,7 +992,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-15';
+var APP_VERSION = '2026-08-26-16';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1889,8 +1903,46 @@ function paintInicioStats() {
     '<div class="foot">' + (urgentes>0?'⚠ Toca para ver el detalle':'✓ Todo en orden') + '</div>' +
     '<span style="position:absolute;top:16px;right:16px;color:var(--text3);font-size:16px">›</span>' +
   '</div>';
+  html += '<div class="stat-card" id="stat-docs-conductor" onclick="openDocsConductorDetalle()" style="cursor:pointer;position:relative">' +
+    '<div class="lbl">Documentos de conductores</div>' +
+    '<div class="val" style="color:var(--text3)">…</div>' +
+    '<div class="foot">Cargando…</div>' +
+    '<span style="position:absolute;top:16px;right:16px;color:var(--text3);font-size:16px">›</span>' +
+  '</div>';
 
   document.getElementById('inicio-stats').innerHTML = html;
+  renderDocsConductorStat();
+}
+// Devuelve la lista completa de conductores (invitados + el de ejemplo)
+// con sus fechas de caducidad de DNI y carnet ya incluidas.
+function obtenerTodosLosConductoresConDocs() {
+  return fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(all){
+    all = all || {};
+    var lista = Object.keys(all).map(function(cid){
+      var r = Object.assign({}, all[cid]);
+      r.cid = cid;
+      return r;
+    });
+    return lista;
+  });
+}
+function renderDocsConductorStat() {
+  var now = new Date();
+  function dU(s){ if (!s) return null; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
+
+  obtenerTodosLosConductoresConDocs().then(function(lista){
+    var urgentesDocs = 0;
+    lista.forEach(function(c){
+      var dDni = dU(c.dniCaducidad);
+      var dCarnet = dU(c.carnetCaducidad);
+      if ((dDni !== null && dDni <= 30) || (dCarnet !== null && dCarnet <= 30)) urgentesDocs++;
+    });
+    var el = document.getElementById('stat-docs-conductor');
+    if (!el) return;
+    el.querySelector('.val').style.color = urgentesDocs > 0 ? 'var(--red)' : 'var(--green)';
+    el.querySelector('.val').textContent = urgentesDocs;
+    el.querySelector('.foot').textContent = urgentesDocs > 0 ? '⚠ Toca para ver el detalle' : '✓ Todo en orden';
+  }).catch(function(){});
 }
 function openItvDetalle() {
   var now = new Date();
@@ -1981,6 +2033,59 @@ function openItvDetalle() {
 }
 function closeItvDetalle() {
   document.getElementById('itv-detalle-modal').style.display = 'none';
+}
+
+// ══ CADUCIDAD DE DNI Y CARNET DE CONDUCIR ══
+function openDocsConductorDetalle() {
+  var now = new Date();
+  function dU(s){ if (!s) return null; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
+  function fD(s){ return s ? new Date(s).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-'; }
+
+  document.getElementById('docs-conductor-detalle-body').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
+  document.getElementById('docs-conductor-detalle-modal').style.display = 'flex';
+
+  obtenerTodosLosConductoresConDocs().then(function(lista){
+    lista.forEach(function(c){ _conductoresIndex[c.cid] = c; }); // para que se pueda abrir su perfil al tocar la fila
+    var items = [];
+    lista.forEach(function(c){
+      [['dni','🆔 DNI', c.dniCaducidad], ['carnet','🪪 Carnet de conducir', c.carnetCaducidad]].forEach(function(t){
+        var d = dU(t[2]);
+        if (d !== null && d <= 30) items.push({ nombre: c.nombre || 'Conductor', matricula: c.matricula, doc: t[1], fecha: t[2], dias: d, cid: c.cid });
+      });
+    });
+
+    if (!items.length) {
+      document.getElementById('docs-conductor-detalle-body').innerHTML = '<div style="padding:20px 0;text-align:center;color:var(--green)">✓ Todos los DNI y carnets están en vigor (más de 30 días).</div>';
+      return;
+    }
+
+    var vencidos = items.filter(function(i){ return i.dias < 0; }).sort(function(a,b){ return a.dias - b.dias; });
+    var porVencer = items.filter(function(i){ return i.dias >= 0; }).sort(function(a,b){ return a.dias - b.dias; });
+
+    function fila(item) {
+      var diasRgb = item.dias < 0 ? '255,71,87' : '255,179,0';
+      var diasColor = item.dias < 0 ? 'var(--red)' : 'var(--amber)';
+      var diasTxt = item.dias < 0 ? '🚨 Caducado hace ' + Math.abs(item.dias) + ' días' : '⚠ Caduca en ' + item.dias + ' días';
+      return '<div onclick="openConductorPerfilModal(\'' + item.cid + '\')" style="background:rgba(255,255,255,.02);backdrop-filter:blur(6px);border:1px solid rgba(0,212,255,.3);border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 14px rgba(0,0,0,.25),0 0 6px rgba(0,212,255,.15);cursor:pointer">' +
+        '<div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:4px">' + item.nombre + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">' + item.doc + (item.matricula ? ' · ' + item.matricula : '') + ' · Caduca: ' + fD(item.fecha) + '</div>' +
+        '<span style="font-size:11px;font-weight:800;color:' + diasColor + ';background:rgba(' + diasRgb + ',.12);border:1px solid rgba(' + diasRgb + ',.45);border-radius:8px;padding:4px 10px;box-shadow:0 0 6px rgba(' + diasRgb + ',.3),0 0 12px rgba(' + diasRgb + ',.15)">' + diasTxt + '</span>' +
+      '</div>';
+    }
+
+    var body = '';
+    body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Caducados (' + vencidos.length + ')</div>';
+    body += vencidos.length ? vencidos.map(fila).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguno caducado</div>';
+    body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por caducar, próximos 30 días (' + porVencer.length + ')</div>';
+    body += porVencer.length ? porVencer.map(fila).join('') : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguno por caducar</div>';
+
+    document.getElementById('docs-conductor-detalle-body').innerHTML = body;
+  }).catch(function(){
+    document.getElementById('docs-conductor-detalle-body').innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo cargar el detalle.</div>';
+  });
+}
+function closeDocsConductorDetalle() {
+  document.getElementById('docs-conductor-detalle-modal').style.display = 'none';
 }
 function statCard(lbl, val, foot, color) {
   return '<div class="stat-card"><div class="lbl">' + lbl + '</div>' +
@@ -3050,6 +3155,19 @@ function conductorPerfilBodyHtml(c) {
       '</div>' +
     '</div>';
   }
+  function cajaCaducidad(campo, label, fechaActual, cid) {
+    var d = diasHastaCaducidad(fechaActual);
+    var color = d === null ? 'var(--text3)' : d < 0 ? 'var(--red)' : d <= 30 ? 'var(--amber)' : 'var(--green)';
+    var txt = d === null ? 'Sin fecha registrada' : d < 0 ? '🚨 Caducado hace ' + Math.abs(d) + ' días' : d <= 30 ? '⚠ Caduca en ' + d + ' días' : '✓ En vigor';
+    return '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:10px">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">' + label + ' — fecha de caducidad</div>' +
+        '<input id="cad-' + campo + '-' + cid + '" type="date" value="' + (fechaActual||'') + '" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border2);color:#fff;font-size:13px;font-weight:700;padding:2px 0;font-family:inherit">' +
+        '<div style="font-size:10.5px;font-weight:700;color:' + color + ';margin-top:4px">' + txt + '</div>' +
+      '</div>' +
+      '<button onclick="guardarCaducidadDocConductor(\'' + campo + '\',\'' + cid + '\')" class="edit-btn" style="flex-shrink:0">💾 Guardar</button>' +
+    '</div>';
+  }
 
   var html = '';
   html += '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">✉️ <b>Email:</b> ' + (c.email || '—') + '</div>';
@@ -3065,10 +3183,12 @@ function conductorPerfilBodyHtml(c) {
   '</div>';
   html += '<div id="body_' + cuid + '" style="display:none;padding:0 14px 16px;border-top:1px solid var(--border)">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">🆔 DNI</div>';
-  html += '<div style="margin-bottom:14px">' + docThumbP(c.dniFrenteUrl, 'Frontal') + docThumbP(c.dniDorsoUrl, 'Dorso') + '</div>';
+  html += '<div style="margin-bottom:10px">' + docThumbP(c.dniFrenteUrl, 'Frontal') + docThumbP(c.dniDorsoUrl, 'Dorso') + '</div>';
+  html += cajaCaducidad('dni', '🆔 DNI', c.dniCaducidad, c.cid);
 
   html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🪪 Carnet de conducir</div>';
-  html += '<div>' + docThumbP(c.carnetFrenteUrl, 'Frontal') + docThumbP(c.carnetDorsoUrl, 'Dorso') + '</div>';
+  html += '<div style="margin-bottom:10px">' + docThumbP(c.carnetFrenteUrl, 'Frontal') + docThumbP(c.carnetDorsoUrl, 'Dorso') + '</div>';
+  html += cajaCaducidad('carnet', '🪪 Carnet de conducir', c.carnetCaducidad, c.cid);
   html += '</div>'; // body_cuid
   html += '</div>'; // wrapper
 
@@ -3131,6 +3251,37 @@ function conductorPerfilBodyHtml(c) {
   '</div>';
 
   return html;
+}
+
+// Días que faltan para que caduque una fecha (negativo = ya caducado).
+// null si no hay fecha registrada todavía.
+function diasHastaCaducidad(fecha) {
+  if (!fecha) return null;
+  var d = new Date(fecha); d.setHours(0,0,0,0);
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((d - hoy) / 86400000);
+}
+function guardarCaducidadDocConductor(campo, cid) {
+  if (!puedeEditar()) return;
+  var input = document.getElementById('cad-' + campo + '-' + cid);
+  if (!input) return;
+  var fecha = input.value || null;
+  var campoFirebase = campo === 'dni' ? 'dniCaducidad' : 'carnetCaducidad';
+  fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/' + campoFirebase + '.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(fecha)
+  }).then(function(){
+    if (_vdInvitadosCacheGlobal[cid]) _vdInvitadosCacheGlobal[cid][campoFirebase] = fecha;
+    if (_conductoresIndex[cid]) _conductoresIndex[cid][campoFirebase] = fecha;
+    toast('✓ Fecha de caducidad guardada');
+    var c = _vdInvitadosCacheGlobal[cid] || _conductoresIndex[cid] || {};
+    var label = campo === 'dni' ? 'DNI' : 'Carnet de conducir';
+    registrarActividad('Conductores', 'Actualizó caducidad de ' + label, (c.nombre||cid) + (fecha ? ' · ' + fecha : ' · sin fecha'));
+    // Repintamos para que el color de urgencia se actualice al momento
+    if (typeof openConductorPerfilModal === 'function' && document.getElementById('conductor-perfil-modal').style.display !== 'none') {
+      document.getElementById('cp-body').innerHTML = conductorPerfilBodyHtml(c);
+    }
+  }).catch(function(){ toast('❌ No se pudo guardar la fecha'); });
 }
 
 function guardarTurnoConductorPerfil(cid) {
