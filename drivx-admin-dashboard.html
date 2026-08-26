@@ -329,6 +329,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         </div>
         <div id="invitaciones-pendientes-inicio"></div>
         <div id="fichaje-alerts"></div>
+        <div id="huecos-flota-alerts"></div>
         <div id="uber-efectivo-alerts"></div>
         <div id="citas-vencidas-alerts"></div>
         <div id="proximas-citas-inicio"></div>
@@ -977,7 +978,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-14';
+var APP_VERSION = '2026-08-26-15';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1309,11 +1310,13 @@ function enterShell() {
   renderInicioStats();
   renderFlota();
   renderFichajeAlerts();
+  renderHuecosFlotaAlerts();
   renderUberEfectivoAlerts();
   renderCitasVencidasAlerts();
   renderProximasCitasInicio();
   renderInvitacionesPendientesInicio();
   setInterval(renderFichajeAlerts, 60000);
+  setInterval(renderHuecosFlotaAlerts, 60000);
   setInterval(renderUberEfectivoAlerts, 60000);
   setInterval(renderCitasVencidasAlerts, 60000);
   setInterval(renderProximasCitasInicio, 60000);
@@ -1347,6 +1350,7 @@ function _onCambioRemotoDash() {
     if (id === 'inicio') {
       renderInicioStats();
       renderFichajeAlerts();
+      renderHuecosFlotaAlerts();
       renderUberEfectivoAlerts();
       renderCitasVencidasAlerts();
       renderProximasCitasInicio();
@@ -1792,6 +1796,77 @@ function renderFichajeAlerts() {
         '</div>';
       });
     });
+    html += '</div>';
+    container.innerHTML = html;
+  }).catch(function(){});
+}
+
+// ══ HUECOS EN LA FLOTA — vehículos sin conductor asignado, o parados sin
+// actividad reciente. A diferencia de los retrasos de fichaje, esto es un
+// estado actual (no un aviso puntual), así que no se puede descartar: se
+// queda visible hasta que se resuelva de verdad (se asigna un conductor,
+// o el vehículo vuelve a moverse). ══
+var UMBRAL_VEHICULO_PARADO_DIAS = 3;
+function renderHuecosFlotaAlerts() {
+  var container = document.getElementById('huecos-flota-alerts');
+  if (!container) return;
+
+  fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(fichajes){
+    fichajes = fichajes || {};
+    var vehiculos = getAllVehiculos();
+    var now = Date.now();
+    var umbralMs = UMBRAL_VEHICULO_PARADO_DIAS * 24 * 60 * 60 * 1000;
+
+    var sinConductor = [];
+    var parados = [];
+
+    vehiculos.forEach(function(v){
+      if (!v.conductores || !v.conductores.length) {
+        sinConductor.push(v);
+        return;
+      }
+      var ultimaActividad = 0;
+      v.conductores.forEach(function(cid){
+        var fj = fichajes[cid];
+        if (fj && fj.ts && fj.ts > ultimaActividad) ultimaActividad = fj.ts;
+      });
+      if (ultimaActividad === 0 || (now - ultimaActividad) > umbralMs) {
+        parados.push({ v: v, ultimaActividad: ultimaActividad });
+      }
+    });
+
+    if (!sinConductor.length && !parados.length) { container.innerHTML = ''; return; }
+
+    var ccaaIcons = CCAA_ICONS;
+    var total = sinConductor.length + parados.length;
+    var html = '<div style="margin-bottom:24px">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:8px">🚧 Huecos en la flota (' + total + ')</div>';
+
+    sinConductor.forEach(function(v){
+      html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.06);backdrop-filter:blur(6px);border:1.5px solid rgba(255,71,87,.6);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.3),0 0 10px rgba(255,71,87,.55),0 0 22px rgba(255,71,87,.3)">' +
+        '<div style="font-size:26px">🚫</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;font-weight:900;color:#fff">Sin ningún conductor asignado</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlSmall(v.matricula) + '</span> · ' + (ccaaIcons[v.ccaa]||'📍') + ' ' + v.ccaa + '</div>' +
+        '</div>' +
+        '<button onclick="showDashScreen(\'flota\');openVehicleDetail(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.6);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit;flex-shrink:0">Ver vehículo</button>' +
+      '</div>';
+    });
+
+    parados.forEach(function(item){
+      var v = item.v;
+      var diasParado = item.ultimaActividad ? Math.floor((now - item.ultimaActividad) / 86400000) : null;
+      var txt = diasParado === null ? 'Sin ningún fichaje registrado todavía' : 'Sin actividad desde hace ' + diasParado + ' día' + (diasParado !== 1 ? 's' : '');
+      html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,179,0,.06);backdrop-filter:blur(6px);border:1.5px solid rgba(255,179,0,.55);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.3),0 0 10px rgba(255,179,0,.5),0 0 22px rgba(255,179,0,.28)">' +
+        '<div style="font-size:26px">⏸️</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;font-weight:900;color:#fff">Vehículo parado</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlSmall(v.matricula) + '</span> · ' + txt + '</div>' +
+        '</div>' +
+        '<button onclick="showDashScreen(\'flota\');openVehicleDetail(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="background:rgba(255,179,0,.14);border:1.5px solid rgba(255,179,0,.6);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit;flex-shrink:0">Ver vehículo</button>' +
+      '</div>';
+    });
+
     html += '</div>';
     container.innerHTML = html;
   }).catch(function(){});
