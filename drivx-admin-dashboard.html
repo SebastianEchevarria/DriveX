@@ -960,7 +960,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-3';
+var APP_VERSION = '2026-08-26-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4325,7 +4325,7 @@ function guardarBrandingDesdeResumenVeh(pid) {
   });
 }
 
-function pintarResumenGeneralVehiculo(d) {
+function pintarResumenGeneralVehiculo(d, esHistorico) {
   var cont = document.getElementById('veh-resumen-body');
   if (!cont) return;
 
@@ -4337,8 +4337,12 @@ function pintarResumenGeneralVehiculo(d) {
   }
 
   var html = '';
-  html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;margin-bottom:10px">👁️ Esto es lo que verá el propietario en su app — pero solo se actualiza cuando pulses <strong style="color:#fff">🔒 Cerrar y enviar</strong>. ' + (_vehResumenUltimoEnvio ? 'Última vez enviado: ' + new Date(_vehResumenUltimoEnvio).toLocaleString('es-ES') : 'Todavía no se ha enviado nada de este vehículo.') + '</div>';
-  html += '<button id="veh-resumen-corregir-btn" onclick="corregirYReenviarFacturacion(\'' + d.matricula.replace(/'/g,"\\'") + '\')" title="Usa esto tras corregir algún dato (Uber/Bolt/Cabify, un ticket, un porcentaje...) para que la corrección llegue ya al conductor y al propietario, sin esperar al próximo cierre" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:14px">🔁 Corregir y reenviar</button>';
+  if (esHistorico) {
+    html += '<div style="font-size:11px;color:var(--text3);background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:8px 10px;margin-bottom:14px">📜 Esto es exactamente lo que recibió el propietario en su momento — es un archivo, ya no se puede editar ni reenviar desde aquí.</div>';
+  } else {
+    html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;margin-bottom:10px">👁️ Esto es lo que verá el propietario en su app — pero solo se actualiza cuando pulses <strong style="color:#fff">🔒 Cerrar y enviar</strong>. ' + (_vehResumenUltimoEnvio ? 'Última vez enviado: ' + new Date(_vehResumenUltimoEnvio).toLocaleString('es-ES') : 'Todavía no se ha enviado nada de este vehículo.') + '</div>';
+    html += '<button id="veh-resumen-corregir-btn" onclick="corregirYReenviarFacturacion(\'' + d.matricula.replace(/'/g,"\\'") + '\')" title="Usa esto tras corregir algún dato (Uber/Bolt/Cabify, un ticket, un porcentaje...) para que la corrección llegue ya al conductor y al propietario, sin esperar al próximo cierre" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:14px">🔁 Corregir y reenviar</button>';
+  }
   if (d.sinPropietario) {
     html += '<div style="font-size:11px;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);border-radius:8px;padding:8px 10px;margin-bottom:14px">⚠ Este vehículo no está asignado a ningún propietario todavía, así que el % de gestión y el branding se muestran en 0.</div>';
   }
@@ -4349,15 +4353,22 @@ function pintarResumenGeneralVehiculo(d) {
     filaResumen('Cabify', d.cabifyTotal) +
     filaResumen('Privados', d.privadosFacturacionTotal) +
     filaResumen('Transfer', d.transfersFacturacionTotal);
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
-    '<span style="color:var(--amber);font-weight:800;text-shadow:0 0 6px rgba(255,179,0,.8)">Branding</span>' +
-    '<span style="display:flex;align-items:center;gap:6px;position:relative">' +
-      '<span style="color:var(--text3);font-family:var(--mono);font-size:12px">€</span>' +
-      '<input id="veh-branding-input" type="number" step="0.01" value="' + Math.abs(d.brandingTotal).toFixed(2) + '" style="width:80px;padding:6px 8px;border-radius:8px;border:1.5px solid rgba(255,179,0,.6);background:rgba(255,179,0,.06);color:#fff;font-family:var(--mono);font-weight:800;font-size:13px;text-align:right">' +
-      '<button id="veh-branding-save-btn" onclick="guardarBrandingDesdeResumenVeh(' + (d.pid ? "'"+d.pid+"'" : 'null') + ')" style="background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit">💾 Guardar</button>' +
-      '<span id="veh-branding-saved-msg" style="display:none;position:absolute;right:0;top:-26px;background:rgba(0,230,118,.95);color:#04220f;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)">✓ Guardado correctamente</span>' +
-    '</span>' +
-  '</div>';
+  if (esHistorico) {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+      '<span style="color:var(--amber);font-weight:800">Branding</span>' +
+      '<span style="font-family:var(--mono);font-weight:800;color:#fff">€ ' + Math.abs(d.brandingTotal||0).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  } else {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
+      '<span style="color:var(--amber);font-weight:800;text-shadow:0 0 6px rgba(255,179,0,.8)">Branding</span>' +
+      '<span style="display:flex;align-items:center;gap:6px;position:relative">' +
+        '<span style="color:var(--text3);font-family:var(--mono);font-size:12px">€</span>' +
+        '<input id="veh-branding-input" type="number" step="0.01" value="' + Math.abs(d.brandingTotal).toFixed(2) + '" style="width:80px;padding:6px 8px;border-radius:8px;border:1.5px solid rgba(255,179,0,.6);background:rgba(255,179,0,.06);color:#fff;font-family:var(--mono);font-weight:800;font-size:13px;text-align:right">' +
+        '<button id="veh-branding-save-btn" onclick="guardarBrandingDesdeResumenVeh(' + (d.pid ? "'"+d.pid+"'" : 'null') + ')" style="background:rgba(0,230,118,.16);border:1.5px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit">💾 Guardar</button>' +
+        '<span id="veh-branding-saved-msg" style="display:none;position:absolute;right:0;top:-26px;background:rgba(0,230,118,.95);color:#04220f;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)">✓ Guardado correctamente</span>' +
+      '</span>' +
+    '</div>';
+  }
   html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;margin-top:2px">' +
     '<span style="font-size:12px;font-weight:900;color:#fff">Total facturación</span>' +
     '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.8)">€ ' + d.facturacionTotal.toFixed(2).replace('.',',') + '</span>' +
@@ -5758,43 +5769,78 @@ function paintHistorialFacturacion() {
     };
   });
 }
-// ── Calendario visual (mapa de calor) para encontrar una semana concreta
-// de un vistazo: cada cuadradito es una semana pasada — brilla en cian si
-// hay un cierre guardado (y se puede tocar para abrirlo), y se ve apagado
-// si esa semana no tiene nada archivado. Cubre el último año.
+// ── Calendario real (no cuadraditos sueltos): un mes por bloque, con sus
+// días en fila como un calendario de verdad. Cada FILA de días es una
+// semana — si esa semana tiene un cierre guardado, la fila entera se
+// resalta en cian y se puede tocar para abrirla directamente.
 function generarHeatmapSemanas(mSlug, matricula, periodosConDatos) {
   var setConDatos = {};
   periodosConDatos.forEach(function(p){ setConDatos[p] = true; });
 
-  var hoy = new Date();
-  var diaSemana = hoy.getDay() || 7;
-  var lunesActual = new Date(hoy);
-  lunesActual.setDate(hoy.getDate() - diaSemana + 1);
-
-  var semanas = [];
-  for (var i = 0; i < 52; i++) {
-    var lunes = new Date(lunesActual);
-    lunes.setDate(lunesActual.getDate() - (i * 7));
-    var periodo = lunes.getFullYear() + '-S' + String(lunes.getMonth()+1).padStart(2,'0') + String(lunes.getDate()).padStart(2,'0');
-    semanas.push({ periodo: periodo, lunes: lunes, tieneDatos: !!setConDatos[periodo] });
+  function periodoDeLunes(lunes) {
+    return lunes.getFullYear() + '-S' + String(lunes.getMonth()+1).padStart(2,'0') + String(lunes.getDate()).padStart(2,'0');
   }
-  semanas.reverse(); // de más antigua a más reciente, para leer igual que un calendario
 
-  var celdas = semanas.map(function(s){
-    var rango = formatearPeriodoSemanal(s.periodo);
-    if (s.tieneDatos) {
-      return '<div onclick="abrirDetalleHistorial(\''+mSlug+'\',\''+s.periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')" title="Semana del '+rango+' — cierre guardado, toca para verlo" style="width:15px;height:15px;border-radius:4px;background:rgba(0,212,255,.9);box-shadow:0 0 5px rgba(0,212,255,.9),0 0 10px rgba(0,212,255,.6);cursor:pointer;flex-shrink:0"></div>';
-    }
-    return '<div title="Semana del '+rango+' — sin cierre" style="width:15px;height:15px;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);flex-shrink:0"></div>';
-  }).join('');
+  var hoy = new Date();
+  var mesesHtml = [];
+  var NOMBRES_MES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-  return '<div style="padding:14px 0 4px">' +
-    '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Calendario del último año — toca una semana con cierre</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:4px;max-width:100%">' + celdas + '</div>' +
-    '<div style="display:flex;align-items:center;gap:14px;margin-top:8px;font-size:9.5px;color:var(--text3)">' +
-      '<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(0,212,255,.9);box-shadow:0 0 4px rgba(0,212,255,.8)"></span>Con cierre</span>' +
-      '<span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)"></span>Sin cierre</span>' +
-    '</div>' +
+  for (var m = 0; m < 6; m++) {
+    var refMes = new Date(hoy.getFullYear(), hoy.getMonth() - m, 1);
+    var anio = refMes.getFullYear(), mes = refMes.getMonth();
+    var primerDiaMes = new Date(anio, mes, 1);
+    var ultimoDiaMes = new Date(anio, mes + 1, 0);
+    var offsetInicio = (primerDiaMes.getDay() || 7) - 1; // 0 = lunes
+
+    // Construimos los "slots" del mes: null antes del día 1, luego 1..N
+    var slots = [];
+    for (var i = 0; i < offsetInicio; i++) slots.push(null);
+    for (var d = 1; d <= ultimoDiaMes.getDate(); d++) slots.push(d);
+    while (slots.length % 7 !== 0) slots.push(null);
+
+    var filas = [];
+    for (var f = 0; f < slots.length; f += 7) filas.push(slots.slice(f, f+7));
+
+    var filasHtml = filas.map(function(fila){
+      // El lunes de esta fila: si el primer slot es un día real, es ese
+      // día; si es null (fila inicial con huecos), retrocedemos desde el
+      // primer día real de la fila para hallar el lunes correspondiente.
+      var primerDiaReal = fila.find(function(x){ return x !== null; });
+      var idxPrimerReal = fila.indexOf(primerDiaReal);
+      var fechaPrimerReal = new Date(anio, mes, primerDiaReal);
+      var lunesFila = new Date(fechaPrimerReal);
+      lunesFila.setDate(fechaPrimerReal.getDate() - idxPrimerReal);
+      var periodo = periodoDeLunes(lunesFila);
+      var tieneDatos = !!setConDatos[periodo];
+      var rango = formatearPeriodoSemanal(periodo);
+
+      var celdas = fila.map(function(dia){
+        if (dia === null) return '<div style="flex:1"></div>';
+        return '<div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:' + (tieneDatos ? '#fff' : 'var(--text3)') + '">' + dia + '</div>';
+      }).join('');
+
+      var estiloFila = tieneDatos
+        ? 'background:rgba(0,212,255,.22);box-shadow:0 0 8px rgba(0,212,255,.5) inset;cursor:pointer'
+        : 'background:transparent;cursor:default';
+      var onclickAttr = tieneDatos ? ' onclick="abrirDetalleHistorial(\''+mSlug+'\',\''+periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')"' : '';
+      return '<div' + onclickAttr + ' title="Semana del ' + rango + (tieneDatos ? ' — cierre guardado, toca para verlo' : ' — sin cierre') + '" style="display:flex;border-radius:6px;padding:3px 0;margin-bottom:2px;' + estiloFila + '">' + celdas + '</div>';
+    }).join('');
+
+    mesesHtml.push(
+      '<div style="min-width:150px;flex:1">' +
+        '<div style="font-size:10.5px;font-weight:800;color:#fff;text-align:center;margin-bottom:4px">' + NOMBRES_MES[mes] + ' ' + anio + '</div>' +
+        '<div style="display:flex;margin-bottom:2px">' +
+          ['L','M','X','J','V','S','D'].map(function(l){ return '<div style="flex:1;text-align:center;font-size:8.5px;color:var(--text3);font-weight:700">'+l+'</div>'; }).join('') +
+        '</div>' +
+        filasHtml +
+      '</div>'
+    );
+  }
+  mesesHtml.reverse(); // de más antiguo a más reciente
+
+  return '<div style="padding:14px 0 10px">' +
+    '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📅 Últimos 6 meses — las semanas resaltadas en cian tienen un cierre guardado, tócalas para abrirlo</div>' +
+    '<div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:6px">' + mesesHtml.join('') + '</div>' +
   '</div>';
 }
 
@@ -5832,7 +5878,7 @@ function abrirDetalleHistorial(mSlug, periodo, matricula) {
       '<button onclick="abrirResumenPropietarioHistorial(\''+mSlug+'\',\''+periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')" style="padding:10px 18px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.7),0 0 22px rgba(0,212,255,.4)">👁️ Ver resumen del propietario</button>' +
       '<div style="color:#fff;font-size:13px;font-weight:800;margin-left:6px">' + matricula + ' · Semana del ' + formatearPeriodoSemanal(periodo) + '</div>' +
     '</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">';
+    '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;justify-content:center">';
 
   if (!conductoresDeEstaSemana.length) {
     html += '<div style="color:var(--text3);font-size:13px;padding:20px">No se encontró el detalle individual de esta semana.</div>';
@@ -5872,6 +5918,19 @@ function pintarLiquidacionHistorialHtml(uidLocal, d) {
   var totalNeto = (d.uberNetoReal||0) + (d.boltNetoReal||0) + (d.cabifyNetoReal||0) + (d.privadosCutTotal||0) + (d.transfersCutTotal||0);
   var tieneDesgloseGastos = typeof d.gastosSinDatafonoTotal === 'number';
   var html = '';
+
+  function casillaPlat(color, textColor, label, valor) {
+    return '<div style="background:rgba(' + color + ',.08);border:1.5px solid rgba(' + color + ',.75);border-radius:10px;padding:9px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(' + color + ',.55),0 0 16px rgba(' + color + ',.3);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">' + label + '</span>' +
+      '<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:' + textColor + ';text-shadow:0 0 5px rgba(' + color + ',.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
+  function netoRealBox(valor) {
+    return '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;margin-bottom:4px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55);display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+      '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }
 
   html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">' +
     '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">' + etiquetaResultado + '</div>' +
@@ -5918,6 +5977,61 @@ function pintarLiquidacionHistorialHtml(uidLocal, d) {
     '</div>';
   } else {
     html += '<div style="font-size:9.5px;color:var(--text3);margin-top:8px;font-style:italic">Este cierre es anterior a la mejora del Historial — no se guardaron los tickets individuales de esta semana, solo los totales.</div>';
+  }
+  html += '</div>';
+
+  // ── Uber / Bolt / Cabify (idénticas a las de Facturación en vivo, en
+  // modo solo lectura — sin lápiz de editar ni botón de subir CSV) ──
+  var uberNetoBruto = (d.uberNetoReal||0) + (d.uberPropinas||0) + (d.uberPromo||0);
+  html += '<div style="background:rgba(255,255,255,.03);border:2px solid rgba(255,255,255,.85);border-radius:14px;padding:14px 16px;margin-bottom:10px">' +
+    '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">Uber</div>' +
+    casillaPlat('255,255,255','#fff','Ganancias / neto', uberNetoBruto) +
+    casillaPlat('255,255,255','#fff','Propinas', d.uberPropinas) +
+    casillaPlat('255,255,255','#fff','Promociones/Campañas', d.uberPromo) +
+    casillaPlat('255,255,255','#fff','Efectivo cobrado', d.uberEfectivo) +
+    netoRealBox(d.uberNetoReal) +
+  '</div>';
+
+  html += '<div style="background:rgba(0,230,118,.05);border:2px solid rgba(0,230,118,.85);border-radius:14px;padding:14px 16px;margin-bottom:10px">' +
+    '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">Bolt</div>' +
+    casillaPlat('0,230,118','var(--green)','Ingresos netos', d.boltIngresosNetos) +
+    casillaPlat('0,230,118','var(--green)','Peajes', d.boltPeajes) +
+    casillaPlat('0,230,118','var(--green)','Ingresos de campañas', d.boltCampanas) +
+    casillaPlat('0,230,118','var(--green)','Propinas de pasajeros', d.boltPropinas) +
+    casillaPlat('0,230,118','var(--green)','Efectivo recaudado', d.boltEfectivo) +
+    netoRealBox(d.boltNetoReal) +
+  '</div>';
+
+  var cabifyNetoBruto = (d.cabifyNetoReal||0) + (d.cabifyPropinas||0) + (d.cabifyPromo||0);
+  html += '<div style="background:rgba(124,92,252,.05);border:2px solid rgba(124,92,252,.85);border-radius:14px;padding:14px 16px;margin-bottom:10px">' +
+    '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">Cabify</div>' +
+    casillaPlat('124,92,252','var(--purple)','Facturación neta', cabifyNetoBruto) +
+    casillaPlat('124,92,252','var(--purple)','Pagado a bordo (efectivo)', d.cabifyEfectivo) +
+    netoRealBox(d.cabifyNetoReal) +
+  '</div>';
+
+  // ── Viajes privados y Transfers de esta semana ──
+  var privadosItemsHist = d.privadosItems || [];
+  html += '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:14px;padding:14px 16px;margin-bottom:10px">' +
+    '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Viaje privado</div>';
+  if (!privadosItemsHist.length) {
+    html += '<div style="font-size:11px;color:var(--text3)">Sin viajes privados esta semana.</div>';
+  } else {
+    privadosItemsHist.forEach(function(h){
+      html += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span>' + (h.fecha||'') + (h.metodoPago==='efectivo'?' · 💵 efectivo':'') + '</span><span style="font-family:var(--mono);color:#fff">€ ' + Number(h.cutConductor||0).toFixed(2).replace('.',',') + '</span></div>';
+    });
+  }
+  html += '</div>';
+
+  var transfersItemsHist = d.transfersItems || [];
+  html += '<div style="background:rgba(255,140,0,.05);border:2px solid rgba(255,140,0,.85);border-radius:14px;padding:14px 16px">' +
+    '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);margin-bottom:10px">🧾 Transfer</div>';
+  if (!transfersItemsHist.length) {
+    html += '<div style="font-size:11px;color:var(--text3)">Sin transfers esta semana.</div>';
+  } else {
+    transfersItemsHist.forEach(function(h){
+      html += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)"><span>' + (h.fecha||'') + (h.metodoPago==='efectivo'?' · 💵 efectivo':'') + '</span><span style="font-family:var(--mono);color:#fff">€ ' + Number(h.cutConductor||0).toFixed(2).replace('.',',') + '</span></div>';
+    });
   }
   html += '</div>';
 
@@ -5968,57 +6082,15 @@ function abrirTicketsHistorialModal(uidLocal, tipo) {
   modal.style.display = 'flex';
 }
 
-// ── Resumen del propietario para una semana concreta (desde el Historial) ──
+// ── Resumen del propietario para una semana concreta (desde el Historial)
+// Reutiliza literalmente el mismo modal y la misma función de pintado que
+// el botón "Resumen" de Facturación en vivo — mismo aspecto exacto, solo
+// que en modo solo-lectura sobre el archivo de esa semana. ──
 function abrirResumenPropietarioHistorial(mSlug, periodo, matricula) {
-  var modal = document.getElementById('historial-propietario-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'historial-propietario-modal';
-    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10012;align-items:center;justify-content:center;padding:20px';
-    document.body.appendChild(modal);
-  }
   var snap = (_historialCierresVehCache[mSlug] || {})[periodo] || {};
-
-  var html = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.85);border-radius:20px;max-width:460px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 18px rgba(0,212,255,.6),0 0 40px rgba(0,212,255,.35)">' +
-    '<div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">' +
-      '<div><div style="font-size:15px;font-weight:900;color:#fff">👁️ Resumen del propietario</div><div style="font-size:11.5px;color:var(--text3)">' + matricula + ' · Semana del ' + formatearPeriodoSemanal(periodo) + '</div></div>' +
-      '<button class="modal-close" onclick="document.getElementById(\'historial-propietario-modal\').style.display=\'none\'">✕</button>' +
-    '</div>' +
-    '<div style="padding:16px 20px 20px;overflow-y:auto;flex:1">';
-
-  html += filaHistorial('Facturación Uber', snap.uberTotal) + filaHistorial('Facturación Bolt', snap.boltTotal) + filaHistorial('Facturación Cabify', snap.cabifyTotal) +
-    filaHistorial('Viajes privados', snap.privadosFacturacionTotal) + filaHistorial('Transfers', snap.transfersFacturacionTotal);
-  if (snap.brandingTotal) html += filaHistorial('Branding', snap.brandingTotal);
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin:6px 0;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)">' +
-    '<span style="font-size:12.5px;font-weight:900;color:#fff">Facturación total</span>' +
-    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--cyan)">€ ' + (snap.facturacionTotal||0).toFixed(2).replace('.',',') + '</span>' +
-  '</div>';
-
-  html += filaHistorial('Combustible', -(snap.combustibleTotal||0)) + filaHistorial('Peajes', -(snap.peajesTotal||0)) +
-    filaHistorial('Parking', -(snap.parkingTotal||0)) + filaHistorial('Limpieza', -(snap.limpiezaTotal||0)) + filaHistorial('Otros gastos', -(snap.otrosTotal||0)) +
-    filaHistorial('Sueldos conductores', -(snap.sueldosTotal||0));
-  if (snap.infinityTotal) filaHistorial(snap.nombreGestion || 'Gestión', -(snap.infinityTotal||0));
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin:6px 0 16px;border-bottom:1px solid rgba(255,255,255,.1)">' +
-    '<span style="font-size:12.5px;font-weight:900;color:#fff">Total gastos</span>' +
-    '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:var(--red)">− € ' + (snap.gastosTotalGeneral||0).toFixed(2).replace('.',',') + '</span>' +
-  '</div>';
-
-  if (snap.kmSemana && snap.kmSemana.total > 0) {
-    html += '<div style="background:rgba(0,212,255,.06);border:1.5px solid rgba(0,212,255,.5);border-radius:12px;padding:12px 14px;margin-bottom:16px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:900;color:#fff">🚗 Km recorridos</span><span style="font-family:var(--mono);color:var(--cyan);font-weight:900">' + Math.round(snap.kmSemana.total).toLocaleString('es-ES') + ' km</span></div>' +
-      (snap.kmSemana.porConductor||[]).filter(function(k){return k.km>0;}).map(function(k){ return '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:2px 0"><span>'+k.nombre+'</span><span style="font-family:var(--mono);color:#fff">'+Math.round(k.km).toLocaleString('es-ES')+' km</span></div>'; }).join('') +
-    '</div>';
-  }
-
-  var colorBenef = (snap.beneficio||0) >= 0 ? '0,230,118' : '255,71,87';
-  html += '<div style="background:rgba(' + colorBenef + ',.1);border:2px solid rgba(' + colorBenef + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBenef + ',.85),0 0 28px rgba(' + colorBenef + ',.5)">' +
-    '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO</div>' +
-    '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + ((snap.beneficio||0)>=0?'var(--green)':'var(--red)') + '">€ ' + (snap.beneficio||0).toFixed(2).replace('.',',') + '</div>' +
-  '</div>';
-
-  html += '</div></div>';
-  modal.innerHTML = html;
-  modal.style.display = 'flex';
+  document.getElementById('veh-resumen-plate').innerHTML = plateHtml(matricula);
+  document.getElementById('veh-resumen-modal').style.display = 'flex';
+  pintarResumenGeneralVehiculo(snap, true);
 }
 function filaHistorial(label, valor) {
   return '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:3px 0"><span>' + label + '</span><span style="font-family:var(--mono);color:#fff">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span></div>';
