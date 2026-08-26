@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-48';
+var APP_VERSION = '2026-08-25-49';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2567,7 +2567,7 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
       '<div class="miembro-card-email" style="flex:1;min-width:150px;font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.email||'') + '</div>' +
       '<div style="display:flex;gap:8px;flex-shrink:0">' +
         estado +
-        '<button onclick="abrirEditarUsuarioModal(\'' + app + '\',\'' + uid + '\')" title="Editar rol / comunidades autónomas" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--cyan);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">✏️ Editar</button>' +
+        (currentUser && currentUser.role === 'admin' ? '<button onclick="abrirEditarUsuarioModal(\'' + app + '\',\'' + uid + '\')" title="Editar rol / comunidades autónomas" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--cyan);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">✏️ Editar</button>' : '') +
         '<button id="' + btnId + '" onclick="confirmDeleteUsuarioInvitado(\'' + app + '\',\'' + uid + '\')" style="flex-shrink:0;font-size:10px;font-weight:800;color:var(--red);background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;white-space:nowrap">🗑 Eliminar</button>' +
       '</div>' +
     '</div>';
@@ -2609,7 +2609,7 @@ function confirmDeleteUsuarioInvitado(app, uid) {
 // ══ EDITAR PERMISOS DE UN USUARIO YA CREADO (rol / CCAA asignada) ══
 var _editUsuarioActual = null;
 function abrirEditarUsuarioModal(app, uid) {
-  if (!puedeEditar()) return;
+  if (!currentUser || currentUser.role !== 'admin') return;
   var u = (_usuariosInvitadosCache[app] || {})[uid];
   if (!u) return;
   _editUsuarioActual = { app: app, uid: uid };
@@ -2673,7 +2673,7 @@ function toggleEuCcaaWrap() {
   wrap.style.display = (sel.value === 'ccaa_manager') ? 'block' : 'none';
 }
 function guardarEdicionUsuario() {
-  if (!puedeEditar()) return;
+  if (!currentUser || currentUser.role !== 'admin') return;
   if (!_editUsuarioActual) return;
   var app = _editUsuarioActual.app, uid = _editUsuarioActual.uid;
   var err = document.getElementById('eu-error');
