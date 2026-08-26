@@ -996,7 +996,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-18';
+var APP_VERSION = '2026-08-26-19';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1341,6 +1341,253 @@ function enterShell() {
   setInterval(function(){ if (document.getElementById('dash-citas').classList.contains('active')) renderCitas(); }, 8000);
 
   iniciarSincronizacionInstantanea();
+  registrarServiceWorkerPush();
+  verificarYEnviarPushesInicio();
+  setInterval(verificarYEnviarPushesInicio, 5 * 60000); // cada 5 minutos mientras el Dashboard esté abierto
+}
+
+// ══ NOTIFICACIONES PUSH ══
+// Web Push estándar (claves VAPID) — funciona en Android, en la PWA
+// instalada de escritorio, y en Safari/iOS moderno una vez instalada
+// como app. No depende de Firebase Cloud Messaging.
+var VAPID_PUBLIC_KEY = 'BG_O2jr22zuUniJQMKqnj5rD3-dni53kh5OQaEpeeJ0v2DQtgElHACwV_oaNWAVOMrO-d8loghqX3A0rLDUjH2c';
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = window.atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+function pushSoportadoPorNavegador() {
+  return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+}
+
+function registrarServiceWorkerPush() {
+  if (!pushSoportadoPorNavegador()) return Promise.resolve(null);
+  // El service worker ya se registra al final de la página (para que la
+  // PWA se pueda instalar) — aquí solo esperamos a que esté activo, sin
+  // registrar uno duplicado.
+  return navigator.serviceWorker.ready.catch(function(){ return null; });
+}
+
+function estaSuscritoAPush() {
+  if (!pushSoportadoPorNavegador()) return Promise.resolve(false);
+  return navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return false;
+    return reg.pushManager.getSubscription().then(function(sub){ return !!sub; });
+  }).catch(function(){ return false; });
+}
+
+function pushConfigBoxHtml() {
+  if (!pushSoportadoPorNavegador()) {
+    return '<div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:16px;padding:16px 18px">' +
+      '<div style="font-size:14px;font-weight:900;color:#fff;margin-bottom:6px">🔔 Notificaciones push</div>' +
+      '<div style="font-size:11.5px;color:var(--text3)">Tu navegador no soporta notificaciones push. Prueba desde Chrome (Android/escritorio) o desde la app instalada.</div>' +
+    '</div>';
+  }
+  return '<div id="push-config-box" style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.6);border-radius:16px;padding:16px 18px">' +
+    '<div style="font-size:14px;font-weight:900;color:#fff;margin-bottom:6px">🔔 Notificaciones push</div>' +
+    '<div id="push-config-desc" style="font-size:11.5px;color:var(--text3);margin-bottom:14px">Recibe un aviso en el móvil o el escritorio (aunque no tengas la app abierta) cuando haya una ITV urgente, un retraso de fichaje, un hueco en la flota o un documento caducando.</div>' +
+    '<button id="push-config-btn" onclick="togglePushSubscription()" style="width:100%;padding:11px;border-radius:10px;border:2px solid rgba(0,212,255,.85);background:rgba(0,212,255,.12);color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit">Comprobando…</button>' +
+  '</div>';
+}
+function actualizarEstadoBotonPush() {
+  var btn = document.getElementById('push-config-btn');
+  if (!btn) return;
+  estaSuscritoAPush().then(function(suscrito){
+    if (Notification.permission === 'denied') {
+      btn.textContent = '🚫 Bloqueadas en el navegador — revisa los permisos del sitio';
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = false;
+    if (suscrito) {
+      btn.textContent = '🔕 Desactivar notificaciones push';
+      btn.style.background = 'rgba(255,71,87,.12)';
+      btn.style.borderColor = 'rgba(255,71,87,.7)';
+    } else {
+      btn.textContent = '🔔 Activar notificaciones push en este dispositivo';
+      btn.style.background = 'rgba(0,212,255,.12)';
+      btn.style.borderColor = 'rgba(0,212,255,.85)';
+    }
+  });
+}
+function togglePushSubscription() {
+  estaSuscritoAPush().then(function(suscrito){
+    if (suscrito) { desactivarPush(); } else { activarPush(); }
+  });
+}
+function activarPush() {
+  var btn = document.getElementById('push-config-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+  Notification.requestPermission().then(function(permiso){
+    if (permiso !== 'granted') {
+      toast('No se han concedido permisos de notificación');
+      actualizarEstadoBotonPush();
+      return;
+    }
+    registrarServiceWorkerPush().then(function(reg){
+      if (!reg) { toast('Este navegador no admite notificaciones push'); actualizarEstadoBotonPush(); return; }
+      return reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      }).then(function(sub){
+        return fetch(FIREBASE_URL + '/push_subscriptions.json', {
+          method: 'POST', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            email: currentUser.email || '',
+            nombre: currentUser.nombre || '',
+            role: currentUser.role || '',
+            ccaaAsignada: currentUser.ccaaAsignada || null,
+            creadoEn: Date.now()
+          })
+        });
+      }).then(function(){
+        toast('✅ Notificaciones activadas en este dispositivo');
+        actualizarEstadoBotonPush();
+      });
+    }).catch(function(err){
+      toast('No se pudo activar: ' + err.message);
+      actualizarEstadoBotonPush();
+    });
+  });
+}
+function desactivarPush() {
+  navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return;
+    return reg.pushManager.getSubscription().then(function(sub){
+      if (!sub) return;
+      var endpoint = sub.endpoint;
+      return sub.unsubscribe().then(function(){
+        // Borramos también la suscripción guardada en Firebase
+        return fetch(FIREBASE_URL + '/push_subscriptions.json').then(function(r){ return r.json(); }).then(function(all){
+          all = all || {};
+          var borrados = Object.keys(all).filter(function(id){ return all[id].subscription && all[id].subscription.endpoint === endpoint; });
+          return Promise.all(borrados.map(function(id){ return fetch(FIREBASE_URL + '/push_subscriptions/' + id + '.json', { method:'DELETE' }); }));
+        });
+      });
+    });
+  }).then(function(){
+    toast('🔕 Notificaciones desactivadas en este dispositivo');
+    actualizarEstadoBotonPush();
+  }).catch(function(){ actualizarEstadoBotonPush(); });
+}
+
+// Envía la orden de push a la función de servidor (api/send-push.js).
+// target opcional: { ccaa: 'Andalucía' } para avisar solo al Manager de
+// esa comunidad (además del MASTER, que siempre recibe todo).
+function enviarPushNotificacion(title, body, tag, url, target) {
+  fetch('/api/send-push', {
+    method: 'POST', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ title: title, body: body, tag: tag, url: url, target: target || null })
+  }).catch(function(){});
+}
+// Evita mandar el mismo aviso una y otra vez cada minuto — se marca por
+// día en la base de datos (así da igual qué admin tenga el Dashboard
+// abierto, solo se manda una vez por día y por aviso).
+function pushYaEnviadoHoy(clave) {
+  var hoy = new Date().toISOString().slice(0,10);
+  return fetch(FIREBASE_URL + '/push_notificados/' + hoy + '/' + clave + '.json').then(function(r){ return r.json(); }).then(function(v){ return !!v; }).catch(function(){ return true; });
+}
+function marcarPushEnviadoHoy(clave) {
+  var hoy = new Date().toISOString().slice(0,10);
+  fetch(FIREBASE_URL + '/push_notificados/' + hoy + '/' + clave + '.json', { method:'PUT', headers:{'Content-Type':'application/json'}, body:'true' }).catch(function(){});
+}
+function avisarPushSiNuevo(clave, title, body, url, target) {
+  pushYaEnviadoHoy(clave).then(function(yaEnviado){
+    if (yaEnviado) return;
+    marcarPushEnviadoHoy(clave);
+    enviarPushNotificacion(title, body, clave, url, target);
+  });
+}
+
+// Revisa los mismos avisos que ya se ven en Inicio (ITV, retrasos de
+// fichaje, huecos en la flota, documentos de conductor caducando) y
+// manda un push por cada uno que sea nuevo hoy. Solo hace falta que
+// CUALQUIER Dashboard abierto ejecute esto para que llegue a todos los
+// suscritos — no depende de que el propio dispositivo esté suscrito.
+function verificarYEnviarPushesInicio() {
+  if (!currentUser) return;
+  function dU(s){ if (!s) return null; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
+  var now = new Date();
+  var todayStr = now.toDateString();
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var fichajes = results[0] || {};
+    var invitados = results[1] || {};
+    var vehiculos = getAllVehiculos();
+
+    // 1) ITV vencida o urgente (30 días)
+    vehiculos.forEach(function(v){
+      var d = dU(v.docs.itv.fecha);
+      if (d === null || d > 30) return;
+      var clave = 'itv_' + matSlug(v.matricula);
+      var body = d < 0 ? v.matricula + ' — ITV vencida hace ' + Math.abs(d) + ' días' : v.matricula + ' — ITV vence en ' + d + ' días';
+      avisarPushSiNuevo(clave, '🚨 ITV', body, '/drivx-admin-dashboard.html', { ccaa: v.ccaa });
+    });
+
+    // 2) Huecos en la flota (sin conductor / parado)
+    vehiculos.forEach(function(v){
+      var cids = cidsDeVehiculo(v, invitados);
+      if (!cids.length) {
+        avisarPushSiNuevo('huecoflota_sc_' + matSlug(v.matricula), '🚫 Vehículo sin conductor', v.matricula + ' no tiene ningún conductor asignado', '/drivx-admin-dashboard.html', { ccaa: v.ccaa });
+        return;
+      }
+      var ultimaActividad = 0;
+      cids.forEach(function(cid){
+        var fj = fichajes[cid];
+        if (fj && fj.ts && fj.ts > ultimaActividad) ultimaActividad = fj.ts;
+      });
+      var umbralMs = UMBRAL_VEHICULO_PARADO_DIAS * 24 * 60 * 60 * 1000;
+      if (ultimaActividad === 0 || (Date.now() - ultimaActividad) > umbralMs) {
+        avisarPushSiNuevo('huecoflota_pd_' + matSlug(v.matricula), '⏸️ Vehículo parado', v.matricula + ' sin actividad desde hace ' + UMBRAL_VEHICULO_PARADO_DIAS + '+ días', '/drivx-admin-dashboard.html', { ccaa: v.ccaa });
+      }
+    });
+
+    // 3) Retrasos de fichaje (más de 15 min)
+    var vehByMatSlug = {};
+    vehiculos.forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+    var todosConductores = [];
+    CONDUCTORES.forEach(function(c){ if (c.cid !== 'test') todosConductores.push({ cid:c.cid, nombre:c.nombre, matricula:c.matricula, turno:c.turno }); });
+    Object.keys(invitados).forEach(function(cid){
+      var r = invitados[cid];
+      if (r) todosConductores.push({ cid:cid, nombre:r.nombre||'Conductor', matricula:r.matricula, turno:r.turno });
+    });
+    todosConductores.forEach(function(c){
+      var inicio = parseTurnoInicio(c.turno);
+      if (!inicio) return;
+      var startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), inicio.h, inicio.min, 0);
+      var deadline = new Date(startToday.getTime() + 15*60000);
+      if (now < deadline) return;
+      var fj = fichajes[c.cid];
+      var fichadoHoy = !!(fj && fj.fichado === true && fj.ts && new Date(fj.ts).toDateString() === todayStr);
+      if (fichadoHoy) return;
+      var v = vehByMatSlug[matSlug(c.matricula || '')];
+      avisarPushSiNuevo('fichaje_' + c.cid + '_' + now.toISOString().slice(0,10), '🔔 Retraso de fichaje', c.nombre + ' no ha fichado su turno (' + c.turno + ')', '/drivx-admin-dashboard.html', v ? { ccaa: v.ccaa } : null);
+    });
+
+    // 4) Documentos de conductor caducados o por caducar (30 días)
+    Object.keys(invitados).forEach(function(cid){
+      var r = invitados[cid];
+      if (!r) return;
+      var v = vehByMatSlug[matSlug(r.matricula || '')];
+      var target = v ? { ccaa: v.ccaa } : { role: 'admin' };
+      [['dniCaducidad','DNI'], ['carnetCaducidad','carnet de conducir']].forEach(function(campo){
+        var d = dU(r[campo[0]]);
+        if (d === null || d > 30) return;
+        var clave = 'doc_' + campo[0] + '_' + cid;
+        var body = (r.nombre||'Conductor') + ' — ' + campo[1] + (d < 0 ? ' caducado hace ' + Math.abs(d) + ' días' : ' caduca en ' + d + ' días');
+        avisarPushSiNuevo(clave, '🪪 Documento de conductor', body, '/drivx-admin-dashboard.html', target);
+      });
+    });
+  }).catch(function(){});
 }
 
 // ══ SINCRONIZACIÓN INSTANTÁNEA ENTRE USUARIOS ══
@@ -2488,6 +2735,12 @@ function renderConfiguracion() {
     '</div>';
     cont.appendChild(wrapLog);
   }
+
+  var wrapPush = document.createElement('div');
+  wrapPush.style.cssText = 'margin-top:28px';
+  wrapPush.innerHTML = pushConfigBoxHtml();
+  cont.appendChild(wrapPush);
+  actualizarEstadoBotonPush();
 }
 // ══ REGISTRO DE ACTIVIDAD — visor (solo Administrador MASTER) ══
 var _registroActividadCache = [];
