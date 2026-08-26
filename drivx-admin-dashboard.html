@@ -992,7 +992,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-16';
+var APP_VERSION = '2026-08-26-17';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1821,12 +1821,66 @@ function renderFichajeAlerts() {
 // queda visible hasta que se resuelva de verdad (se asigna un conductor,
 // o el vehículo vuelve a moverse). ══
 var UMBRAL_VEHICULO_PARADO_DIAS = 3;
+// Devuelve TODOS los cid de conductores de un vehículo: tanto los que
+// están en su array interno v.conductores como los registrados por
+// invitación (que se vinculan por matrícula, no por ese array — por eso
+// mirar solo v.conductores dejaba fuera a la mayoría de conductores reales).
+function cidsDeVehiculo(v, invitados) {
+  var cids = (v.conductores || []).slice();
+  Object.keys(invitados || {}).forEach(function(cid){
+    var r = invitados[cid];
+    if (r && r.matricula === v.matricula && cids.indexOf(cid) === -1) cids.push(cid);
+  });
+  return cids;
+}
+// Doble confirmación para eliminar un vehículo directamente desde una
+// tarjeta de aviso (sin tener que abrir su ficha en Flota). Mismo patrón
+// de dos pulsaciones que se usa en el resto de la app.
+function confirmDeleteVehiculoDesdeAlerta(matricula, btnId) {
+  if (!puedeEditar()) return;
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (btn.getAttribute('data-confirm') === '1') {
+    btn.disabled = true;
+    btn.textContent = 'Eliminando…';
+    var mySlug = matSlug(matricula);
+    Promise.all([
+      fetch(FIREBASE_URL + '/vehiculos_ocultos/' + mySlug + '.json', {
+        method: 'PUT', headers: { 'Content-Type':'application/json' }, body: 'true'
+      }).then(fbCheck),
+      fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '.json', { method: 'DELETE' }).then(fbCheck)
+    ]).then(function(){
+      registrarActividad('Flota', 'Eliminó vehículo', matricula);
+      renderHuecosFlotaAlerts();
+      renderFlota();
+      renderInicioStats();
+    }).catch(function(err){
+      alert('No se pudo eliminar el vehículo: ' + err.message);
+      renderHuecosFlotaAlerts();
+    });
+    return;
+  }
+  btn.setAttribute('data-confirm', '1');
+  btn.textContent = '⚠ Confirmar';
+  btn.style.background = 'rgba(255,71,87,.35)';
+  setTimeout(function(){
+    if (btn && btn.getAttribute('data-confirm') === '1') {
+      btn.removeAttribute('data-confirm');
+      btn.textContent = '🗑';
+      btn.style.background = 'rgba(255,71,87,.12)';
+    }
+  }, 4000);
+}
 function renderHuecosFlotaAlerts() {
   var container = document.getElementById('huecos-flota-alerts');
   if (!container) return;
 
-  fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(fichajes){
-    fichajes = fichajes || {};
+  Promise.all([
+    fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var fichajes = results[0] || {};
+    var invitados = results[1] || {};
     var vehiculos = getAllVehiculos();
     var now = Date.now();
     var umbralMs = UMBRAL_VEHICULO_PARADO_DIAS * 24 * 60 * 60 * 1000;
@@ -1835,12 +1889,13 @@ function renderHuecosFlotaAlerts() {
     var parados = [];
 
     vehiculos.forEach(function(v){
-      if (!v.conductores || !v.conductores.length) {
+      var cids = cidsDeVehiculo(v, invitados);
+      if (!cids.length) {
         sinConductor.push(v);
         return;
       }
       var ultimaActividad = 0;
-      v.conductores.forEach(function(cid){
+      cids.forEach(function(cid){
         var fj = fichajes[cid];
         if (fj && fj.ts && fj.ts > ultimaActividad) ultimaActividad = fj.ts;
       });
@@ -1856,19 +1911,24 @@ function renderHuecosFlotaAlerts() {
     var html = '<div style="margin-bottom:24px">';
     html += '<div style="font-size:15px;font-weight:900;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:8px">🚧 Huecos en la flota (' + total + ')</div>';
 
-    sinConductor.forEach(function(v){
+    sinConductor.forEach(function(v, idx){
+      var btnId = 'delveh_sc_' + idx;
       html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,71,87,.06);backdrop-filter:blur(6px);border:1.5px solid rgba(255,71,87,.6);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.3),0 0 10px rgba(255,71,87,.55),0 0 22px rgba(255,71,87,.3)">' +
         '<div style="font-size:26px">🚫</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:14px;font-weight:900;color:#fff">Sin ningún conductor asignado</div>' +
           '<div style="font-size:12px;color:var(--text2);margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlSmall(v.matricula) + '</span> · ' + (ccaaIcons[v.ccaa]||'📍') + ' ' + v.ccaa + '</div>' +
         '</div>' +
-        '<button onclick="showDashScreen(\'flota\');openVehicleDetail(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.6);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit;flex-shrink:0">Ver vehículo</button>' +
+        '<div style="display:flex;gap:6px;flex-shrink:0">' +
+          '<button onclick="showDashScreen(\'flota\');openVehicleDetail(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.6);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">Ver vehículo</button>' +
+          '<button id="' + btnId + '" onclick="confirmDeleteVehiculoDesdeAlerta(\'' + v.matricula.replace(/'/g,"\\'") + '\',\'' + btnId + '\')" title="Eliminar vehículo" style="background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.55);color:var(--red);font-size:12px;font-weight:800;padding:8px 11px;border-radius:9px;cursor:pointer;font-family:inherit">🗑</button>' +
+        '</div>' +
       '</div>';
     });
 
-    parados.forEach(function(item){
+    parados.forEach(function(item, idx){
       var v = item.v;
+      var btnId = 'delveh_pd_' + idx;
       var diasParado = item.ultimaActividad ? Math.floor((now - item.ultimaActividad) / 86400000) : null;
       var txt = diasParado === null ? 'Sin ningún fichaje registrado todavía' : 'Sin actividad desde hace ' + diasParado + ' día' + (diasParado !== 1 ? 's' : '');
       html += '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,179,0,.06);backdrop-filter:blur(6px);border:1.5px solid rgba(255,179,0,.55);border-radius:14px;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.3),0 0 10px rgba(255,179,0,.5),0 0 22px rgba(255,179,0,.28)">' +
@@ -1877,7 +1937,10 @@ function renderHuecosFlotaAlerts() {
           '<div style="font-size:14px;font-weight:900;color:#fff">Vehículo parado</div>' +
           '<div style="font-size:12px;color:var(--text2);margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="display:inline-block;transform:scale(.82);transform-origin:left center">' + plateHtmlSmall(v.matricula) + '</span> · ' + txt + '</div>' +
         '</div>' +
-        '<button onclick="showDashScreen(\'flota\');openVehicleDetail(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="background:rgba(255,179,0,.14);border:1.5px solid rgba(255,179,0,.6);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit;flex-shrink:0">Ver vehículo</button>' +
+        '<div style="display:flex;gap:6px;flex-shrink:0">' +
+          '<button onclick="showDashScreen(\'flota\');openVehicleDetail(\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="background:rgba(255,179,0,.14);border:1.5px solid rgba(255,179,0,.6);color:#fff;font-size:11px;font-weight:800;padding:8px 12px;border-radius:9px;cursor:pointer;font-family:inherit">Ver vehículo</button>' +
+          '<button id="' + btnId + '" onclick="confirmDeleteVehiculoDesdeAlerta(\'' + v.matricula.replace(/'/g,"\\'") + '\',\'' + btnId + '\')" title="Eliminar vehículo" style="background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.55);color:var(--red);font-size:12px;font-weight:800;padding:8px 11px;border-radius:9px;cursor:pointer;font-family:inherit">🗑</button>' +
+        '</div>' +
       '</div>';
     });
 
