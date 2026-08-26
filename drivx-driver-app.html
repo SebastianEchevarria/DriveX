@@ -1193,7 +1193,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-3';
+var APP_VERSION = '2026-08-26-1';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1882,6 +1882,18 @@ function cerrarTurnosAnterioresMismoVehiculo(kmNuevaEntrada, timeStr, conductorC
           })
         }).then(function(){
           toast('🔁 Turno de ' + (c.nombre || 'otro conductor') + ' cerrado automáticamente al hacer el relevo');
+          // Igual que en un fichaje de salida normal, registramos el Km de
+          // ese turno ajeno que se acaba de cerrar por el relevo.
+          var totalRelevo = (fj.kmEntrada && kmNuevaEntrada) ? (kmNuevaEntrada - fj.kmEntrada) : 0;
+          if (totalRelevo > 0) {
+            fetch(FIREBASE_URL + '/km_registro/' + c.cid + '.json', {
+              method: 'POST', headers: { 'Content-Type':'application/json' },
+              body: JSON.stringify({
+                fecha: new Date().toISOString().slice(0,10), entrada: fj.kmEntrada, salida: kmNuevaEntrada, total: totalRelevo,
+                matricula: currentUser.matricula || '', ts: Date.now(), cerradoPorRelevo: true
+              })
+            }).catch(function(){});
+          }
         }).catch(function(){});
       }
     }).catch(function(){});
@@ -2461,6 +2473,21 @@ function finalizarFicharSalida(km) {
   document.getElementById('home-status').className = 'status-badge offline';
   document.getElementById('home-status').innerHTML = '<span class="status-dot"></span>Turno finalizado';
   toast('🔴 Salida fichada · ' + timeStr + ' · ' + km.toLocaleString('es-ES') + ' km');
+
+  // Registro de Km del turno que acaba de terminar — se va acumulando aquí
+  // (uno por turno, no se sobrescribe) hasta que el admin cierre la
+  // semana; entonces se resume, se envía al propietario y se limpia para
+  // que la semana siguiente empiece de cero.
+  if (currentUser && currentUser.cid && total > 0) {
+    fetch(FIREBASE_URL + '/km_registro/' + currentUser.cid + '.json', {
+      method: 'POST', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        fecha: now.toISOString().slice(0,10), entrada: kmEntrada, salida: km, total: total,
+        matricula: currentUser.matricula || '', ts: Date.now()
+      })
+    }).catch(function(){});
+  }
+
   // Tras fichar salida, la sesión ya no se recupera sola la próxima vez que se abra la app
   localStorage.removeItem('drivx_session_user');
   localStorage.removeItem('drivx_current_user');

@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-52';
+var APP_VERSION = '2026-08-26-1';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4105,12 +4105,19 @@ function calcularResumenVehiculoParaFacturacion(matricula) {
         d.turno = info.turno;
         return d;
       });
+    })),
+    // Km recorridos por cada conductor desde el último cierre — se resetea
+    // en cuanto se cierra la semana, así siempre es "lo de esta semana".
+    Promise.all(lista.map(function(info){
+      return calcularKmAcumuladoConductor(info.cid).then(function(km){ return { cid: info.cid, nombre: info.nombre, km: km.total }; });
     }))
   ]).then(function(results){
     var propietarios = results[0] || {};
     var pid = Object.keys(propietarios).find(function(k){ return (propietarios[k].matriculas || []).indexOf(matricula) !== -1; });
     var propietario = pid ? (propietarios[pid] || {}) : {};
     var datosConductores = results[1];
+    var kmPorConductor = results[2];
+    var kmTotalVehiculo = kmPorConductor.reduce(function(s,k){ return s + (k.km||0); }, 0);
 
     var CAT_LABELS_VEH = { gasolina:'⛽ Combustible', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', otros:'📄 Otros' };
 
@@ -4172,9 +4179,23 @@ function calcularResumenVehiculoParaFacturacion(matricula) {
       gastosTotalGeneral:gastosTotalGeneral,
       pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
       beneficio:beneficio,
-      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario
+      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario,
+      kmSemana: { total: kmTotalVehiculo, porConductor: kmPorConductor }
     };
   });
+}
+
+// Suma todos los Km registrados de un conductor desde el último cierre
+// (cada turno terminado añade una entrada en /km_registro/{cid} — al
+// cerrar la semana se resetea, así esto siempre refleja "lo de esta
+// semana en curso").
+function calcularKmAcumuladoConductor(cid) {
+  return fetch(FIREBASE_URL + '/km_registro/' + cid + '.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var registros = Object.keys(data).map(function(k){ return data[k]; });
+    var total = registros.reduce(function(s, r){ return s + Number(r.total||0); }, 0);
+    return { total: total, dias: registros.length, registros: registros };
+  }).catch(function(){ return { total: 0, dias: 0, registros: [] }; });
 }
 
 // Guarda el snapshot de este vehículo — es lo único que verá el
@@ -4371,6 +4392,19 @@ function pintarResumenGeneralVehiculo(d) {
 
   var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
   var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';
+
+  if (d.kmSemana && d.kmSemana.total > 0) {
+    html += '<div style="margin-top:14px;background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,.85);border-radius:12px;padding:12px 14px;box-shadow:0 0 10px rgba(0,212,255,.6),0 0 22px rgba(0,212,255,.35)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<span style="font-size:12px;font-weight:900;color:#fff">🚗 Km recorridos esta semana</span>' +
+        '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan)">' + Math.round(d.kmSemana.total).toLocaleString('es-ES') + ' km</span>' +
+      '</div>' +
+      (d.kmSemana.porConductor||[]).filter(function(k){ return k.km > 0; }).map(function(k){
+        return '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:3px 0"><span>' + k.nombre + '</span><span style="font-family:var(--mono);color:#fff">' + Math.round(k.km).toLocaleString('es-ES') + ' km</span></div>';
+      }).join('') +
+    '</div>';
+  }
+
   html += '<div style="margin-top:16px;background:rgba(' + colorBeneficio + ',.1);border:2px solid rgba(' + colorBeneficio + ',1);border-radius:12px;padding:14px;text-align:center;box-shadow:0 0 14px rgba(' + colorBeneficio + ',.85),0 0 28px rgba(' + colorBeneficio + ',.5)">' +
     '<div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;margin-bottom:6px">BENEFICIO (Total facturación − Total gastos)</div>' +
     '<div style="font-family:var(--mono);font-size:22px;font-weight:900;color:' + colorBeneficioVar + '">€ ' + d.beneficio.toFixed(2).replace('.',',') + '</div>' +
@@ -7271,6 +7305,12 @@ function confirmarCierrePeriodo() {
           });
         })
       );
+    }
+    if (p.tipo === 'semanal') {
+      // El registro de Km es semanal: una vez que esta semana se cierra y
+      // se envía al propietario, se limpia para que la semana que viene
+      // empiece a acumular desde cero.
+      writes.push(fetch(FIREBASE_URL + '/km_registro/' + r.cid + '.json', { method: 'DELETE' }));
     }
   });
 
