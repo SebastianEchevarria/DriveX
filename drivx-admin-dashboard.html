@@ -284,6 +284,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <button class="sb-item" id="nav-propietarios" onclick="showDashScreen('propietarios')">Propietarios</button>
     <button class="sb-item" id="nav-conductores" onclick="showDashScreen('conductores')">Conductores</button>
     <button class="sb-item" id="nav-facturacion" onclick="showDashScreen('facturacion')">Facturación</button>
+    <button class="sb-item" id="nav-historial" onclick="showDashScreen('historial')">Historial Facturación</button>
     <button class="sb-item disabled">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
     <button class="sb-item" id="nav-configuracion" onclick="showDashScreen('configuracion')">Configuración</button>
 
@@ -352,6 +353,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
           <button id="fact-tab-mensual" onclick="setFacturacionTab('mensual')" style="flex:1;padding:12px;border-radius:14px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:.3px">📅 F. MENSUAL</button>
         </div>
         <div id="facturacion-list"></div>
+      </div>
+
+      <!-- ── HISTORIAL FACTURACIÓN ── -->
+      <div class="dash-screen" id="dash-historial">
+        <div id="historial-list"></div>
       </div>
 
       <!-- ── CONDUCTORES ── -->
@@ -954,7 +960,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-1';
+var APP_VERSION = '2026-08-26-2';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1349,7 +1355,7 @@ function aplicarActualizacionPantallaDash(screenId) {
   if (pill) pill.style.display = 'none';
   var fns = {
     flota: renderFlota, gastos: renderGastos, citas: renderCitas,
-    propietarios: renderPropietarios, facturacion: renderFacturacion,
+    propietarios: renderPropietarios, facturacion: renderFacturacion, historial: renderHistorialFacturacion,
     conductores: renderConductoresScreen, configuracion: renderConfiguracion
   };
   var fn = fns[screenId];
@@ -1381,6 +1387,7 @@ function showDashScreen(id) {
     citas:  ['Citas y revisiones', 'Calendario y detalle por comunidad autónoma'],
     propietarios: ['Propietarios', 'Titulares de los vehículos, por comunidad autónoma'],
     facturacion: ['Facturación', 'Vehículos y conductores por comunidad autónoma'],
+    historial: ['Historial Facturación', 'Cierres semanales guardados, por comunidad autónoma'],
     conductores: ['Conductores', 'Todos los conductores, por comunidad autónoma'],
     configuracion: ['Configuración', 'Ajustes generales de la plataforma']
   };
@@ -1390,6 +1397,7 @@ function showDashScreen(id) {
   if (id === 'citas') renderCitas();
   if (id === 'propietarios') renderPropietarios();
   if (id === 'facturacion') renderFacturacion();
+  if (id === 'historial') renderHistorialFacturacion();
   if (id === 'conductores') renderConductoresScreen();
   if (id === 'configuracion') renderConfiguracion();
 }
@@ -5571,6 +5579,258 @@ var CATEGORIAS_GASTOS = [
 ];
 var _gastosDataCache = {};
 
+// ══════════════ HISTORIAL FACTURACIÓN ══════════════
+// Cada cierre semanal ya se archivaba en Firebase (facturacion_cierres,
+// por conductor) — aquí solo faltaba una pantalla para poder consultarlo.
+// Además, desde ahora también se archiva el resumen del propietario por
+// cada periodo (facturacion_cierres_vehiculo), que es lo segundo que pedía
+// esta pantalla.
+var _historialCierresVehCache = {};
+var _historialCierresCondCache = {};
+
+// Convierte una clave de periodo semanal (p.ej. "2026-S0825") en un rango
+// de fechas legible: "25 ago – 31 ago 2026".
+function formatearPeriodoSemanal(periodo) {
+  var m = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo || '');
+  if (!m) return periodo || '—';
+  var year = parseInt(m[1],10), month = parseInt(m[2],10)-1, day = parseInt(m[3],10);
+  var lunes = new Date(year, month, day);
+  var domingo = new Date(lunes); domingo.setDate(lunes.getDate()+6);
+  var opts = { day:'2-digit', month:'short' };
+  var lunesTxt = lunes.toLocaleDateString('es-ES', opts).replace('.','');
+  var domingoTxt = domingo.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }).replace('.','');
+  return lunesTxt + ' – ' + domingoTxt;
+}
+
+function renderHistorialFacturacion() {
+  var container = document.getElementById('historial-list');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando historial…</div>';
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/facturacion_cierres_vehiculo.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/facturacion_cierres.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    _historialCierresVehCache = results[0] || {};
+    _historialCierresCondCache = results[1] || {};
+    var extra = results[2] || {};
+    var ocultos = results[3] || {};
+    VEHICULOS_EXTRA = Object.keys(extra).map(function(k){ return normalizeVehiculoExtra(extra[k], k); });
+    VEHICULOS_OCULTOS = ocultos;
+    try {
+      paintHistorialFacturacion();
+    } catch (err) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">Error al mostrar el historial: ' + err.message + '<br><br>' +
+        '<button onclick="renderHistorialFacturacion()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+    }
+  }).catch(function(){
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">No se pudo conectar con la base de datos.<br><br>' +
+      '<button onclick="renderHistorialFacturacion()" style="margin-top:10px;padding:10px 16px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--cyan);cursor:pointer">🔄 Reintentar</button></div>';
+  });
+}
+
+function paintHistorialFacturacion() {
+  var container = document.getElementById('historial-list');
+  if (!container) return;
+
+  var vehByMatSlug = {};
+  getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
+
+  var ccaaOrder = getCcaaOrderVisible();
+  var groups = {};
+  ccaaOrder.forEach(function(cc){ groups[cc] = []; });
+
+  Object.keys(_historialCierresVehCache).forEach(function(mSlug){
+    var v = vehByMatSlug[mSlug];
+    // Un Manager con CCAA asignada no debe ver historial de vehículos de
+    // otras comunidades — si el vehículo ya no está en su lista filtrada,
+    // ni siquiera aparece aquí.
+    if (currentUser && currentUser.role === 'ccaa_manager' && !v) return;
+    var ccaa = v ? v.ccaa : 'Otras';
+    if (!groups[ccaa]) groups[ccaa] = [];
+    var periodos = Object.keys(_historialCierresVehCache[mSlug] || {}).sort().reverse();
+    if (!periodos.length) return;
+    groups[ccaa].push({
+      matSlug: mSlug,
+      matricula: v ? v.matricula : mSlug.replace(/_/g,' '),
+      modelo: v ? v.modelo : '',
+      periodos: periodos
+    });
+  });
+
+  var ccaas = Object.keys(groups).sort(function(a,b){
+    var ai = ccaaOrder.indexOf(a), bi = ccaaOrder.indexOf(b);
+    return (ai<0?99:ai) - (bi<0?99:bi);
+  });
+
+  var html = '';
+  ccaas.forEach(function(cc){
+    var mats = groups[cc] || [];
+    var gid = 'hg' + cc.replace(/[^a-zA-Z0-9]/g,'');
+    var totalCierres = mats.reduce(function(s,m){ return s + m.periodos.length; }, 0);
+
+    html += '<div class="ccaa-header" style="background:'+(CCAA_BG[cc]||'#0d1f35')+';border-color:'+(CCAA_BORDER[cc]||'#2a4a6e')+';box-shadow:'+ccaaGroupGlow(cc)+';flex-wrap:wrap" id="btn_'+gid+'">';
+    html += '<span style="font-size:22px">'+(CCAA_ICONS[cc]||'📍')+'</span>';
+    html += '<div style="flex:1"><div style="font-size:14px;font-weight:800">'+cc+'</div>';
+    html += '<div style="font-size:11px;color:var(--text3)">'+mats.length+' matrícula'+(mats.length!==1?'s':'')+' con historial · '+totalCierres+' cierre'+(totalCierres!==1?'s':'')+'</div></div>';
+    html += '<button onclick="event.stopPropagation();toggleCcaaSearch(\''+gid+'\')" title="Buscar matrícula" style="background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.6);color:var(--cyan);width:36px;height:36px;border-radius:10px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0;box-shadow:0 0 8px rgba(0,212,255,.55),0 0 18px rgba(0,212,255,.4),0 0 30px rgba(0,212,255,.2);touch-action:manipulation">🔍</button>';
+    html += '<span id="chv_'+gid+'" style="color:var(--text3);font-size:18px;margin-left:6px">⌄</span>';
+    html += '<div id="searchbox_'+gid+'" style="display:none;flex-basis:100%;margin-top:12px;position:relative" onclick="event.stopPropagation()">' +
+      '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>' +
+      '<input type="text" id="searchinput_'+gid+'" placeholder="Buscar matrícula en '+cc+'…" oninput="filterCcaaVehicles(\''+cc+'\',\''+gid+'\',this.value)" ' +
+      'style="width:100%;background:rgba(0,212,255,.1);border:2px solid var(--cyan);color:#fff;padding:13px 16px 13px 42px;border-radius:12px;font-size:14px;font-weight:700;font-family:var(--mono);box-sizing:border-box;box-shadow:0 0 0 4px rgba(0,212,255,.12),0 4px 14px rgba(0,212,255,.2);outline:none">' +
+    '</div>';
+    html += '</div>';
+
+    html += '<div id="'+gid+'" style="display:block;background:'+ccaaGroupBg(cc)+';border-radius:12px;padding:8px 0;margin-bottom:14px">';
+
+    if (!mats.length) {
+      html += '<div style="padding:16px;color:var(--text3);font-size:12px;text-align:center">Sin cierres todavía en esta comunidad</div>';
+    }
+
+    mats.forEach(function(m, mIdx){
+      var mgid = 'hm' + m.matSlug;
+      html += '<div data-matricula="'+m.matricula.replace(/\s/g,'').toUpperCase()+'" data-order="'+mIdx+'" data-baseshadow="0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)" style="margin:0 16px 16px;border:2.5px solid rgba(0,212,255,1);border-radius:16px;overflow:hidden;background:rgba(10,16,26,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)">';
+      html += '<div onclick="toggleMatHistorial(\''+mgid+'\')" style="padding:18px;cursor:pointer;display:flex;align-items:center;gap:14px">';
+      html += '<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,212,255,.35)">📜</div>';
+      html += '<div style="flex:1;min-width:0">'+plateHtml(m.matricula)+'<div style="font-size:12px;color:var(--text2);margin-top:6px">'+m.modelo+' · '+m.periodos.length+' semana'+(m.periodos.length!==1?'s':'')+' guardada'+(m.periodos.length!==1?'s':'')+'</div></div>';
+      html += '<span id="chvm_'+mgid+'" style="color:var(--cyan);font-size:16px;flex-shrink:0;transition:transform .2s">▾</span>';
+      html += '</div>';
+
+      html += '<div id="'+mgid+'" style="display:none;padding:0 16px 16px;border-top:1px solid rgba(0,212,255,.2);background:rgba(7,11,18,.4)">';
+      m.periodos.forEach(function(periodo){
+        var snap = _historialCierresVehCache[m.matSlug][periodo] || {};
+        var colorBenef = (snap.beneficio||0) >= 0 ? '0,230,118' : '255,71,87';
+        html += '<div onclick="abrirDetalleHistorial(\''+m.matSlug+'\',\''+periodo+'\',\''+m.matricula.replace(/'/g,"\\'")+'\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;margin-top:12px;border-radius:10px;border:1.5px solid rgba(0,212,255,.35);background:rgba(0,212,255,.05)">' +
+          '<div>' +
+            '<div style="font-size:12.5px;font-weight:800;color:#fff">Semana del ' + formatearPeriodoSemanal(periodo) + '</div>' +
+            '<div style="font-size:11px;color:var(--text3);margin-top:2px">Facturación € ' + (snap.facturacionTotal||0).toFixed(2).replace('.',',') + '</div>' +
+          '</div>' +
+          '<div style="text-align:right">' +
+            '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:rgb(' + colorBenef + ')">€ ' + (snap.beneficio||0).toFixed(2).replace('.',',') + '</div>' +
+            '<div style="font-size:9.5px;color:var(--text3)">beneficio</div>' +
+          '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  // Guardamos qué buscadores están abiertos (y su texto) antes de reemplazar el HTML
+  var openSearches = {};
+  container.querySelectorAll('[id^="searchbox_"]').forEach(function(el) {
+    if (el.style.display !== 'none') {
+      var input = document.getElementById(el.id.replace('searchbox_', 'searchinput_'));
+      openSearches[el.id] = input ? input.value : '';
+    }
+  });
+
+  container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text3)">Sin cierres todavía</div>';
+
+  Object.keys(openSearches).forEach(function(boxId) {
+    var box = document.getElementById(boxId);
+    if (!box) return;
+    box.style.display = 'block';
+    var gid = boxId.replace('searchbox_', '');
+    var input = document.getElementById('searchinput_' + gid);
+    if (input) {
+      input.value = openSearches[boxId];
+      var cc = input.getAttribute('placeholder').replace('Buscar matrícula en ', '').replace('…', '');
+      filterCcaaVehicles(cc, gid, openSearches[boxId]);
+    }
+  });
+
+  ccaas.forEach(function(cc){
+    var gid = 'hg' + cc.replace(/[^a-zA-Z0-9]/g,'');
+    var btn = document.getElementById('btn_'+gid);
+    if (btn) btn.onclick = function(){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_'+gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
+}
+function toggleMatHistorial(mgid) {
+  var el = document.getElementById(mgid);
+  var chev = document.getElementById('chvm_'+mgid);
+  if (!el) return;
+  var open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+// ── Detalle de un cierre concreto: resumen del propietario + cada conductor ──
+function abrirDetalleHistorial(mSlug, periodo, matricula) {
+  var modal = document.getElementById('historial-detalle-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'historial-detalle-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:10010;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  var snap = (_historialCierresVehCache[mSlug] || {})[periodo] || {};
+  var conductoresCierres = _historialCierresCondCache[mSlug] || {};
+  var conductoresDeEstaSemana = [];
+  Object.keys(conductoresCierres).forEach(function(cid){
+    var c = (conductoresCierres[cid] || {})[periodo];
+    if (c) conductoresDeEstaSemana.push(c);
+  });
+
+  var html = '<div style="background:var(--surface);border:2px solid rgba(0,212,255,.85);border-radius:20px;max-width:500px;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 0 18px rgba(0,212,255,.6),0 0 40px rgba(0,212,255,.35)">' +
+    '<div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">' +
+      '<div><div style="font-size:15px;font-weight:900;color:#fff">📜 ' + matricula + '</div><div style="font-size:11.5px;color:var(--text3)">Semana del ' + formatearPeriodoSemanal(periodo) + '</div></div>' +
+      '<button class="modal-close" onclick="document.getElementById(\'historial-detalle-modal\').style.display=\'none\'">✕</button>' +
+    '</div>' +
+    '<div style="padding:16px 20px 20px;overflow-y:auto;flex:1">';
+
+  html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Resumen enviado al propietario</div>';
+  html += '<div style="background:rgba(0,212,255,.05);border:1.5px solid rgba(0,212,255,.4);border-radius:12px;padding:12px 14px;margin-bottom:16px">' +
+    filaHistorial('Facturación total', snap.facturacionTotal) +
+    filaHistorial('Total gastos', -(snap.gastosTotalGeneral||0)) +
+    (snap.kmSemana && snap.kmSemana.total > 0 ? filaHistorialTexto('Km recorridos', Math.round(snap.kmSemana.total).toLocaleString('es-ES') + ' km') : '') +
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px;border-top:1px solid rgba(255,255,255,.1)">' +
+      '<span style="font-size:12.5px;font-weight:900;color:#fff">Beneficio</span>' +
+      '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + ((snap.beneficio||0)>=0?'var(--green)':'var(--red)') + '">€ ' + (snap.beneficio||0).toFixed(2).replace('.',',') + '</span>' +
+    '</div>' +
+  '</div>';
+
+  html += '<div style="font-size:11px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Cierre de cada conductor</div>';
+  if (!conductoresDeEstaSemana.length) {
+    html += '<div style="font-size:12px;color:var(--text3);padding:6px 0">No se encontró el detalle individual de esta semana.</div>';
+  }
+  conductoresDeEstaSemana.forEach(function(c){
+    var colorRes = (c.resultado||0) >= 0 ? '0,230,118' : '255,71,87';
+    html += '<div style="background:rgba(255,255,255,.03);border:1.5px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:10px">' +
+      '<div style="font-size:12.5px;font-weight:900;color:#fff;margin-bottom:6px">' + (c.nombreConductor||'Conductor') + '</div>' +
+      filaHistorial('Neto Uber+Bolt+Cabify', c.netoAppsTotal) +
+      filaHistorial('Propinas', c.propinasTotal) +
+      filaHistorial('Sueldo', c.sueldo) +
+      filaHistorial('Gastos', -(c.gastosTotal||0)) +
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;margin-top:4px;border-top:1px solid rgba(255,255,255,.08)">' +
+        '<span style="font-size:11.5px;font-weight:800;color:#fff">' + ((c.resultado||0)>=0?'Le falta por cobrar':'Debe devolver') + '</span>' +
+        '<span style="font-family:var(--mono);font-size:13px;font-weight:900;color:rgb(' + colorRes + ')">€ ' + Math.abs(c.resultado||0).toFixed(2).replace('.',',') + '</span>' +
+      '</div>' +
+    '</div>';
+  });
+
+  html += '</div></div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+}
+function filaHistorial(label, valor) {
+  return '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:3px 0"><span>' + label + '</span><span style="font-family:var(--mono);color:#fff">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span></div>';
+}
+function filaHistorialTexto(label, texto) {
+  return '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:3px 0"><span>' + label + '</span><span style="font-family:var(--mono);color:#fff">' + texto + '</span></div>';
+}
+
 function renderGastos() {
   var container = document.getElementById('gastos-list');
   if (!container) return;
@@ -7323,6 +7583,15 @@ function confirmarCierrePeriodo() {
     // nunca en vivo, así el propietario ve siempre datos ya cerrados.
     enviarFacturacionPropietarioSnapshot(p.matricula).then(function(d){
       if (d) toast('✅ Facturación enviada al propietario · ' + p.matricula);
+      // Guardamos también una copia fija de este resumen del propietario
+      // bajo su periodo — esto es lo que alimenta "Historial Facturación",
+      // para poder consultarlo más adelante aunque el snapshot "en vivo"
+      // ya se haya sobrescrito con el siguiente cierre.
+      if (d && p.tipo === 'semanal') {
+        fetch(FIREBASE_URL + '/facturacion_cierres_vehiculo/' + matSlug + '/' + p.periodo + '.json', {
+          method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(d)
+        }).catch(function(){});
+      }
     }).catch(function(){});
   }).catch(function(err){
     alert('No se pudo cerrar el periodo: ' + err.message);
