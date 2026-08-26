@@ -322,6 +322,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <div id="inicio-mobile-logo" style="display:none;text-align:center;margin-bottom:18px">
           <img id="inicio-mobile-logo-img" alt="DRIVX VTC Fleet" style="max-width:190px;width:100%;height:auto">
         </div>
+        <div id="invitaciones-pendientes-inicio"></div>
         <div id="fichaje-alerts"></div>
         <div id="uber-efectivo-alerts"></div>
         <div id="citas-vencidas-alerts"></div>
@@ -959,7 +960,7 @@ var USERS_DASH = {
 
 var currentRole = 'admin'; // rol seleccionado en el toggle de login
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-40';
+var APP_VERSION = '2026-08-25-41';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1270,6 +1271,7 @@ function enterShell() {
   renderUberEfectivoAlerts();
   renderCitasVencidasAlerts();
   renderProximasCitasInicio();
+  renderInvitacionesPendientesInicio();
   setInterval(renderFichajeAlerts, 60000);
   setInterval(renderUberEfectivoAlerts, 60000);
   setInterval(renderCitasVencidasAlerts, 60000);
@@ -1422,6 +1424,52 @@ function parseTurnoInicio(turno) {
   var m = turno.match(/(\d{1,2}):(\d{2})/);
   if (!m) return null;
   return { h: parseInt(m[1],10), min: parseInt(m[2],10) };
+}
+
+// ══ INVITACIONES PENDIENTES (de cualquier tipo) — visibles en Inicio ══
+// Reúne en un solo aviso todo lo que está "esperando" a que alguien acepte
+// su invitación: usuarios de Dashboard, de Supervisor, Propietarios y
+// Conductores. Solo se muestra si hay al menos una pendiente.
+function renderInvitacionesPendientesInicio() {
+  var cont = document.getElementById('invitaciones-pendientes-inicio');
+  if (!cont) return;
+
+  Promise.all([
+    fetch(FIREBASE_URL + '/usuarios_dashboard.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(FIREBASE_URL + '/invites.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(results){
+    var dash = results[0] || {}, sup = results[1] || {}, props = results[2] || {}, invites = results[3] || {};
+    var pendientes = [];
+
+    Object.keys(dash).forEach(function(uid){
+      var u = dash[uid]; if (u && !u.inviteUsado) pendientes.push({ tipo:'Dashboard', icono:'👑', color:'0,212,255', nombre:u.nombre||u.email||'—', ts:u.ts||0 });
+    });
+    Object.keys(sup).forEach(function(uid){
+      var u = sup[uid]; if (u && !u.inviteUsado) pendientes.push({ tipo:'Supervisor', icono:'🗺️', color:'254,164,1', nombre:u.nombre||u.email||'—', ts:u.ts||0 });
+    });
+    Object.keys(props).forEach(function(pid){
+      var p = props[pid]; if (p && !p.inviteUsado) pendientes.push({ tipo:'Propietario', icono:'💼', color:'124,92,252', nombre:p.nombre||'—', ts:p.ts||0 });
+    });
+    Object.keys(invites).forEach(function(code){
+      var inv = invites[code]; if (inv && !inv.usado) pendientes.push({ tipo:'Conductor', icono:'🚗', color:'0,230,118', nombre:(inv.email||'—') + ' · ' + (inv.matricula||''), ts:inv.creadoTs||0 });
+    });
+
+    if (!pendientes.length) { cont.innerHTML = ''; return; }
+    pendientes.sort(function(a,b){ return (b.ts||0) - (a.ts||0); });
+
+    var html = '<div style="background:rgba(255,179,0,.06);border:2.5px solid rgba(255,179,0,.9);border-radius:16px;padding:16px 18px;margin-bottom:18px;box-shadow:0 0 12px rgba(255,179,0,.6),0 0 26px rgba(255,179,0,.35)">' +
+      '<div style="font-size:14px;font-weight:900;color:#fff;margin-bottom:10px">⏳ Invitaciones pendientes (' + pendientes.length + ')</div>';
+    pendientes.forEach(function(p){
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)">' +
+        '<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:rgba(' + p.color + ',.25);border:1px solid rgba(' + p.color + ',.7);border-radius:7px;padding:4px 8px;white-space:nowrap">' + p.icono + ' ' + p.tipo + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:12.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + p.nombre + '</span>' +
+      '</div>';
+    });
+    html += '</div>';
+    cont.innerHTML = html;
+  }).catch(function(){});
 }
 
 function renderProximasCitasInicio() {
@@ -2423,13 +2471,19 @@ function paintUsuariosInvitados() {
   if (!lista || !miembros) return;
 
   var pendientes = [], registrados = [];
+  // Si UNA fila tiene datos raros y falla al construir su HTML, no debe
+  // tirar abajo la lista entera — se salta esa y sigue con las demás.
   Object.keys(dash).forEach(function(uid){
-    var u = dash[uid];
-    (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'dashboard', uid));
+    try {
+      var u = dash[uid];
+      (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'dashboard', uid));
+    } catch(e) { console.error('Error pintando usuario dashboard', uid, e); }
   });
   Object.keys(sup).forEach(function(uid){
-    var u = sup[uid];
-    (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'supervisor', uid));
+    try {
+      var u = sup[uid];
+      (u.inviteUsado ? registrados : pendientes).push(_filaUsuarioInvitadoHtml(u, 'supervisor', uid));
+    } catch(e) { console.error('Error pintando usuario supervisor', uid, e); }
   });
 
   if (seccionInvitados) seccionInvitados.style.display = pendientes.length ? 'block' : 'none';
@@ -2978,6 +3032,8 @@ function realizarCambioVehiculo(cid) {
   if (!nuevaMatricula) { toast('⚠ Selecciona primero una matrícula'); return; }
   var nuevoTurno = (document.getElementById('cambio-turno-' + cid).value || '').trim();
   if (!nuevoTurno) { toast('⚠ Indica el nuevo horario de turno'); return; }
+  var matriculaAnteriorLog = (_conductoresIndex[cid] && _conductoresIndex[cid].matricula) || (_vdInvitadosCacheGlobal[cid] && _vdInvitadosCacheGlobal[cid].matricula) || '—';
+  var nombreCondLog = (_conductoresIndex[cid] && _conductoresIndex[cid].nombre) || (_vdInvitadosCacheGlobal[cid] && _vdInvitadosCacheGlobal[cid].nombre) || cid;
 
   fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
     method: 'PATCH', headers: { 'Content-Type':'application/json' },
@@ -2989,6 +3045,7 @@ function realizarCambioVehiculo(cid) {
     toast('✓ Vehículo cambiado a ' + nuevaMatricula);
     closeConductorPerfilModal();
     paintConductoresScreen();
+    registrarActividad('Conductores', 'Cambió de vehículo', nombreCondLog + ' · ' + matriculaAnteriorLog + ' → ' + nuevaMatricula + ' (turno ' + nuevoTurno + ')');
   }).catch(function(){ toast('❌ No se pudo realizar el cambio'); });
 }
 
@@ -7666,6 +7723,7 @@ function enviarInvitacion() {
   }).then(fbCheck).then(function(){
     document.getElementById('vd-invite-code').textContent = code;
     document.getElementById('vd-invite-result').style.display = 'block';
+    registrarActividad('Conductores', 'Invitó conductor', email + ' · vehículo ' + v.matricula + ' · turno ' + turno);
   }).catch(function(err){
     alert('No se pudo crear la invitación: ' + err.message);
   });
