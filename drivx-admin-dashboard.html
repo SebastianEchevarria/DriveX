@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-46';
+var APP_VERSION = '2026-08-25-47';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2286,7 +2286,10 @@ function abrirNuevoUsuarioModal(app) {
   var titulo = esDash ? '👑 Invitar usuario de Dashboard' : '🕵️ Invitar usuario de Supervisor';
 
   var html = '<div style="background:var(--surface);border:2px solid rgba(' + colorTema + ',.9);border-radius:20px;max-width:400px;width:100%;padding:22px;max-height:88vh;overflow-y:auto;box-shadow:0 0 18px rgba(' + colorTema + ',.7),0 0 38px rgba(' + colorTema + ',.4)">';
-  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:6px" id="nu-modal-title">' + titulo + '</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">' +
+    '<div style="font-size:16px;font-weight:900;color:#fff" id="nu-modal-title">' + titulo + '</div>' +
+    '<button onclick="document.getElementById(\'nuevo-usuario-modal\').style.display=\'none\'" style="flex-shrink:0;width:26px;height:26px;border-radius:8px;border:1.5px solid rgba(255,71,87,.8);background:rgba(255,71,87,.15);color:var(--red);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0;line-height:1">✕</button>' +
+  '</div>';
   html += '<div style="font-size:11px;color:var(--text3);margin-bottom:16px">Se genera un código de invitación. La persona lo usa para activar su propia cuenta y elegir su contraseña — solo sirve para ' + (esDash ? 'Dashboard' : 'Supervisor') + '.</div>';
 
   html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nombre completo</label>';
