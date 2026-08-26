@@ -954,7 +954,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-51';
+var APP_VERSION = '2026-08-25-52';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1976,21 +1976,26 @@ function esSoloVisual() {
 // real: si falla el guardado del registro (sin conexión, etc.), se ignora
 // en silencio y la acción original sigue su curso con normalidad.
 var REGISTRO_ACTIVIDAD_SECCIONES = ['Flota','Gastos','Citas','Facturación','Propietarios','Conductores','Configuración'];
-function registrarActividad(seccion, accion, detalle) {
+function registrarActividad(seccion, accion, detalle, imagenes) {
   try {
     if (!currentUser) return;
     var ROLE_LABELS_LOG = { admin:'MASTER', visual:'Visual', ccaa_manager:'Manager', supervisor:'Supervisor' };
     var rolLabel = ROLE_LABELS_LOG[currentUser.role] || currentUser.role || '—';
+    var registro = {
+      ts: Date.now(),
+      usuario: currentUser.nombre || currentUser.email || 'Desconocido',
+      rol: rolLabel,
+      seccion: seccion,
+      accion: accion,
+      detalle: detalle || ''
+    };
+    // Si se borra algo con imagen (p. ej. un ticket de gasto), guardamos
+    // también la propia imagen — así se puede ver qué era exactamente lo
+    // que se eliminó, no solo el texto.
+    if (imagenes && imagenes.length) registro.imagenes = imagenes;
     fetch(FIREBASE_URL + '/registro_actividad.json', {
       method: 'POST', headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        ts: Date.now(),
-        usuario: currentUser.nombre || currentUser.email || 'Desconocido',
-        rol: rolLabel,
-        seccion: seccion,
-        accion: accion,
-        detalle: detalle || ''
-      })
+      body: JSON.stringify(registro)
     }).catch(function(){});
   } catch(e) {}
 }
@@ -2223,6 +2228,19 @@ function _colorAccionLog(accion) {
   var k = Object.keys(ACCION_COLORES).find(function(prefijo){ return (accion||'').indexOf(prefijo) === 0; });
   return ACCION_COLORES[k] || '124,92,252';
 }
+// Paleta de colores bien distinguibles entre sí — cada nombre de usuario
+// siempre cae en el mismo color (hash simple del texto), así de un
+// vistazo se identifica quién hizo qué sin tener que leer el nombre.
+var PALETA_COLORES_USUARIO = [
+  '0,212,255', '0,230,118', '255,179,0', '255,71,87', '124,92,252',
+  '254,164,1', '0,255,200', '255,105,180', '100,180,255', '190,255,80'
+];
+function _colorUsuarioLog(nombre) {
+  var s = nombre || '—';
+  var hash = 0;
+  for (var i = 0; i < s.length; i++) { hash = (hash * 31 + s.charCodeAt(i)) >>> 0; }
+  return PALETA_COLORES_USUARIO[hash % PALETA_COLORES_USUARIO.length];
+}
 function abrirRegistroActividad() {
   if (!currentUser || currentUser.role !== 'admin') return;
   var modal = document.getElementById('registro-actividad-modal');
@@ -2303,13 +2321,26 @@ function pintarRegistroActividad() {
 
   el.innerHTML = items.map(function(it){
     var color = _colorAccionLog(it.accion);
+    var colorUsuario = _colorUsuarioLog(it.usuario);
     var fechaTxt = it.ts ? new Date(it.ts).toLocaleString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    var imagenesHtml = '';
+    if (it.imagenes && it.imagenes.length) {
+      imagenesHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+        it.imagenes.map(function(url){
+          return '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" style="width:44px;height:44px;object-fit:cover;border-radius:7px;border:1.5px solid rgba(255,71,87,.6)"></a>';
+        }).join('') +
+      '</div>';
+    }
     return '<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">' +
       '<div style="width:8px;flex-shrink:0;border-radius:4px;background:rgba(' + color + ',.9);box-shadow:0 0 6px rgba(' + color + ',.7)"></div>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:12.5px;font-weight:800;color:#fff">' + (it.accion||'') + '</div>' +
         '<div style="font-size:11.5px;color:var(--text2);margin-top:1px">' + (it.detalle||'') + '</div>' +
-        '<div style="font-size:10.5px;color:var(--text3);margin-top:3px">' + (it.usuario||'—') + ' · ' + (it.rol||'') + ' · ' + (it.seccion||'') + ' · ' + fechaTxt + '</div>' +
+        imagenesHtml +
+        '<div style="font-size:10.5px;margin-top:5px">' +
+          '<span style="font-weight:900;color:rgb(' + colorUsuario + ');text-shadow:0 0 4px rgba(' + colorUsuario + ',.6)">' + (it.usuario||'—') + '</span>' +
+          '<span style="color:var(--text3)"> · ' + (it.rol||'') + ' · ' + (it.seccion||'') + ' · ' + fechaTxt + '</span>' +
+        '</div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -5735,9 +5766,9 @@ function confirmEliminarTodoGastos(mgid, mSlug, matricula) {
     // Segunda pulsación: eliminar de verdad
     btn.disabled = true;
     btn.textContent = 'Eliminando…';
-    eliminarTodoGastosMatricula(mSlug).then(function(){
+    eliminarTodoGastosMatricula(mSlug).then(function(urlsEliminadas){
       renderGastos();
-      registrarActividad('Gastos', 'Eliminó todos los tickets', matricula);
+      registrarActividad('Gastos', 'Eliminó todos los tickets', matricula, urlsEliminadas);
     }).catch(function(err){
       alert('No se pudo eliminar todo: ' + err.message);
       btn.disabled = false;
@@ -5767,7 +5798,7 @@ function extractCloudinaryPublicId(url) {
 }
 
 function eliminarTodoGastosMatricula(mSlug) {
-  if (!puedeEditar()) return;
+  if (!puedeEditar()) return Promise.reject(new Error('sin permiso'));
   var catData = _gastosDataCache[mSlug] || {};
   var urls = [];
   CATEGORIAS_GASTOS.forEach(function(catDef){
@@ -5777,20 +5808,12 @@ function eliminarTodoGastosMatricula(mSlug) {
       if (cat[tid].url) urls.push(cat[tid].url);
     });
   });
-  var publicIds = urls.map(extractCloudinaryPublicId).filter(Boolean);
 
-  // 1) Borrar los archivos de Cloudinary a través de nuestro endpoint seguro
-  var cloudinaryDelete = publicIds.length
-    ? fetch('/api/cloudinary-delete', {
-        method: 'POST', headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ publicIds: publicIds })
-      }).then(function(r){ return r.json().then(function(data){ console.log('Cloudinary delete response:', r.status, data); }); })
-      .catch(function(err){ console.error('Cloudinary delete falló:', err); })
-    : Promise.resolve();
-
-  // 2) Borrar el registro completo de Firebase
-  return cloudinaryDelete.then(function(){
-    return fetch(FIREBASE_URL + '/gastos/' + mSlug + '.json', { method: 'DELETE' }).then(fbCheck);
+  // OJO: ya NO se borran los archivos de Cloudinary — se dejan ahí a
+  // propósito para que las imágenes de los tickets se puedan seguir viendo
+  // desde el Registro de actividad después de eliminarlos de la app.
+  return fetch(FIREBASE_URL + '/gastos/' + mSlug + '.json', { method: 'DELETE' }).then(fbCheck).then(function(){
+    return urls;
   });
 }
 
@@ -5870,22 +5893,16 @@ function eliminarSeleccionados(mgid, mSlug) {
       var row = chk.closest('.ticket-row');
       return { cat: row.getAttribute('data-cat'), tid: row.getAttribute('data-tid'), url: row.getAttribute('data-url') };
     });
-    var publicIds = refs.map(function(r){ return r.url ? extractCloudinaryPublicId(r.url) : null; }).filter(Boolean);
-
-    var cloudinaryDelete = publicIds.length
-      ? fetch('/api/cloudinary-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ publicIds: publicIds }) })
-          .then(function(r){ return r.json().then(function(data){ console.log('Cloudinary delete response:', r.status, data); }); })
-          .catch(function(err){ console.error('Cloudinary delete falló:', err); })
-      : Promise.resolve();
-
-    cloudinaryDelete.then(function(){
-      return Promise.all(refs.map(function(r){
-        return fetch(FIREBASE_URL + '/gastos/' + mSlug + '/' + r.cat + '/' + r.tid + '.json', { method:'DELETE' }).then(fbCheck);
-      }));
-    }).then(function(){
+    // OJO: ya NO se borra el archivo de Cloudinary — se deja ahí a
+    // propósito para que la imagen del ticket se pueda seguir viendo
+    // desde el Registro de actividad después de eliminarlo de la app.
+    Promise.all(refs.map(function(r){
+      return fetch(FIREBASE_URL + '/gastos/' + mSlug + '/' + r.cat + '/' + r.tid + '.json', { method:'DELETE' }).then(fbCheck);
+    })).then(function(){
       renderGastos();
       var vLog = getAllVehiculos().find(function(v){ return matSlug(v.matricula) === mSlug; });
-      registrarActividad('Gastos', 'Eliminó ' + checked.length + ' ticket' + (checked.length>1?'s':''), (vLog ? vLog.matricula : mSlug));
+      var imagenesLog = refs.map(function(r){ return r.url; }).filter(Boolean);
+      registrarActividad('Gastos', 'Eliminó ' + checked.length + ' ticket' + (checked.length>1?'s':''), (vLog ? vLog.matricula : mSlug), imagenesLog);
     }).catch(function(err){
       alert('No se pudo eliminar: ' + err.message);
       renderGastos();
