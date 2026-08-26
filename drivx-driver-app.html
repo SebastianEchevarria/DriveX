@@ -1193,7 +1193,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-1';
+var APP_VERSION = '2026-08-26-2';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1886,13 +1886,32 @@ function cerrarTurnosAnterioresMismoVehiculo(kmNuevaEntrada, timeStr, conductorC
           // ese turno ajeno que se acaba de cerrar por el relevo.
           var totalRelevo = (fj.kmEntrada && kmNuevaEntrada) ? (kmNuevaEntrada - fj.kmEntrada) : 0;
           if (totalRelevo > 0) {
+            var payloadKmRelevo = {
+              fecha: new Date().toISOString().slice(0,10), entrada: fj.kmEntrada, salida: kmNuevaEntrada, total: totalRelevo,
+              matricula: currentUser.matricula || '', ts: Date.now(), cerradoPorRelevo: true
+            };
             fetch(FIREBASE_URL + '/km_registro/' + c.cid + '.json', {
               method: 'POST', headers: { 'Content-Type':'application/json' },
-              body: JSON.stringify({
-                fecha: new Date().toISOString().slice(0,10), entrada: fj.kmEntrada, salida: kmNuevaEntrada, total: totalRelevo,
-                matricula: currentUser.matricula || '', ts: Date.now(), cerradoPorRelevo: true
-              })
+              body: JSON.stringify(payloadKmRelevo)
             }).catch(function(){});
+            // Histórico permanente (nunca se borra) — de aquí se sacan los
+            // km diarios/semanales/mensuales por conductor. Independiente
+            // de /km_registro, que sí se resetea en cada cierre semanal.
+            fetch(FIREBASE_URL + '/km_historico/' + c.cid + '.json', {
+              method: 'POST', headers: { 'Content-Type':'application/json' },
+              body: JSON.stringify(payloadKmRelevo)
+            }).catch(function(){});
+            // Contador de km totales del propio vehículo (de por vida, va
+            // sumando siempre, sea quien sea el conductor).
+            var matSlugRelevo = (currentUser.matricula || '').replace(/\s/g,'_');
+            if (matSlugRelevo) {
+              fetch(FIREBASE_URL + '/vehiculos_km_total/' + matSlugRelevo + '.json').then(function(r){ return r.json(); }).then(function(actual){
+                var nuevoTotal = Number(actual||0) + totalRelevo;
+                return fetch(FIREBASE_URL + '/vehiculos_km_total/' + matSlugRelevo + '.json', {
+                  method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevoTotal)
+                });
+              }).catch(function(){});
+            }
           }
         }).catch(function(){});
       }
@@ -2479,13 +2498,32 @@ function finalizarFicharSalida(km) {
   // semana; entonces se resume, se envía al propietario y se limpia para
   // que la semana siguiente empiece de cero.
   if (currentUser && currentUser.cid && total > 0) {
+    var payloadKmSalida = {
+      fecha: now.toISOString().slice(0,10), entrada: kmEntrada, salida: km, total: total,
+      matricula: currentUser.matricula || '', ts: Date.now()
+    };
     fetch(FIREBASE_URL + '/km_registro/' + currentUser.cid + '.json', {
       method: 'POST', headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        fecha: now.toISOString().slice(0,10), entrada: kmEntrada, salida: km, total: total,
-        matricula: currentUser.matricula || '', ts: Date.now()
-      })
+      body: JSON.stringify(payloadKmSalida)
     }).catch(function(){});
+    // Histórico permanente (nunca se borra) — de aquí se sacan los km
+    // diarios/semanales/mensuales por conductor. Independiente de
+    // /km_registro, que sí se resetea en cada cierre semanal.
+    fetch(FIREBASE_URL + '/km_historico/' + currentUser.cid + '.json', {
+      method: 'POST', headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payloadKmSalida)
+    }).catch(function(){});
+    // Contador de km totales del propio vehículo (de por vida, va sumando
+    // siempre, sea quien sea el conductor que ficha).
+    var matSlugSalida = (currentUser.matricula || '').replace(/\s/g,'_');
+    if (matSlugSalida) {
+      fetch(FIREBASE_URL + '/vehiculos_km_total/' + matSlugSalida + '.json').then(function(r){ return r.json(); }).then(function(actual){
+        var nuevoTotal = Number(actual||0) + total;
+        return fetch(FIREBASE_URL + '/vehiculos_km_total/' + matSlugSalida + '.json', {
+          method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevoTotal)
+        });
+      }).catch(function(){});
+    }
   }
 
   // Tras fichar salida, la sesión ya no se recupera sola la próxima vez que se abra la app

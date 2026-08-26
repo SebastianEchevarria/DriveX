@@ -533,6 +533,14 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
         <button onclick="editarFechaItv()" style="background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--cyan);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0">✏️ Editar fecha</button>
       </div>
 
+      <div style="display:flex;align-items:center;gap:12px;background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,.85);border-radius:12px;padding:12px 14px;margin-bottom:22px;box-shadow:0 0 10px rgba(0,212,255,.6),0 0 22px rgba(0,212,255,.35)">
+        <span style="font-size:22px;flex-shrink:0">🚗</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Km totales del vehículo</div>
+          <div id="vd-km-total" style="font-family:var(--mono);font-size:18px;font-weight:900;color:var(--cyan)">Cargando…</div>
+        </div>
+      </div>
+
       <div class="sb-section" style="padding:0 0 10px">Tipo de facturación</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
         <div id="vd-facturacion" style="font-size:13px;font-weight:700;flex:1">—</div>
@@ -963,7 +971,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-11';
+var APP_VERSION = '2026-08-26-12';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -8254,6 +8262,7 @@ function openVehicleDetail(matricula) {
   document.getElementById('vd-ccaa-nombre').textContent = (CCAA_ICONS[v.ccaa]||'📍') + ' ' + (v.ccaa || 'Sin identificar');
 
   renderConductoresYTurnos(v);
+  cargarKmTotalVehiculo(v.matricula);
 
   var delBtn = document.getElementById('vd-delete-btn');
   if (delBtn) { delBtn.removeAttribute('data-confirm'); delBtn.textContent = '🗑 Eliminar vehículo'; delBtn.style.background = 'rgba(255,71,87,.08)'; }
@@ -8295,13 +8304,78 @@ function cloudinaryDownloadUrl(url) {
   return url.replace('/upload/', '/upload/fl_attachment/');
 }
 
+// ── Km por conductor: diario / semanal (lunes a domingo) / mensual (día 1
+// al último del mes) — a partir del histórico permanente que nunca se
+// borra (independiente del /km_registro que usa Facturación, que sí se
+// resetea en cada cierre). ──
+function rangoSemanaActualKm() {
+  var hoy = new Date();
+  var dow = hoy.getDay() || 7; // 1=lunes … 7=domingo
+  var lunes = new Date(hoy); lunes.setDate(hoy.getDate() - dow + 1);
+  var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  return { desde: lunes.toISOString().slice(0,10), hasta: domingo.toISOString().slice(0,10) };
+}
+function rangoMesActualKm() {
+  var hoy = new Date();
+  var primero = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  var ultimo = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0);
+  return { desde: primero.toISOString().slice(0,10), hasta: ultimo.toISOString().slice(0,10) };
+}
+function sumarKmEnRango(registros, desde, hasta) {
+  return registros.filter(function(r){ return r.fecha && r.fecha >= desde && r.fecha <= hasta; })
+    .reduce(function(s,r){ return s + Number(r.total||0); }, 0);
+}
+function calcularKmResumenConductor(cid) {
+  return fetch(FIREBASE_URL + '/km_historico/' + cid + '.json').then(function(r){ return r.json(); }).then(function(data){
+    data = data || {};
+    var registros = Object.keys(data).map(function(k){ return data[k]; });
+    var hoyStr = new Date().toISOString().slice(0,10);
+    var semana = rangoSemanaActualKm();
+    var mes = rangoMesActualKm();
+    return {
+      diario: sumarKmEnRango(registros, hoyStr, hoyStr),
+      semanal: sumarKmEnRango(registros, semana.desde, semana.hasta),
+      mensual: sumarKmEnRango(registros, mes.desde, mes.hasta)
+    };
+  }).catch(function(){ return { diario:0, semanal:0, mensual:0 }; });
+}
+// Pinta, para cada conductor de la ficha del vehículo, sus km diarios,
+// semanales y mensuales — se llama después de pintar las tarjetas, ya que
+// necesita ir a buscar el histórico de cada uno.
+function pintarKmPorConductorFlota(cids) {
+  cids.forEach(function(cid){
+    calcularKmResumenConductor(cid).then(function(km){
+      var el = document.getElementById('kmresumen-' + cid);
+      if (!el) return;
+      el.innerHTML =
+        '<div style="display:flex;justify-content:space-between"><span>Hoy</span><span style="font-family:var(--mono);color:#fff">' + Math.round(km.diario).toLocaleString('es-ES') + ' km</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span>Esta semana (lun–dom)</span><span style="font-family:var(--mono);color:#fff">' + Math.round(km.semanal).toLocaleString('es-ES') + ' km</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span>Este mes</span><span style="font-family:var(--mono);color:#fff">' + Math.round(km.mensual).toLocaleString('es-ES') + ' km</span></div>';
+    });
+  });
+}
+function cajaKmConductorHtml(cid) {
+  return '<div id="kmresumen-' + cid + '" style="font-size:11px;color:var(--text3);background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.25);border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:3px">Cargando km…</div>';
+}
+// Km totales del vehículo (contador de por vida, nunca se resetea)
+function cargarKmTotalVehiculo(matricula) {
+  var el = document.getElementById('vd-km-total');
+  if (!el) return;
+  var mSlug = matSlug(matricula);
+  fetch(FIREBASE_URL + '/vehiculos_km_total/' + mSlug + '.json').then(function(r){ return r.json(); }).then(function(total){
+    el.textContent = Math.round(Number(total||0)).toLocaleString('es-ES') + ' km';
+  }).catch(function(){ el.textContent = '—'; });
+}
+
 function renderConductoresYTurnos(v) {
   var html = '';
+  var todosCids = [];
 
   v.conductores.forEach(function(cid){
     var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
     if (!c) return;
     if (_vdInvitadosCache[cid] && _vdInvitadosCache[cid].matricula === v.matricula) return; // ya se pinta más abajo con su documentación completa
+    todosCids.push(cid);
     var fichado = false;
     try { fichado = !!(JSON.parse(localStorage.getItem('drivx_conductor_' + cid) || '{}').fichado); } catch(e){}
     html += '<div style="border:2px solid var(--border2);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface2)">';
@@ -8312,7 +8386,7 @@ function renderConductoresYTurnos(v) {
     html += '<span id="condchev_' + cid + '" style="color:var(--text3);font-size:14px;margin-left:6px;transition:transform .2s">▾</span>';
     html += '</div>';
     html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
-    html += '<div style="padding-top:12px;font-size:12px;color:var(--text3)">Este conductor no tiene documentación registrada por invitación.</div>';
+    html += '<div style="padding-top:12px">' + cajaKmConductorHtml(cid) + '</div>';
     html += '</div></div>';
   });
 
@@ -8320,6 +8394,7 @@ function renderConductoresYTurnos(v) {
   Object.keys(_vdInvitadosCache).forEach(function(cid){
     var r = _vdInvitadosCache[cid];
     if (r.matricula !== v.matricula) return;
+    todosCids.push(cid);
     var borderColor = r.apto ? 'rgba(0,230,118,.35)' : 'rgba(255,71,87,.35)';
     var aptoDot = r.apto
       ? '<span style="font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:3px 8px">✓ Apto</span>'
@@ -8347,6 +8422,7 @@ function renderConductoresYTurnos(v) {
     html += '</div>';
 
     html += '<div id="condbody_' + cid + '" style="display:none;padding:0 14px 14px;border-top:1px solid var(--border)">';
+    html += '<div style="padding-top:12px">' + cajaKmConductorHtml(cid) + '</div>';
     html += '<div style="font-size:11px;color:var(--text3);margin:10px 0 12px">Los datos personales (DNI, carnet, email, teléfono, cuenta bancaria) se gestionan ahora desde el apartado <b style="color:#fff">Conductores</b> del menú.</div>';
 
     html += '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.25);border-radius:10px;padding:10px 12px;margin-bottom:14px">' +
@@ -8363,6 +8439,7 @@ function renderConductoresYTurnos(v) {
   });
 
   document.getElementById('vd-conductores').innerHTML = html || '<div style="font-size:12px;color:var(--text3)">Sin conductores asignados</div>';
+  pintarKmPorConductorFlota(todosCids);
 }
 
 // ══ AGREGAR COMUNIDAD AUTÓNOMA ══
@@ -8608,6 +8685,7 @@ function renderConductoresInvitados(v) {
     Object.keys(all).forEach(function(cid){ if (all[cid] && all[cid].matricula === v.matricula) mios[cid] = all[cid]; });
     _vdInvitadosCache = mios;
     renderConductoresYTurnos(v);
+    cargarKmTotalVehiculo(v.matricula);
   }).catch(function(){
     document.getElementById('vd-conductores').innerHTML = '<div style="font-size:12px;color:var(--red)">No se pudo conectar con la base de datos.</div>';
   });
@@ -8735,6 +8813,7 @@ function confirmDeleteConductor(cid) {
       paintConductoresInvitados();
       var v = getAllVehiculos().find(function(x){ return x.matricula === _vdCurrentMat; });
       if (v) renderConductoresYTurnos(v);
+      if (v) cargarKmTotalVehiculo(v.matricula);
       registrarActividad('Conductores', 'Eliminó conductor', nombreCondLog + ' · vehículo ' + matriculaCondLog);
     }).catch(function(){ alert('No se pudo eliminar. Revisa tu conexión.'); });
     return;
