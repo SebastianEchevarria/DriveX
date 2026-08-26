@@ -963,7 +963,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-8';
+var APP_VERSION = '2026-08-26-9';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5729,9 +5729,9 @@ function mostrarSelectorHistorialPropietario(pid) {
   if (!p) return;
 
   var html = '<div style="font-size:12.5px;font-weight:800;color:#fff;margin-bottom:14px">¿Qué vehículo quieres ver?</div>';
-  html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">';
   (p.matriculas || []).forEach(function(matricula){
-    html += '<button onclick="paintHistorialPropietario(\''+pid+'\',\''+matricula.replace(/'/g,"\\'")+'\')" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:2px solid rgba(0,212,255,.7);background:rgba(0,212,255,.08);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,212,255,.4)">🚗 ' + matricula + '</button>';
+    html += '<button onclick="paintHistorialPropietario(\''+pid+'\',\''+matricula.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:12px;border:2px solid rgba(0,212,255,.7);background:rgba(0,212,255,.08);cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,212,255,.4)">' + plateHtmlSmall(matricula) + '</button>';
   });
   html += '</div>';
   html += '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">o bien</div>';
