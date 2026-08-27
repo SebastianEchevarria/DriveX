@@ -19,11 +19,12 @@ self.addEventListener('push', function(event) {
   }
 
   var title = data.title || 'DRIVX VTC';
+  var iconFinal = data.icon || '/icon-dashboard-180.png';
   var options = {
     body: data.body || '',
-    icon: data.icon || '/icon-dashboard-180.png',
-    badge: data.badge || '/icon-dashboard-180.png',
-    tag: data.tag || undefined,     // evita duplicar la misma notificación si se repite
+    icon: iconFinal,
+    badge: data.badge || iconFinal,   // el mismo icono de la app, no uno fijo
+    tag: data.tag || undefined,       // evita duplicar la misma notificación si se repite
     renotify: !!data.tag,
     data: { url: data.url || '/drivx-admin-dashboard.html' },
     vibrate: [120, 60, 120]
@@ -33,15 +34,19 @@ self.addEventListener('push', function(event) {
 });
 
 // El usuario toca la notificación → abrimos (o traemos al frente) la app
+// concreta a la que pertenece ese aviso (Dashboard, Driver, Propietario o
+// Supervisor), no siempre el Dashboard.
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   var targetUrl = (event.notification.data && event.notification.data.url) || '/drivx-admin-dashboard.html';
+  // Nombre del archivo sin la extensión .html, p.ej. "drivx-driver-app"
+  var appName = targetUrl.split('/').pop().replace('.html', '');
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
-        if (client.url.indexOf('drivx-admin-dashboard') !== -1 && 'focus' in client) {
+        if (client.url.indexOf(appName) !== -1 && 'focus' in client) {
           return client.focus();
         }
       }

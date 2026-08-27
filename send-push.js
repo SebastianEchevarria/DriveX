@@ -43,7 +43,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { title, body, url, tag, target } = req.body || {};
+    const { title, body, url, tag, target, icon } = req.body || {};
     if (!title || !body) {
       res.status(400).json({ error: 'Falta title o body' });
       return;
@@ -85,6 +85,7 @@ module.exports = async function handler(req, res) {
       body,
       url: url || '/drivx-admin-dashboard.html',
       tag: tag || undefined,
+      icon: icon || '/icon-dashboard-180.png',
     });
 
     let enviados = 0;

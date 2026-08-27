@@ -779,10 +779,10 @@ function sincronizarPermisosSupervisor() {
 }
 
 // Envía la orden de push a la función de servidor (api/send-push.js).
-function enviarPushNotificacion(title, body, tag, url, target) {
+function enviarPushNotificacion(title, body, tag, url, target, icon) {
   fetch('/api/send-push', {
     method: 'POST', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ title: title, body: body, tag: tag, url: url, target: target || null })
+    body: JSON.stringify({ title: title, body: body, tag: tag, url: url, target: target || null, icon: icon || '/icon-supervisor-180.png' })
   }).catch(function(){});
 }
 // Evita mandar el mismo aviso varias veces — se marca por día en la base
@@ -1232,7 +1232,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-27-1';
+var APP_VERSION = '2026-08-27-2';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2050,7 +2050,7 @@ function avisarPushCitaSup(v, tipo, fecha, hora) {
   if (!v) return;
   var cuerpo = tipo + ' · ' + v.matricula + ' · ' + fecha + (hora ? ' ' + hora : '');
   (v.conductores || []).forEach(function(cid){
-    enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-driver-app.html', { cid: cid });
+    enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-driver-app.html', { cid: cid }, '/icon-driver-180.png');
   });
   if (v.ccaa) enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-supervisor-app.html', { ccaa: v.ccaa });
 }
