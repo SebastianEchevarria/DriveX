@@ -996,7 +996,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-27-3';
+var APP_VERSION = '2026-08-27-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4143,8 +4143,8 @@ function facturacionModalBodyHtml(info) {
         '<div style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">Cabify</div>' +
         '<button onclick="abrirEdicionManualFact(\'cabify\',\'' + info.cid + '\',\'' + uid + '\')" title="Editar manualmente" style="background:rgba(124,92,252,.16);border:2px solid rgba(124,92,252,1);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;box-shadow:0 0 8px rgba(124,92,252,.6),0 0 16px rgba(124,92,252,.35)">✏️</button>' +
       '</div>' +
-      '<input type="file" id="cabifycsv_' + uid + '" accept=".csv,text/csv" style="display:none" onchange="onCabifyCsvFile(this,\'' + info.cid + '\',\'' + (info.nombre||'').replace(/'/g,"\\'") + '\')">' +
-      '<button onclick="document.getElementById(\'cabifycsv_' + uid + '\').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(124,92,252,1);background:rgba(124,92,252,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(124,92,252,.8),0 0 22px rgba(124,92,252,.5);margin-bottom:12px">📤 SUBIR CSV DE CABIFY</button>' +
+      '<input type="file" id="cabifycsv_' + uid + '" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="onCabifyCsvFile(this,\'' + info.cid + '\',\'' + (info.nombre||'').replace(/'/g,"\\'") + '\')">' +
+      '<button onclick="document.getElementById(\'cabifycsv_' + uid + '\').click()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:10px;border:2px solid rgba(124,92,252,1);background:rgba(124,92,252,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(124,92,252,.8),0 0 22px rgba(124,92,252,.5);margin-bottom:12px">📤 SUBIR EXCEL DE CABIFY</button>' +
       '<div id="cabify_body_' + uid + '" style="font-size:11px;color:var(--text3)">Esperando datos que suba el conductor desde su app…</div>' +
     '</div>';
 
@@ -5601,27 +5601,59 @@ function pintarTransfersGuardado(cid, matricula) {
 
 // Datos que el propio conductor ya subió desde su app (capturas de Uber/Cabify,
 // sincronizadas vía Firebase) — se muestran aquí en modo lectura.
-// ══ CABIFY — subida de CSV (mismo patrón que Bolt) ══
-// NOTA: los nombres de columna de aquí abajo son un punto de partida
-// razonable a falta de que me pases las columnas reales del CSV de
-// Cabify — en cuanto me las digas, ajusto encontrarColumna() sin tocar
-// nada más de este flujo.
+// Lee un archivo de facturación tanto si es CSV como si es Excel (.xlsx) —
+// Cabify exporta en Excel, Bolt suele exportar en CSV. Ambos casos acaban
+// en el mismo formato de "filas" (array de arrays) que ya usa el resto del
+// código, así no hay que duplicar nada más.
+function leerFilasDesdeArchivoFacturacion(file, callback) {
+  var esExcel = /\.xlsx?$/i.test(file.name);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    if (esExcel) {
+      try {
+        var wb = XLSX.read(e.target.result, { type: 'array' });
+        var hoja = wb.Sheets[wb.SheetNames[0]];
+        var filas = XLSX.utils.sheet_to_json(hoja, { header: 1, raw: true, defval: '' });
+        filas = filas.filter(function(fila){ return fila.some(function(c){ return c !== '' && c !== null && c !== undefined; }); })
+          .map(function(fila){ return fila.map(function(c){ return (c === null || c === undefined) ? '' : String(c).trim(); }); });
+        callback(filas);
+      } catch (err) {
+        toast('❌ No se pudo leer el archivo Excel: ' + err.message);
+      }
+    } else {
+      callback(parseCsvTexto(e.target.result));
+    }
+  };
+  reader.onerror = function(){ toast('❌ No se pudo leer el archivo'); };
+  if (esExcel) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file, 'UTF-8');
+}
+// Quita la fila de totales de la compañía que trae Cabify siempre en la
+// primera línea de datos, para que nunca se pueda confundir con un conductor.
+function quitarFilaTotalesCabify(filas, colNombre) {
+  return filas.filter(function(fila, idx){
+    if (idx === 0) return true; // cabecera
+    var celda = normalizarTexto(colNombre !== -1 ? fila[colNombre] : fila.join(' '));
+    return celda.indexOf('totales') === -1;
+  });
+}
+
+// ══ CABIFY — subida de CSV/Excel (mismo patrón que Bolt) ══
 function onCabifyCsvFile(input, cid, nombreConductor) {
   if (!input.files[0]) return;
   var file = input.files[0];
-  var reader = new FileReader();
-  reader.onload = function(e) {
+  leerFilasDesdeArchivoFacturacion(file, function(filasCrudas){
     input.value = '';
-    var filas = parseCsvTexto(e.target.result);
-    if (!filas.length) { toast('⚠ El CSV está vacío'); return; }
-    var headers = filas[0];
-    var colNombre = encontrarColumna(headers, ['nombre', 'name', 'driver', 'conductor']);
-    var colNeto   = encontrarColumna(headers, ['facturación neta', 'facturacion neta', 'net earning', 'ganancias netas', 'neto']);
-    var colEfec   = encontrarColumna(headers, ['efectivo', 'cash', 'pagado a bordo', 'en mano']);
+    if (!filasCrudas.length) { toast('⚠ El archivo está vacío'); return; }
+    var headers = filasCrudas[0];
+    var colNombre = encontrarColumna(headers, ['nombre conductor', 'nombre', 'name', 'driver', 'conductor']);
+    var colNeto   = encontrarColumna(headers, ['total ganancias', 'ganancias totales', 'facturación neta', 'facturacion neta', 'net earning', 'ganancias netas', 'neto']);
+    var colEfec   = encontrarColumna(headers, ['efectivo a bordo', 'efectivo', 'cash', 'pagado a bordo', 'en mano']);
 
+    var filas = quitarFilaTotalesCabify(filasCrudas, colNombre);
     var filaEncontrada = buscarFilaConductorCsv(filas, colNombre, nombreConductor);
     if (!filaEncontrada) {
-      toast('⚠ No se encontró a "' + nombreConductor + '" en el CSV (comprueba nombre y apellidos)');
+      toast('⚠ No se encontró a "' + nombreConductor + '" en el archivo (comprueba el nombre)');
       return;
     }
 
@@ -5639,24 +5671,22 @@ function onCabifyCsvFile(input, cid, nombreConductor) {
       body: JSON.stringify(datos)
     }).then(function(){
       pintarUberCabifyGuardado(cid);
-      toast('✓ CSV de Cabify guardado para ' + nombreConductor);
+      toast('✓ Datos de Cabify guardados para ' + nombreConductor);
     }).catch(function(){ toast('❌ No se pudo guardar'); });
-  };
-  reader.readAsText(file, 'UTF-8');
+  });
 }
 
 function onCabifyCsvFileVehiculo(input, matricula) {
   if (!input.files[0]) return;
   var file = input.files[0];
-  var reader = new FileReader();
-  reader.onload = function(e) {
+  leerFilasDesdeArchivoFacturacion(file, function(filasCrudas){
     input.value = '';
-    var filas = parseCsvTexto(e.target.result);
-    if (!filas.length) { toast('⚠ El CSV está vacío'); return; }
-    var headers = filas[0];
-    var colNombre = encontrarColumna(headers, ['nombre', 'name', 'driver', 'conductor']);
-    var colNeto   = encontrarColumna(headers, ['facturación neta', 'facturacion neta', 'net earning', 'ganancias netas', 'neto']);
-    var colEfec   = encontrarColumna(headers, ['efectivo', 'cash', 'pagado a bordo', 'en mano']);
+    if (!filasCrudas.length) { toast('⚠ El archivo está vacío'); return; }
+    var headers = filasCrudas[0];
+    var colNombre = encontrarColumna(headers, ['nombre conductor', 'nombre', 'name', 'driver', 'conductor']);
+    var colNeto   = encontrarColumna(headers, ['total ganancias', 'ganancias totales', 'facturación neta', 'facturacion neta', 'net earning', 'ganancias netas', 'neto']);
+    var colEfec   = encontrarColumna(headers, ['efectivo a bordo', 'efectivo', 'cash', 'pagado a bordo', 'en mano']);
+    var filas = quitarFilaTotalesCabify(filasCrudas, colNombre);
 
     var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
     if (!v) return;
@@ -5693,14 +5723,13 @@ function onCabifyCsvFileVehiculo(input, matricula) {
       encontrados.push(cond.nombre);
     });
 
-    if (encontrados.length) toast('✓ CSV de Cabify guardado para: ' + encontrados.join(', '));
-    if (noEncontrados.length) toast('⚠ No se encontró en el CSV a: ' + noEncontrados.join(', '));
+    if (encontrados.length) toast('✓ Datos de Cabify guardados para: ' + encontrados.join(', '));
+    if (noEncontrados.length) toast('⚠ No se encontró en el archivo a: ' + noEncontrados.join(', '));
 
     if (document.getElementById('fact-multi-modal').style.display === 'flex') {
       abrirTodosConductoresVehiculo(matricula);
     }
-  };
-  reader.readAsText(file, 'UTF-8');
+  });
 }
 
 function pintarUberCabifyGuardado(cid) {
@@ -5893,19 +5922,23 @@ function buscarFilaConductorCsv(filas, colNombre, nombreConductor) {
     if (celdaPalabrasExacta.slice().sort().join(' ') === palabrasSet) return filas[f];
   }
 
-  // 2) Match por puntuación: la fila con más palabras coincidiendo, mínimo 2
-  var mejorFila = null, mejorScore = 0, empatado = false;
+  // 2) Match por puntuación: la fila con más palabras coincidiendo.
+  // Normalmente exigimos mínimo 2 palabras coincidentes, PERO si la celda
+  // del archivo solo trae un nombre de pila (como hace Cabify: "Carlos",
+  // "María"...) exigimos solo 1 — si no, nunca encontraría a nadie.
+  var mejorFila = null, mejorScore = 0, mejorCeldaEsUnaPalabra = false, empatado = false;
   for (var f2 = 1; f2 < filas.length; f2++) {
     var celdaNombre = colNombre !== -1 ? normalizarTexto(filas[f2][colNombre]) : normalizarTexto(filas[f2].join(' '));
-    var celdaPalabras = celdaNombre.split(/\s+/);
+    var celdaPalabras = celdaNombre.split(/\s+/).filter(function(w){ return w.length > 1; });
     var score = palabras.filter(function(w){ return celdaPalabras.indexOf(w) !== -1; }).length;
-    if (score > mejorScore) { mejorScore = score; mejorFila = filas[f2]; empatado = false; }
+    if (score > mejorScore) { mejorScore = score; mejorFila = filas[f2]; mejorCeldaEsUnaPalabra = (celdaPalabras.length === 1); empatado = false; }
     else if (score === mejorScore && score > 0 && filas[f2] !== mejorFila) { empatado = true; }
   }
   // Si dos filas distintas empatan con la misma puntuación, es ambiguo —
   // mejor no adivinar y que se revise a mano en vez de arriesgar el nombre equivocado.
   if (empatado) return null;
-  return (mejorScore >= 2) ? mejorFila : null;
+  var minimoRequerido = mejorCeldaEsUnaPalabra ? 1 : 2;
+  return (mejorScore >= minimoRequerido) ? mejorFila : null;
 }
 
 // Parser de CSV sencillo pero robusto: detecta ; o , como separador y respeta
@@ -6205,7 +6238,7 @@ function paintFacturacion() {
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
       html += '<input type="file" id="boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onBoltCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
-      html += '<input type="file" id="cabifycsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onCabifyCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
+      html += '<input type="file" id="cabifycsvveh_' + v.matricula.replace(/\s/g,'_') + '" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onclick="event.stopPropagation()" onchange="event.stopPropagation();onCabifyCsvFileVehiculo(this,\'' + v.matricula.replace(/'/g,"\\'") + '\')">';
       html += '</div>';
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
       html += '<div style="display:flex;gap:8px;margin-bottom:12px">' +
@@ -6215,7 +6248,7 @@ function paintFacturacion() {
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
       html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">👤 Conductores</div>';
       html += '<button onclick="event.stopPropagation();document.getElementById(\'boltcsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Bolt para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(0,230,118,.16);border:2px solid rgba(0,230,118,1);color:#fff;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.8),0 0 18px rgba(0,230,118,.5);white-space:nowrap">📤 CSV Bolt</button>';
-      html += '<button onclick="event.stopPropagation();document.getElementById(\'cabifycsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir CSV de Cabify para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(124,92,252,.18);border:2px solid rgba(124,92,252,1);color:#fff;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(124,92,252,.8),0 0 18px rgba(124,92,252,.5);white-space:nowrap">📤 CSV Cabify</button>';
+      html += '<button onclick="event.stopPropagation();document.getElementById(\'cabifycsvveh_' + v.matricula.replace(/\s/g,'_') + '\').click()" title="Subir Excel de Cabify para todos los conductores de este vehículo" style="flex-shrink:0;background:rgba(124,92,252,.18);border:2px solid rgba(124,92,252,1);color:#fff;font-size:10.5px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(124,92,252,.8),0 0 18px rgba(124,92,252,.5);white-space:nowrap">📤 Excel Cabify</button>';
       html += '</div>';
       html += '<div style="border-top:1px solid var(--border);padding-top:6px">' + condRows + '</div>';
       html += '</div>';
