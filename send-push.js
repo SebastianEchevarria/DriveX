@@ -61,12 +61,22 @@ module.exports = async function handler(req, res) {
 
     const entries = Object.keys(subsData).map((id) => ({ id, ...subsData[id] }));
 
-    // Filtro opcional por destinatario: { role: 'ccaa_manager', ccaa: 'Andalucía' }
-    // Si no se manda target, se avisa a todos los suscritos.
+    // Filtro opcional por destinatario:
+    //  - { cid: '...' }  → solo ese conductor (exacto, no se avisa a nadie más)
+    //  - { pid: '...' }  → solo ese propietario (exacto)
+    //  - { ccaa, role }  → el MASTER siempre lo recibe, además de quien
+    //    coincida con esa comunidad/rol (para avisos de flota en general)
     const destinatarios = entries.filter((e) => {
       if (!target) return true;
+      if (target.cid) return e.cid === target.cid;
+      if (target.pid) return e.pid === target.pid;
       if (target.role && e.role !== target.role && e.role !== 'admin') return false;
-      if (target.ccaa && e.ccaaAsignada && e.ccaaAsignada !== target.ccaa) return false;
+      if (target.ccaa) {
+        if (e.role === 'admin' || e.role === 'visual') return true;
+        if (e.role === 'ccaa_manager') return e.ccaaAsignada === target.ccaa;
+        if (e.role === 'supervisor') return Array.isArray(e.ccaasAsignadas) && e.ccaasAsignadas.indexOf(target.ccaa) !== -1;
+        return false;
+      }
       return true;
     });
 

@@ -467,6 +467,13 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
     <div class="header">
       <div><div class="header-title">Alertas</div><div class="header-sub">ITV y citas programadas</div></div>
     </div>
+    <div style="margin-bottom:14px">
+      <div id="push-config-box-sup" style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.6);border-radius:16px;padding:14px 16px">
+        <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:5px">🔔 Notificaciones push</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Recibe un aviso en este dispositivo cuando haya una cita nueva o una ITV a punto de vencer.</div>
+        <button id="push-btn-sup" onclick="togglePushSubscriptionSup()" style="width:100%;padding:10px;border-radius:10px;border:2px solid rgba(0,212,255,.85);background:rgba(0,212,255,.12);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">Comprobando…</button>
+      </div>
+    </div>
     <div class="card" id="notif-itv-list">
       <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">Cargando...</div>
     </div>
@@ -769,6 +776,65 @@ function sincronizarPermisosSupervisor() {
     renderVehiculosHome();
     renderITVAlerts();
   });
+}
+
+// Envía la orden de push a la función de servidor (api/send-push.js).
+function enviarPushNotificacion(title, body, tag, url, target) {
+  fetch('/api/send-push', {
+    method: 'POST', headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ title: title, body: body, tag: tag, url: url, target: target || null })
+  }).catch(function(){});
+}
+// Evita mandar el mismo aviso varias veces — se marca por día en la base
+// de datos (así da igual qué Supervisor tenga la app abierta).
+function pushYaEnviadoHoySup(clave) {
+  var hoy = new Date().toISOString().slice(0,10);
+  return fetch(FIREBASE_URL + '/push_notificados/' + hoy + '/' + clave + '.json').then(function(r){ return r.json(); }).then(function(v){ return !!v; }).catch(function(){ return true; });
+}
+function marcarPushEnviadoHoySup(clave) {
+  var hoy = new Date().toISOString().slice(0,10);
+  fetch(FIREBASE_URL + '/push_notificados/' + hoy + '/' + clave + '.json', { method:'PUT', headers:{'Content-Type':'application/json'}, body:'true' }).catch(function(){});
+}
+function avisarPushSiNuevoSup(clave, title, body, url, target) {
+  pushYaEnviadoHoySup(clave).then(function(yaEnviado){
+    if (yaEnviado) return;
+    marcarPushEnviadoHoySup(clave);
+    enviarPushNotificacion(title, body, clave, url, target);
+  });
+}
+// Recordatorios diarios: ITV a menos de 30 días, y citas a menos de 7
+// días — mismo patrón que usa el Dashboard, pero visto desde el propio
+// Supervisor y limitado a sus comunidades asignadas.
+function verificarYEnviarPushesSupervisor() {
+  var u = window.currentSupervisorUser;
+  if (!u) return;
+  function dU(s){ if (!s) return null; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
+
+  var vehiculos = getAllVehiculos().filter(function(v){ return v.matricula !== '0000 TST'; });
+
+  // ITV
+  vehiculos.forEach(function(v){
+    var d = dU(v.docs.itv.fecha);
+    if (d === null || d > 30) return;
+    var body = d < 0 ? v.matricula + ' — ITV vencida hace ' + Math.abs(d) + ' días' : v.matricula + ' — ITV vence en ' + d + ' días';
+    avisarPushSiNuevoSup('itv_sup_' + matSlugV(v.matricula), '🚨 ITV', body, '/drivx-supervisor-app.html', { ccaa: v.ccaa });
+  });
+
+  // Citas próximas (7 días)
+  var vehByMat = {};
+  vehiculos.forEach(function(v){ vehByMat[v.matricula] = v; });
+  fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
+    lista = lista || [];
+    if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
+    lista.filter(Boolean).forEach(function(c){
+      var v = vehByMat[c.matricula];
+      if (!v) return; // no es de una comunidad asignada a este Supervisor
+      var d = dU(c.fecha);
+      if (d === null || d < 0 || d > 7) return;
+      var body = (c.tipo||'Cita') + ' · ' + c.matricula + ' · ' + (d===0 ? 'hoy' : 'en ' + d + ' día' + (d!==1?'s':'')) + (c.hora ? ' · ' + c.hora : '');
+      avisarPushSiNuevoSup('cita_prox_' + (c.id||c.ts) + '_' + new Date().toISOString().slice(0,10), '📅 Cita próxima', body, '/drivx-supervisor-app.html', { ccaa: v.ccaa });
+    });
+  }).catch(function(){});
 }
 
 function getAllVehiculos() {
@@ -1166,7 +1232,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-25-4';
+var APP_VERSION = '2026-08-27-1';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1677,6 +1743,9 @@ function startSync() {
   setInterval(renderNotifCitas, 30000);
   setInterval(renderHomeProximas, 30000);
 
+  verificarYEnviarPushesSupervisor();
+  setInterval(verificarYEnviarPushesSupervisor, 5 * 60000); // cada 5 minutos mientras la app esté abierta
+
   iniciarSincronizacionInstantaneaSup();
 }
 
@@ -1974,6 +2043,18 @@ function confirmDeleteCitaSup(id) {
 }
 
 // ══ CITAS ══
+// Aviso push cuando se crea una cita desde el Supervisor: a los
+// conductores de ese vehículo, y también al propio Supervisor de esa
+// comunidad (por si lo creó otro compañero).
+function avisarPushCitaSup(v, tipo, fecha, hora) {
+  if (!v) return;
+  var cuerpo = tipo + ' · ' + v.matricula + ' · ' + fecha + (hora ? ' ' + hora : '');
+  (v.conductores || []).forEach(function(cid){
+    enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-driver-app.html', { cid: cid });
+  });
+  if (v.ccaa) enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-supervisor-app.html', { ccaa: v.ccaa });
+}
+
 function guardarCitaTallerMat() {
   if (!_currentMat) return;
   var v = _currentMat;
@@ -2014,6 +2095,7 @@ function guardarCitaTallerMat() {
   // Refresh citas in modal
   renderMatCitas(v);
   registrarActividadSup('Citas', 'Creó cita', v.matricula + ' · ' + tipo + ' · ' + fecha);
+  avisarPushCitaSup(v, tipo, fecha, hora);
 }
 
 // ══ CLOUDINARY (almacenamiento compartido de documentos) ══
@@ -2503,6 +2585,7 @@ function guardarCitaTaller() {
   renderITVAlerts();
   renderVehiculosHome();
   registrarActividadSup('Citas', 'Creó cita', mat + ' · ' + tipo + ' · ' + fecha);
+  avisarPushCitaSup(v, tipo, fecha, hora);
 }
 
 
@@ -2661,6 +2744,7 @@ function guardarCitaTallerModal() {
   renderVehiculosHome();
   var _fb2={getAttribute:function(){return v.matricula;}};verMatAlerta(_fb2);
   registrarActividadSup('Citas', 'Creó cita', v.matricula + ' · ' + tipo + ' · ' + fecha);
+  avisarPushCitaSup(v, tipo, fecha, hora);
 }
 
 
@@ -2784,6 +2868,7 @@ function guardarCitaTallerVer() {
   renderNotifCitas(); renderITVAlerts(); renderVehiculosHome(); renderHomeProximas();
   verMatAlerta({getAttribute:function(){return v.matricula;}});
   registrarActividadSup('Citas', 'Creó cita', v.matricula + ' · ' + tipo + ' · ' + fecha);
+  avisarPushCitaSup(v, tipo, fecha, hora);
 }
 
 
@@ -2792,6 +2877,89 @@ var _calYear  = new Date().getFullYear();
 var _calMonth = new Date().getMonth();
 var _calSelectedDay = null;
 
+// ══ NOTIFICACIONES PUSH ══
+var VAPID_PUBLIC_KEY = 'BG_O2jr22zuUniJQMKqnj5rD3-dni53kh5OQaEpeeJ0v2DQtgElHACwV_oaNWAVOMrO-d8loghqX3A0rLDUjH2c';
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = window.atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+function pushSoportadoPorNavegador() {
+  return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+}
+function estaSuscritoAPush() {
+  if (!pushSoportadoPorNavegador()) return Promise.resolve(false);
+  return navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return false;
+    return reg.pushManager.getSubscription().then(function(sub){ return !!sub; });
+  }).catch(function(){ return false; });
+}
+function actualizarBotonPushSup() {
+  var btn = document.getElementById('push-btn-sup');
+  if (!btn) return;
+  if (!pushSoportadoPorNavegador()) { btn.textContent = 'Tu navegador no admite notificaciones push'; btn.disabled = true; return; }
+  estaSuscritoAPush().then(function(suscrito){
+    if (Notification.permission === 'denied') { btn.textContent = '🚫 Bloqueadas — revisa los permisos del sitio'; btn.disabled = true; return; }
+    btn.disabled = false;
+    if (suscrito) {
+      btn.textContent = '🔕 Desactivar notificaciones push';
+      btn.style.background = 'rgba(255,71,87,.12)'; btn.style.borderColor = 'rgba(255,71,87,.7)';
+    } else {
+      btn.textContent = '🔔 Activar notificaciones push en este dispositivo';
+      btn.style.background = 'rgba(0,212,255,.12)'; btn.style.borderColor = 'rgba(0,212,255,.85)';
+    }
+  });
+}
+function togglePushSubscriptionSup() {
+  estaSuscritoAPush().then(function(suscrito){ if (suscrito) desactivarPushSup(); else activarPushSup(); });
+}
+function activarPushSup() {
+  var btn = document.getElementById('push-btn-sup');
+  if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+  var u = window.currentSupervisorUser || {};
+  Notification.requestPermission().then(function(permiso){
+    if (permiso !== 'granted') { toast('No se han concedido permisos de notificación'); actualizarBotonPushSup(); return; }
+    navigator.serviceWorker.ready.then(function(reg){
+      return reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      }).then(function(sub){
+        return fetch(FIREBASE_URL + '/push_subscriptions.json', {
+          method: 'POST', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            email: u.email || '',
+            nombre: u.nombre || '',
+            role: 'supervisor',
+            ccaasAsignadas: u.ccaasAsignadas || [],
+            creadoEn: Date.now()
+          })
+        });
+      });
+    }).then(function(){ toast('✅ Notificaciones activadas'); actualizarBotonPushSup(); })
+    .catch(function(err){ toast('No se pudo activar: ' + err.message); actualizarBotonPushSup(); });
+  });
+}
+function desactivarPushSup() {
+  navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return;
+    return reg.pushManager.getSubscription().then(function(sub){
+      if (!sub) return;
+      var endpoint = sub.endpoint;
+      return sub.unsubscribe().then(function(){
+        return fetch(FIREBASE_URL + '/push_subscriptions.json').then(function(r){ return r.json(); }).then(function(all){
+          all = all || {};
+          var borrados = Object.keys(all).filter(function(id){ return all[id].subscription && all[id].subscription.endpoint === endpoint; });
+          return Promise.all(borrados.map(function(id){ return fetch(FIREBASE_URL + '/push_subscriptions/' + id + '.json', { method:'DELETE' }); }));
+        });
+      });
+    });
+  }).then(function(){ toast('🔕 Notificaciones desactivadas'); actualizarBotonPushSup(); }).catch(function(){ actualizarBotonPushSup(); });
+}
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -2799,7 +2967,7 @@ function showScreen(id) {
   var nb = document.getElementById('nav-'+id);
   if (nb) nb.classList.add('active');
   if (id === 'calendario') renderCalendar();
-  if (id === 'notif') renderITVAlerts();
+  if (id === 'notif') { renderITVAlerts(); actualizarBotonPushSup(); }
   if (id === 'home') { setTimeout(updateHomeScrollbar, 60); setTimeout(updateHomeScrollbar, 300); }
 }
 

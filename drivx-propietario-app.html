@@ -214,6 +214,13 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
         <div class="header-sub">Tus vehículos y conductores</div>
       </div>
     </div>
+    <div style="padding:0 16px 14px">
+      <div id="push-config-box-owner" style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.6);border-radius:16px;padding:14px 16px">
+        <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:5px">🔔 Notificaciones push</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Recibe un aviso en este dispositivo en cuanto tu facturación semanal esté lista.</div>
+        <button id="push-btn-owner" onclick="togglePushSubscriptionOwner()" style="width:100%;padding:10px;border-radius:10px;border:2px solid rgba(0,212,255,.85);background:rgba(0,212,255,.12);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">Comprobando…</button>
+      </div>
+    </div>
     <div class="scroll" id="inicio-content">
       <div class="empty-msg">Cargando…</div>
     </div>
@@ -475,7 +482,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-2';
+var APP_VERSION = '2026-08-27-1';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -667,6 +674,7 @@ function entrarApp() {
   cargarInicio();
   cargarGastosO();
   cargarFacturacionO();
+  actualizarBotonPushOwner();
   cargarCitas();
   setInterval(cargarInicio, 20000);
   setInterval(cargarCitas, 30000);
@@ -812,6 +820,88 @@ function calcularKmResumenConductorO(kmHistoricoTodos, cid) {
     semanal: sumarKmEnRangoO(registros, semana.desde, semana.hasta),
     mensual: sumarKmEnRangoO(registros, mes.desde, mes.hasta)
   };
+}
+
+// ══ NOTIFICACIONES PUSH ══
+var VAPID_PUBLIC_KEY = 'BG_O2jr22zuUniJQMKqnj5rD3-dni53kh5OQaEpeeJ0v2DQtgElHACwV_oaNWAVOMrO-d8loghqX3A0rLDUjH2c';
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = window.atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+function pushSoportadoPorNavegador() {
+  return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+}
+function estaSuscritoAPush() {
+  if (!pushSoportadoPorNavegador()) return Promise.resolve(false);
+  return navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return false;
+    return reg.pushManager.getSubscription().then(function(sub){ return !!sub; });
+  }).catch(function(){ return false; });
+}
+function actualizarBotonPushOwner() {
+  var btn = document.getElementById('push-btn-owner');
+  if (!btn) return;
+  if (!pushSoportadoPorNavegador()) { btn.textContent = 'Tu navegador no admite notificaciones push'; btn.disabled = true; return; }
+  estaSuscritoAPush().then(function(suscrito){
+    if (Notification.permission === 'denied') { btn.textContent = '🚫 Bloqueadas — revisa los permisos del sitio'; btn.disabled = true; return; }
+    btn.disabled = false;
+    if (suscrito) {
+      btn.textContent = '🔕 Desactivar notificaciones push';
+      btn.style.background = 'rgba(255,71,87,.12)'; btn.style.borderColor = 'rgba(255,71,87,.7)';
+    } else {
+      btn.textContent = '🔔 Activar notificaciones push en este dispositivo';
+      btn.style.background = 'rgba(0,212,255,.12)'; btn.style.borderColor = 'rgba(0,212,255,.85)';
+    }
+  });
+}
+function togglePushSubscriptionOwner() {
+  estaSuscritoAPush().then(function(suscrito){ if (suscrito) desactivarPushOwner(); else activarPushOwner(); });
+}
+function activarPushOwner() {
+  var btn = document.getElementById('push-btn-owner');
+  if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+  Notification.requestPermission().then(function(permiso){
+    if (permiso !== 'granted') { toast('No se han concedido permisos de notificación'); actualizarBotonPushOwner(); return; }
+    navigator.serviceWorker.ready.then(function(reg){
+      return reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      }).then(function(sub){
+        return fetch(FIREBASE_URL + '/push_subscriptions.json', {
+          method: 'POST', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            pid: currentUser.pid || '',
+            nombre: currentUser.nombre || '',
+            email: currentUser.email || '',
+            role: 'propietario',
+            creadoEn: Date.now()
+          })
+        });
+      });
+    }).then(function(){ toast('✅ Notificaciones activadas'); actualizarBotonPushOwner(); })
+    .catch(function(err){ toast('No se pudo activar: ' + err.message); actualizarBotonPushOwner(); });
+  });
+}
+function desactivarPushOwner() {
+  navigator.serviceWorker.getRegistration().then(function(reg){
+    if (!reg) return;
+    return reg.pushManager.getSubscription().then(function(sub){
+      if (!sub) return;
+      var endpoint = sub.endpoint;
+      return sub.unsubscribe().then(function(){
+        return fetch(FIREBASE_URL + '/push_subscriptions.json').then(function(r){ return r.json(); }).then(function(all){
+          all = all || {};
+          var borrados = Object.keys(all).filter(function(id){ return all[id].subscription && all[id].subscription.endpoint === endpoint; });
+          return Promise.all(borrados.map(function(id){ return fetch(FIREBASE_URL + '/push_subscriptions/' + id + '.json', { method:'DELETE' }); }));
+        });
+      });
+    });
+  }).then(function(){ toast('🔕 Notificaciones desactivadas'); actualizarBotonPushOwner(); }).catch(function(){ actualizarBotonPushOwner(); });
 }
 
 function cargarInicio() {

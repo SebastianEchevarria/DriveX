@@ -996,7 +996,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-26-19';
+var APP_VERSION = '2026-08-26-20';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -8068,6 +8068,19 @@ function guardarNuevaCitaDashboard() {
     renderCitas();
     renderProximasCitasInicio();
     registrarActividad('Citas', eraEdicion ? 'Editó cita' : 'Creó cita', matricula + ' · ' + tipo + ' · ' + fecha);
+
+    // Aviso push: al conductor/es de ese vehículo y al Supervisor de su comunidad
+    if (!eraEdicion) {
+      var vCita = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+      fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(invitados){
+        var cids = vCita ? cidsDeVehiculo(vCita, invitados || {}) : [];
+        var cuerpo = tipo + ' · ' + matricula + ' · ' + fecha + (hora ? ' ' + hora : '');
+        cids.forEach(function(cid){
+          enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-driver-app.html', { cid: cid });
+        });
+        if (vCita) enviarPushNotificacion('📅 Cita nueva', cuerpo, null, '/drivx-supervisor-app.html', { ccaa: vCita.ccaa });
+      }).catch(function(){});
+    }
   }).catch(function(err){
     alert('No se pudo guardar la cita: ' + err.message);
   });
@@ -8862,6 +8875,12 @@ function confirmarCierrePeriodo() {
     toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
     generarExcelFacturacion();
     registrarActividad('Facturación', 'Cerró periodo (' + p.tipo + ')', p.matricula);
+
+    // Aviso push a cada conductor: su facturación de esta semana ya está lista
+    p.resultados.forEach(function(r){
+      enviarPushNotificacion('💰 Facturación lista', 'Tu facturación de ' + p.matricula + ' ya está disponible', 'facturacion_' + r.cid + '_' + p.periodo, '/drivx-driver-app.html', { cid: r.cid });
+    });
+
     // Además de enviar al conductor, actualizamos el snapshot de
     // facturación que ve el propietario en su app — solo se actualiza aquí,
     // nunca en vivo, así el propietario ve siempre datos ya cerrados.
@@ -8875,6 +8894,10 @@ function confirmarCierrePeriodo() {
         fetch(FIREBASE_URL + '/facturacion_cierres_vehiculo/' + matSlug + '/' + p.periodo + '.json', {
           method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(d)
         }).catch(function(){});
+      }
+      // Aviso push al propietario de este vehículo (si tiene uno asignado)
+      if (d && d.pid) {
+        enviarPushNotificacion('💰 Facturación lista', 'La facturación de ' + p.matricula + ' ya está disponible', 'facturacion_prop_' + d.pid + '_' + p.periodo, '/drivx-propietario-app.html', { pid: d.pid });
       }
     }).catch(function(){});
   }).catch(function(err){
