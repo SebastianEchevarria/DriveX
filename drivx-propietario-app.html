@@ -15,6 +15,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DRIVX Propietario">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyB_b0mmPwI8JiLfvbcFP0NDfq5wtYqRqvQ",
+    authDomain: "drivx-vtc.firebaseapp.com",
+    databaseURL: "https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "drivx-vtc",
+    storageBucket: "drivx-vtc.firebasestorage.app",
+    messagingSenderId: "1089516133318",
+    appId: "1:1089516133318:web:195ef2c2a5db34bd28b0c7"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
 <style>
 :root {
   --bg:       #070b12;
@@ -482,7 +496,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-27-1';
+var APP_VERSION = '2026-08-28-1';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -630,11 +644,42 @@ function triggerPwaInstall() {
   });
 }
 
+// ══ MIGRACIÓN SILENCIOSA A FIREBASE AUTHENTICATION ══
+// Mismo sistema que el resto de apps DRIVX: intenta primero la cuenta
+// real; si todavía no existe, usa el sistema antiguo de siempre y, si
+// acierta, crea la cuenta real por detrás sin que el propietario note nada.
+function intentarLoginFirebaseAuth(email, pass) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve(false);
+  return firebase.auth().signInWithEmailAndPassword(email, pass).then(function(){
+    return true;
+  }).catch(function(err){
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email') {
+      return false;
+    }
+    throw err;
+  });
+}
+function migrarCuentaAFirebaseAuth(email, pass) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve();
+  return firebase.auth().createUserWithEmailAndPassword(email, pass).catch(function(){});
+}
+
 function doLogin() {
   var email = (document.getElementById('log-email').value || '').trim().toLowerCase();
   var pass = document.getElementById('log-pass').value || '';
   var errEl = document.getElementById('log-error');
   errEl.style.display = 'none';
+
+  intentarLoginFirebaseAuth(email, pass).then(function(yaAutenticado){
+    doLoginConSistemaDeSiempre(email, pass, yaAutenticado);
+  }).catch(function(){
+    errEl.textContent = 'Email o contraseña incorrectos.';
+    errEl.style.display = 'block';
+  });
+}
+
+function doLoginConSistemaDeSiempre(email, pass, yaAutenticado) {
+  var errEl = document.getElementById('log-error');
 
   fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).then(function(data){
     data = data || {};
@@ -643,6 +688,7 @@ function doLogin() {
       if (data[k] && (data[k].email||'').toLowerCase() === email && data[k].pass === pass) { pid = k; prop = data[k]; }
     });
     if (!prop) { errEl.textContent = 'Email o contraseña incorrectos.'; errEl.style.display = 'block'; return; }
+    if (!yaAutenticado) migrarCuentaAFirebaseAuth(email, pass);
     currentUser = { pid: pid, nombre: prop.nombre, email: email, matriculas: prop.matriculas || [] };
     localStorage.setItem('drivx_propietario_actual', JSON.stringify(currentUser));
     var s = null; try { s = JSON.parse(localStorage.getItem(WEBAUTHN_KEY) || 'null'); } catch(e){}

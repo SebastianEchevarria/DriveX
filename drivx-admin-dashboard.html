@@ -17,6 +17,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyB_b0mmPwI8JiLfvbcFP0NDfq5wtYqRqvQ",
+    authDomain: "drivx-vtc.firebaseapp.com",
+    databaseURL: "https://drivx-vtc-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "drivx-vtc",
+    storageBucket: "drivx-vtc.firebasestorage.app",
+    messagingSenderId: "1089516133318",
+    appId: "1:1089516133318:web:195ef2c2a5db34bd28b0c7"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
 <style>
 :root {
   --bg:      #070b12; --surface:#0d1420; --surface2:#111b2b;
@@ -996,7 +1010,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-27-4';
+var APP_VERSION = '2026-08-28-1';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1128,10 +1142,45 @@ function activarCuentaDash() {
   });
 }
 
+// ══ MIGRACIÓN SILENCIOSA A FIREBASE AUTHENTICATION ══
+// A partir de ahora las cuentas de verdad viven en Firebase Auth, no en
+// texto plano en la base de datos. Para no romper a nadie que ya tenía
+// cuenta, el login intenta primero el sistema real; si esa cuenta
+// todavía no existe ahí, cae al sistema antiguo de siempre — y si ese
+// acierta, crea la cuenta real por detrás sin que la persona note nada.
+// La próxima vez que entre, ya lo hace directamente por el sistema real.
+function intentarLoginFirebaseAuth(email, pass) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve(false); // usuarios de prueba tipo "1111" no son email válido, se quedan en el sistema antiguo
+  return firebase.auth().signInWithEmailAndPassword(email, pass).then(function(){
+    return true;
+  }).catch(function(err){
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email') {
+      return false; // cuenta todavía no migrada — seguimos con el sistema antiguo
+    }
+    throw err; // la cuenta SÍ existe ya en Firebase y la contraseña no es esa
+  });
+}
+function migrarCuentaAFirebaseAuth(email, pass) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve();
+  return firebase.auth().createUserWithEmailAndPassword(email, pass).catch(function(){ /* si ya existía por cualquier motivo, no pasa nada */ });
+}
+
 function doLogin() {
   var email = (document.getElementById('login-email').value || '').trim().toLowerCase();
   var pass  = document.getElementById('login-pass').value || '';
   var err   = document.getElementById('login-error');
+  err.style.display = 'none';
+
+  intentarLoginFirebaseAuth(email, pass).then(function(yaAutenticado){
+    doLoginConSistemaDeSiempre(email, pass, yaAutenticado);
+  }).catch(function(){
+    err.textContent = 'Email o contraseña incorrectos.';
+    err.style.display = 'block';
+  });
+}
+
+function doLoginConSistemaDeSiempre(email, pass, yaAutenticado) {
+  var err = document.getElementById('login-error');
 
   // Usuario tester — mismo acceso rápido que en las apps de conductor y supervisor
   if (email === '1111' && pass === '1111') {
@@ -1148,6 +1197,7 @@ function doLogin() {
     err.style.display = 'none';
     currentUser = u;
     localStorage.setItem('drivx_admin_user', email);
+    if (!yaAutenticado) migrarCuentaAFirebaseAuth(email, pass);
     finishLoginWithBiometricOffer(email, pass);
     return;
   }
@@ -1167,6 +1217,7 @@ function doLogin() {
       err.style.display = 'none';
       currentUser = match;
       localStorage.setItem('drivx_admin_user', email);
+      if (!yaAutenticado) migrarCuentaAFirebaseAuth(email, pass);
       finishLoginWithBiometricOffer(email, pass);
     } else {
       err.style.display = 'block';
