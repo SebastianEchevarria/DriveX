@@ -330,7 +330,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <button class="sb-item" id="nav-propietarios" onclick="showDashScreen('propietarios')">Propietarios</button>
     <button class="sb-item" id="nav-conductores" onclick="showDashScreen('conductores')">Conductores</button>
     <button class="sb-item" id="nav-facturacion" onclick="showDashScreen('facturacion')"><span style="font-family:var(--mono);font-weight:900;font-size:19px;color:#00e676;text-shadow:0 0 4px rgba(0,230,118,1),0 0 10px rgba(0,230,118,.85),0 0 18px rgba(0,230,118,.6),0 0 28px rgba(0,230,118,.35)">&euro;</span>Facturación</button>
-    <button class="sb-item" id="nav-estadisticas" onclick="showDashScreen('estadisticas')">🏆 Estadísticas</button>
+    <button class="sb-item" id="nav-estadisticas" onclick="showDashScreen('estadisticas')">Estadísticas</button>
     <button class="sb-item disabled">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
     <button class="sb-item" id="nav-configuracion" onclick="showDashScreen('configuracion')">Configuración</button>
 
@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-10';
+var APP_VERSION = '2026-08-28-11';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
