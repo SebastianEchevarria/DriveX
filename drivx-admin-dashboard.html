@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-7';
+var APP_VERSION = '2026-08-28-8';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3729,6 +3729,10 @@ function toggleCambioVehiculo(cid) {
   if (!open) pintarListaMatriculasCambio(cid);
 }
 
+// Valor especial para "mover al conductor a Sin asignar" — no es una
+// matrícula real, por eso usamos un texto que nunca podría coincidir con
+// una de verdad.
+var SIN_ASIGNAR_SENTINEL = '__SIN_ASIGNAR__';
 function pintarListaMatriculasCambio(cid, term) {
   term = (term || '').trim().toUpperCase();
   var cont = document.getElementById('cambio-lista-' + cid);
@@ -3737,16 +3741,38 @@ function pintarListaMatriculasCambio(cid, term) {
     if (!term) return true;
     return v.matricula.toUpperCase().indexOf(term) !== -1 || (v.modelo||'').toUpperCase().indexOf(term) !== -1;
   });
-  if (!vehiculos.length) { cont.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin resultados</div>'; return; }
-  cont.innerHTML = vehiculos.map(function(v){
+
+  var seleccionActual = _cambioVehiculoSeleccion[cid];
+  var html = '';
+
+  // Opción especial: mover al conductor a "Sin asignar" (sin vehículo)
+  if (!term) {
+    var sinAsignarSel = seleccionActual === SIN_ASIGNAR_SENTINEL;
+    html += '<div onclick="seleccionarMatriculaCambio(\'' + cid + '\',\'' + SIN_ASIGNAR_SENTINEL + '\')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;margin-bottom:8px;' +
+      (sinAsignarSel ? 'background:rgba(255,179,0,.18);border:2px solid rgba(255,179,0,1);box-shadow:0 0 8px rgba(255,179,0,.6),0 0 16px rgba(255,179,0,.35)' : 'background:var(--surface2);border:1.5px dashed rgba(255,179,0,.55)') + '">' +
+      '<span style="font-size:16px">🚫</span>' +
+      '<span style="font-size:13px;font-weight:800;color:' + (sinAsignarSel ? '#fff' : 'var(--amber)') + '">SIN ASIGNAR</span>' +
+      '<span style="font-size:11px;color:var(--text3)">Quitar el vehículo actual</span>' +
+      (sinAsignarSel ? '<span style="margin-left:auto;font-size:14px">✓</span>' : '') +
+    '</div>';
+  }
+
+  if (!vehiculos.length) { cont.innerHTML = html || '<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin resultados</div>'; return; }
+
+  html += vehiculos.map(function(v){
     var actual = _conductoresIndex[cid] && _conductoresIndex[cid].matricula === v.matricula;
-    return '<div onclick="seleccionarMatriculaCambio(\'' + cid + '\',\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;margin-bottom:4px;' +
-      (actual ? 'background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3)' : 'background:var(--surface2);border:1px solid var(--border2)') + '">' +
+    var seleccionada = seleccionActual === v.matricula;
+    var estilo = seleccionada
+      ? 'background:rgba(0,212,255,.18);border:2px solid rgba(0,212,255,1);box-shadow:0 0 8px rgba(0,212,255,.6),0 0 16px rgba(0,212,255,.35)'
+      : (actual ? 'background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3)' : 'background:var(--surface2);border:1px solid var(--border2)');
+    return '<div onclick="seleccionarMatriculaCambio(\'' + cid + '\',\'' + v.matricula.replace(/'/g,"\\'") + '\')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;margin-bottom:4px;' + estilo + '">' +
       '<span style="font-family:var(--mono);font-weight:800;font-size:13px;color:#fff">' + v.matricula + '</span>' +
       '<span style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ' + v.ccaa + '</span>' +
-      (actual ? '<span style="margin-left:auto;font-size:10px;color:var(--green)">actual</span>' : '') +
+      (seleccionada ? '<span style="margin-left:auto;font-size:14px">✓</span>' : (actual ? '<span style="margin-left:auto;font-size:10px;color:var(--green)">actual</span>' : '')) +
     '</div>';
   }).join('');
+
+  cont.innerHTML = html;
 }
 function filtrarMatriculasCambio(cid) {
   var input = document.getElementById('cambio-buscar-' + cid);
@@ -3755,11 +3781,21 @@ function filtrarMatriculasCambio(cid) {
 function seleccionarMatriculaCambio(cid, matricula) {
   _cambioVehiculoSeleccion[cid] = matricula;
   var el = document.getElementById('cambio-seleccion-' + cid);
-  if (el) el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:10px 12px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.55)">' +
-    '<span style="font-size:16px">✓</span>' +
-    '<span style="font-size:13px;color:#fff">Nueva matrícula seleccionada:</span>' +
-    '<span style="font-family:var(--mono);font-weight:900;font-size:15px;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9)">' + matricula + '</span>' +
-  '</div>';
+  if (el) {
+    if (matricula === SIN_ASIGNAR_SENTINEL) {
+      el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;background:rgba(255,179,0,.12);border:2px solid rgba(255,179,0,1);border-radius:10px;padding:10px 12px;box-shadow:0 0 10px rgba(255,179,0,.85),0 0 22px rgba(255,179,0,.55)">' +
+        '<span style="font-size:16px">🚫</span>' +
+        '<span style="font-size:13px;color:#fff">El conductor pasará a:</span>' +
+        '<span style="font-weight:900;font-size:15px;color:var(--amber);text-shadow:0 0 6px rgba(255,179,0,.9)">SIN ASIGNAR</span>' +
+      '</div>';
+    } else {
+      el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;background:rgba(0,212,255,.12);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:10px 12px;box-shadow:0 0 10px rgba(0,212,255,.85),0 0 22px rgba(0,212,255,.55)">' +
+        '<span style="font-size:16px">✓</span>' +
+        '<span style="font-size:13px;color:#fff">Nueva matrícula seleccionada:</span>' +
+        '<span style="font-family:var(--mono);font-weight:900;font-size:15px;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.9)">' + matricula + '</span>' +
+      '</div>';
+    }
+  }
   pintarListaMatriculasCambio(cid, document.getElementById('cambio-buscar-' + cid) ? document.getElementById('cambio-buscar-' + cid).value : '');
 }
 
@@ -3791,24 +3827,27 @@ function activarEdicionTurnoCambio(cid) {
 
 function realizarCambioVehiculo(cid) {
   if (!puedeEditar()) return;
-  var nuevaMatricula = _cambioVehiculoSeleccion[cid];
-  if (!nuevaMatricula) { toast('⚠ Selecciona primero una matrícula'); return; }
+  var seleccion = _cambioVehiculoSeleccion[cid];
+  if (seleccion === undefined) { toast('⚠ Selecciona primero una matrícula'); return; }
+  var esSinAsignar = seleccion === SIN_ASIGNAR_SENTINEL;
+  var nuevaMatricula = esSinAsignar ? '' : seleccion;
   var nuevoTurno = (document.getElementById('cambio-turno-' + cid).value || '').trim();
-  if (!nuevoTurno) { toast('⚠ Indica el nuevo horario de turno'); return; }
+  if (!esSinAsignar && !nuevoTurno) { toast('⚠ Indica el nuevo horario de turno'); return; }
   var matriculaAnteriorLog = (_conductoresIndex[cid] && _conductoresIndex[cid].matricula) || (_vdInvitadosCacheGlobal[cid] && _vdInvitadosCacheGlobal[cid].matricula) || '—';
   var nombreCondLog = (_conductoresIndex[cid] && _conductoresIndex[cid].nombre) || (_vdInvitadosCacheGlobal[cid] && _vdInvitadosCacheGlobal[cid].nombre) || cid;
+  var body = esSinAsignar ? { matricula: '' } : { matricula: nuevaMatricula, turno: nuevoTurno };
 
   fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
     method: 'PATCH', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ matricula: nuevaMatricula, turno: nuevoTurno })
+    body: JSON.stringify(body)
   }).then(function(){
-    if (_vdInvitadosCacheGlobal[cid]) { _vdInvitadosCacheGlobal[cid].matricula = nuevaMatricula; _vdInvitadosCacheGlobal[cid].turno = nuevoTurno; }
-    if (_conductoresIndex[cid]) { _conductoresIndex[cid].matricula = nuevaMatricula; _conductoresIndex[cid].turno = nuevoTurno; }
+    if (_vdInvitadosCacheGlobal[cid]) { _vdInvitadosCacheGlobal[cid].matricula = nuevaMatricula; if (!esSinAsignar) _vdInvitadosCacheGlobal[cid].turno = nuevoTurno; }
+    if (_conductoresIndex[cid]) { _conductoresIndex[cid].matricula = nuevaMatricula; if (!esSinAsignar) _conductoresIndex[cid].turno = nuevoTurno; }
     delete _cambioVehiculoSeleccion[cid];
-    toast('✓ Vehículo cambiado a ' + nuevaMatricula);
+    toast(esSinAsignar ? '✓ Conductor movido a Sin asignar' : ('✓ Vehículo cambiado a ' + nuevaMatricula));
     closeConductorPerfilModal();
     paintConductoresScreen();
-    registrarActividad('Conductores', 'Cambió de vehículo', nombreCondLog + ' · ' + matriculaAnteriorLog + ' → ' + nuevaMatricula + ' (turno ' + nuevoTurno + ')');
+    registrarActividad('Conductores', 'Cambió de vehículo', nombreCondLog + ' · ' + matriculaAnteriorLog + ' → ' + (esSinAsignar ? 'Sin asignar' : (nuevaMatricula + ' (turno ' + nuevoTurno + ')')));
   }).catch(function(){ toast('❌ No se pudo realizar el cambio'); });
 }
 
