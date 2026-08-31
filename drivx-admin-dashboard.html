@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-3';
+var APP_VERSION = '2026-08-28-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5965,8 +5965,10 @@ function guardarEdicionManualFact() {
 function pedirBorrarPlat(plat, cid, uid) {
   if (!puedeEditar()) return;
   var nombrePlat = plat === 'uber' ? 'Uber' : 'Cabify';
-  pedirConfirmacionBorrado('¿Eliminar los datos de ' + nombrePlat + ' de este conductor?', function(){
+  pedirConfirmacionBorrado('¿Eliminar los datos de ' + nombrePlat + ' de este conductor? El conductor dejará de verlos en su app al instante.', function(){
     fetch(FIREBASE_URL + '/facturacion_' + plat + '/' + cid + '.json', { method: 'DELETE' }).then(function(){
+      return republicarFacturacionParaConductor(cid);
+    }).then(function(){
       toast('🗑 Datos de ' + nombrePlat + ' eliminados');
       var cont = document.getElementById(plat + '_body_' + uid);
       if (cont) cont.innerHTML = '<div style="font-size:11px;color:var(--text3)">El conductor todavía no ha subido ninguna captura.</div>';
@@ -6227,8 +6229,10 @@ function pintarBoltCsvGuardado(cid) {
 
 function pedirBorrarBolt(cid, uid) {
   if (!puedeEditar()) return;
-  pedirConfirmacionBorrado('¿Eliminar los datos de Bolt de este conductor? El conductor dejará de verlos en su app en cuanto cierres la semana.', function(){
+  pedirConfirmacionBorrado('¿Eliminar los datos de Bolt de este conductor? El conductor dejará de verlos en su app al instante.', function(){
     fetch(FIREBASE_URL + '/facturacion_bolt/' + cid + '.json', { method: 'DELETE' }).then(function(){
+      return republicarFacturacionParaConductor(cid);
+    }).then(function(){
       toast('🗑 Datos de Bolt eliminados');
       pintarBoltCsvBox(uid, null, cid);
     }).catch(function(){});
