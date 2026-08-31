@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-12';
+var APP_VERSION = '2026-08-28-13';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4068,7 +4068,7 @@ var _facturacionConductoresIndex = {};
 function facturacionConductorRow(cid, nombre, turno, esInvitado, matricula, porcentaje) {
   var uid = 'fact_' + cid;
   _facturacionConductoresIndex[uid] = { cid: cid, nombre: nombre, turno: turno, esInvitado: esInvitado, matricula: matricula, porcentaje: porcentaje || 30 };
-  return '<div onclick="event.stopPropagation();openFacturacionConductorModal(\'' + uid + '\')" style="border:1.5px solid rgba(0,212,255,.65);border-radius:12px;margin-bottom:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2);box-shadow:0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)">' +
+  return '<div id="fila-cond-' + uid + '" onclick="event.stopPropagation();openFacturacionConductorModal(\'' + uid + '\')" style="border:1.5px solid rgba(0,212,255,.65);border-radius:12px;margin-bottom:8px;padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--surface2);box-shadow:0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)">' +
       '<div style="flex:1;min-width:0"><span style="font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.75),0 0 12px rgba(0,212,255,.55)">' + nombre + '</span>' +
       '<span style="font-size:11px;color:rgba(255,255,255,.75);margin-left:8px">' + turno + '</span></div>' +
       (esInvitado ? '<span style="font-size:10px;font-weight:700;color:var(--cyan);flex-shrink:0">✉ invitado</span>' : '') +
@@ -4130,11 +4130,11 @@ function abrirTodosConductoresVehiculo(matricula) {
           (esMensualCard
             ? ('<input type="file" id="nomina-input-' + uid + '" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this,\'' + info.cid + '\',\'' + info.matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')">' +
                '<button id="nomina-btn-' + uid + '" onclick="document.getElementById(\'nomina-input-' + uid + '\').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:flex;align-items:center;gap:8px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:8px 12px;white-space:nowrap">📄 Subir nómina</button>')
-            : ('<button onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar la semana de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>')
+            : ('<button id="cerrar-cond-btn-' + uid + '" onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar la semana de facturación" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;padding:0">🔒</button>')
           ) +
         '</div>' +
       '</div>' +
-      '<div style="padding:18px 20px 20px">' + envolverConAvisoCierre(uid, facturacionModalBodyHtml(info)) + '</div>' +
+      '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
     '</div>';
   }).join('');
 
@@ -4151,7 +4151,7 @@ function abrirTodosConductoresVehiculo(matricula) {
     if (((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal') === 'mensual') {
       pintarResumenMensual(info.cid, info.matricula, 'fact_' + info.cid);
     }
-    comprobarAvisoCierre(info.cid, info.matricula, uidM);
+    aplicarEstadoCierreConductor(info.cid, info.matricula, uidM);
   });
 }
 function closeFacturacionMultiModal() {
@@ -4174,7 +4174,7 @@ function openFacturacionConductorModal(uid) {
   var nombreD = document.getElementById('fact-modal-nombre-d'); if (nombreD) nombreD.textContent = info.nombre;
   var plateD = document.getElementById('fact-modal-plate-d'); if (plateD) plateD.innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
   var turnoD = document.getElementById('fact-modal-turno-d'); if (turnoD) turnoD.innerHTML = '🕐 ' + info.turno;
-  document.getElementById('fact-modal-body').innerHTML = envolverConAvisoCierre(uid, facturacionModalBodyHtml(info));
+  document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
   _factModalActual = { cid: info.cid, uid: uid, matricula: info.matricula };
   var vTipoBtn = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
   var esMensualModal = vTipoBtn === 'mensual';
@@ -4199,7 +4199,7 @@ function openFacturacionConductorModal(uid) {
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
   if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, info.matricula, uid);
-  comprobarAvisoCierre(info.cid, info.matricula, uid);
+  aplicarEstadoCierreConductor(info.cid, info.matricula, uid);
 
   // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
   // así se ve al instante lo que el conductor vaya subiendo desde su app.
@@ -4216,43 +4216,79 @@ function closeFacturacionConductorModal() {
   document.getElementById('fact-conductor-modal').style.display = 'none';
   if (_factModalRefreshTimer) { clearInterval(_factModalRefreshTimer); _factModalRefreshTimer = null; }
 }
-// ══ AVISO DE "SEMANA/MES CERRADO" — se muestra durante 3 días después de
-// cerrar, tapando los botones de edición con un aviso. El admin puede
-// seguir editando si de verdad lo necesita, pulsando "Editar cierre" a
-// propósito — no es un bloqueo permanente, es para evitar tocar algo por
-// error justo después de haber cerrado y enviado. ══
+// ══ ESTADO VISUAL DE "SEMANA CERRADA" — nada se bloquea, solo cambia de
+// color. Durante 3 días después de cerrar, el botón de cerrar se pone en
+// verde diciendo "Semana Cerrada", y la fila del conductor en la lista
+// también se pone verde — así se ve de un vistazo que ya está hecho, sin
+// impedir que el admin siga editando si hace falta. ══
 var DIAS_AVISO_CIERRE = 3;
-var _cierreDesbloqueadoManualmente = {};
-function envolverConAvisoCierre(uid, bodyHtml) {
-  return '<div style="position:relative">' +
-    '<div id="cierre-lock-overlay-' + uid + '" style="display:none;position:absolute;inset:0;z-index:5;background:rgba(5,7,13,.82);backdrop-filter:blur(2px);border-radius:14px;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center">' +
-      '<div style="font-size:30px">🔒</div>' +
-      '<div style="font-size:14px;font-weight:900;color:#fff">CERRADA</div>' +
-      '<div id="cierre-lock-texto-' + uid + '" style="font-size:12px;color:var(--text3);max-width:260px"></div>' +
-      '<button onclick="desbloquearEdicionCierre(\'' + uid + '\')" style="margin-top:4px;padding:11px 20px;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.7),0 0 22px rgba(255,215,0,.45)">✏️ Editar cierre</button>' +
-    '</div>' +
-    '<div>' + bodyHtml + '</div>' +
-  '</div>';
-}
-function comprobarAvisoCierre(cid, matricula, uid) {
+function aplicarEstadoCierreConductor(cid, matricula, uid) {
   if (!matricula) return;
-  var overlay = document.getElementById('cierre-lock-overlay-' + uid);
-  if (!overlay) return;
-  if (_cierreDesbloqueadoManualmente[uid]) { overlay.style.display = 'none'; return; }
   var matSlugV = matricula.replace(/\s/g,'_');
   fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlugV + '/' + cid + '.json').then(function(r){ return r.json(); }).then(function(baseline){
-    if (!baseline || !baseline.ultimoCierreTs) { overlay.style.display = 'none'; return; }
-    var dias = Math.floor((Date.now() - baseline.ultimoCierreTs) / 86400000);
-    if (dias >= DIAS_AVISO_CIERRE) { overlay.style.display = 'none'; return; }
-    var texto = document.getElementById('cierre-lock-texto-' + uid);
-    if (texto) texto.textContent = dias <= 0 ? 'Se cerró hoy. Puedes editar si es necesario.' : ('Se cerró hace ' + dias + ' día' + (dias!==1?'s':'') + '. Puedes editar si es necesario.');
-    overlay.style.display = 'flex';
-  }).catch(function(){ overlay.style.display = 'none'; });
+    var cerrada = false;
+    if (baseline && baseline.ultimoCierreTs) {
+      var dias = Math.floor((Date.now() - baseline.ultimoCierreTs) / 86400000);
+      cerrada = dias < DIAS_AVISO_CIERRE;
+    }
+    var fila = document.getElementById('fila-cond-' + uid);
+    if (fila) {
+      fila.style.border = cerrada ? '1.5px solid rgba(0,230,118,1)' : '1.5px solid rgba(0,212,255,.65)';
+      fila.style.background = cerrada ? 'rgba(0,230,118,.14)' : 'var(--surface2)';
+      fila.style.boxShadow = cerrada ? '0 0 10px rgba(0,230,118,.7),0 0 22px rgba(0,230,118,.4)' : '0 0 8px rgba(0,212,255,.5),0 0 18px rgba(0,212,255,.28)';
+    }
+    ['fact-modal-cerrar-btn','fact-modal-cerrar-btn-d','cerrar-cond-btn-' + uid].forEach(function(id){
+      var btn = document.getElementById(id);
+      if (!btn) return;
+      var esGrande = id === 'cerrar-cond-btn-' + uid;
+      if (cerrada) {
+        btn.innerHTML = esGrande ? '✅ Semana Cerrada' : '✅';
+        btn.title = 'Semana cerrada';
+        btn.style.border = '2px solid rgba(0,230,118,1)';
+        btn.style.background = 'rgba(0,230,118,.16)';
+        btn.style.boxShadow = '0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5)';
+      } else {
+        btn.innerHTML = esGrande ? '🔒 Cerrar semana' : '🔒';
+        btn.title = 'Cerrar la semana de facturación';
+        btn.style.border = '2px solid rgba(255,215,0,1)';
+        btn.style.background = 'rgba(255,215,0,.14)';
+        btn.style.boxShadow = '0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5)';
+      }
+    });
+  }).catch(function(){});
 }
-function desbloquearEdicionCierre(uid) {
-  _cierreDesbloqueadoManualmente[uid] = true;
-  var overlay = document.getElementById('cierre-lock-overlay-' + uid);
-  if (overlay) overlay.style.display = 'none';
+function aplicarEstadoCierreVehiculo(matricula) {
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
+  if (!v) return;
+  var cids = [];
+  (v.conductores||[]).forEach(function(cid){ if (CONDUCTORES.find(function(x){ return x.cid === cid; })) cids.push(cid); });
+  Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+    if (_vdInvitadosCacheGlobal[cid].matricula === matricula) cids.push(cid);
+  });
+  if (!cids.length) return;
+  var matSlugV = matricula.replace(/\s/g,'_');
+  Promise.all(cids.map(function(cid){
+    return fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlugV + '/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
+  })).then(function(baselines){
+    var todosCerrados = baselines.every(function(b){
+      if (!b || !b.ultimoCierreTs) return false;
+      var dias = Math.floor((Date.now() - b.ultimoCierreTs) / 86400000);
+      return dias < DIAS_AVISO_CIERRE;
+    });
+    var btn = document.getElementById('cerrar-veh-btn-' + matSlugV);
+    if (!btn) return;
+    if (todosCerrados) {
+      btn.innerHTML = '✅ Semana Cerrada';
+      btn.style.background = 'rgba(0,230,118,.16)';
+      btn.style.border = '2px solid rgba(0,230,118,1)';
+      btn.style.boxShadow = '0 0 10px rgba(0,230,118,.8),0 0 22px rgba(0,230,118,.5)';
+    } else {
+      btn.innerHTML = '🔒 Cerrar y enviar';
+      btn.style.background = 'rgba(255,215,0,.14)';
+      btn.style.border = '2px solid rgba(255,215,0,1)';
+      btn.style.boxShadow = '0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5)';
+    }
+  }).catch(function(){});
 }
 
 function facturacionModalBodyHtml(info) {
@@ -6385,7 +6421,7 @@ function paintFacturacion() {
       html += '<div class="veh-model" style="margin:0 0 10px 0">' + v.modelo + ' · ' + v.ciudad + '</div>';
       html += '<div style="display:flex;gap:8px;margin-bottom:12px">' +
         '<button onclick="event.stopPropagation();abrirResumenGeneralVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Facturación propietario de este vehículo" style="flex:1;background:rgba(178,94,225,.16);border:2px solid rgba(178,94,225,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(178,94,225,.8),0 0 22px rgba(178,94,225,.5);white-space:nowrap">📊 Facturación propietario</button>' +
-        '<button onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo, y enviar la facturación al propietario" style="flex:1;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar y enviar</button>' +
+        '<button id="cerrar-veh-btn-' + v.matricula.replace(/\s/g,'_') + '" onclick="event.stopPropagation();cerrarPeriodoVehiculo(\'' + v.matricula.replace(/'/g,"\\'") + '\')" title="Cerrar y archivar el periodo actual de facturación de este vehículo, y enviar la facturación al propietario" style="flex:1;background:rgba(255,215,0,.14);border:2px solid rgba(255,215,0,1);color:#fff;font-size:11px;font-weight:800;padding:9px 10px;border-radius:10px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);white-space:nowrap">🔒 Cerrar y enviar</button>' +
       '</div>';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
       html += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">👤 Conductores</div>';
@@ -6411,6 +6447,19 @@ function paintFacturacion() {
       el.style.display = open ? 'none' : 'block';
       if (chev) chev.textContent = open ? '›' : '⌄';
     };
+  });
+
+  // Estado "Semana Cerrada" (verde) — se comprueba después de pintar,
+  // tanto en cada fila de conductor como en el botón de cada vehículo.
+  allVehiculos.forEach(function(v){
+    aplicarEstadoCierreVehiculo(v.matricula);
+    (v.conductores||[]).forEach(function(cid){
+      var c = CONDUCTORES.find(function(x){ return x.cid === cid; });
+      if (c) aplicarEstadoCierreConductor(cid, v.matricula, 'fact_' + cid);
+    });
+    Object.keys(_vdInvitadosCacheGlobal || {}).forEach(function(cid){
+      if (_vdInvitadosCacheGlobal[cid].matricula === v.matricula) aplicarEstadoCierreConductor(cid, v.matricula, 'fact_' + cid);
+    });
   });
 
   // Cargamos también los conductores registrados por invitación (para mostrarlos
@@ -9157,14 +9206,12 @@ function confirmarCierrePeriodo() {
     generarExcelFacturacion();
     registrarActividad('Facturación', 'Cerró periodo (' + p.tipo + ')', p.matricula);
 
-    // El aviso de "CERRADA" aparece al instante en el panel de cada
-    // conductor, si lo tiene abierto ahora mismo — sin tener que cerrar y
-    // volver a abrir su ventana.
+    // El botón y la fila de cada conductor se ponen en verde al instante,
+    // sin tener que cerrar y volver a abrir nada.
     p.resultados.forEach(function(r){
-      var uidCierre = 'fact_' + r.cid;
-      delete _cierreDesbloqueadoManualmente[uidCierre];
-      comprobarAvisoCierre(r.cid, p.matricula, uidCierre);
+      aplicarEstadoCierreConductor(r.cid, p.matricula, 'fact_' + r.cid);
     });
+    aplicarEstadoCierreVehiculo(p.matricula);
 
     // Aviso push a cada conductor: su facturación de esta semana ya está lista
     p.resultados.forEach(function(r){
