@@ -541,13 +541,14 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div class="cat-total" id="total-lavado" style="color:var(--purple)">€ 0</div>
       </label>
       <!-- Lavado manual button (separate, below grid) -->
-      <label class="cat-btn" id="cat-datafono" for="input-datafono" style="cursor:pointer">
-        <input type="file" id="input-datafono" accept="image/*" style="display:none" onchange="onCatFile(this,'datafono')">
+      <div class="cat-btn" id="cat-datafono" onclick="elegirOrigenDatafono()" style="cursor:pointer">
+        <input type="file" id="input-datafono-foto" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'datafono')">
+        <input type="file" id="input-datafono-adjuntar" accept="image/*" style="display:none" onchange="onCatFile(this,'datafono')">
         <div class="cat-count" id="count-datafono">0</div>
         <div class="cat-icon">💳</div>
         <div class="cat-name">Datáfono</div>
         <div class="cat-total" id="total-datafono" style="color:var(--purple)">€ 0</div>
-      </label>
+      </div>
       <label class="cat-btn" id="cat-otros" for="input-otros" style="cursor:pointer">
         <input type="file" id="input-otros" accept="image/*" style="display:none" onchange="onCatFile(this,'otros')">
         <div class="cat-count" id="count-otros">0</div>
@@ -1236,7 +1237,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-2';
+var APP_VERSION = '2026-08-28-3';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2231,7 +2232,7 @@ function updateGastosInputs() {
   if (catIcon) catIcon.textContent = isElec ? '⚡' : '⛽';
   if (catName) catName.textContent = isElec ? 'Carga' : 'Gasolina';
 
-  var ids = ['input-gasolina','input-peaje','input-parking','input-lavado','input-datafono','input-otros','km-camera-input'];
+  var ids = ['input-gasolina','input-peaje','input-parking','input-lavado','input-datafono-foto','input-otros','km-camera-input'];
   ids.forEach(function(id) {
     var inp = document.getElementById(id);
     if (!inp) return;
@@ -2242,6 +2243,10 @@ function updateGastosInputs() {
       inp.removeAttribute('capture');
     }
   });
+  // El de "adjuntar imagen" de Datáfono SIEMPRE abre la galería, nunca la
+  // cámara — para poder subir capturas de pantalla de SumUp.
+  var inpAdj = document.getElementById('input-datafono-adjuntar');
+  if (inpAdj) { inpAdj.accept = 'image/*'; inpAdj.removeAttribute('capture'); }
 }
 
 function updateNavState() {
@@ -2793,6 +2798,27 @@ function mostrarTicketDuplicado(mensaje) {
   if (modal) modal.style.display = 'flex';
 }
 
+// Datáfono admite tanto hacer una foto del recibo físico como adjuntar
+// una imagen ya guardada (p.ej. una captura de pantalla de la app SumUp).
+function elegirOrigenDatafono() {
+  var modal = document.getElementById('origen-datafono-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'origen-datafono-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML =
+    '<div style="background:var(--surface);border:2px solid rgba(178,94,225,.9);border-radius:18px;max-width:340px;width:100%;padding:22px;box-shadow:0 0 18px rgba(178,94,225,.7),0 0 38px rgba(178,94,225,.4)">' +
+      '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:16px">💳 Ticket de datáfono</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<button onclick="document.getElementById(\'origen-datafono-modal\').style.display=\'none\';document.getElementById(\'input-datafono-foto\').click()" style="padding:14px;border-radius:10px;border:none;background:var(--purple);color:#fff;font-size:14px;font-weight:800;cursor:pointer">📷 Hacer foto</button>' +
+        '<button onclick="document.getElementById(\'origen-datafono-modal\').style.display=\'none\';document.getElementById(\'input-datafono-adjuntar\').click()" style="padding:14px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer">🖼️ Adjuntar imagen (ej. SumUp)</button>' +
+      '</div>' +
+    '</div>';
+  modal.style.display = 'flex';
+}
+
 function onCatFile(input, cat) {
   if (!input.files[0]) return;
   if (cat === 'parking') { onParkingFile(input); return; }
@@ -2869,11 +2895,7 @@ function onCatFile(input, cat) {
       }
 
       gastosHashes[hash] = true;
-      if (cat === 'datafono') {
-        preguntarPropinaDatafono({ importe: importe, nombre: nombre, fecha: fecha, hora: hora, file: file });
-      } else {
-        preguntarQuienPago({ cat: cat, importe: importe, nombre: nombre, fecha: fecha, hora: hora, file: file });
-      }
+      mostrarConfirmarPrecioGasto({ cat: cat, importe: importe, nombre: nombre, fecha: fecha, hora: hora, file: file });
     }).catch(function(e) {
       proc.classList.remove('visible');
       console.error('[Gastos IA] error:', e);
@@ -2923,6 +2945,48 @@ function uploadTicketToFirebase(cat, ticket, file) {
 // incluye propina. Si la hay, se resta del importe del ticket (para que
 // Gastos/Facturación en el Dashboard no la contabilicen como gasto) y esa
 // cantidad se suma aparte a las propinas del conductor.
+// ══ CONFIRMAR O EDITAR EL IMPORTE LEÍDO ══
+// Antes de seguir con cualquier pregunta (propina, quién pagó...), el
+// conductor siempre tiene que confirmar (o corregir a mano) el importe
+// que ha leído la IA — nunca se registra un ticket sin que lo vea.
+var _confirmarPrecioActual = null;
+function mostrarConfirmarPrecioGasto(datos) {
+  _confirmarPrecioActual = datos;
+  var modal = document.getElementById('confirmar-precio-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'confirmar-precio-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  var html = '<div style="background:var(--surface);border:2px solid rgba(178,94,225,.9);border-radius:18px;max-width:360px;width:100%;padding:22px;box-shadow:0 0 18px rgba(178,94,225,.7),0 0 38px rgba(178,94,225,.4)">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:8px">💰 Confirma el importe</div>';
+  html += '<div style="font-size:12.5px;color:var(--text3);margin-bottom:14px">' + catNames[datos.cat] + ' — revisa que sea correcto, o corrígelo si la IA se ha equivocado.</div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">';
+  html += '<span style="font-size:20px;font-weight:800;color:var(--text2)">€</span>';
+  html += '<input id="confirmar-precio-input" type="number" step="0.01" min="0" value="' + (datos.importe||0).toFixed(2) + '" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:20px;font-weight:800;box-sizing:border-box">';
+  html += '</div>';
+  html += '<button onclick="_confirmarPrecioGastoOk()" style="width:100%;padding:14px;border-radius:10px;border:none;background:var(--purple);color:#fff;font-size:14px;font-weight:800;cursor:pointer">Confirmar</button>';
+  html += '</div>';
+  modal.innerHTML = html;
+  modal.style.display = 'flex';
+  setTimeout(function(){ var inp = document.getElementById('confirmar-precio-input'); if (inp) { inp.focus(); inp.select(); } }, 50);
+}
+function _confirmarPrecioGastoOk() {
+  var input = document.getElementById('confirmar-precio-input');
+  var valor = parseFloat(input.value);
+  if (isNaN(valor) || valor < 0) { toast('⚠ Indica un importe válido'); return; }
+  var datos = _confirmarPrecioActual;
+  datos.importe = Math.round(valor * 100) / 100;
+  document.getElementById('confirmar-precio-modal').style.display = 'none';
+
+  if (datos.cat === 'datafono') {
+    preguntarPropinaDatafono(datos);
+  } else {
+    preguntarQuienPago(datos);
+  }
+}
+
 var _propinaDatafonoActual = null;
 function preguntarPropinaDatafono(datos) {
   _propinaDatafonoActual = datos;
