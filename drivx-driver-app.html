@@ -29,6 +29,29 @@
     appId: "1:1089516133318:web:195ef2c2a5db34bd28b0c7"
   };
   firebase.initializeApp(firebaseConfig);
+
+  // ══ Adjunta el "pase" de sesión a TODAS las llamadas a Firebase, sin
+  // tener que tocar ninguna de ellas una por una. Espera a que Firebase
+  // confirme si hay sesión (una sola vez, al cargar) antes de dejar
+  // pasar la primera petición, para no perder una carrera al recargar
+  // la página con la sesión ya iniciada. ══
+  var _firebaseAuthListo = new Promise(function(resolve){
+    firebase.auth().onAuthStateChanged(function(){ resolve(); }, function(){ resolve(); });
+  });
+  var _fetchOriginalFirebase = window.fetch.bind(window);
+  window.fetch = function(url, opciones) {
+    if (typeof url === 'string' && typeof FIREBASE_URL !== 'undefined' && url.indexOf(FIREBASE_URL) === 0) {
+      return _firebaseAuthListo.then(function(){
+        var u = firebase.auth().currentUser;
+        if (!u) return _fetchOriginalFirebase(url, opciones);
+        return u.getIdToken().then(function(token){
+          var sep = url.indexOf('?') === -1 ? '?' : '&';
+          return _fetchOriginalFirebase(url + sep + 'auth=' + token, opciones);
+        }).catch(function(){ return _fetchOriginalFirebase(url, opciones); });
+      });
+    }
+    return _fetchOriginalFirebase(url, opciones);
+  };
 </script>
 <style>
 :root {
@@ -1213,7 +1236,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-1';
+var APP_VERSION = '2026-08-28-2';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1468,9 +1491,18 @@ function triggerPwaInstall() {
 // Mismo sistema que el resto de apps DRIVX: intenta primero la cuenta
 // real; si todavía no existe, usa el sistema antiguo de siempre y, si
 // acierta, crea la cuenta real por detrás sin que el conductor note nada.
+// Firebase exige mínimo 6 caracteres de contraseña; el sistema antiguo
+// permitía desde 4. Para no obligar a nadie a cambiar su contraseña,
+// rellenamos las cortas siempre de la misma forma, transparente — tanto
+// al crear la cuenta como al iniciar sesión, así nunca hay desajuste.
+function passwordParaFirebase(pass) {
+  pass = pass || '';
+  while (pass.length < 6) pass += '·';
+  return pass;
+}
 function intentarLoginFirebaseAuth(email, pass) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve(false);
-  return firebase.auth().signInWithEmailAndPassword(email, pass).then(function(){
+  return firebase.auth().signInWithEmailAndPassword(email, passwordParaFirebase(pass)).then(function(){
     return true;
   }).catch(function(err){
     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email') {
@@ -1481,7 +1513,7 @@ function intentarLoginFirebaseAuth(email, pass) {
 }
 function migrarCuentaAFirebaseAuth(email, pass) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve();
-  return firebase.auth().createUserWithEmailAndPassword(email, pass).catch(function(){});
+  return firebase.auth().createUserWithEmailAndPassword(email, passwordParaFirebase(pass)).catch(function(){});
 }
 
 function doLogin() {
@@ -1734,14 +1766,19 @@ function finalizeRegistro() {
     cid: cid
   };
 
-  Promise.all([
-    fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(registro)
-    }),
-    fetch(FIREBASE_URL + '/invites/' + inv.code + '/usado.json', {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body: 'true'
-    })
-  ]).then(function(){
+  // Creamos la cuenta real de Firebase ANTES de escribir nada — así las
+  // escrituras de activación ya van autenticadas, como exigen las reglas
+  // de seguridad.
+  firebase.auth().createUserWithEmailAndPassword(inv.email, passwordParaFirebase(pass)).then(function(){
+    return Promise.all([
+      fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(registro)
+      }),
+      fetch(FIREBASE_URL + '/invites/' + inv.code + '/usado.json', {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body: 'true'
+      })
+    ]);
+  }).then(function(){
     var u = {
       email: inv.email || null, cid: cid, nombre: nombre,
       matricula: inv.matricula, modelo: inv.modelo, ciudad: inv.ciudad,
