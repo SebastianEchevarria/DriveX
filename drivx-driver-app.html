@@ -1237,7 +1237,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-4';
+var APP_VERSION = '2026-08-28-5';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1817,6 +1817,7 @@ function loginAs(u) {
     localStorage.setItem(_pwaFlagKey, '1');
     setTimeout(maybeShowPwaBanner, 900);
   }
+  setTimeout(ofrecerPushSiPrimeraVezDriver, 2500);
 
   // IMPORTANTE: antes de nada, reiniciamos todo a cero. Si no se hace esto,
   // cuando un conductor cierra sesión y otro distinto entra en el mismo
@@ -2280,6 +2281,14 @@ function estaSuscritoAPush() {
     if (!reg) return false;
     return reg.pushManager.getSubscription().then(function(sub){ return !!sub; });
   }).catch(function(){ return false; });
+}
+// La primera vez que este conductor entra en este dispositivo, se le
+// pide directamente el permiso de notificaciones — sin que tenga que ir
+// a buscarlo a su perfil.
+function ofrecerPushSiPrimeraVezDriver() {
+  if (!pushSoportadoPorNavegador()) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+  activarPushDriver();
 }
 function actualizarBotonPushDriver() {
   var btn = document.getElementById('push-btn-driver');

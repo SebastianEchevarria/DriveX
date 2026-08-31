@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-2';
+var APP_VERSION = '2026-08-28-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1375,6 +1375,7 @@ function enterShell() {
     localStorage.setItem(_pwaFlagKey, '1');
     setTimeout(maybeShowPwaBanner, 900);
   }
+  setTimeout(ofrecerPushSiPrimeraVez, 2500);
 
   // El registro de actividad se limpia solo — cualquier entrada de más de
   // 72h se borra, aunque nadie llegue a abrir el visor.
@@ -1484,6 +1485,16 @@ function pushConfigBoxHtml() {
     '<div id="push-config-desc" style="font-size:11.5px;color:var(--text3);margin-bottom:14px">Recibe un aviso en el móvil o el escritorio (aunque no tengas la app abierta) cuando haya una ITV urgente, un retraso de fichaje, un hueco en la flota o un documento caducando.</div>' +
     '<button id="push-config-btn" onclick="togglePushSubscription()" style="width:100%;padding:11px;border-radius:10px;border:2px solid rgba(0,212,255,.85);background:rgba(0,212,255,.12);color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit">Comprobando…</button>' +
   '</div>';
+}
+// La primera vez que esta persona entra en este dispositivo, se le pide
+// directamente el permiso de notificaciones — sin que tenga que ir a
+// buscarlo a Configuración. Si ya se le preguntó antes (lo aceptara o
+// lo rechazara), no se vuelve a insistir — el propio navegador ya se
+// encarga de no volver a preguntar en ese caso.
+function ofrecerPushSiPrimeraVez() {
+  if (!pushSoportadoPorNavegador()) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+  activarPush();
 }
 function actualizarEstadoBotonPush() {
   var btn = document.getElementById('push-config-btn');

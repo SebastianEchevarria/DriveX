@@ -519,7 +519,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-2';
+var APP_VERSION = '2026-08-28-3';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -756,6 +756,7 @@ function entrarApp() {
     localStorage.setItem(_pwaFlagKey, '1');
     setTimeout(maybeShowPwaBanner, 900);
   }
+  setTimeout(ofrecerPushSiPrimeraVezOwner, 2500);
 
   cargarInicio();
   cargarGastosO();
@@ -927,6 +928,14 @@ function estaSuscritoAPush() {
     if (!reg) return false;
     return reg.pushManager.getSubscription().then(function(sub){ return !!sub; });
   }).catch(function(){ return false; });
+}
+// La primera vez que este propietario entra en este dispositivo, se le
+// pide directamente el permiso de notificaciones — sin que tenga que ir
+// a buscarlo a Inicio.
+function ofrecerPushSiPrimeraVezOwner() {
+  if (!pushSoportadoPorNavegador()) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+  activarPushOwner();
 }
 function actualizarBotonPushOwner() {
   var btn = document.getElementById('push-btn-owner');
