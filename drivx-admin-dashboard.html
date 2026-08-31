@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-11';
+var APP_VERSION = '2026-08-28-12';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4134,7 +4134,7 @@ function abrirTodosConductoresVehiculo(matricula) {
           ) +
         '</div>' +
       '</div>' +
-      '<div style="padding:18px 20px 20px">' + facturacionModalBodyHtml(info) + '</div>' +
+      '<div style="padding:18px 20px 20px">' + envolverConAvisoCierre(uid, facturacionModalBodyHtml(info)) + '</div>' +
     '</div>';
   }).join('');
 
@@ -4143,6 +4143,7 @@ function abrirTodosConductoresVehiculo(matricula) {
   _facturacionMultiListaActual = lista;
 
   lista.forEach(function(info){
+    var uidM = 'fact_' + info.cid;
     pintarBoltCsvGuardado(info.cid);
     pintarUberCabifyGuardado(info.cid);
     pintarViajesPrivadosGuardado(info.cid, info.matricula);
@@ -4150,6 +4151,7 @@ function abrirTodosConductoresVehiculo(matricula) {
     if (((getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal') === 'mensual') {
       pintarResumenMensual(info.cid, info.matricula, 'fact_' + info.cid);
     }
+    comprobarAvisoCierre(info.cid, info.matricula, uidM);
   });
 }
 function closeFacturacionMultiModal() {
@@ -4172,7 +4174,7 @@ function openFacturacionConductorModal(uid) {
   var nombreD = document.getElementById('fact-modal-nombre-d'); if (nombreD) nombreD.textContent = info.nombre;
   var plateD = document.getElementById('fact-modal-plate-d'); if (plateD) plateD.innerHTML = info.matricula ? plateHtmlSmall(info.matricula) : '';
   var turnoD = document.getElementById('fact-modal-turno-d'); if (turnoD) turnoD.innerHTML = '🕐 ' + info.turno;
-  document.getElementById('fact-modal-body').innerHTML = facturacionModalBodyHtml(info);
+  document.getElementById('fact-modal-body').innerHTML = envolverConAvisoCierre(uid, facturacionModalBodyHtml(info));
   _factModalActual = { cid: info.cid, uid: uid, matricula: info.matricula };
   var vTipoBtn = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
   var esMensualModal = vTipoBtn === 'mensual';
@@ -4197,6 +4199,7 @@ function openFacturacionConductorModal(uid) {
   pintarViajesPrivadosGuardado(info.cid, info.matricula);
     pintarTransfersGuardado(info.cid, info.matricula);
   if (vTipoBtn === 'mensual') pintarResumenMensual(info.cid, info.matricula, uid);
+  comprobarAvisoCierre(info.cid, info.matricula, uid);
 
   // Mientras el modal esté abierto, se refresca solo cada pocos segundos —
   // así se ve al instante lo que el conductor vaya subiendo desde su app.
@@ -4213,6 +4216,45 @@ function closeFacturacionConductorModal() {
   document.getElementById('fact-conductor-modal').style.display = 'none';
   if (_factModalRefreshTimer) { clearInterval(_factModalRefreshTimer); _factModalRefreshTimer = null; }
 }
+// ══ AVISO DE "SEMANA/MES CERRADO" — se muestra durante 3 días después de
+// cerrar, tapando los botones de edición con un aviso. El admin puede
+// seguir editando si de verdad lo necesita, pulsando "Editar cierre" a
+// propósito — no es un bloqueo permanente, es para evitar tocar algo por
+// error justo después de haber cerrado y enviado. ══
+var DIAS_AVISO_CIERRE = 3;
+var _cierreDesbloqueadoManualmente = {};
+function envolverConAvisoCierre(uid, bodyHtml) {
+  return '<div style="position:relative">' +
+    '<div id="cierre-lock-overlay-' + uid + '" style="display:none;position:absolute;inset:0;z-index:5;background:rgba(5,7,13,.82);backdrop-filter:blur(2px);border-radius:14px;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center">' +
+      '<div style="font-size:30px">🔒</div>' +
+      '<div style="font-size:14px;font-weight:900;color:#fff">CERRADA</div>' +
+      '<div id="cierre-lock-texto-' + uid + '" style="font-size:12px;color:var(--text3);max-width:260px"></div>' +
+      '<button onclick="desbloquearEdicionCierre(\'' + uid + '\')" style="margin-top:4px;padding:11px 20px;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.85);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.7),0 0 22px rgba(255,215,0,.45)">✏️ Editar cierre</button>' +
+    '</div>' +
+    '<div>' + bodyHtml + '</div>' +
+  '</div>';
+}
+function comprobarAvisoCierre(cid, matricula, uid) {
+  if (!matricula) return;
+  var overlay = document.getElementById('cierre-lock-overlay-' + uid);
+  if (!overlay) return;
+  if (_cierreDesbloqueadoManualmente[uid]) { overlay.style.display = 'none'; return; }
+  var matSlugV = matricula.replace(/\s/g,'_');
+  fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlugV + '/' + cid + '.json').then(function(r){ return r.json(); }).then(function(baseline){
+    if (!baseline || !baseline.ultimoCierreTs) { overlay.style.display = 'none'; return; }
+    var dias = Math.floor((Date.now() - baseline.ultimoCierreTs) / 86400000);
+    if (dias >= DIAS_AVISO_CIERRE) { overlay.style.display = 'none'; return; }
+    var texto = document.getElementById('cierre-lock-texto-' + uid);
+    if (texto) texto.textContent = dias <= 0 ? 'Se cerró hoy. Puedes editar si es necesario.' : ('Se cerró hace ' + dias + ' día' + (dias!==1?'s':'') + '. Puedes editar si es necesario.');
+    overlay.style.display = 'flex';
+  }).catch(function(){ overlay.style.display = 'none'; });
+}
+function desbloquearEdicionCierre(uid) {
+  _cierreDesbloqueadoManualmente[uid] = true;
+  var overlay = document.getElementById('cierre-lock-overlay-' + uid);
+  if (overlay) overlay.style.display = 'none';
+}
+
 function facturacionModalBodyHtml(info) {
   var uid = 'fact_' + info.cid;
   var vTipo = (getAllVehiculos().find(function(x){ return x.matricula === info.matricula; }) || {}).tipoFacturacion || 'semanal';
@@ -9114,6 +9156,15 @@ function confirmarCierrePeriodo() {
     toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
     generarExcelFacturacion();
     registrarActividad('Facturación', 'Cerró periodo (' + p.tipo + ')', p.matricula);
+
+    // El aviso de "CERRADA" aparece al instante en el panel de cada
+    // conductor, si lo tiene abierto ahora mismo — sin tener que cerrar y
+    // volver a abrir su ventana.
+    p.resultados.forEach(function(r){
+      var uidCierre = 'fact_' + r.cid;
+      delete _cierreDesbloqueadoManualmente[uidCierre];
+      comprobarAvisoCierre(r.cid, p.matricula, uidCierre);
+    });
 
     // Aviso push a cada conductor: su facturación de esta semana ya está lista
     p.resultados.forEach(function(r){
