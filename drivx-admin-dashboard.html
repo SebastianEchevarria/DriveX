@@ -1033,7 +1033,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-4';
+var APP_VERSION = '2026-08-28-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3513,22 +3513,20 @@ function paintConductoresScreen() {
 
   container.innerHTML = html;
 
-  // Delegación de eventos: un único listener en el contenedor en vez de
-  // asignar onclick manualmente a cada cabecera — así el desplegar/buscar
-  // funciona siempre, sin depender de que cada elemento se localice y
-  // enlace correctamente justo después de pintar el HTML.
-  container.onclick = function(ev){
-    var header = ev.target.closest('.ccaa-header');
-    if (!header || !container.contains(header)) return;
-    if (ev.target.closest('button') || ev.target.closest('input')) return; // los botones internos ya gestionan su propio clic
-    var gid = header.id.replace(/^btn_/, '');
-    var el = document.getElementById(gid);
-    var chev = document.getElementById('chv_' + gid);
-    if (!el) return;
-    var open = el.style.display !== 'none';
-    el.style.display = open ? 'none' : 'block';
-    if (chev) chev.textContent = open ? '›' : '⌄';
-  };
+  // Mismo patrón que usan Flota, Gastos, Citas, Propietarios y
+  // Facturación: un onclick asignado directamente a cada cabecera por su
+  // ID, en vez de delegación sobre el contenedor.
+  ccaas.forEach(function(cc){
+    var gid = 'cg' + cc.replace(/[^a-zA-Z0-9]/g, '');
+    var btn = document.getElementById('btn_' + gid);
+    if (btn) btn.onclick = function(e){
+      var el = document.getElementById(gid);
+      var chev = document.getElementById('chv_' + gid);
+      var open = el.style.display !== 'none';
+      el.style.display = open ? 'none' : 'block';
+      if (chev) chev.textContent = open ? '›' : '⌄';
+    };
+  });
 }
 
 function filtrarConductoresGrupo(gid, term) {
