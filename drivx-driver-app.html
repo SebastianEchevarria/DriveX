@@ -533,13 +533,13 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
         <div class="cat-name">Parking</div>
         <div class="cat-total" id="total-parking" style="color:var(--cyan)">€ 0</div>
       </label>
-      <label class="cat-btn" id="cat-lavado" for="input-lavado" style="cursor:pointer">
+      <div class="cat-btn" id="cat-lavado" onclick="elegirOrigenLavado()" style="cursor:pointer">
         <input type="file" id="input-lavado" accept="image/*" style="display:none" onchange="onCatFile(this,'lavado')">
         <div class="cat-count" id="count-lavado">0</div>
         <div class="cat-icon">🚿</div>
         <div class="cat-name">Lavado</div>
         <div class="cat-total" id="total-lavado" style="color:var(--purple)">€ 0</div>
-      </label>
+      </div>
       <!-- Lavado manual button (separate, below grid) -->
       <div class="cat-btn" id="cat-datafono" onclick="elegirOrigenDatafono()" style="cursor:pointer">
         <input type="file" id="input-datafono-foto" accept="image/*" capture="environment" style="display:none" onchange="onCatFile(this,'datafono')">
@@ -1237,7 +1237,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-3';
+var APP_VERSION = '2026-08-28-4';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2798,6 +2798,32 @@ function mostrarTicketDuplicado(mensaje) {
   if (modal) modal.style.display = 'flex';
 }
 
+// Lavado: si el ticket es una foto normal, sigue el flujo con IA de
+// siempre. Si es un ticket escrito a mano (la IA no lo puede leer bien),
+// se avisa de que hay que usar "Añadir lavado manual" en su lugar.
+function elegirOrigenLavado() {
+  var modal = document.getElementById('origen-lavado-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'origen-lavado-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML =
+    '<div style="background:var(--surface);border:2px solid rgba(178,94,225,.9);border-radius:18px;max-width:340px;width:100%;padding:22px;box-shadow:0 0 18px rgba(178,94,225,.7),0 0 38px rgba(178,94,225,.4)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+        '<div style="font-size:16px;font-weight:900;color:#fff">🚿 Ticket de lavado</div>' +
+        '<button onclick="document.getElementById(\'origen-lavado-modal\').style.display=\'none\'" style="background:transparent;border:none;color:var(--text3);font-size:22px;line-height:1;cursor:pointer;padding:0 4px">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<button onclick="document.getElementById(\'origen-lavado-modal\').style.display=\'none\';document.getElementById(\'input-lavado\').click()" style="padding:14px;border-radius:10px;border:none;background:var(--purple);color:#fff;font-size:14px;font-weight:800;cursor:pointer">📷 Subir foto del ticket</button>' +
+        '<div style="font-size:11.5px;color:var(--text3);text-align:center;margin:2px 0">¿El ticket está escrito a mano?</div>' +
+        '<button onclick="document.getElementById(\'origen-lavado-modal\').style.display=\'none\';openLavadoManual()" style="padding:14px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer">✍️ Añadir lavado manual</button>' +
+      '</div>' +
+    '</div>';
+  modal.style.display = 'flex';
+}
+
 // Datáfono admite tanto hacer una foto del recibo físico como adjuntar
 // una imagen ya guardada (p.ej. una captura de pantalla de la app SumUp).
 function elegirOrigenDatafono() {
@@ -2810,10 +2836,14 @@ function elegirOrigenDatafono() {
   }
   modal.innerHTML =
     '<div style="background:var(--surface);border:2px solid rgba(178,94,225,.9);border-radius:18px;max-width:340px;width:100%;padding:22px;box-shadow:0 0 18px rgba(178,94,225,.7),0 0 38px rgba(178,94,225,.4)">' +
-      '<div style="font-size:16px;font-weight:900;color:#fff;margin-bottom:16px">💳 Ticket de datáfono</div>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+        '<div style="font-size:16px;font-weight:900;color:#fff">💳 Ticket de datáfono</div>' +
+        '<button onclick="document.getElementById(\'origen-datafono-modal\').style.display=\'none\'" style="background:transparent;border:none;color:var(--text3);font-size:22px;line-height:1;cursor:pointer;padding:0 4px">✕</button>' +
+      '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px">' +
         '<button onclick="document.getElementById(\'origen-datafono-modal\').style.display=\'none\';document.getElementById(\'input-datafono-foto\').click()" style="padding:14px;border-radius:10px;border:none;background:var(--purple);color:#fff;font-size:14px;font-weight:800;cursor:pointer">📷 Hacer foto</button>' +
         '<button onclick="document.getElementById(\'origen-datafono-modal\').style.display=\'none\';document.getElementById(\'input-datafono-adjuntar\').click()" style="padding:14px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer">🖼️ Adjuntar imagen (ej. SumUp)</button>' +
+        '<button onclick="document.getElementById(\'origen-datafono-modal\').style.display=\'none\'" style="padding:12px;border-radius:10px;border:none;background:transparent;color:var(--text3);font-size:13px;font-weight:700;cursor:pointer">Cancelar</button>' +
       '</div>' +
     '</div>';
   modal.style.display = 'flex';
