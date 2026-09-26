@@ -332,6 +332,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <button class="sb-item" id="nav-facturacion" onclick="showDashScreen('facturacion')"><span style="font-family:var(--mono);font-weight:900;font-size:19px;color:#00e676;text-shadow:0 0 4px rgba(0,230,118,1),0 0 10px rgba(0,230,118,.85),0 0 18px rgba(0,230,118,.6),0 0 28px rgba(0,230,118,.35)">&euro;</span>Facturación</button>
     <button class="sb-item" id="nav-estadisticas" onclick="showDashScreen('estadisticas')">Estadísticas</button>
     <button class="sb-item disabled">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
+    <button class="sb-item" id="nav-suscripcion" onclick="showDashScreen('suscripcion')" style="display:none">💳 Suscripción</button>
     <button class="sb-item" id="nav-configuracion" onclick="showDashScreen('configuracion')">Configuración</button>
 
     <div class="sb-foot">
@@ -410,6 +411,11 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <!-- ── CONDUCTORES ── -->
       <div class="dash-screen" id="dash-conductores">
         <div id="conductores-list"></div>
+      </div>
+
+      <!-- ── SUSCRIPCIÓN ── -->
+      <div class="dash-screen" id="dash-suscripcion">
+        <div id="suscripcion-content"></div>
       </div>
 
       <!-- ── CONFIGURACIÓN ── -->
@@ -1033,7 +1039,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-14';
+var APP_VERSION = '2026-08-28-15';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1416,6 +1422,15 @@ function enterShell() {
   document.getElementById('sb-avatar').textContent = iconoRol;
   document.getElementById('sb-name').textContent = currentUser.nombre;
   document.getElementById('sb-role').textContent = etiquetaRol;
+  var navSusc = document.getElementById('nav-suscripcion');
+  if (navSusc) navSusc.style.display = isAdmin ? 'flex' : 'none';
+
+  // Cargamos el límite de la suscripción para todos los roles — así el
+  // aviso de "límite alcanzado" en Flota funciona da igual quién intente
+  // añadir un vehículo, no solo cuando el MASTER visita esa pantalla.
+  fetch(FIREBASE_URL + '/suscripcion.json').then(function(r){ return r.json(); }).then(function(susc){
+    _suscEstadoActual = susc;
+  }).catch(function(){});
 
   renderInicioStats();
   renderFlota();
@@ -1744,7 +1759,7 @@ function aplicarActualizacionPantallaDash(screenId) {
   var fns = {
     flota: renderFlota, gastos: renderGastos, citas: renderCitas,
     propietarios: renderPropietarios, facturacion: renderFacturacion, estadisticas: renderEstadisticas,
-    conductores: renderConductoresScreen, configuracion: renderConfiguracion
+    conductores: renderConductoresScreen, suscripcion: renderSuscripcion, configuracion: renderConfiguracion
   };
   var fn = fns[screenId];
   if (fn) fn();
@@ -1777,6 +1792,7 @@ function showDashScreen(id) {
     facturacion: ['Facturación', 'Vehículos y conductores por comunidad autónoma'],
     estadisticas: ['🏆 Estadísticas', 'Competición semanal entre conductores y vehículos'],
     conductores: ['Conductores', 'Todos los conductores, por comunidad autónoma'],
+    suscripcion: ['💳 Suscripción', 'Vehículos contratados en la plataforma'],
     configuracion: ['Configuración', 'Ajustes generales de la plataforma']
   };
   document.getElementById('tb-title').textContent = titles[id][0];
@@ -1787,6 +1803,7 @@ function showDashScreen(id) {
   if (id === 'facturacion') renderFacturacion();
   if (id === 'estadisticas') renderEstadisticas();
   if (id === 'conductores') renderConductoresScreen();
+  if (id === 'suscripcion') renderSuscripcion();
   if (id === 'configuracion') renderConfiguracion();
 }
 
@@ -2759,6 +2776,187 @@ var _vdInvitadosCacheGlobal = {};
 // ══ CONDUCTORES — listado por comunidad autónoma con perfil y cambio de vehículo ══
 var _conductoresIndex = {};
 // ══ CONFIGURACIÓN → INVITACIÓN ══
+// ══════════════ SUSCRIPCIÓN ══════════════
+// Precio base 299€/vehículo/año. Paquetes fijos con descuento:
+//   5 vehículos  → 280€/veh/año (ahorras 6,4%)
+//   10 vehículos → 270€/veh/año (ahorras 9,7%)
+//   Más de 10    → 260€/veh/año (ahorras 13,0%), cantidad libre desde 11
+// NOTA: de momento esto solo guarda el límite contratado en la base de
+// datos — el cobro real con tarjeta se añadirá más adelante. Por eso el
+// botón dice "Actualizar" y no "Pagar".
+var PRECIO_BASE_VEHICULO = 299;
+var SUSCRIPCION_PAQUETES = {
+  individual:  { label: 'Individual',      precio: 299, cantidadFija: null, ahorro: 0 },
+  paquete5:    { label: 'Paquete 5',        precio: 280, cantidadFija: 5,    ahorro: 6.4 },
+  paquete10:   { label: 'Paquete 10',       precio: 270, cantidadFija: 10,   ahorro: 9.7 },
+  paqueteMas10:{ label: 'Más de 10',        precio: 260, cantidadFija: null, ahorro: 13.0 }
+};
+var _suscModoSel = 'individual';
+var _suscCantIndividual = 1;
+var _suscCantMas10 = 11;
+var _suscEstadoActual = null;
+
+function renderSuscripcion() {
+  var cont = document.getElementById('suscripcion-content');
+  if (!cont) return;
+  if (!currentUser || currentUser.role !== 'admin') { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Solo el Administrador MASTER puede gestionar la suscripción.</div>'; return; }
+  cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
+
+  fetch(FIREBASE_URL + '/suscripcion.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(susc){
+    _suscEstadoActual = susc;
+    if (susc) {
+      _suscModoSel = susc.modo || 'individual';
+      if (_suscModoSel === 'individual') _suscCantIndividual = susc.cantidadVehiculos || 1;
+      if (_suscModoSel === 'paqueteMas10') _suscCantMas10 = susc.cantidadVehiculos || 11;
+    }
+    pintarSuscripcion();
+  });
+}
+
+function vehiculosRegistradosCount() {
+  return getAllVehiculos().filter(function(v){ return v.matricula !== '0000 TST'; }).length;
+}
+
+function pintarSuscripcion() {
+  var cont = document.getElementById('suscripcion-content');
+  if (!cont) return;
+  var registrados = vehiculosRegistradosCount();
+  var contratados = _suscEstadoActual ? (_suscEstadoActual.cantidadVehiculos || 0) : 0;
+  var pct = contratados > 0 ? Math.min(100, Math.round((registrados / contratados) * 100)) : 0;
+  var colorBarra = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--green)';
+
+  var html = '';
+
+  // Estado actual
+  html += '<div style="background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,.6);border-radius:18px;padding:22px;margin-bottom:24px">';
+  html += '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Estado de tu suscripción</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
+  html += '<span style="font-family:var(--mono);font-size:28px;font-weight:900;color:#fff">' + registrados + ' <span style="font-size:16px;color:var(--text3);font-weight:600">/ ' + contratados + ' contratados</span></span>';
+  if (_suscEstadoActual) html += '<span style="font-size:12px;color:var(--text3)">€ ' + (_suscEstadoActual.precioPorVehiculo||0).toFixed(0) + '/veh/año</span>';
+  html += '</div>';
+  html += '<div style="background:rgba(255,255,255,.08);border-radius:8px;height:12px;overflow:hidden;margin-bottom:8px">';
+  html += '<div style="width:' + pct + '%;height:100%;background:' + colorBarra + ';box-shadow:0 0 8px ' + colorBarra + ';border-radius:8px"></div>';
+  html += '</div>';
+  if (!_suscEstadoActual) {
+    html += '<div style="font-size:12px;color:var(--amber)">⚠ Todavía no has contratado ningún vehículo. Elige abajo cuántos necesitas.</div>';
+  } else if (registrados >= contratados) {
+    html += '<div style="font-size:12px;color:var(--red)">🚫 Has alcanzado tu límite contratado — amplía tu suscripción para poder añadir más vehículos en Flota.</div>';
+  } else {
+    html += '<div style="font-size:12px;color:var(--text3)">Puedes añadir ' + (contratados - registrados) + ' vehículo' + ((contratados-registrados)!==1?'s':'') + ' más antes de necesitar ampliar.</div>';
+  }
+  if (_suscEstadoActual && _suscEstadoActual.totalAnual) {
+    html += '<div style="font-size:12px;color:var(--text3);margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.12)">Coste anual actual: <b style="color:#fff">€ ' + _suscEstadoActual.totalAnual.toLocaleString('es-ES') + '</b></div>';
+  }
+  html += '</div>';
+
+  html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:22px">🔧 De momento este apartado solo actualiza tu límite de vehículos — el cobro real con tarjeta se añadirá en otra fase. Nada se te cobra todavía al pulsar "Actualizar suscripción".</div>';
+
+  // Modo individual
+  var indivSel = _suscModoSel === 'individual';
+  html += '<div class="susc-card" data-modo="individual" onclick="seleccionarModoSuscripcion(\'individual\')" style="cursor:pointer;border-radius:16px;padding:20px;margin-bottom:16px;' + (indivSel ? 'border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.08);box-shadow:0 0 14px rgba(0,212,255,.6),0 0 30px rgba(0,212,255,.3)' : 'border:1.5px solid var(--border2);background:var(--surface2)') + '">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+  html += '<div style="font-size:15px;font-weight:900;color:#fff">Individual — sin paquete</div>';
+  if (indivSel) html += '<span style="color:var(--cyan);font-size:18px">✓</span>';
+  html += '</div>';
+  html += '<div style="font-size:12px;color:var(--text3);margin-bottom:16px">€ 299 / vehículo / año — sube o baja la cantidad libremente</div>';
+  html += '<div style="display:flex;align-items:center;gap:16px">';
+  html += '<button onclick="event.stopPropagation();cambiarCantidadIndividual(-1)" style="width:40px;height:40px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:20px;font-weight:900;cursor:pointer">−</button>';
+  html += '<span style="font-family:var(--mono);font-size:22px;font-weight:900;color:#fff;min-width:40px;text-align:center">' + _suscCantIndividual + '</span>';
+  html += '<button onclick="event.stopPropagation();cambiarCantidadIndividual(1)" style="width:40px;height:40px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:20px;font-weight:900;cursor:pointer">+</button>';
+  html += '<span style="margin-left:auto;font-family:var(--mono);font-size:16px;font-weight:800;color:var(--cyan)">€ ' + (_suscCantIndividual * 299).toLocaleString('es-ES') + '/año</span>';
+  html += '</div></div>';
+
+  // Paquetes fijos
+  html += '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:26px 0 14px">O elige un paquete con descuento</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">';
+
+  [['paquete5', 5], ['paquete10', 10]].forEach(function(par){
+    var key = par[0], cant = par[1];
+    var p = SUSCRIPCION_PAQUETES[key];
+    var sel = _suscModoSel === key;
+    html += '<div onclick="seleccionarModoSuscripcion(\'' + key + '\')" style="cursor:pointer;border-radius:16px;padding:20px;position:relative;' + (sel ? 'border:2.5px solid rgba(0,230,118,1);background:rgba(0,230,118,.08);box-shadow:0 0 14px rgba(0,230,118,.6),0 0 30px rgba(0,230,118,.3)' : 'border:1.5px solid var(--border2);background:var(--surface2)') + '">';
+    if (sel) html += '<span style="position:absolute;top:16px;right:16px;color:var(--green);font-size:18px">✓</span>';
+    html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:4px">' + p.label + ' vehículos</div>';
+    html += '<div style="font-family:var(--mono);font-size:24px;font-weight:900;color:#fff;margin-bottom:2px">€ ' + p.precio + '<span style="font-size:12px;color:var(--text3);font-weight:600">/veh/año</span></div>';
+    html += '<div style="display:inline-block;font-size:11px;font-weight:800;color:var(--green);background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.4);border-radius:100px;padding:3px 10px;margin:8px 0 12px">Ahorras ' + p.ahorro.toFixed(1).replace('.',',') + '%</div>';
+    html += '<div style="font-family:var(--mono);font-size:13px;color:var(--text3)">Total: € ' + (p.precio * cant).toLocaleString('es-ES') + '/año</div>';
+    html += '</div>';
+  });
+
+  // Más de 10 (cantidad libre desde 11)
+  var mas10Sel = _suscModoSel === 'paqueteMas10';
+  html += '<div onclick="seleccionarModoSuscripcion(\'paqueteMas10\')" style="cursor:pointer;border-radius:16px;padding:20px;position:relative;' + (mas10Sel ? 'border:2.5px solid rgba(178,94,225,1);background:rgba(178,94,225,.08);box-shadow:0 0 14px rgba(178,94,225,.6),0 0 30px rgba(178,94,225,.3)' : 'border:1.5px solid var(--border2);background:var(--surface2)') + '">';
+  if (mas10Sel) html += '<span style="position:absolute;top:16px;right:16px;color:#b25ee1;font-size:18px">✓</span>';
+  html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:4px">Más de 10 vehículos</div>';
+  html += '<div style="font-family:var(--mono);font-size:24px;font-weight:900;color:#fff;margin-bottom:2px">€ 260<span style="font-size:12px;color:var(--text3);font-weight:600">/veh/año</span></div>';
+  html += '<div style="display:inline-block;font-size:11px;font-weight:800;color:#b25ee1;background:rgba(178,94,225,.12);border:1px solid rgba(178,94,225,.4);border-radius:100px;padding:3px 10px;margin:8px 0 14px">Ahorras 13,0%</div>';
+  html += '<div style="display:flex;align-items:center;gap:12px">';
+  html += '<button onclick="event.stopPropagation();cambiarCantidadMas10(-1)" style="width:34px;height:34px;border-radius:9px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:17px;font-weight:900;cursor:pointer">−</button>';
+  html += '<span style="font-family:var(--mono);font-size:17px;font-weight:900;color:#fff;min-width:28px;text-align:center">' + _suscCantMas10 + '</span>';
+  html += '<button onclick="event.stopPropagation();cambiarCantidadMas10(1)" style="width:34px;height:34px;border-radius:9px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:17px;font-weight:900;cursor:pointer">+</button>';
+  html += '</div>';
+  html += '<div style="font-family:var(--mono);font-size:13px;color:var(--text3);margin-top:10px">Total: € ' + (_suscCantMas10 * 260).toLocaleString('es-ES') + '/año</div>';
+  html += '</div>';
+
+  html += '</div>';
+
+  // Resumen y botón de actualizar
+  var p = SUSCRIPCION_PAQUETES[_suscModoSel];
+  var cantFinal = _suscModoSel === 'individual' ? _suscCantIndividual : (p.cantidadFija || _suscCantMas10);
+  var totalFinal = cantFinal * p.precio;
+  html += '<div style="background:var(--surface2);border:1.5px solid var(--border2);border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">';
+  html += '<div><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Elegido: ' + p.label + '</div>';
+  html += '<div style="font-family:var(--mono);font-size:20px;font-weight:900;color:#fff">' + cantFinal + ' vehículos · € ' + totalFinal.toLocaleString('es-ES') + '/año</div></div>';
+  html += '<button onclick="confirmarActualizarSuscripcion()" style="padding:14px 26px;border-radius:12px;border:2.5px solid rgba(0,230,118,1);background:rgba(0,230,118,.16);color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9);font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.65)">✓ Actualizar suscripción</button>';
+  html += '</div>';
+
+  cont.innerHTML = html;
+}
+
+function seleccionarModoSuscripcion(modo) {
+  _suscModoSel = modo;
+  if (modo === 'individual' && _suscCantIndividual < 1) _suscCantIndividual = 1;
+  if (modo === 'paqueteMas10' && _suscCantMas10 < 11) _suscCantMas10 = 11;
+  pintarSuscripcion();
+}
+function cambiarCantidadIndividual(delta) {
+  _suscModoSel = 'individual';
+  _suscCantIndividual = Math.max(1, _suscCantIndividual + delta);
+  pintarSuscripcion();
+}
+function cambiarCantidadMas10(delta) {
+  _suscModoSel = 'paqueteMas10';
+  _suscCantMas10 = Math.max(11, _suscCantMas10 + delta);
+  pintarSuscripcion();
+}
+function confirmarActualizarSuscripcion() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+  var p = SUSCRIPCION_PAQUETES[_suscModoSel];
+  var cantidad = _suscModoSel === 'individual' ? _suscCantIndividual : (p.cantidadFija || _suscCantMas10);
+  var registrados = vehiculosRegistradosCount();
+  if (cantidad < registrados) {
+    alert('No puedes contratar menos vehículos (' + cantidad + ') de los que ya tienes registrados (' + registrados + '). Elimina alguno primero en Flota, o elige una cantidad mayor.');
+    return;
+  }
+  var total = cantidad * p.precio;
+  var datos = {
+    modo: _suscModoSel,
+    cantidadVehiculos: cantidad,
+    precioPorVehiculo: p.precio,
+    totalAnual: total,
+    actualizadoTs: Date.now(),
+    actualizadoPor: currentUser.email || currentUser.nombre || ''
+  };
+  fetch(FIREBASE_URL + '/suscripcion.json', {
+    method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(datos)
+  }).then(function(){
+    _suscEstadoActual = datos;
+    toast('✓ Suscripción actualizada: ' + cantidad + ' vehículos');
+    registrarActividad('Suscripción', 'Actualizó suscripción', cantidad + ' vehículos · ' + p.label + ' · € ' + total + '/año');
+    pintarSuscripcion();
+  }).catch(function(){ toast('❌ No se pudo actualizar la suscripción'); });
+}
+
 function renderConfiguracion() {
   var cont = document.getElementById('configuracion-content');
   if (!cont) return;
@@ -9685,6 +9883,17 @@ function agregarComunidad(cc) {
 var _avPendingFiles = {};
 function openAddVehicleModal(ccaa) {
   if (!puedeEditar()) return;
+  var registrados = vehiculosRegistradosCount();
+  var contratados = _suscEstadoActual ? (_suscEstadoActual.cantidadVehiculos || 0) : null;
+  if (contratados !== null && registrados >= contratados) {
+    if (currentUser && currentUser.role === 'admin') {
+      alert('Has alcanzado tu límite de suscripción (' + contratados + ' vehículos). Ve a Suscripción para ampliarlo antes de añadir otro.');
+      showDashScreen('suscripcion');
+    } else {
+      alert('Se ha alcanzado el límite de vehículos contratados en la suscripción. Pide al Administrador MASTER que lo amplíe.');
+    }
+    return;
+  }
   document.getElementById('av-matricula').value = '';
   document.getElementById('av-marca').value = '';
   document.getElementById('av-modelo').value = '';
