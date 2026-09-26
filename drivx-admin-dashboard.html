@@ -1039,7 +1039,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-17';
+var APP_VERSION = '2026-08-28-18';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2785,14 +2785,18 @@ var _conductoresIndex = {};
 // tarjeta se añadirá más adelante. Por eso el botón dice "Añadir" y no
 // "Pagar".
 var PRECIO_VEHICULO = 299;
-var _suscVehiculos = []; // [{id, fechaContratacion:'YYYY-MM-DD', precio, creadoTs}]
+var _suscVehiculos = []; // [{id, fechaContratacion:'YYYY-MM-DD', precio, creadoTs}] — lo YA guardado de verdad
+var _suscBorrador = 0; // cantidad que se ve en pantalla mientras tocas + y − , sin guardar todavía
 
 function renderSuscripcion() {
   var cont = document.getElementById('suscripcion-content');
   if (!cont) return;
   if (!currentUser || currentUser.role !== 'admin') { cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Solo el Administrador MASTER puede gestionar la suscripción.</div>'; return; }
   cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3)">Cargando…</div>';
-  cargarSuscripcionVehiculos().then(pintarSuscripcion);
+  cargarSuscripcionVehiculos().then(function(){
+    _suscBorrador = _suscVehiculos.length;
+    pintarSuscripcion();
+  });
 }
 
 function cargarSuscripcionVehiculos() {
@@ -2828,7 +2832,7 @@ function pintarSuscripcion() {
   var cont = document.getElementById('suscripcion-content');
   if (!cont) return;
   var registrados = vehiculosRegistradosCount();
-  var contratados = _suscVehiculos.length;
+  var contratados = _suscVehiculos.length; // lo YA confirmado — esto es lo que manda en Flota y en Próximos cobros
   var totalAnual = _suscVehiculos.reduce(function(s,v){ return s + (v.precio||PRECIO_VEHICULO); }, 0);
   var pct = contratados > 0 ? Math.min(100, Math.round((registrados / contratados) * 100)) : 0;
   var colorBarra = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--green)';
@@ -2859,16 +2863,27 @@ function pintarSuscripcion() {
 
   html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:22px">🔧 De momento esto solo guarda el registro — el cobro real con tarjeta se añadirá en otra fase. Nada se te cobra todavía al añadir un vehículo aquí.</div>';
 
-  // Añadir / quitar
-  html += '<div style="border-radius:16px;padding:24px;margin-bottom:28px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.08);box-shadow:0 0 14px rgba(0,212,255,.6),0 0 30px rgba(0,212,255,.3)">';
+  // Añadir / quitar (esto es solo un BORRADOR — no se guarda nada hasta
+  // pulsar "Actualizar suscripción" y confirmar en el aviso)
+  var hayCambios = _suscBorrador !== contratados;
+  html += '<div style="border-radius:16px;padding:24px;margin-bottom:16px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.08);box-shadow:0 0 14px rgba(0,212,255,.6),0 0 30px rgba(0,212,255,.3)">';
   html += '<div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:4px">Vehículos contratados</div>';
-  html += '<div style="font-size:12px;color:var(--text3);margin-bottom:20px">€ ' + PRECIO_VEHICULO + ' / vehículo / año — cada uno se cobra cada año en la fecha en que lo añadas aquí</div>';
+  html += '<div style="font-size:12px;color:var(--text3);margin-bottom:20px">€ ' + PRECIO_VEHICULO + ' / vehículo / año — cada uno se cobra cada año en la fecha en que lo confirmes</div>';
   html += '<div style="display:flex;align-items:center;gap:18px">';
-  html += '<button onclick="quitarVehiculoSuscripcion()" style="width:46px;height:46px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:24px;font-weight:900;cursor:pointer">−</button>';
-  html += '<span style="font-family:var(--mono);font-size:28px;font-weight:900;color:#fff;min-width:56px;text-align:center">' + contratados + '</span>';
-  html += '<button onclick="agregarVehiculoSuscripcion()" style="width:46px;height:46px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:24px;font-weight:900;cursor:pointer">+</button>';
-  html += '<span style="margin-left:auto;font-family:var(--mono);font-size:20px;font-weight:900;color:var(--cyan)">€ ' + totalAnual.toLocaleString('es-ES') + '/año</span>';
-  html += '</div></div>';
+  html += '<button onclick="cambiarBorradorSuscripcion(-1)" style="width:46px;height:46px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:24px;font-weight:900;cursor:pointer">−</button>';
+  html += '<span style="font-family:var(--mono);font-size:28px;font-weight:900;color:#fff;min-width:56px;text-align:center">' + _suscBorrador + '</span>';
+  html += '<button onclick="cambiarBorradorSuscripcion(1)" style="width:46px;height:46px;border-radius:12px;border:1.5px solid var(--border2);background:var(--bg2);color:#fff;font-size:24px;font-weight:900;cursor:pointer">+</button>';
+  html += '<span style="margin-left:auto;font-family:var(--mono);font-size:20px;font-weight:900;color:var(--cyan)">€ ' + (_suscBorrador * PRECIO_VEHICULO).toLocaleString('es-ES') + '/año</span>';
+  html += '</div>';
+  if (hayCambios) {
+    var delta = _suscBorrador - contratados;
+    html += '<div style="font-size:11.5px;color:var(--amber);margin-top:12px">⚠ ' + (delta > 0 ? ('Vas a añadir ' + delta + ' vehículo' + (delta!==1?'s':'') + ' nuevo' + (delta!==1?'s':'')) : ('Vas a quitar ' + Math.abs(delta) + ' vehículo' + (Math.abs(delta)!==1?'s':''))) + ' — todavía no se ha guardado nada.</div>';
+  }
+  html += '</div>';
+
+  html += '<div style="display:flex;justify-content:flex-end;margin-bottom:28px">';
+  html += '<button onclick="pedirConfirmarActualizarSuscripcion()" ' + (hayCambios ? '' : 'disabled') + ' style="padding:14px 26px;border-radius:12px;border:2.5px solid ' + (hayCambios ? 'rgba(0,230,118,1)' : 'var(--border2)') + ';background:' + (hayCambios ? 'rgba(0,230,118,.16)' : 'var(--surface2)') + ';color:' + (hayCambios ? '#fff' : 'var(--text3)') + ';text-shadow:' + (hayCambios ? '0 0 5px rgba(255,255,255,.9)' : 'none') + ';font-size:14px;font-weight:900;cursor:' + (hayCambios ? 'pointer' : 'default') + ';font-family:inherit;box-shadow:' + (hayCambios ? '0 0 16px rgba(0,230,118,.95),0 0 34px rgba(0,230,118,.65)' : 'none') + '">✓ Actualizar suscripción</button>';
+  html += '</div>';
 
   // Próximos cobros
   html += '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">📅 Próximos cobros</div>';
@@ -2899,36 +2914,96 @@ function pintarSuscripcion() {
   cont.innerHTML = html;
 }
 
-function agregarVehiculoSuscripcion() {
+function cambiarBorradorSuscripcion(delta) {
+  _suscBorrador = Math.max(0, _suscBorrador + delta);
+  pintarSuscripcion();
+}
+
+// ── Cartel de confirmación con LED, antes de guardar nada de verdad ──
+function pedirConfirmarActualizarSuscripcion() {
   if (!currentUser || currentUser.role !== 'admin') return;
+  var contratados = _suscVehiculos.length;
+  var delta = _suscBorrador - contratados;
+  if (delta === 0) return;
+
+  if (delta < 0) {
+    var registrados = vehiculosRegistradosCount();
+    if (_suscBorrador < registrados) {
+      alert('No puedes bajar a ' + _suscBorrador + ' — ya tienes ' + registrados + ' vehículos registrados en Flota. Elimina alguno primero en Flota si quieres reducir la suscripción.');
+      return;
+    }
+  }
+
+  var esAlta = delta > 0;
+  var cantidad = Math.abs(delta);
+  var colorRgb = esAlta ? '0,230,118' : '255,179,0';
+  var titulo = esAlta
+    ? ('¿Has añadido ' + (cantidad === 1 ? 'un nuevo vehículo' : (cantidad + ' nuevos vehículos')) + '?')
+    : ('¿Vas a quitar ' + (cantidad === 1 ? 'un vehículo' : (cantidad + ' vehículos')) + ' de la suscripción?');
+  var subtitulo = esAlta
+    ? ('Se registrará' + (cantidad!==1?'n':'') + ' con fecha de hoy, y a partir de ahora se cobrará' + (cantidad!==1?'n':'') + ' cada año en esta misma fecha.')
+    : ('Se quitará' + (cantidad!==1?'n':'') + ' de tus próximos cobros. Esto no se puede deshacer.');
+
+  var modal = document.getElementById('confirm-susc-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'confirm-susc-modal';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:10040;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML =
+    '<div style="background:var(--surface);border:2.5px solid rgba(' + colorRgb + ',1);border-radius:20px;max-width:380px;width:100%;padding:28px;box-shadow:0 0 18px rgba(' + colorRgb + ',.75),0 0 40px rgba(' + colorRgb + ',.45),0 0 70px rgba(' + colorRgb + ',.2)">' +
+      '<div style="font-size:36px;text-align:center;margin-bottom:14px">' + (esAlta ? '🚗' : '⚠️') + '</div>' +
+      '<div style="font-size:17px;font-weight:900;color:#fff;text-align:center;margin-bottom:10px;text-shadow:0 0 8px rgba(' + colorRgb + ',.6)">' + titulo + '</div>' +
+      '<div style="font-size:12.5px;color:var(--text3);text-align:center;margin-bottom:24px">' + subtitulo + '</div>' +
+      '<div style="display:flex;gap:10px">' +
+        '<button onclick="cancelarActualizarSuscripcion()" style="flex:1;padding:13px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit">Cancelar</button>' +
+        '<button onclick="_confirmarActualizarSuscripcionOk()" style="flex:1;padding:13px;border-radius:10px;border:none;background:rgba(' + colorRgb + ',1);color:#02131d;font-size:13.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(' + colorRgb + ',.8),0 0 22px rgba(' + colorRgb + ',.5)">✓ Aceptar</button>' +
+      '</div>' +
+    '</div>';
+  modal.style.display = 'flex';
+}
+function cancelarActualizarSuscripcion() {
+  var modal = document.getElementById('confirm-susc-modal');
+  if (modal) modal.style.display = 'none';
+  _suscBorrador = _suscVehiculos.length; // deshace los + / − sin guardar
+  pintarSuscripcion();
+}
+function _confirmarActualizarSuscripcionOk() {
+  var modal = document.getElementById('confirm-susc-modal');
+  if (modal) modal.style.display = 'none';
+
+  var contratados = _suscVehiculos.length;
+  var delta = _suscBorrador - contratados;
   var hoy = new Date();
   var fechaStr = hoy.toISOString().slice(0,10);
-  var nuevo = { fechaContratacion: fechaStr, precio: PRECIO_VEHICULO, creadoTs: Date.now(), creadoPor: currentUser.email || currentUser.nombre || '' };
-  fetch(FIREBASE_URL + '/suscripcion_vehiculos.json', {
-    method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevo)
-  }).then(function(r){ return r.json(); }).then(function(res){
-    nuevo.id = res.name;
-    _suscVehiculos.push(nuevo);
-    toast('✓ Vehículo añadido — se cobrará cada año el ' + formatearFechaEs(hoy));
-    registrarActividad('Suscripción', 'Añadió vehículo a la suscripción', 'Cobro anual cada ' + formatearFechaEs(hoy) + ' · € ' + PRECIO_VEHICULO);
-    pintarSuscripcion();
-  }).catch(function(){ toast('❌ No se pudo añadir'); });
-}
-function quitarVehiculoSuscripcion() {
-  if (!currentUser || currentUser.role !== 'admin') return;
-  if (!_suscVehiculos.length) return;
-  var registrados = vehiculosRegistradosCount();
-  if (_suscVehiculos.length - 1 < registrados) {
-    alert('No puedes bajar de ' + registrados + ' — es la cantidad de vehículos que ya tienes registrados en Flota. Elimina uno primero en Flota si quieres reducir la suscripción.');
-    return;
+
+  if (delta > 0) {
+    var promesas = [];
+    for (var i = 0; i < delta; i++) {
+      var nuevo = { fechaContratacion: fechaStr, precio: PRECIO_VEHICULO, creadoTs: Date.now() + i, creadoPor: currentUser.email || currentUser.nombre || '' };
+      promesas.push(
+        fetch(FIREBASE_URL + '/suscripcion_vehiculos.json', {
+          method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevo)
+        }).then(function(r){ return r.json(); }).then(function(res){ nuevo.id = res.name; _suscVehiculos.push(nuevo); })
+      );
+    }
+    Promise.all(promesas).then(function(){
+      toast('✓ Suscripción actualizada — se cobrará' + (delta!==1?'n':'') + ' cada año el ' + formatearFechaEs(hoy));
+      registrarActividad('Suscripción', 'Añadió ' + delta + ' vehículo(s) a la suscripción', 'Cobro anual cada ' + formatearFechaEs(hoy) + ' · € ' + PRECIO_VEHICULO + ' c/u');
+      pintarSuscripcion();
+    }).catch(function(){ toast('❌ No se pudo actualizar la suscripción'); });
+  } else {
+    var aQuitar = _suscVehiculos.slice(_suscVehiculos.length + delta); // los últimos |delta|
+    Promise.all(aQuitar.map(function(v){
+      return fetch(FIREBASE_URL + '/suscripcion_vehiculos/' + v.id + '.json', { method: 'DELETE' });
+    })).then(function(){
+      _suscVehiculos = _suscVehiculos.slice(0, _suscVehiculos.length + delta);
+      toast('Suscripción actualizada — se quitaron ' + Math.abs(delta) + ' vehículo(s)');
+      registrarActividad('Suscripción', 'Quitó ' + Math.abs(delta) + ' vehículo(s) de la suscripción', '');
+      pintarSuscripcion();
+    }).catch(function(){ toast('❌ No se pudo actualizar la suscripción'); });
   }
-  var ultimo = _suscVehiculos[_suscVehiculos.length - 1];
-  fetch(FIREBASE_URL + '/suscripcion_vehiculos/' + ultimo.id + '.json', { method: 'DELETE' }).then(function(){
-    _suscVehiculos.pop();
-    toast('Vehículo quitado de la suscripción (el contratado el ' + formatearFechaEs(new Date(ultimo.fechaContratacion + 'T00:00:00')) + ')');
-    registrarActividad('Suscripción', 'Quitó vehículo de la suscripción', 'Contratado el ' + ultimo.fechaContratacion);
-    pintarSuscripcion();
-  }).catch(function(){ toast('❌ No se pudo quitar'); });
 }
 
 function renderConfiguracion() {
