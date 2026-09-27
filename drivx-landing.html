@@ -22,8 +22,8 @@
     --green:#00e676;
     --red:#ff4757;
     --text:#eef4fb;
-    --text-dim:#93a1b8;
-    --text-dim2:#647089;
+    --text-dim:#ffffff;
+    --text-dim2:#eef4fb;
     --border:rgba(0,212,255,.22);
     --font-display:'Space Grotesk',sans-serif;
     --font-body:'Manrope',sans-serif;
@@ -197,7 +197,7 @@
     display:flex;flex-direction:column}
   .price-card.hi{border-color:rgba(0,212,255,.6);background:linear-gradient(180deg,rgba(0,212,255,.06),var(--panel));
     box-shadow:0 20px 60px rgba(0,212,255,.2);position:relative}
-  .price-card.hi::after{content:'MÁS ELEGIDO';position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  .price-card.hi::after{content:none;position:absolute;top:-13px;left:50%;transform:translateX(-50%);
     background:linear-gradient(90deg,#00d4ff,#5cc8ff);color:#02131d;font-family:var(--font-mono);font-size:11px;font-weight:700;
     padding:5px 14px;border-radius:100px;letter-spacing:.05em}
   .price-name{font-size:13px;color:var(--text-dim2);text-transform:uppercase;letter-spacing:.06em;font-family:var(--font-mono);margin-bottom:10px}
@@ -252,6 +252,27 @@
     section{padding:60px 0}
     header.hero{padding:56px 0 40px}
   }
+
+  /* ══════ LEDs de contorno intensos (v2026-09-27-3) ══════ */
+  .panel{border:2.5px solid rgba(0,212,255,1);box-shadow:0 0 14px rgba(0,212,255,.75),0 0 34px rgba(0,212,255,.4),0 30px 70px rgba(0,0,0,.55)}
+  .eco-card{border-width:2.5px}
+  .eco-c1{border-color:rgba(0,212,255,1);box-shadow:0 0 14px rgba(0,212,255,.75),0 0 32px rgba(0,212,255,.35)}
+  .eco-c2{border-color:rgba(0,230,118,1);box-shadow:0 0 14px rgba(0,230,118,.75),0 0 32px rgba(0,230,118,.35)}
+  .eco-c3{border-color:rgba(255,179,0,1);box-shadow:0 0 14px rgba(255,179,0,.75),0 0 32px rgba(255,179,0,.35)}
+  .eco-c4{border-color:rgba(139,107,255,1);box-shadow:0 0 14px rgba(139,107,255,.75),0 0 32px rgba(139,107,255,.35)}
+  .eco-c1:hover{box-shadow:0 0 20px rgba(0,212,255,1),0 0 44px rgba(0,212,255,.55)}
+  .eco-c2:hover{box-shadow:0 0 20px rgba(0,230,118,1),0 0 44px rgba(0,230,118,.55)}
+  .eco-c3:hover{box-shadow:0 0 20px rgba(255,179,0,1),0 0 44px rgba(255,179,0,.55)}
+  .eco-c4:hover{box-shadow:0 0 20px rgba(139,107,255,1),0 0 44px rgba(139,107,255,.55)}
+  .eco-c1 .eco-icon{box-shadow:0 0 0 2px rgba(0,212,255,1),0 0 12px rgba(0,212,255,.7)}
+  .eco-c2 .eco-icon{box-shadow:0 0 0 2px rgba(0,230,118,1),0 0 12px rgba(0,230,118,.7)}
+  .eco-c3 .eco-icon{box-shadow:0 0 0 2px rgba(255,179,0,1),0 0 12px rgba(255,179,0,.7)}
+  .eco-c4 .eco-icon{box-shadow:0 0 0 2px rgba(139,107,255,1),0 0 12px rgba(139,107,255,.7)}
+  .eco-card li::before{background:#fff}
+  .feat-card{border:2px solid rgba(0,212,255,1);box-shadow:0 0 12px rgba(0,212,255,.65),0 0 28px rgba(0,212,255,.3)}
+  .price-card,.price-card.hi{border:2.5px solid rgba(0,212,255,1);box-shadow:0 0 16px rgba(0,212,255,.85),0 0 40px rgba(0,212,255,.45),0 20px 60px rgba(0,212,255,.2)}
+  .final-cta{border:2.5px solid rgba(0,212,255,1);box-shadow:0 0 16px rgba(0,212,255,.8),0 0 40px rgba(0,212,255,.4)}
+  .faq-item{border-bottom:1.5px solid rgba(0,212,255,.55)}
 </style>
 </head>
 <body>
@@ -453,53 +474,25 @@
   <div class="wrap">
     <div class="sec-head">
       <span class="sec-tag">Precios</span>
-      <h2>Un precio por veh&iacute;culo. Sin sorpresas.</h2>
-      <p>Prueba 14 d&iacute;as gratis en cualquier plan. Cancela cuando quieras.</p>
+      <h2>Un precio &uacute;nico. Sin planes, sin sorpresas.</h2>
+      <p>Pagas solo por los veh&iacute;culos que tienes. Todo DRIVX incluido desde el primero.</p>
     </div>
-    <div class="toggle-wrap">
-      <span class="toggle-label active" id="lblMonthly">Mensual</span>
-      <div class="toggle" id="billingToggle" onclick="toggleBilling()"><div class="knob"></div></div>
-      <span class="toggle-label" id="lblAnnual">Anual</span>
-      <span class="save-badge">Ahorra 2 meses</span>
-    </div>
-    <div class="price-grid">
-      <div class="price-card">
-        <div class="price-name">Arranque</div>
-        <div class="price-tag"><span class="p-val" data-m="9" data-a="7.5">9&euro;</span><span>/veh&iacute;culo/mes</span></div>
-        <div class="price-sub">Hasta 8 veh&iacute;culos</div>
-        <ul>
-          <li><span class="check">&#10003;</span> Dashboard + app Driver</li>
-          <li><span class="check">&#10003;</span> Facturaci&oacute;n autom&aacute;tica semanal</li>
-          <li><span class="check">&#10003;</span> Documentaci&oacute;n y avisos de ITV</li>
-          <li><span class="check">&#10003;</span> 1 comunidad aut&oacute;noma</li>
-        </ul>
-        <a href="#cta" class="btn btn-ghost">Empezar prueba</a>
-      </div>
+    <div class="price-grid" style="grid-template-columns:minmax(0,520px);justify-content:center">
       <div class="price-card hi">
-        <div class="price-name">Flota</div>
-        <div class="price-tag"><span class="p-val" data-m="14" data-a="11.5">14&euro;</span><span>/veh&iacute;culo/mes</span></div>
-        <div class="price-sub">Hasta 40 veh&iacute;culos</div>
+        <div class="price-name">Todo incluido</div>
+        <div class="price-tag">299&euro;<span>/veh&iacute;culo/a&ntilde;o</span></div>
+        <div class="price-sub">Cada veh&iacute;culo se renueva un a&ntilde;o despu&eacute;s de contratarlo</div>
         <ul>
-          <li><span class="check">&#10003;</span> Todo lo de Arranque</li>
-          <li><span class="check">&#10003;</span> App Propietario y app Supervisor</li>
+          <li><span class="check">&#10003;</span> Las 4 apps: Dashboard, Driver, Propietario y Supervisor</li>
+          <li><span class="check">&#10003;</span> Facturaci&oacute;n autom&aacute;tica semanal (Uber, Bolt y Cabify)</li>
+          <li><span class="check">&#10003;</span> Documentaci&oacute;n y avisos de ITV</li>
           <li><span class="check">&#10003;</span> Comunidades aut&oacute;nomas ilimitadas</li>
           <li><span class="check">&#10003;</span> Notificaciones push reales</li>
           <li><span class="check">&#10003;</span> Competici&oacute;n entre conductores</li>
           <li><span class="check">&#10003;</span> Historial y gr&aacute;ficos de evoluci&oacute;n</li>
         </ul>
-        <a href="#cta" class="btn btn-primary">Empezar prueba</a>
-      </div>
-      <div class="price-card">
-        <div class="price-name">Enterprise</div>
-        <div class="price-tag" style="font-size:30px">A medida</div>
-        <div class="price-sub">M&aacute;s de 40 veh&iacute;culos</div>
-        <ul>
-          <li><span class="check">&#10003;</span> Todo lo de Flota</li>
-          <li><span class="check">&#10003;</span> Onboarding y migraci&oacute;n de datos asistida</li>
-          <li><span class="check">&#10003;</span> Soporte prioritario</li>
-          <li><span class="check">&#10003;</span> Funciones a medida de tu operaci&oacute;n</li>
-        </ul>
-        <a href="#cta" class="btn btn-outline-violet">Hablar con nosotros</a>
+        <a href="#cta" class="btn btn-primary">Pedir demo</a>
+        <div style="font-size:12px;color:var(--text-dim2);text-align:center;margin-top:14px">&#128274; Pago seguro con tarjeta a trav&eacute;s de Stripe</div>
       </div>
     </div>
   </div>
@@ -540,7 +533,7 @@
   <div class="wrap">
     <div class="final-cta">
       <h2>Tu flota ya deber&iacute;a llevar as&iacute; un a&ntilde;o</h2>
-      <p>Empieza hoy con 14 d&iacute;as gratis. Sin tarjeta, sin compromiso.</p>
+      <p>299&euro; por veh&iacute;culo al a&ntilde;o. Todo incluido desde el primer veh&iacute;culo.</p>
       <div class="hero-ctas" style="justify-content:center">
         <a href="mailto:hola@drivx.app?subject=Quiero%20una%20demo%20de%20DRIVX" class="btn btn-primary">Pedir una demo</a>
         <a href="mailto:hola@drivx.app" class="btn btn-ghost">Escribir a hola@drivx.app</a>
@@ -592,19 +585,6 @@ window.addEventListener('load', function(){
   animateCount(document.getElementById('statBenef'), 655.92, '€ ', '', 1600);
 });
 
-// Pricing toggle
-var annual = false;
-function toggleBilling(){
-  annual = !annual;
-  document.getElementById('billingToggle').classList.toggle('on', annual);
-  document.getElementById('lblMonthly').classList.toggle('active', !annual);
-  document.getElementById('lblAnnual').classList.toggle('active', annual);
-  document.querySelectorAll('.p-val').forEach(function(el){
-    var v = annual ? el.getAttribute('data-a') : el.getAttribute('data-m');
-    el.textContent = v + '€';
-  });
-}
-
 // FAQ accordion
 document.querySelectorAll('.faq-item').forEach(function(item){
   item.querySelector('.faq-q').addEventListener('click', function(){
@@ -625,7 +605,7 @@ document.querySelectorAll('.faq-item').forEach(function(item){
 </div>
 <script>
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-1';
+var APP_VERSION = '2026-09-27-3';
 var APP_VERSION_KEY = 'landing';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
