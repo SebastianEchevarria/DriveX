@@ -1039,7 +1039,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-08-28-20';
+var APP_VERSION = '2026-09-27-1';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2857,7 +2857,7 @@ function proximaRenovacion(fechaContratacion) {
   var mes = parseInt(partes[1],10) - 1, dia = parseInt(partes[2],10);
   var hoy = new Date(); hoy.setHours(0,0,0,0);
   var candidata = new Date(hoy.getFullYear(), mes, dia);
-  if (candidata < hoy) candidata = new Date(hoy.getFullYear()+1, mes, dia);
+  if (candidata <= hoy) candidata = new Date(hoy.getFullYear()+1, mes, dia);
   return candidata;
 }
 function formatearFechaEs(d) {
