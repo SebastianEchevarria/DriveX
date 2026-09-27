@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
       res.status(200).json({ estado: 'pendiente' });
       return;
     }
-    res.status(200).json({ estado: 'listo', codigo: d.codigo, nombre: d.nombre, email: d.email });
+    res.status(200).json({ estado: 'listo', codigo: d.codigo, nombre: d.nombre, email: d.email, emailEnviado: d.emailEnviado === true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
