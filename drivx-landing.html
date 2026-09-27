@@ -691,6 +691,7 @@ document.querySelectorAll('.faq-item').forEach(function(item){
         <div class="cx-sub" style="text-align:left;background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.8);border-radius:12px;padding:12px 14px">
           &#9888;&#65039; <b>Gu&aacute;rdalo bien.</b> Lo necesitar&aacute;s para crear tu cuenta de administrador en el Dashboard. Todas tus apps quedar&aacute;n vinculadas a este c&oacute;digo.
         </div>
+        <div class="cx-sub" id="cxEmailAviso" style="margin:0 0 16px"></div>
         <a id="cxAbrirDashboard" href="/drivx-admin-dashboard.html" class="btn btn-primary" style="width:100%;font-size:16px;padding:15px;font-weight:900;box-sizing:border-box">Abrir mi Dashboard &rarr;</a>
       </div>
     </div>
@@ -792,6 +793,9 @@ function cxMostrarBienvenida(sessionId){
           document.getElementById('cxNombreEmpresa').textContent = d.nombre || 'tu empresa';
           document.getElementById('cxCodigo').textContent = d.codigo;
           document.getElementById('cxAbrirDashboard').href = '/drivx-admin-dashboard.html?empresa=' + encodeURIComponent(d.codigo);
+          document.getElementById('cxEmailAviso').innerHTML = d.email
+            ? '&#128231; Te hemos enviado el c&oacute;digo y el enlace a <b>' + d.email.replace(/[<>&]/g,'') + '</b>. Si no lo ves en unos minutos, revisa la carpeta de spam.'
+            : '';
           document.getElementById('cxBienvenidaListo').style.display = 'block';
           try { localStorage.setItem('drivx_ultimo_codigo_empresa', d.codigo); } catch(e){}
         } else if (d.estado === 'no_pagado') {
@@ -830,7 +834,7 @@ function cxCopiarCodigo(){
 </div>
 <script>
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-4';
+var APP_VERSION = '2026-09-27-5';
 var APP_VERSION_KEY = 'landing';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
