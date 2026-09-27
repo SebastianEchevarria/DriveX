@@ -273,6 +273,40 @@
   .price-card,.price-card.hi{border:2.5px solid rgba(0,212,255,1);box-shadow:0 0 16px rgba(0,212,255,.85),0 0 40px rgba(0,212,255,.45),0 20px 60px rgba(0,212,255,.2)}
   .final-cta{border:2.5px solid rgba(0,212,255,1);box-shadow:0 0 16px rgba(0,212,255,.8),0 0 40px rgba(0,212,255,.4)}
   .faq-item{border-bottom:1.5px solid rgba(0,212,255,.55)}
+
+  /* ══════ CONTRATACIÓN ══════ */
+  .cx-overlay{display:none;position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+  .cx-overlay.open{display:flex}
+  .cx-box{width:100%;max-width:520px;margin:auto;background:rgba(10,16,26,.97);border:2.5px solid rgba(0,212,255,1);border-radius:22px;
+    box-shadow:0 0 18px rgba(0,212,255,.9),0 0 44px rgba(0,212,255,.45),0 20px 60px rgba(0,0,0,.6);padding:28px 26px;position:relative;color:#fff}
+  .cx-close{position:absolute;top:14px;right:16px;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
+  .cx-box h3{font-family:var(--font-display);font-size:24px;margin:0 0 4px}
+  .cx-sub{font-size:13.5px;color:#fff;opacity:.85;margin-bottom:22px}
+  .cx-tipo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+  .cx-tipo button{padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.04);color:#fff;
+    font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
+  .cx-tipo button.on{border-color:rgba(0,212,255,1);background:rgba(0,212,255,.14);box-shadow:0 0 10px rgba(0,212,255,.7)}
+  .cx-field{margin-bottom:14px}
+  .cx-field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;color:#fff}
+  .cx-field input{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;border:1.5px solid rgba(0,212,255,.5);
+    background:rgba(255,255,255,.05);color:#fff;font-size:15px;font-family:inherit;outline:none}
+  .cx-field input:focus{border-color:rgba(0,212,255,1);box-shadow:0 0 10px rgba(0,212,255,.6)}
+  .cx-field .hint{font-size:11.5px;opacity:.75;margin-top:5px}
+  .cx-row{display:grid;grid-template-columns:120px 1fr;gap:10px}
+  .cx-qty{display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;border:2px solid rgba(0,212,255,1);
+    background:rgba(0,212,255,.07);box-shadow:0 0 10px rgba(0,212,255,.5);margin:6px 0 16px}
+  .cx-qty button{width:44px;height:44px;border-radius:12px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);
+    color:#fff;font-size:22px;font-weight:900;cursor:pointer}
+  .cx-qty input{width:64px;text-align:center;font-family:var(--font-mono);font-size:24px;font-weight:700;background:transparent;border:none;color:#fff;outline:none}
+  .cx-total{margin-left:auto;text-align:right}
+  .cx-total b{display:block;font-family:var(--font-mono);font-size:24px;color:var(--cyan)}
+  .cx-total span{font-size:11.5px;opacity:.8}
+  .cx-err{display:none;font-size:13px;color:#ff6b7a;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.5);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+  .cx-legal{font-size:11.5px;opacity:.75;text-align:center;margin-top:12px}
+  .cx-code{font-family:var(--font-mono);font-size:34px;font-weight:700;letter-spacing:.08em;text-align:center;padding:18px;border-radius:14px;
+    border:2.5px solid rgba(0,230,118,1);background:rgba(0,230,118,.1);box-shadow:0 0 14px rgba(0,230,118,.8);color:#fff;margin:16px 0 10px}
+  @media(max-width:520px){ .cx-row{grid-template-columns:1fr} .cx-box{padding:24px 18px} }
 </style>
 </head>
 <body>
@@ -288,7 +322,7 @@
     </div>
     <div class="navcta">
       <a href="#precios" class="btn btn-ghost">Ver precios</a>
-      <a href="#cta" class="btn btn-primary">Pedir demo</a>
+      <button type="button" onclick="abrirContratacion()" class="btn btn-primary" style="cursor:pointer">Contratar</button>
     </div>
   </div>
 </nav>
@@ -491,7 +525,8 @@
           <li><span class="check">&#10003;</span> Competici&oacute;n entre conductores</li>
           <li><span class="check">&#10003;</span> Historial y gr&aacute;ficos de evoluci&oacute;n</li>
         </ul>
-        <a href="#cta" class="btn btn-primary">Pedir demo</a>
+        <button type="button" onclick="abrirContratacion()" class="btn btn-primary" style="width:100%;font-size:17px;padding:16px;font-weight:900;letter-spacing:.04em;cursor:pointer">CONTRATAR</button>
+        <a href="#cta" class="btn btn-ghost" style="width:100%;margin-top:10px">Pedir demo</a>
         <div style="font-size:12px;color:var(--text-dim2);text-align:center;margin-top:14px">&#128274; Pago seguro con tarjeta a trav&eacute;s de Stripe</div>
       </div>
     </div>
@@ -595,6 +630,196 @@ document.querySelectorAll('.faq-item').forEach(function(item){
 });
 </script>
 
+<!-- ══════════════ CONTRATACIÓN ══════════════ -->
+<div class="cx-overlay" id="cxOverlay" onclick="if(event.target===this)cerrarContratacion()">
+  <div class="cx-box">
+    <button class="cx-close" onclick="cerrarContratacion()" aria-label="Cerrar">&#10005;</button>
+
+    <div id="cxPasoForm">
+      <h3>Contratar DRIVX</h3>
+      <div class="cx-sub">Rellena tus datos. Despu&eacute;s pagar&aacute;s de forma segura con Stripe.</div>
+
+      <div class="cx-tipo">
+        <button type="button" id="cxTipoEmpresa" class="on" onclick="cxSetTipo('empresa')">&#127970; Empresa</button>
+        <button type="button" id="cxTipoParticular" onclick="cxSetTipo('particular')">&#128100; Particular</button>
+      </div>
+
+      <div class="cx-field">
+        <label id="cxLblNombre">Nombre de la empresa *</label>
+        <input id="cxNombre" type="text" maxlength="120" autocomplete="organization">
+        <div class="hint">Este nombre aparecer&aacute; en todas tus apps de DRIVX.</div>
+      </div>
+      <div class="cx-field">
+        <label id="cxLblNif">CIF *</label>
+        <input id="cxNif" type="text" maxlength="20" style="text-transform:uppercase">
+      </div>
+      <div class="cx-field">
+        <label>Direcci&oacute;n *</label>
+        <input id="cxDireccion" type="text" maxlength="200" autocomplete="street-address">
+      </div>
+      <div class="cx-row">
+        <div class="cx-field"><label>C&oacute;digo postal *</label><input id="cxCp" type="text" maxlength="10" inputmode="numeric" autocomplete="postal-code"></div>
+        <div class="cx-field"><label>Ciudad *</label><input id="cxCiudad" type="text" maxlength="80" autocomplete="address-level2"></div>
+      </div>
+      <div class="cx-field">
+        <label>Email *</label>
+        <input id="cxEmail" type="email" maxlength="120" autocomplete="email">
+        <div class="hint">Aqu&iacute; recibir&aacute;s las facturas. Ser&aacute; tambi&eacute;n el email de tu cuenta de administrador.</div>
+      </div>
+
+      <label style="display:block;font-size:12.5px;font-weight:700;margin-top:4px">Veh&iacute;culos con los que empiezas *</label>
+      <div class="cx-qty">
+        <button type="button" onclick="cxCambiarCantidad(-1)">&minus;</button>
+        <input id="cxCantidad" type="number" min="1" max="500" value="1" oninput="cxActualizarTotal()">
+        <button type="button" onclick="cxCambiarCantidad(1)">+</button>
+        <div class="cx-total"><b id="cxTotal">299&euro;</b><span>al a&ntilde;o &middot; 299&euro;/veh&iacute;culo</span></div>
+      </div>
+
+      <div class="cx-err" id="cxError"></div>
+      <button type="button" id="cxPagar" onclick="cxEnviar()" class="btn btn-primary" style="width:100%;font-size:16px;padding:15px;font-weight:900;cursor:pointer">Continuar al pago &rarr;</button>
+      <div class="cx-legal">&#128274; Pago seguro con tarjeta a trav&eacute;s de Stripe. Podr&aacute;s a&ntilde;adir m&aacute;s veh&iacute;culos cuando quieras desde tu Dashboard.</div>
+    </div>
+
+    <div id="cxPasoBienvenida" style="display:none;text-align:center">
+      <div style="font-size:46px">&#127881;</div>
+      <h3>&iexcl;Bienvenido a DRIVX!</h3>
+      <div id="cxBienvenidaEstado" class="cx-sub" style="margin-bottom:0">Estamos preparando tu cuenta&hellip;</div>
+      <div id="cxBienvenidaListo" style="display:none">
+        <div class="cx-sub" style="margin:10px 0 0">Este es el <b>c&oacute;digo &uacute;nico</b> de <b id="cxNombreEmpresa"></b>:</div>
+        <div class="cx-code" id="cxCodigo">DRX-&middot;&middot;&middot;&middot;&middot;</div>
+        <button type="button" class="btn btn-ghost" onclick="cxCopiarCodigo()" style="cursor:pointer;margin-bottom:18px">&#128203; Copiar c&oacute;digo</button>
+        <div class="cx-sub" style="text-align:left;background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.8);border-radius:12px;padding:12px 14px">
+          &#9888;&#65039; <b>Gu&aacute;rdalo bien.</b> Lo necesitar&aacute;s para crear tu cuenta de administrador en el Dashboard. Todas tus apps quedar&aacute;n vinculadas a este c&oacute;digo.
+        </div>
+        <a id="cxAbrirDashboard" href="/drivx-admin-dashboard.html" class="btn btn-primary" style="width:100%;font-size:16px;padding:15px;font-weight:900;box-sizing:border-box">Abrir mi Dashboard &rarr;</a>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// ══════════════ CONTRATACIÓN ══════════════
+var PRECIO_VEHICULO = 299;
+var cxTipo = 'empresa';
+
+function abrirContratacion(){
+  document.getElementById('cxPasoForm').style.display = 'block';
+  document.getElementById('cxPasoBienvenida').style.display = 'none';
+  document.getElementById('cxOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(function(){ document.getElementById('cxNombre').focus(); }, 50);
+}
+function cerrarContratacion(){
+  document.getElementById('cxOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function cxSetTipo(t){
+  cxTipo = t;
+  document.getElementById('cxTipoEmpresa').classList.toggle('on', t === 'empresa');
+  document.getElementById('cxTipoParticular').classList.toggle('on', t === 'particular');
+  document.getElementById('cxLblNombre').textContent = t === 'empresa' ? 'Nombre de la empresa *' : 'Nombre y apellidos *';
+  document.getElementById('cxLblNif').textContent = t === 'empresa' ? 'CIF *' : 'NIF / NIE *';
+  document.getElementById('cxNombre').setAttribute('autocomplete', t === 'empresa' ? 'organization' : 'name');
+}
+function cxCantidadActual(){
+  var n = parseInt(document.getElementById('cxCantidad').value, 10);
+  if (isNaN(n) || n < 1) n = 1;
+  if (n > 500) n = 500;
+  return n;
+}
+function cxActualizarTotal(){
+  var total = cxCantidadActual() * PRECIO_VEHICULO;
+  document.getElementById('cxTotal').textContent = total.toLocaleString('es-ES') + '€';
+}
+function cxCambiarCantidad(d){
+  var inp = document.getElementById('cxCantidad');
+  inp.value = Math.min(500, Math.max(1, cxCantidadActual() + d));
+  cxActualizarTotal();
+}
+function cxMostrarError(msg){
+  var e = document.getElementById('cxError');
+  e.textContent = msg; e.style.display = msg ? 'block' : 'none';
+}
+// Validación básica de NIF/NIE/CIF españoles (formato)
+function cxNifValido(v){
+  v = v.toUpperCase().replace(/[\s-]/g, '');
+  return /^[0-9]{8}[A-Z]$/.test(v) || /^[XYZ][0-9]{7}[A-Z]$/.test(v) || /^[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J]$/.test(v);
+}
+function cxEnviar(){
+  var v = function(id){ return document.getElementById(id).value.trim(); };
+  var datos = {
+    modo: 'alta', tipo: cxTipo,
+    nombre: v('cxNombre'), nif: v('cxNif').toUpperCase(),
+    direccion: v('cxDireccion'), cp: v('cxCp'), ciudad: v('cxCiudad'),
+    email: v('cxEmail'), cantidad: cxCantidadActual()
+  };
+  if (!datos.nombre || !datos.nif || !datos.direccion || !datos.cp || !datos.ciudad || !datos.email) {
+    cxMostrarError('Rellena todos los campos marcados con *.'); return;
+  }
+  if (!cxNifValido(datos.nif)) {
+    cxMostrarError(cxTipo === 'empresa' ? 'El CIF no tiene un formato válido (ej. B12345678).' : 'El NIF/NIE no tiene un formato válido (ej. 12345678Z).'); return;
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { cxMostrarError('El email no es válido.'); return; }
+  if (!/^[0-9]{5}$/.test(datos.cp)) { cxMostrarError('El código postal debe tener 5 números.'); return; }
+  cxMostrarError('');
+  var btn = document.getElementById('cxPagar');
+  btn.disabled = true; btn.textContent = 'Conectando con Stripe…';
+  fetch('/api/create-checkout-session', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos)
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.url) { window.location.href = d.url; return; }
+    throw new Error(d.error || 'No se pudo iniciar el pago');
+  }).catch(function(err){
+    cxMostrarError('❌ ' + err.message);
+    btn.disabled = false; btn.textContent = 'Continuar al pago →';
+  });
+}
+
+// ── Vuelta de Stripe ──
+function cxMostrarBienvenida(sessionId){
+  document.getElementById('cxPasoForm').style.display = 'none';
+  document.getElementById('cxPasoBienvenida').style.display = 'block';
+  document.getElementById('cxOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  var intentos = 0;
+  (function consultar(){
+    intentos++;
+    fetch('/api/alta-estado?session_id=' + encodeURIComponent(sessionId), { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d.estado === 'listo') {
+          document.getElementById('cxBienvenidaEstado').textContent = 'Tu pago se ha completado correctamente.';
+          document.getElementById('cxNombreEmpresa').textContent = d.nombre || 'tu empresa';
+          document.getElementById('cxCodigo').textContent = d.codigo;
+          document.getElementById('cxAbrirDashboard').href = '/drivx-admin-dashboard.html?empresa=' + encodeURIComponent(d.codigo);
+          document.getElementById('cxBienvenidaListo').style.display = 'block';
+          try { localStorage.setItem('drivx_ultimo_codigo_empresa', d.codigo); } catch(e){}
+        } else if (d.estado === 'no_pagado') {
+          document.getElementById('cxBienvenidaEstado').textContent = 'El pago no se ha completado. Si crees que es un error, escríbenos a hola@drivx.app.';
+        } else if (intentos < 30) {
+          setTimeout(consultar, 2000);
+        } else {
+          document.getElementById('cxBienvenidaEstado').textContent = 'Tu pago está confirmado, pero tu cuenta está tardando más de lo normal. Recarga esta página en un minuto.';
+        }
+      })
+      .catch(function(){ if (intentos < 30) setTimeout(consultar, 2000); });
+  })();
+}
+function cxCopiarCodigo(){
+  var c = document.getElementById('cxCodigo').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(c);
+}
+(function(){
+  var q = new URLSearchParams(location.search);
+  if (q.get('alta') === 'ok' && q.get('session_id')) {
+    cxMostrarBienvenida(q.get('session_id'));
+  } else if (q.get('alta') === 'cancelado') {
+    abrirContratacion();
+    cxMostrarError('Has cancelado el pago. No se ha cobrado nada. Puedes intentarlo de nuevo cuando quieras.');
+  }
+})();
+</script>
+
 <div id="update-banner" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9995;align-items:center;justify-content:center;padding:20px">
   <div style="background:rgba(10,16,26,.92);border:2.5px solid rgba(0,230,118,1);border-radius:20px;box-shadow:0 0 18px rgba(0,230,118,1),0 0 40px rgba(0,230,118,.65),0 20px 50px rgba(0,0,0,.6);max-width:380px;width:100%;padding:26px 24px;text-align:center;font-family:Manrope,system-ui,sans-serif">
     <div style="font-size:38px;margin-bottom:10px">&#128260;</div>
@@ -605,7 +830,7 @@ document.querySelectorAll('.faq-item').forEach(function(item){
 </div>
 <script>
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-3';
+var APP_VERSION = '2026-09-27-4';
 var APP_VERSION_KEY = 'landing';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
