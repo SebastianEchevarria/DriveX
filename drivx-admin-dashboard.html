@@ -1055,7 +1055,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-2';
+var APP_VERSION = '2026-09-27-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1631,7 +1631,7 @@ function desactivarPush() {
 function enviarPushNotificacion(title, body, tag, url, target, icon) {
   fetch('/api/send-push', {
     method: 'POST', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ title: title, body: body, tag: tag, url: url, target: target || null, icon: icon || '/icon-dashboard-180.png' })
+    body: JSON.stringify({ title: title, body: body, tag: tag, url: url, target: target || null, icon: icon || '/icon-dashboard-180.png', empresaId: EMPRESA_ID || '' })
   }).catch(function(){});
 }
 // Evita mandar el mismo aviso una y otra vez cada minuto — se marca por

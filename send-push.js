@@ -43,40 +43,40 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { title, body, url, tag, target, icon } = req.body || {};
+    const { title, body, url, tag, target, empresaId } = req.body || {};
     if (!title || !body) {
       res.status(400).json({ error: 'Falta title o body' });
       return;
     }
 
-    const FIREBASE_URL = process.env.FIREBASE_URL;
-    if (!FIREBASE_URL) {
+    const FIREBASE_ROOT = process.env.FIREBASE_URL;
+    if (!FIREBASE_ROOT) {
       res.status(500).json({ error: 'Falta la variable de entorno FIREBASE_URL' });
       return;
     }
 
-    // Leemos todas las suscripciones guardadas por el Dashboard
+    // MULTI-EMPRESA: cada empresa tiene sus dispositivos suscritos dentro
+    // de su carpeta (empresas/{CODIGO}/push_subscriptions). Así un aviso de
+    // una empresa NUNCA llega a los móviles de otra.
+    const empresa = String(empresaId || '').trim();
+    if (empresa && !/^DRX-[A-Z0-9]{5}$/.test(empresa)) {
+      res.status(400).json({ error: 'Empresa inválida' });
+      return;
+    }
+    const FIREBASE_URL = empresa ? (FIREBASE_ROOT + '/empresas/' + empresa) : FIREBASE_ROOT;
+
+    // Leemos todas las suscripciones guardadas de esta empresa
     const subsResp = await fetch(FIREBASE_URL + '/push_subscriptions.json');
     const subsData = (await subsResp.json()) || {};
 
     const entries = Object.keys(subsData).map((id) => ({ id, ...subsData[id] }));
 
-    // Filtro opcional por destinatario:
-    //  - { cid: '...' }  → solo ese conductor (exacto, no se avisa a nadie más)
-    //  - { pid: '...' }  → solo ese propietario (exacto)
-    //  - { ccaa, role }  → el MASTER siempre lo recibe, además de quien
-    //    coincida con esa comunidad/rol (para avisos de flota en general)
+    // Filtro opcional por destinatario: { role: 'ccaa_manager', ccaa: 'Andalucía' }
+    // Si no se manda target, se avisa a todos los suscritos.
     const destinatarios = entries.filter((e) => {
       if (!target) return true;
-      if (target.cid) return e.cid === target.cid;
-      if (target.pid) return e.pid === target.pid;
       if (target.role && e.role !== target.role && e.role !== 'admin') return false;
-      if (target.ccaa) {
-        if (e.role === 'admin' || e.role === 'visual') return true;
-        if (e.role === 'ccaa_manager') return e.ccaaAsignada === target.ccaa;
-        if (e.role === 'supervisor') return Array.isArray(e.ccaasAsignadas) && e.ccaasAsignadas.indexOf(target.ccaa) !== -1;
-        return false;
-      }
+      if (target.ccaa && e.ccaaAsignada && e.ccaaAsignada !== target.ccaa) return false;
       return true;
     });
 
@@ -85,7 +85,6 @@ module.exports = async function handler(req, res) {
       body,
       url: url || '/drivx-admin-dashboard.html',
       tag: tag || undefined,
-      icon: icon || '/icon-dashboard-180.png',
     });
 
     let enviados = 0;
