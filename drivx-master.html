@@ -209,6 +209,24 @@
   </div>
 </div>
 
+<div class="velo" id="velo-migrar" onclick="if(event.target===this)cerrarMigrar()">
+  <div class="caja" role="dialog" aria-modal="true" aria-labelledby="mg-titulo" style="max-width:540px">
+    <div class="caja-cab">
+      <h2 id="mg-titulo">Convertir la flota original en empresa</h2>
+      <p>Se copian todos sus datos a una empresa nueva con su propio código. Los datos originales NO se borran: se quedan como copia de seguridad. Primero haz una simulación: no cambia nada.</p>
+    </div>
+    <div class="caja-cuerpo" style="padding-top:14px;padding-bottom:6px">
+      <div class="campo"><label for="mg-nombre">Nombre de la empresa</label><input id="mg-nombre" type="text" value="VTC MASTER TEST" maxlength="120"></div>
+      <div id="mg-resultado" style="font-size:14px;line-height:1.6"></div>
+    </div>
+    <div class="caja-pie">
+      <button class="btn btn-linea" onclick="cerrarMigrar()">Cerrar</button>
+      <button class="btn btn-cian" id="mg-simular" onclick="migrar(true)">Simular</button>
+      <button class="btn btn-oro" id="mg-migrar" onclick="migrar(false)" disabled>Migrar ahora</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" role="status"></div>
 
 <script>
@@ -345,10 +363,13 @@ function pintar(){
   if (FILTRO === 'todas' && (!q || 'flota original'.indexOf(q) !== -1) && DATOS.original) {
     var o = DATOS.original;
     html += '<article class="fila original">' +
-      '<div><div class="nombre">Flota original</div><div class="sub">Datos anteriores al sistema de empresas. Se moverá a su propia empresa en la fase de seguridad.</div></div>' +
+      '<div><div class="nombre">Flota original</div><div class="sub">' + (o.migracion && o.migracion.codigo
+          ? 'Ya migrada a <span class="codigo">' + esc(o.migracion.codigo) + '</span> (' + esc(o.migracion.nombre || '') + '). Esto es la copia de seguridad.'
+          : 'Datos anteriores al sistema de empresas.') + '</div></div>' +
       '<div class="num"><b>' + o.vehiculosEnFlota + '</b> vehículos en flota<br><b>' + o.conductores + '</b> conductores</div>' +
       '<div></div>' +
-      '<div class="acciones"><button class="btn btn-cian" onclick="entrarSoporte(\'ORIGINAL\')">Entrar como soporte</button>' +
+      '<div class="acciones">' + (o.migracion && o.migracion.codigo ? '' : '<button class="btn btn-oro" onclick="abrirMigrar()">🚚 Convertir en empresa</button>') +
+        '<button class="btn btn-cian" onclick="entrarSoporte(\'ORIGINAL\')">Entrar como soporte</button>' +
         '<button class="btn btn-linea" onclick="abrirUsuarios(\'ORIGINAL\')">👥 Usuarios</button>' +
         '<button class="btn btn-linea" onclick="abrirAjustes(\'ORIGINAL\')">⚙️ Ajustes</button></div>' +
     '</article>';
@@ -469,6 +490,45 @@ function verComo(archivo, codigo, id){
   window.open('/' + archivo + '?soporte=' + encodeURIComponent(codigo) + '&u=' + encodeURIComponent(id), '_blank', 'noopener');
 }
 
+// ══ MIGRAR LA FLOTA ORIGINAL A EMPRESA ══
+function abrirMigrar(){
+  document.getElementById('mg-resultado').innerHTML = '';
+  document.getElementById('mg-migrar').disabled = true;
+  document.getElementById('velo-migrar').classList.add('abierto');
+}
+function cerrarMigrar(){ document.getElementById('velo-migrar').classList.remove('abierto'); }
+function migrar(simular){
+  var nombre = document.getElementById('mg-nombre').value.trim();
+  if (!nombre) { toast('Escribe el nombre de la empresa.'); return; }
+  if (!simular && !confirm('¿Convertir la flota original en la empresa «' + nombre + '»?\n\nSe copiarán todos sus datos y se crearán las cuentas de acceso. Los datos originales se conservan como copia de seguridad.')) return;
+  var bs = document.getElementById('mg-simular'), bm = document.getElementById('mg-migrar');
+  bs.disabled = true; bm.disabled = true;
+  var res = document.getElementById('mg-resultado');
+  res.innerHTML = '<div class="sub">' + (simular ? 'Simulando…' : 'Migrando… no cierres esta ventana.') + '</div>';
+  api('migrar_original', { nombre: nombre, simular: simular }).then(function(d){
+    if (d.yaMigrada) {
+      res.innerHTML = '<div class="aviso ok">Ya estaba migrada a <b>' + esc(d.codigo) + '</b> (' + esc(d.nombre) + ').</div>';
+      return;
+    }
+    var r = d.resumen || {};
+    var html = '';
+    if (d.hecho) html += '<div class="aviso ok">✅ Hecho. Nueva empresa <b>' + esc(nombre) + '</b> con código <b>' + esc(d.codigo) + '</b>.</div>';
+    else html += '<div class="aviso ok" style="background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.7)">Simulación: esto es lo que se va a hacer. Todavía no se ha cambiado nada.</div>';
+    html += '<b>Datos que se copian</b><div class="sub" style="margin:4px 0 10px">' +
+      (r.nodos || []).map(function(n){ return esc(n.nodo) + ' (' + n.elementos + ')'; }).join(', ') + '</div>';
+    html += '<b>Usuarios activos:</b> ' + (r.usuariosActivos || 0) + '<br>';
+    html += '<b>Invitaciones pendientes:</b> ' + (r.invitacionesPendientes || 0) + '<br>';
+    html += '<b>Administrador titular:</b> ' + esc(r.adminTitular || '') + (r.adminTieneCuenta ? ' ✅ tiene cuenta' : ' ⚠️ <span style="color:var(--gold)">aún no tiene cuenta segura: antes de migrar, entra una vez en el Dashboard con ese email y su contraseña</span>') + '<br>';
+    if (d.hecho) html += '<b>Cuentas creadas:</b> ' + (r.cuentasCreadas || 0) + ', <b>ya existían:</b> ' + (r.cuentasExistentes || 0) + '<br>';
+    if ((r.conflictos || []).length) html += '<div class="aviso error" style="margin-top:10px">Estos emails ya pertenecen a otra empresa y no se vincularán: ' + r.conflictos.map(function(c){ return esc(c.email) + ' (' + esc(c.empresa) + ')'; }).join(', ') + '</div>';
+    if ((r.sinContrasena || []).length) html += '<div class="aviso error" style="margin-top:10px">Sin contraseña guardada (tendrán que recibir una invitación nueva): ' + r.sinContrasena.map(esc).join(', ') + '</div>';
+    res.innerHTML = html;
+    if (simular) bm.disabled = false;
+    if (d.hecho) cargarEmpresas();
+  }).catch(function(err){ res.innerHTML = '<div class="aviso error">' + esc(err.message) + '</div>'; })
+    .then(function(){ bs.disabled = false; });
+}
+
 function entrarSoporte(codigo){
   window.open('/drivx-admin-dashboard.html?soporte=' + encodeURIComponent(codigo), '_blank', 'noopener');
 }
@@ -488,7 +548,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-28-1';
+var APP_VERSION = '2026-09-28-2';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
