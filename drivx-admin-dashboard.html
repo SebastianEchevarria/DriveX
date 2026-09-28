@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-4';
+var APP_VERSION = '2026-09-28-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2168,7 +2168,8 @@ function renderInvitacionesPendientesInicio() {
         '<div style="display:flex;align-items:center;gap:8px">' +
           '<span style="flex:1;min-width:0;font-family:var(--mono);font-size:13px;font-weight:800;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.4);border-radius:8px;padding:7px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (p.code||'—') + '</span>' +
           '<button onclick="copiarCodigoInvitacionInicio(\'' + p.code.replace(/'/g,"\\'") + '\')" title="Copiar código" style="flex-shrink:0;background:rgba(0,212,255,.14);border:1.5px solid rgba(0,212,255,.7);color:#fff;font-size:12px;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit">📋</button>' +
-          '<button id="del-inv-' + p.id + '" onclick="eliminarInvitacionPendienteInicio(\'' + p.id + '\',\'' + p.path + '\')" title="Eliminar invitación" style="flex-shrink:0;background:rgba(255,71,87,.1);border:1.5px solid rgba(255,71,87,.6);color:var(--red);font-size:12px;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit">🗑</button>' +
+          '<button id="reenv-inv-' + p.id + '" onclick="reenviarInvitacionInicio(\'' + p.code + '\',\'' + p.path + '\',\'reenv-inv-' + p.id + '\')" title="Reenviar por email" style="flex-shrink:0;background:rgba(0,230,118,.12);border:1.5px solid rgba(0,230,118,.7);color:#fff;font-size:12px;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit">✉️</button>' +
+          '<button id="del-inv-' + p.id + '" onclick="eliminarInvitacionPendienteInicio(\'' + p.id + '\',\'' + p.path + '\',\'' + p.code + '\')" title="Eliminar invitación" style="flex-shrink:0;background:rgba(255,71,87,.1);border:1.5px solid rgba(255,71,87,.6);color:var(--red);font-size:12px;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer;font-family:inherit">🗑</button>' +
         '</div>' +
       '</div>';
     });
@@ -2181,15 +2182,24 @@ function copiarCodigoInvitacionInicio(code) {
   if (navigator.clipboard) navigator.clipboard.writeText(code);
   toast('✓ Código copiado');
 }
-function eliminarInvitacionPendienteInicio(id, path) {
+function eliminarInvitacionPendienteInicio(id, path, code) {
   if (!puedeEditar()) return;
   var btn = document.getElementById('del-inv-' + id);
   if (!btn) return;
   if (btn.getAttribute('data-confirm') === '1') {
-    fetch(FIREBASE_URL + path, { method: 'DELETE' }).then(fbCheck).then(function(){
-      toast('🗑 Invitación eliminada');
+    btn.disabled = true; btn.textContent = '…';
+    // El servidor borra la invitación Y libera el email (para poder
+    // volver a invitar a esa misma persona con el mismo email).
+    llamarApiInvitaciones('eliminar', code || '', tipoInvitacionDesdeRuta(path)).then(function(d){
+      toast('🗑 Invitación eliminada' + (d && d.email ? ' · ' + d.email + ' queda libre para una nueva invitación' : ''));
       renderInvitacionesPendientesInicio();
-    }).catch(function(err){ toast('❌ No se pudo eliminar: ' + err.message); });
+    }).catch(function(err){
+      // Si el servidor no está disponible, al menos borramos la invitación
+      fetch(FIREBASE_URL + path, { method: 'DELETE' }).then(fbCheck).then(function(){
+        toast('🗑 Invitación eliminada (aviso: ' + err.message + ')');
+        renderInvitacionesPendientesInicio();
+      }).catch(function(e2){ toast('❌ No se pudo eliminar: ' + e2.message); btn.disabled = false; btn.textContent = '🗑'; });
+    });
     return;
   }
   btn.setAttribute('data-confirm', '1');
@@ -3680,7 +3690,8 @@ function guardarNuevoUsuario() {
   fetch(FIREBASE_URL + path, {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(usuario)
   }).then(fbCheck).then(function(){
-    registrarIndiceInvitacion(code, app === 'dashboard' ? 'dashboard' : 'supervisor');
+    var _tipoInv = app === 'dashboard' ? 'dashboard' : 'supervisor';
+    registrarIndiceInvitacion(code, _tipoInv).then(function(){ enviarEmailInvitacion(code, _tipoInv, 'nu-invite-result'); });
     document.getElementById('nu-invite-code').textContent = code;
     document.getElementById('nu-invite-result').style.display = 'block';
     document.getElementById('nu-btns').style.display = 'none';
@@ -7123,6 +7134,67 @@ function registrarIndiceInvitacion(code, app) {
     body: JSON.stringify({ empresa: EMPRESA_ID, app: app, ts: Date.now() })
   }).catch(function(){});
 }
+// ══ INVITACIONES POR EMAIL ══
+// El servidor (api/invitaciones.js) envía el código + enlace a la app al
+// email de la invitación, y al borrar una invitación libera ese email
+// para poder invitarlo de nuevo.
+function llamarApiInvitaciones(accion, code, tipo) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.reject(new Error('Tu sesión no está verificada. Cierra sesión y vuelve a entrar.'));
+  return u.getIdToken().then(function(token){
+    return fetch('/api/invitaciones', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ accion: accion, code: code, tipo: tipo })
+    });
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if (!r.ok || !d.ok) throw new Error(d.error || ('Error ' + r.status));
+      return d;
+    });
+  });
+}
+// Envía el email y muestra el resultado dentro del recuadro del código
+function enviarEmailInvitacion(code, tipo, idRecuadro) {
+  var caja = idRecuadro ? document.getElementById(idRecuadro) : null;
+  var linea = null;
+  if (caja) {
+    linea = caja.querySelector('.inv-email-estado');
+    if (!linea) {
+      linea = document.createElement('div');
+      linea.className = 'inv-email-estado';
+      linea.style.cssText = 'margin-top:10px;font-size:12.5px;font-weight:700;color:#fff;line-height:1.5';
+      caja.appendChild(linea);
+    }
+    linea.style.color = '#fff';
+    linea.textContent = '📧 Enviando invitación por email…';
+  }
+  return llamarApiInvitaciones('enviar', code, tipo).then(function(d){
+    if (linea) { linea.style.color = 'var(--green)'; linea.textContent = '✅ Invitación enviada por email a ' + d.email + ' (código de un solo uso).'; }
+    toast('📧 Invitación enviada a ' + d.email);
+    return d;
+  }).catch(function(err){
+    if (linea) { linea.style.color = 'var(--red)'; linea.textContent = '⚠️ No se pudo enviar el email: ' + err.message + ' Puedes copiar el código y enviarlo a mano.'; }
+    toast('⚠️ Email no enviado: ' + err.message);
+  });
+}
+function tipoInvitacionDesdeRuta(path) {
+  if (path.indexOf('/usuarios_dashboard/') === 0) return 'dashboard';
+  if (path.indexOf('/usuarios_supervisor/') === 0) return 'supervisor';
+  if (path.indexOf('/propietarios/') === 0) return 'propietario';
+  return 'driver';
+}
+function reenviarInvitacionInicio(code, path, btnId) {
+  if (!puedeEditar()) return;
+  var btn = document.getElementById(btnId);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  llamarApiInvitaciones('enviar', code, tipoInvitacionDesdeRuta(path)).then(function(d){
+    toast('📧 Invitación reenviada a ' + d.email);
+  }).catch(function(err){
+    toast('⚠️ No se pudo reenviar: ' + err.message);
+  }).then(function(){ if (btn) { btn.disabled = false; btn.textContent = '✉️'; } });
+}
+
 function registrarEnDirectorio(email) {
   if (!EMPRESA_ID || !email) return Promise.resolve();
   return fetch(FIREBASE_BASE + '/directorio_usuarios/' + encodeURIComponent(emailKey(email)) + '.json', {
@@ -9525,6 +9597,7 @@ function openAddPropietarioModal() {
   _ng.placeholder = nombreGestionPorDefecto();
   seleccionarIvaGestion(true);
   document.getElementById('ap-invite-result').style.display = 'none';
+  (function(){ var l = document.querySelector('#ap-invite-result .inv-email-estado'); if (l) l.remove(); })();
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '📨 ENVIAR INVITACIÓN';
   document.getElementById('ap-mat-buscar').value = '';
@@ -9555,6 +9628,7 @@ function editarPropietarioAbrir(pid) {
   document.getElementById('ap-nombre-gestion').placeholder = nombreGestionPorDefecto();
   seleccionarIvaGestion(p.ivaGestion !== false);
   document.getElementById('ap-invite-result').style.display = 'none';
+  (function(){ var l = document.querySelector('#ap-invite-result .inv-email-estado'); if (l) l.remove(); })();
   document.getElementById('ap-save-btn').disabled = false;
   document.getElementById('ap-save-btn').textContent = '💾 GUARDAR CAMBIOS';
   document.getElementById('ap-mat-buscar').value = '';
@@ -9702,7 +9776,7 @@ function guardarPropietario() {
   fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(propietario)
   }).then(fbCheck).then(function(){
-    registrarIndiceInvitacion(code, 'propietario');
+    registrarIndiceInvitacion(code, 'propietario').then(function(){ enviarEmailInvitacion(code, 'propietario', 'ap-invite-result'); });
     document.getElementById('ap-invite-code').textContent = code;
     document.getElementById('ap-invite-result').style.display = 'block';
     btn.textContent = '✓ Guardado';
@@ -10211,6 +10285,7 @@ function openVehicleDetail(matricula) {
   document.getElementById('vd-invite-turno-manual').style.display = 'none';
   document.getElementById('vd-invite-turno-manual').value = '';
   document.getElementById('vd-invite-result').style.display = 'none';
+  (function(){ var l = document.querySelector('#vd-invite-result .inv-email-estado'); if (l) l.remove(); })();
   // El % de cobro solo aplica a facturación semanal — en mensual no se usa
   var porcWrap = document.getElementById('vd-invite-porcentaje-wrap');
   if (porcWrap) porcWrap.style.display = ((v.tipoFacturacion||'semanal') === 'mensual') ? 'none' : 'block';
@@ -10626,7 +10701,7 @@ function enviarInvitacion() {
   fetch(FIREBASE_URL + '/invites/' + code + '.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(invite)
   }).then(fbCheck).then(function(){
-    registrarIndiceInvitacion(code, 'driver');
+    registrarIndiceInvitacion(code, 'driver').then(function(){ enviarEmailInvitacion(code, 'driver', 'vd-invite-result'); });
     document.getElementById('vd-invite-code').textContent = code;
     document.getElementById('vd-invite-result').style.display = 'block';
     registrarActividad('Conductores', 'Invitó conductor', email + ' · vehículo ' + v.matricula + ' · turno ' + turno);
@@ -10990,7 +11065,19 @@ function deleteVehicleDoc(docType) {
 
 // ══ SESIÓN PERSISTENTE ══
 (function(){
-  var qEmpresa = (new URLSearchParams(location.search).get('empresa') || '').trim().toUpperCase();
+  var _qs = new URLSearchParams(location.search);
+  var qInvite = (_qs.get('invite') || '').trim().toUpperCase();
+  if (qInvite) {
+    localStorage.removeItem('drivx_admin_user');
+    setEmpresa(null);
+    try { history.replaceState(null, '', location.pathname); } catch(e) {}
+    mostrarActivarDash();
+    document.getElementById('dash-act-code').value = qInvite;
+    var qEm = (_qs.get('email') || '').trim().toLowerCase();
+    if (qEm) document.getElementById('dash-act-email').value = qEm;
+    return;
+  }
+  var qEmpresa = (_qs.get('empresa') || '').trim().toUpperCase();
   var savedEmpresa = null; try { savedEmpresa = localStorage.getItem('drivx_empresa'); } catch(e) {}
   if (qEmpresa && qEmpresa !== savedEmpresa) {
     // Viene del enlace de bienvenida de una empresa nueva: cerramos

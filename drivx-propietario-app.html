@@ -589,7 +589,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-1';
+var APP_VERSION = '2026-09-28-2';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2197,6 +2197,21 @@ function closeCitaDetail() { document.getElementById('cita-detail-modal').classL
 
 // ── Sesión guardada ──
 (function initSesion(){
+  // ── Enlace de invitación recibido por email (?invite=CODIGO&email=...) ──
+  try {
+    var q = new URLSearchParams(location.search);
+    var code = (q.get('invite') || '').trim().toUpperCase();
+    if (code) {
+      var em = (q.get('email') || '').trim().toLowerCase();
+      history.replaceState(null, '', location.pathname);
+      localStorage.removeItem('drivx_propietario_actual');
+      setEmpresa(null);
+      mostrarActivar();
+      var c = document.getElementById('act-code'); if (c) c.value = code;
+      var e = document.getElementById('act-email'); if (e && em) e.value = em;
+      return;
+    }
+  } catch(e) {}
   try {
     var saved = JSON.parse(localStorage.getItem('drivx_propietario_actual') || 'null');
     if (saved) { setEmpresa(localStorage.getItem('drivx_empresa')); currentUser = saved; entrarApp(); return; }
