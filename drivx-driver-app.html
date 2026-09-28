@@ -1238,7 +1238,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-2';
+var APP_VERSION = '2026-09-28-1';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1745,6 +1745,12 @@ function showRegResult() {
 }
 
 function finalizeRegistro() {
+  // Si ya tenía cuenta DRIVX y ha escrito su contraseña actual, usamos esa
+  var _pe = document.getElementById('inv-pass-existente');
+  if (_pe && _pe.value) {
+    document.getElementById('inv-pass1').value = _pe.value;
+    var _p2 = document.getElementById('inv-pass2'); if (_p2) _p2.value = _pe.value;
+  }
   var telefono = (document.getElementById('inv-telefono').value||'').trim();
   var pass     = document.getElementById('inv-pass1').value || '';
   var inv = _inviteData;
@@ -1831,7 +1837,8 @@ function finalizeRegistro() {
     var code = (err && err.code) || '';
     var msg;
     if (code === 'drivx/email-en-uso') {
-      msg = '❌ Ya existe una cuenta DRIVX con el email <b>' + (inv.email || '') + '</b>.<br>Si ya tienes cuenta, cierra esta ventana e inicia sesión. Si no, pide a tu administrador que te invite con otro email.';
+      msg = '🔑 El email <b>' + (inv.email || '') + '</b> ya tiene cuenta DRIVX (por ejemplo en otra app de tu empresa).<br>Escribe aquí <b>la contraseña que ya usas</b> y pulsa de nuevo Finalizar:' +
+        '<input id="inv-pass-existente" type="password" placeholder="Tu contraseña DRIVX actual" style="width:100%;box-sizing:border-box;margin-top:10px;padding:12px;border-radius:10px;border:1.5px solid rgba(0,212,255,.7);background:rgba(255,255,255,.06);color:#fff;font-size:15px;font-family:inherit">';
     } else if (code === 'auth/network-request-failed') {
       msg = '❌ Sin conexión a internet. Revisa tu conexión y vuelve a pulsar el botón.';
     } else if (code === 'auth/invalid-email') {

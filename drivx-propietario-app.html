@@ -589,7 +589,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-2';
+var APP_VERSION = '2026-09-28-3';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -660,7 +660,16 @@ function activarCuenta() {
     // Creamos la cuenta real de Firebase ANTES de escribir nada — así la
     // escritura de activación ya va autenticada, como exigen las reglas
     // de seguridad.
-    return firebase.auth().createUserWithEmailAndPassword(email, passwordParaFirebase(pass1)).then(function(){
+    return firebase.auth().createUserWithEmailAndPassword(email, passwordParaFirebase(pass1)).catch(function(err){
+      // Misma persona con varios papeles: si ya tiene cuenta DRIVX con este
+      // email, entra con su contraseña de siempre en lugar de crear otra.
+      if (err && err.code === 'auth/email-already-in-use') {
+        return firebase.auth().signInWithEmailAndPassword(email, passwordParaFirebase(pass1)).catch(function(){
+          var e2 = new Error('misma-cuenta'); e2.code = 'drivx/misma-cuenta'; throw e2;
+        });
+      }
+      throw err;
+    }).then(function(){
       return fetch(FIREBASE_URL + '/propietarios/' + pid + '.json', {
         method: 'PATCH', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify(EMPRESA_ID ? { inviteUsado: true } : { pass: pass1, inviteUsado: true })
@@ -672,7 +681,7 @@ function activarCuenta() {
         entrarApp();
       });
     }).catch(function(err){
-      errEl.textContent = (err && err.code === 'auth/email-already-in-use') ? 'Ya existe una cuenta con ese email — inicia sesión normal.' : 'No se pudo crear la cuenta: ' + (err && err.message ? err.message : 'error desconocido');
+      errEl.textContent = (err && err.code === 'drivx/misma-cuenta') ? 'Este email ya tiene cuenta DRIVX (por ejemplo en otra app de tu empresa). Para activar esta app, escribe la MISMA contraseña que ya usas allí.' : 'No se pudo crear la cuenta: ' + (err && err.message ? err.message : 'error desconocido');
       errEl.style.display = 'block';
     });
   }).catch(function(){
