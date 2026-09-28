@@ -316,46 +316,60 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   50% { box-shadow: 0 0 22px rgba(255,71,87,1), 0 0 46px rgba(255,71,87,.9), 0 0 74px rgba(255,71,87,.55); }
 }
 
-/* ══════ MIS INGRESOS (historial estilo Bolt) ══════ */
-#hi-overlay{position:fixed;inset:0;z-index:9000;background:#1c222b;color:#fff;display:none;flex-direction:column;overflow-y:auto;
-  padding:calc(env(safe-area-inset-top,0px) + 8px) 0 calc(env(safe-area-inset-bottom,0px) + 24px)}
+/* ══════ MIS INGRESOS (historial, estilo DRIVX) ══════ */
+/* El fondo es el mismo de toda la app: mientras está abierto se oculta el
+   resto del contenido y se ve el fondo de la app a través de la pantalla. */
+body.hi-abierto > *:not(#hi-overlay){visibility:hidden}
+#hi-overlay{position:fixed;inset:0;z-index:9000;background:rgba(3,6,12,.35);color:#fff;display:none;flex-direction:column;overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 8px) 0 calc(env(safe-area-inset-bottom,0px) + 28px)}
 #hi-overlay.abierto{display:flex}
 .hi-cab{display:flex;align-items:center;padding:8px 16px 14px}
-.hi-cab button{width:40px;height:40px;border:none;background:none;color:#fff;font-size:26px;cursor:pointer}
-.hi-cab h2{flex:1;text-align:center;margin:0 40px 0 0;font-size:20px;font-weight:800}
-.hi-seg{display:flex;margin:0 16px;padding:4px;border-radius:14px;background:#2b333e}
-.hi-seg button{flex:1;padding:11px;border:none;border-radius:11px;background:none;color:#fff;font-size:15.5px;font-weight:600;cursor:pointer;font-family:inherit}
-.hi-seg button.on{background:#566273}
-.hi-top{display:flex;align-items:center;gap:10px;padding:24px 16px 6px}
-.hi-flecha{flex-shrink:0;width:50px;height:50px;border-radius:50%;border:none;background:#2f3844;color:#fff;font-size:22px;cursor:pointer}
-.hi-flecha:disabled{opacity:.3;cursor:default}
+.hi-cab button{width:44px;height:44px;border-radius:12px;border:2px solid rgba(0,212,255,1);background:rgba(10,16,26,.7);color:#fff;font-size:22px;cursor:pointer;
+  box-shadow:0 0 10px rgba(0,212,255,.7)}
+.hi-cab h2{flex:1;text-align:center;margin:0 44px 0 0;font-size:20px;font-weight:900;text-shadow:0 0 8px rgba(0,212,255,.8)}
+.hi-seg{display:flex;margin:0 16px;padding:4px;border-radius:14px;background:rgba(10,16,26,.72);border:2px solid rgba(0,212,255,.9);
+  box-shadow:0 0 12px rgba(0,212,255,.55)}
+.hi-seg button{flex:1;padding:11px;border:none;border-radius:10px;background:none;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit}
+.hi-seg button.on{background:rgba(0,212,255,.22);box-shadow:inset 0 0 0 1.5px rgba(0,212,255,1),0 0 12px rgba(0,212,255,.6);text-shadow:0 0 6px rgba(0,212,255,.9)}
+.hi-principal{margin:18px 16px 0;padding:18px 12px 16px;border-radius:20px;background:rgba(10,16,26,.72);border:2.5px solid rgba(0,230,118,1);
+  box-shadow:0 0 16px rgba(0,230,118,.75),0 0 36px rgba(0,230,118,.3);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.hi-top{display:flex;align-items:center;gap:10px}
+.hi-flecha{flex-shrink:0;width:48px;height:48px;border-radius:50%;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.1);color:#fff;font-size:22px;cursor:pointer;
+  box-shadow:0 0 10px rgba(0,212,255,.65)}
+.hi-flecha:disabled{opacity:.25;cursor:default;box-shadow:none}
 .hi-centro{flex:1;text-align:center;min-width:0}
-.hi-total{font-size:36px;font-weight:800;letter-spacing:-.5px;line-height:1.1}
-.hi-rango{font-size:14px;color:#b6c0cc;margin-top:6px}
-.hi-estado{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 10px;border-radius:100px}
-.hi-barras{display:flex;align-items:flex-end;gap:8px;height:230px;padding:44px 16px 0;position:relative}
+.hi-total{font-family:var(--mono);font-size:34px;font-weight:900;letter-spacing:-.5px;line-height:1.1;color:#fff;text-shadow:0 0 10px rgba(0,230,118,.85),0 0 22px rgba(0,230,118,.4)}
+.hi-rango{font-size:14px;color:#fff;opacity:.85;margin-top:6px;font-weight:700}
+.hi-estado{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:900;padding:4px 12px;border-radius:100px;background:rgba(10,16,26,.6)}
+.hi-barras{display:flex;align-items:flex-end;gap:8px;height:220px;padding:46px 4px 0;position:relative}
 .hi-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;position:relative;min-width:0}
-.hi-barra{width:100%;max-width:44px;border-radius:100px;background:#7f8a9a;min-height:14px;transition:background .15s}
-.hi-col.sel .hi-barra{background:#16a05d}
-.hi-col.vacia .hi-barra{background:#3a4350}
-.hi-burbuja{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:#16a05d;color:#fff;font-size:13px;font-weight:800;padding:4px 9px;border-radius:100px}
-.hi-burbuja::after{content:'';position:absolute;left:50%;top:100%;width:2px;height:8px;background:#16a05d;transform:translateX(-50%)}
-.hi-etqs{display:flex;gap:8px;padding:10px 16px 0}
-.hi-etqs span{flex:1;text-align:center;font-size:11.5px;color:#aab4c0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hi-etqs span.sel{color:#1ec773;font-weight:700}
-.hi-btn-desglose{display:block;margin:26px auto 0;padding:13px 22px;border-radius:100px;border:none;background:#2f3844;color:#fff;font-size:15.5px;font-weight:700;cursor:pointer;font-family:inherit}
-.hi-desglose{display:none;margin:18px 16px 0;padding:6px 16px;border-radius:16px;background:#262e38}
+.hi-barra{width:100%;max-width:40px;border-radius:100px;min-height:12px;background:rgba(0,212,255,.22);border:1.5px solid rgba(0,212,255,.85);
+  box-shadow:0 0 8px rgba(0,212,255,.45);transition:background .15s,box-shadow .15s}
+.hi-col.sel .hi-barra{background:rgba(0,230,118,.55);border-color:rgba(0,230,118,1);box-shadow:0 0 12px rgba(0,230,118,1),0 0 26px rgba(0,230,118,.5)}
+.hi-col.vacia .hi-barra{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.25);box-shadow:none}
+.hi-burbuja{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,230,118,.2);border:1.5px solid rgba(0,230,118,1);color:#fff;
+  font-family:var(--mono);font-size:12.5px;font-weight:900;padding:4px 9px;border-radius:100px;box-shadow:0 0 10px rgba(0,230,118,.8);text-shadow:0 0 6px rgba(0,230,118,.9)}
+.hi-burbuja::after{content:'';position:absolute;left:50%;top:100%;width:2px;height:9px;background:rgba(0,230,118,1);transform:translateX(-50%);box-shadow:0 0 6px rgba(0,230,118,1)}
+.hi-etqs{display:flex;gap:8px;padding:10px 4px 0}
+.hi-etqs span{flex:1;text-align:center;font-size:11px;color:#fff;opacity:.7;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.hi-etqs span.sel{opacity:1;color:#00e676;text-shadow:0 0 6px rgba(0,230,118,.9)}
+.hi-btn-desglose{display:block;margin:22px auto 0;padding:12px 24px;border-radius:100px;border:2px solid rgba(0,212,255,1);background:rgba(10,16,26,.72);color:#fff;
+  font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 12px rgba(0,212,255,.65)}
+.hi-desglose{display:none;margin:16px 16px 0;padding:6px 16px;border-radius:16px;background:rgba(10,16,26,.72);border:2px solid rgba(0,212,255,.95);
+  box-shadow:0 0 12px rgba(0,212,255,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .hi-desglose.abierto{display:block}
-.hi-linea{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:14.5px}
+.hi-linea{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(0,212,255,.18);font-size:14px;font-weight:600}
 .hi-linea:last-child{border-bottom:none}
-.hi-linea b{font-family:var(--mono);font-weight:700;white-space:nowrap}
-.hi-linea.total{font-weight:800;font-size:15.5px}
-.hi-sec{margin:24px 16px 10px;font-size:15.5px;font-weight:800;color:#c9d2dc}
+.hi-linea b{font-family:var(--mono);font-weight:800;white-space:nowrap}
+.hi-linea.total{font-weight:900;font-size:15px;text-shadow:0 0 6px rgba(255,255,255,.5)}
+.hi-sec{margin:24px 16px 10px;font-size:15px;font-weight:900;text-shadow:0 0 8px rgba(0,212,255,.7)}
 .hi-tarjetas{display:flex;gap:10px;padding:0 16px;flex-wrap:wrap}
-.hi-tarjeta{flex:1;min-width:140px;padding:14px 16px;border-radius:16px;background:#262e38}
-.hi-tarjeta .t{font-size:13.5px;color:#aab4c0}
-.hi-tarjeta .n{font-size:22px;font-weight:800;margin-top:6px}
-.hi-vacio{padding:60px 24px;text-align:center;color:#b6c0cc;font-size:15px;line-height:1.6}
+.hi-tarjeta{flex:1;min-width:140px;padding:14px 16px;border-radius:16px;background:rgba(10,16,26,.72);border:2px solid rgba(255,179,0,1);
+  box-shadow:0 0 10px rgba(255,179,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.hi-tarjeta .t{font-size:13px;color:#fff;opacity:.8;font-weight:700}
+.hi-tarjeta .n{font-family:var(--mono);font-size:21px;font-weight:900;margin-top:6px;overflow-wrap:anywhere}
+.hi-vacio{margin:24px 16px;padding:40px 20px;text-align:center;color:#fff;font-size:15px;line-height:1.6;border-radius:18px;
+  background:rgba(10,16,26,.72);border:2px solid rgba(0,212,255,.9);box-shadow:0 0 12px rgba(0,212,255,.55)}
 </style>
 </head>
 <body>
@@ -1283,7 +1297,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-7';
+var APP_VERSION = '2026-09-28-8';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3178,6 +3192,7 @@ function abrirHistorialIngresos() {
   ov.innerHTML = '<div class="hi-cab"><button onclick="cerrarHistorialIngresos()" aria-label="Volver">←</button><h2>Ingresos</h2></div>' +
     '<div class="hi-vacio">Cargando tu historial…</div>';
   ov.classList.add('abierto');
+  document.body.classList.add('hi-abierto');
   document.body.style.overflow = 'hidden';
   var cid = currentUser.cid;
   // Solo los cierres de este conductor (en todos los vehículos que haya llevado)
@@ -3215,6 +3230,7 @@ function abrirHistorialIngresos() {
 function cerrarHistorialIngresos() {
   var ov = document.getElementById('hi-overlay');
   if (ov) ov.classList.remove('abierto');
+  document.body.classList.remove('hi-abierto');
   document.body.style.overflow = '';
 }
 // Agrupa los cierres en periodos (semanas o meses) con sus totales
@@ -3274,11 +3290,11 @@ function pintarHistorialIngresos() {
   var max = Math.max.apply(null, vis.map(function(p){ return Math.max(0, p.sueldo); }).concat([1]));
   var cobrar = sel.resultado >= 0;
   var html = cab +
-    '<div class="hi-top">' +
+    '<div class="hi-principal"><div class="hi-top">' +
       '<button class="hi-flecha" onclick="moverHistorial(-1)" aria-label="Anterior"' + (_hi.idx <= 0 ? ' disabled' : '') + '>‹</button>' +
       '<div class="hi-centro"><div class="hi-total">' + _hiEur(sel.sueldo) + '</div>' +
         '<div class="hi-rango">' + sel.etq + '</div>' +
-        '<span class="hi-estado" style="color:' + (cobrar ? '#1ec773' : '#ff6b7a') + ';border:1.5px solid ' + (cobrar ? '#1ec773' : '#ff6b7a') + '">' +
+        '<span class="hi-estado" style="color:#fff;border:1.5px solid ' + (cobrar ? 'rgba(0,230,118,1)' : 'rgba(255,71,87,1)') + ';box-shadow:0 0 8px ' + (cobrar ? 'rgba(0,230,118,.8)' : 'rgba(255,71,87,.8)') + '">' +
           (cobrar ? 'A cobrar: ' : 'A devolver: ') + _hiEur(Math.abs(sel.resultado)) + '</span></div>' +
       '<button class="hi-flecha" onclick="moverHistorial(1)" aria-label="Siguiente"' + (_hi.idx >= ps.length - 1 ? ' disabled' : '') + '>›</button>' +
     '</div>' +
@@ -3289,7 +3305,7 @@ function pintarHistorialIngresos() {
         (esSel ? '<span class="hi-burbuja" style="bottom:calc(' + alto + '% + 12px)">' + _hiEur(p.sueldo) + '</span>' : '') +
         '<div class="hi-barra" style="height:' + alto + '%"></div></div>';
     }).join('') + '</div>' +
-    '<div class="hi-etqs">' + vis.map(function(p, i){ return '<span class="' + ((ini + i) === _hi.idx ? 'sel' : '') + '">' + p.corta + '</span>'; }).join('') + '</div>' +
+    '<div class="hi-etqs">' + vis.map(function(p, i){ return '<span class="' + ((ini + i) === _hi.idx ? 'sel' : '') + '">' + p.corta + '</span>'; }).join('') + '</div></div>' +
     '<button class="hi-btn-desglose" onclick="alternarDesgloseHistorial()">' + (_hi.desglose ? 'Ocultar desglose' : 'Mostrar desglose') + '</button>' +
     '<div class="hi-desglose' + (_hi.desglose ? ' abierto' : '') + '">' +
       '<div class="hi-linea"><span>Facturación neta de las apps</span><b>' + _hiEur(sel.netoApps) + '</b></div>' +
@@ -3301,7 +3317,7 @@ function pintarHistorialIngresos() {
       '<div class="hi-linea"><span>Efectivo que cobraste</span><b>− ' + _hiEur(sel.efectivo) + '</b></div>' +
       '<div class="hi-linea"><span>Gastos que pagaste</span><b>+ ' + _hiEur(sel.gastos) + '</b></div>' +
       (sel.ajustes ? '<div class="hi-linea"><span>Ajustes de semanas anteriores</span><b>' + (sel.ajustes >= 0 ? '+ ' : '− ') + _hiEur(Math.abs(sel.ajustes)) + '</b></div>' : '') +
-      '<div class="hi-linea total"><span>' + (cobrar ? 'A cobrar' : 'A devolver') + '</span><b style="color:' + (cobrar ? '#1ec773' : '#ff6b7a') + '">' + _hiEur(Math.abs(sel.resultado)) + '</b></div>' +
+      '<div class="hi-linea total"><span>' + (cobrar ? 'A cobrar' : 'A devolver') + '</span><b style="color:' + (cobrar ? '#00e676;text-shadow:0 0 8px rgba(0,230,118,.9)' : '#ff6b7a;text-shadow:0 0 8px rgba(255,71,87,.9)') + '">' + _hiEur(Math.abs(sel.resultado)) + '</b></div>' +
     '</div>' +
     '<div class="hi-sec">Actividad</div>' +
     '<div class="hi-tarjetas">' +
