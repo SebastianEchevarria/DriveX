@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-1';
+var APP_VERSION = '2026-09-28-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1752,23 +1752,49 @@ var _dashSyncDebounce = null;
 var _dashSSEReintento = null;
 var _dashSSEConectado = false;
 var _dashActualizacionPendiente = null; // pantalla que tiene cambios sin aplicar
+var _dashUltimaEscrituraPropia = 0;
+var _dashRutasLeidasPorPantalla = {};   // { gastos: {gastos:1, vehiculos_extra:1}, ... }
+
+// ══ QUÉ DATOS USA CADA PANTALLA ══
+// Vigilamos qué carpetas de Firebase lee cada pantalla al dibujarse. Así,
+// cuando llega un cambio, solo refrescamos si afecta a lo que se está
+// viendo (un cambio en "registro_actividad" no refresca Gastos, etc.).
+// También apuntamos cuándo escribe el propio Dashboard: esos cambios ya
+// los pinta la propia acción, no hace falta refrescar por ellos.
+(function vigilarLecturasDash(){
+  var fetchOriginal = window.fetch;
+  window.fetch = function(url, opts){
+    try {
+      if (typeof url === 'string' && typeof FIREBASE_URL !== 'undefined' && url.indexOf(FIREBASE_URL + '/') === 0) {
+        var metodo = ((opts && opts.method) || 'GET').toUpperCase();
+        var resto = url.slice(FIREBASE_URL.length + 1);
+        var carpeta = resto.split(/[\/.?]/)[0];
+        if (metodo === 'GET') {
+          var act = document.querySelector('.dash-screen.active');
+          var pid = act ? act.id.replace('dash-', '') : '';
+          if (pid && carpeta) {
+            (_dashRutasLeidasPorPantalla[pid] = _dashRutasLeidasPorPantalla[pid] || {})[carpeta] = 1;
+          }
+        } else {
+          _dashUltimaEscrituraPropia = Date.now();
+        }
+      }
+    } catch(e) {}
+    return fetchOriginal.apply(this, arguments);
+  };
+})();
 
 // ══ SINCRONIZACIÓN EN TIEMPO REAL ══
-// Firebase avisa al instante de cualquier cambio (EventSource / streaming).
-// La conexión va AUTENTICADA (con el token de la sesión), porque los datos
-// de cada empresa están protegidos. Si el token caduca (cada hora) o se
-// corta la conexión, se reconecta sola con un token nuevo.
+// Firebase avisa al instante de cualquier cambio. La conexión va
+// autenticada y se reconecta sola si se corta o caduca el token.
 function iniciarSincronizacionInstantanea() {
   if (typeof EventSource === 'undefined') return;
   conectarSincronizacionDash(false);
-  // Red de seguridad: si por lo que sea la conexión en vivo no está activa,
-  // refrescamos igualmente cada 15s para no quedarnos con datos viejos.
-  setInterval(function(){ if (!_dashSSEConectado) _onCambioRemotoDash(); }, 15000);
-  // Si había cambios esperando (porque había una ventana abierta), se
-  // aplican en cuanto se cierra.
+  // Si había cambios esperando (porque había una ventana abierta o se
+  // estaba escribiendo), se aplican en cuanto se puede.
   setInterval(function(){
     if (_dashActualizacionPendiente && puedeRefrescarPantallaDash()) aplicarCambiosPendientesDash();
-  }, 800);
+  }, 1000);
 }
 function conectarSincronizacionDash(tokenNuevo) {
   clearTimeout(_dashSSEReintento);
@@ -1781,28 +1807,47 @@ function conectarSincronizacionDash(tokenNuevo) {
       var es = new EventSource(FIREBASE_URL + '/.json' + (token ? ('?auth=' + encodeURIComponent(token)) : ''));
       _dashSSE = es;
       es.onopen = function(){ _dashSSEConectado = true; };
-      es.addEventListener('put', function(e){ _dashSSEConectado = true; _onCambioRemotoDash(e); });
-      es.addEventListener('patch', function(e){ _dashSSEConectado = true; _onCambioRemotoDash(e); });
-      // Token caducado → reconectar con uno nuevo
+      es.addEventListener('put', _onEventoRemotoDash);
+      es.addEventListener('patch', _onEventoRemotoDash);
       es.addEventListener('auth_revoked', function(){ conectarSincronizacionDash(true); });
-      // Permiso denegado u otro corte → reintentar en unos segundos
-      es.addEventListener('cancel', function(){ _dashSSEConectado = false; _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 5000); });
+      es.addEventListener('cancel', function(){ _dashSSEConectado = false; _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 10000); });
       es.onerror = function(){
-        _dashSSEConectado = false;
-        _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 3000);
+        if (es.readyState === 2) { // cerrada del todo → reconectar con token nuevo
+          _dashSSEConectado = false;
+          _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 5000);
+        }
       };
     } catch(e) {
-      _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 5000);
+      _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 10000);
     }
   });
 }
-// Al volver a la pestaña / despertar el ordenador, reconectamos por si acaso
 document.addEventListener('visibilitychange', function(){
   if (!document.hidden && typeof currentUser !== 'undefined' && currentUser && !_dashSSEConectado) conectarSincronizacionDash(true);
 });
 
-// ¿Se puede redibujar la pantalla ahora sin molestar? No, si hay una
-// ventana abierta o se está escribiendo en un campo (se perdería lo escrito).
+function _onEventoRemotoDash(e) {
+  _dashSSEConectado = true;
+  var msg = null;
+  try { msg = JSON.parse(e.data); } catch(err) { return; }
+  if (!msg || !msg.path) return;
+  // El primer mensaje al conectar es la "foto" completa de los datos
+  // (ruta "/"): no es un cambio, lo ignoramos.
+  if (msg.path === '/') return;
+  // Cambios hechos por el propio Dashboard hace un momento: ya pintados.
+  if (Date.now() - _dashUltimaEscrituraPropia < 2500) return;
+  var carpeta = msg.path.replace(/^\//, '').split('/')[0];
+  var act = document.querySelector('.dash-screen.active');
+  if (!act) return;
+  var pid = act.id.replace('dash-', '');
+  var usadas = _dashRutasLeidasPorPantalla[pid];
+  // Solo refrescamos si el cambio es de algo que esta pantalla muestra
+  if (usadas && !usadas[carpeta]) return;
+  _onCambioRemotoDash();
+}
+
+// ¿Se puede redibujar ahora sin molestar? No, si hay una ventana abierta
+// o se está escribiendo en un campo.
 function puedeRefrescarPantallaDash() {
   var a = document.activeElement;
   if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return false;
@@ -1820,29 +1865,123 @@ function _onCambioRemotoDash() {
     if (!activo) return;
     _dashActualizacionPendiente = activo.id.replace('dash-', '');
     if (puedeRefrescarPantallaDash()) aplicarCambiosPendientesDash();
-  }, 400);
+  }, 500);
 }
+
+// ══ CONSERVAR LO QUE EL USUARIO TIENE ABIERTO ══
+// Antes de redibujar guardamos qué bloques estaban desplegados (y sus
+// flechas, buscadores, etc.) y después los dejamos exactamente igual.
+function capturarEstadoPantallaDash(activo) {
+  var estado = [];
+  activo.querySelectorAll('[id]').forEach(function(el){
+    var s = { id: el.id };
+    if (el.style.display) s.display = el.style.display;
+    if (el.style.transform) s.transform = el.style.transform;
+    if (el.style.maxHeight) s.maxHeight = el.style.maxHeight;
+    // Solo flechas de abrir/cerrar (nunca números ni textos con datos)
+    if (el.children.length === 0 && /^\s*[⌄⌃▾▸▴▲▼►◄›‹˅˄∨∧]\s*$/.test(el.textContent)) s.text = el.textContent;
+    if (el.tagName === 'INPUT' && el.type !== 'file') s.value = el.value;
+    if (el.classList && el.classList.length) s.clases = el.className;
+    estado.push(s);
+  });
+  return estado;
+}
+function restaurarEstadoPantallaDash(estado) {
+  estado.forEach(function(s){
+    var el = document.getElementById(s.id);
+    if (!el) return;
+    if (s.display !== undefined && el.style.display !== s.display) el.style.display = s.display;
+    if (s.transform !== undefined && el.style.transform !== s.transform) el.style.transform = s.transform;
+    if (s.maxHeight !== undefined && el.style.maxHeight !== s.maxHeight) el.style.maxHeight = s.maxHeight;
+    if (s.text !== undefined && el.children.length === 0 && el.textContent !== s.text) el.textContent = s.text;
+    if (s.value !== undefined && el.value !== s.value) el.value = s.value;
+    if (s.clases !== undefined && el.className !== s.clases && /\b(open|active|expanded|show)\b/.test(s.clases + ' ' + el.className)) el.className = s.clases;
+  });
+}
+
 var _dashRefrescosRecientes = [];
+var _dashRefrescando = false;
+
+// ══ ACTUALIZACIÓN SIN PARPADEO ══
+// Ponemos delante una copia fija ("foto") de la pantalla tal y como se ve,
+// redibujamos la de verdad por detrás (oculta), y cuando ha terminado de
+// pintarse la mostramos y quitamos la foto. El usuario solo ve el cambio
+// final, nunca el "Cargando…" intermedio.
+function crearFotoPantallaDash(activo) {
+  var padre = activo.parentNode;
+  if (!padre) return null;
+  if (window.getComputedStyle(padre).position === 'static') padre.style.position = 'relative';
+  var foto = activo.cloneNode(true);
+  foto.setAttribute('data-foto-refresco', '1');
+  foto.setAttribute('aria-hidden', 'true');
+  foto.style.position = 'absolute';
+  foto.style.top = activo.offsetTop + 'px';
+  foto.style.left = activo.offsetLeft + 'px';
+  foto.style.width = activo.offsetWidth + 'px';
+  foto.style.margin = '0';
+  foto.style.pointerEvents = 'none';
+  foto.style.zIndex = '5';
+  // Las gráficas (canvas) no se copian solas: las copiamos a mano
+  var origC = activo.querySelectorAll('canvas'), copiaC = foto.querySelectorAll('canvas');
+  for (var i = 0; i < origC.length && i < copiaC.length; i++) {
+    try { copiaC[i].width = origC[i].width; copiaC[i].height = origC[i].height; copiaC[i].getContext('2d').drawImage(origC[i], 0, 0); } catch(e) {}
+  }
+  // Valores escritos en campos
+  var origI = activo.querySelectorAll('input,select,textarea'), copiaI = foto.querySelectorAll('input,select,textarea');
+  for (var j = 0; j < origI.length && j < copiaI.length; j++) { try { copiaI[j].value = origI[j].value; } catch(e) {} }
+  // Va DESPUÉS de la pantalla real, así getElementById sigue encontrando la real
+  padre.insertBefore(foto, activo.nextSibling);
+  return foto;
+}
+
 function aplicarCambiosPendientesDash() {
+  if (_dashRefrescando) return; // ya hay uno en marcha; el pendiente se aplicará después
   var id = _dashActualizacionPendiente;
   _dashActualizacionPendiente = null;
   if (!id) return;
-  // Protección anti-bucle: si una pantalla guarda algo al dibujarse, eso
-  // provocaría refrescos sin fin. Si detectamos demasiados seguidos,
-  // pasamos a la píldora "toca para actualizar" durante un rato.
   var ahora = Date.now();
-  _dashRefrescosRecientes = _dashRefrescosRecientes.filter(function(t){ return ahora - t < 10000; });
-  if (_dashRefrescosRecientes.length >= 8) {
+  _dashRefrescosRecientes = _dashRefrescosRecientes.filter(function(t){ return ahora - t < 20000; });
+  if (_dashRefrescosRecientes.length >= 6) {
     if (id !== 'inicio') mostrarPildoraActualizacionDash(id);
     return;
   }
   _dashRefrescosRecientes.push(ahora);
+
   var activo = document.querySelector('.dash-screen.active');
-  if (!activo || activo.id !== 'dash-' + id) return; // ya cambió de pantalla (y esa se pinta sola al entrar)
-  // Conservamos la posición de scroll para que no "salte" la pantalla
+  if (!activo || activo.id !== 'dash-' + id) return;
+
+  _dashRefrescando = true;
+  var estado = capturarEstadoPantallaDash(activo);
   var cont = document.getElementById('content');
   var scrollCont = cont ? cont.scrollTop : 0;
   var scrollWin = window.scrollY;
+  var foto = null;
+  try { foto = crearFotoPantallaDash(activo); } catch(e) { foto = null; }
+  if (foto) activo.style.visibility = 'hidden';
+
+  var terminado = false, timerQuieto = null, timerMax = null, obs = null;
+  function terminar() {
+    if (terminado) return;
+    terminado = true;
+    clearTimeout(timerQuieto); clearTimeout(timerMax);
+    if (obs) { try { obs.disconnect(); } catch(e) {} }
+    restaurarEstadoPantallaDash(estado);
+    if (cont) cont.scrollTop = scrollCont;
+    window.scrollTo(0, scrollWin);
+    activo.style.visibility = '';
+    if (foto && foto.parentNode) foto.parentNode.removeChild(foto);
+    _dashRefrescando = false;
+  }
+  // Consideramos que ha terminado de pintarse cuando lleva 400ms sin
+  // cambiar (o como mucho a los 4s, por si acaso).
+  function reprogramar() { clearTimeout(timerQuieto); timerQuieto = setTimeout(terminar, 400); }
+  try {
+    obs = new MutationObserver(function(){ restaurarEstadoPantallaDash(estado); reprogramar(); });
+    obs.observe(activo, { childList: true, subtree: true, attributes: true, characterData: true });
+  } catch(e) {}
+  timerMax = setTimeout(terminar, 4000);
+  reprogramar();
+
   try {
     if (id === 'inicio') {
       renderInicioStats();
@@ -1855,16 +1994,17 @@ function aplicarCambiosPendientesDash() {
     } else {
       aplicarActualizacionPantallaDash(id);
     }
-  } catch(e) {}
-  setTimeout(function(){
-    if (cont) cont.scrollTop = scrollCont;
-    window.scrollTo(0, scrollWin);
-  }, 60);
-  setTimeout(function(){
-    if (cont) cont.scrollTop = scrollCont;
-    window.scrollTo(0, scrollWin);
-  }, 450);
+  } catch(e) { terminar(); }
 }
+// Si el usuario cambia de pantalla en mitad de un refresco, lo cerramos limpio
+document.addEventListener('click', function(ev){
+  var t = ev.target && ev.target.closest ? ev.target.closest('.sb-item') : null;
+  if (!t) return;
+  document.querySelectorAll('[data-foto-refresco]').forEach(function(f){ f.parentNode && f.parentNode.removeChild(f); });
+  document.querySelectorAll('.dash-screen').forEach(function(s){ s.style.visibility = ''; });
+  _dashRefrescando = false;
+}, true);
+
 function mostrarPildoraActualizacionDash(screenId) {
   var pill = document.getElementById('dash-update-pill');
   if (!pill) {
