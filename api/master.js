@@ -6,6 +6,8 @@
 //   { accion: 'verificar' }                 → confirma que eres MASTER (y te marca como superadmin)
 //   { accion: 'listar' }                    → todas las empresas con sus datos y cifras
 //   { accion: 'estado', empresa, estado }   → 'activa' | 'suspendida'
+//   { accion: 'ajustes', empresa, ajustes } → guarda los ajustes de esa empresa
+//        (qué apartados del menú del Dashboard ve). empresa 'ORIGINAL' = flota original.
 //
 // SEGURIDAD: solo responde si el token es de la cuenta MASTER
 // (MASTER_EMAIL, por defecto drivx.apps@gmail.com) Y ese email está
@@ -26,6 +28,8 @@ if (!admin.apps.length) {
 }
 
 const MASTER_EMAIL = String(process.env.MASTER_EMAIL || 'drivx.apps@gmail.com').toLowerCase();
+// Apartados del menú del Dashboard que se pueden activar/desactivar por empresa
+const SECCIONES_MENU = ['inicio','flota','gastos','citas','propietarios','conductores','facturacion','estadisticas','informes','suscripcion','configuracion'];
 
 async function comprobarMaster(req) {
   const h = String(req.headers.authorization || '');
@@ -55,7 +59,7 @@ async function contar(db, ruta) {
 }
 
 async function resumenDe(db, base) {
-  const [info, lotes, vehExtra, conductores, dash, sup, props] = await Promise.all([
+  const [info, lotes, vehExtra, conductores, dash, sup, props, ajustes] = await Promise.all([
     base ? db.ref(base + 'empresa_info').once('value').then((s) => s.val()) : Promise.resolve(null),
     contar(db, base + 'suscripcion_lotes'),
     contar(db, base + 'vehiculos_extra'),
@@ -63,6 +67,7 @@ async function resumenDe(db, base) {
     contar(db, base + 'usuarios_dashboard'),
     contar(db, base + 'usuarios_supervisor'),
     contar(db, base + 'propietarios'),
+    db.ref(base + 'ajustes_empresa').once('value').then((s) => s.val()),
   ]);
   const vehiculosContratados = Object.keys(lotes).reduce((s, k) => s + (Number(lotes[k] && lotes[k].cantidad) || 0), 0);
   const activos = (o) => Object.keys(o).filter((k) => o[k] && o[k].inviteUsado).length;
@@ -77,6 +82,7 @@ async function resumenDe(db, base) {
     supervisores: activos(sup),
     propietarios: activos(props),
     ultimaContratacion,
+    ajustes: ajustes || {},
   };
 }
 
@@ -119,6 +125,21 @@ module.exports = async function handler(req, res) {
       if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
       await ref.update({ estado, estadoCambiadoTs: Date.now(), estadoCambiadoPor: 'MASTER' });
       res.status(200).json({ ok: true, empresa, estado });
+      return;
+    }
+
+    if (accion === 'ajustes') {
+      const empresa = String((req.body && req.body.empresa) || '');
+      if (empresa !== 'ORIGINAL' && !/^DRX-[A-Z0-9]{5}$/.test(empresa)) { res.status(400).json({ error: 'Empresa inválida' }); return; }
+      const entrada = (req.body && req.body.ajustes) || {};
+      const menu = {};
+      SECCIONES_MENU.forEach((k) => { menu[k] = !(entrada.menu && entrada.menu[k] === false); });
+      if (!SECCIONES_MENU.some((k) => menu[k])) { res.status(400).json({ error: 'Deja al menos un apartado activo.' }); return; }
+      const base = empresa === 'ORIGINAL' ? '' : 'empresas/' + empresa + '/';
+      if (empresa !== 'ORIGINAL' && !(await db.ref(base + 'empresa_info').once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
+      const guardar = { menu, actualizadoTs: Date.now() };
+      await db.ref(base + 'ajustes_empresa').set(guardar);
+      res.status(200).json({ ok: true, empresa, ajustes: guardar });
       return;
     }
 
