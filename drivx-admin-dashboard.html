@@ -1061,7 +1061,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-17';
+var APP_VERSION = '2026-09-28-18';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2770,7 +2770,16 @@ function statCard(lbl, val, foot, color) {
 var VEHICULOS_EXTRA = [];
 var CCAA_BASE = ['Andalucía','Comunidad Valenciana','Castilla-La Mancha'];
 var CCAA_EXTRA = [];
-function getCcaaOrder() { return CCAA_BASE.concat(CCAA_EXTRA); }
+// Comunidades de la empresa: las de fábrica (solo la flota original), las
+// añadidas a mano y TAMBIÉN las de cualquier vehículo de la empresa (así una
+// empresa nunca se queda sin las comunidades que realmente usa).
+function getCcaaOrder() {
+  var lista = CCAA_BASE.concat(CCAA_EXTRA);
+  (typeof VEHICULOS_EXTRA !== 'undefined' ? VEHICULOS_EXTRA : []).forEach(function(v){
+    if (v && v.ccaa && lista.indexOf(v.ccaa) === -1) lista.push(v.ccaa);
+  });
+  return lista;
+}
 // Versión que respeta la restricción de un Manager: si tiene una CCAA
 // asignada, es la ÚNICA que debe poder ver o elegir en cualquier sitio de
 // la app (grupos de Flota, selects, filtros...). Para todos los demás
