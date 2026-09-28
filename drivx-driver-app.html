@@ -315,6 +315,47 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
   0%, 100% { box-shadow: 0 0 14px rgba(255,71,87,1), 0 0 30px rgba(255,71,87,.7), 0 0 50px rgba(255,71,87,.4); }
   50% { box-shadow: 0 0 22px rgba(255,71,87,1), 0 0 46px rgba(255,71,87,.9), 0 0 74px rgba(255,71,87,.55); }
 }
+
+/* ══════ MIS INGRESOS (historial estilo Bolt) ══════ */
+#hi-overlay{position:fixed;inset:0;z-index:9000;background:#1c222b;color:#fff;display:none;flex-direction:column;overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 8px) 0 calc(env(safe-area-inset-bottom,0px) + 24px)}
+#hi-overlay.abierto{display:flex}
+.hi-cab{display:flex;align-items:center;padding:8px 16px 14px}
+.hi-cab button{width:40px;height:40px;border:none;background:none;color:#fff;font-size:26px;cursor:pointer}
+.hi-cab h2{flex:1;text-align:center;margin:0 40px 0 0;font-size:20px;font-weight:800}
+.hi-seg{display:flex;margin:0 16px;padding:4px;border-radius:14px;background:#2b333e}
+.hi-seg button{flex:1;padding:11px;border:none;border-radius:11px;background:none;color:#fff;font-size:15.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.hi-seg button.on{background:#566273}
+.hi-top{display:flex;align-items:center;gap:10px;padding:24px 16px 6px}
+.hi-flecha{flex-shrink:0;width:50px;height:50px;border-radius:50%;border:none;background:#2f3844;color:#fff;font-size:22px;cursor:pointer}
+.hi-flecha:disabled{opacity:.3;cursor:default}
+.hi-centro{flex:1;text-align:center;min-width:0}
+.hi-total{font-size:36px;font-weight:800;letter-spacing:-.5px;line-height:1.1}
+.hi-rango{font-size:14px;color:#b6c0cc;margin-top:6px}
+.hi-estado{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;padding:3px 10px;border-radius:100px}
+.hi-barras{display:flex;align-items:flex-end;gap:8px;height:230px;padding:44px 16px 0;position:relative}
+.hi-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;position:relative;min-width:0}
+.hi-barra{width:100%;max-width:44px;border-radius:100px;background:#7f8a9a;min-height:14px;transition:background .15s}
+.hi-col.sel .hi-barra{background:#16a05d}
+.hi-col.vacia .hi-barra{background:#3a4350}
+.hi-burbuja{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:#16a05d;color:#fff;font-size:13px;font-weight:800;padding:4px 9px;border-radius:100px}
+.hi-burbuja::after{content:'';position:absolute;left:50%;top:100%;width:2px;height:8px;background:#16a05d;transform:translateX(-50%)}
+.hi-etqs{display:flex;gap:8px;padding:10px 16px 0}
+.hi-etqs span{flex:1;text-align:center;font-size:11.5px;color:#aab4c0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hi-etqs span.sel{color:#1ec773;font-weight:700}
+.hi-btn-desglose{display:block;margin:26px auto 0;padding:13px 22px;border-radius:100px;border:none;background:#2f3844;color:#fff;font-size:15.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.hi-desglose{display:none;margin:18px 16px 0;padding:6px 16px;border-radius:16px;background:#262e38}
+.hi-desglose.abierto{display:block}
+.hi-linea{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:14.5px}
+.hi-linea:last-child{border-bottom:none}
+.hi-linea b{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.hi-linea.total{font-weight:800;font-size:15.5px}
+.hi-sec{margin:24px 16px 10px;font-size:15.5px;font-weight:800;color:#c9d2dc}
+.hi-tarjetas{display:flex;gap:10px;padding:0 16px;flex-wrap:wrap}
+.hi-tarjeta{flex:1;min-width:140px;padding:14px 16px;border-radius:16px;background:#262e38}
+.hi-tarjeta .t{font-size:13.5px;color:#aab4c0}
+.hi-tarjeta .n{font-size:22px;font-weight:800;margin-top:6px}
+.hi-vacio{padding:60px 24px;text-align:center;color:#b6c0cc;font-size:15px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -595,6 +636,12 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
       <span class="spin">⚙️</span>
       <span class="processing-text" id="billing-processing-text">Analizando captura...</span>
     </div>
+
+    <button type="button" onclick="abrirHistorialIngresos()" style="width:100%;margin-bottom:14px;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.08);color:#fff;cursor:pointer;font-family:inherit;text-align:left;box-shadow:0 0 12px rgba(0,230,118,.55)">
+      <span style="font-size:24px">📊</span>
+      <span style="flex:1"><span style="display:block;font-size:15px;font-weight:900">Mis ingresos</span><span style="display:block;font-size:12px;opacity:.8;margin-top:2px">Historial de tus semanas y meses cerrados</span></span>
+      <span style="font-size:22px;opacity:.8">›</span>
+    </button>
 
     <div id="nomina-driver-section" style="margin-bottom:14px"></div>
 
@@ -1236,7 +1283,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-6';
+var APP_VERSION = '2026-09-28-7';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3109,6 +3156,164 @@ function comprobarDuplicadoTicket(nuevo) {
     return null;
   }).catch(function(){ return null; }); // si falla la conexión, no bloqueamos al conductor
 }
+
+// ══════════════ MIS INGRESOS: historial de semanas y meses cerrados ══════════════
+// Formato inspirado en la app de Bolt. Los datos salen de los CIERRES que
+// hace tu administrador (facturacion_cierres): cada semana cerrada queda
+// guardada tal cual se cerró, así que el historial nunca cambia.
+var _hi = { cierres: [], modo: 'semana', idx: 0, desglose: false };
+var _HI_MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+var _HI_MESES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function _hiEur(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+function abrirHistorialIngresos() {
+  if (!currentUser || !currentUser.cid) return;
+  var ov = document.getElementById('hi-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'hi-overlay';
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-label', 'Mis ingresos');
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = '<div class="hi-cab"><button onclick="cerrarHistorialIngresos()" aria-label="Volver">←</button><h2>Ingresos</h2></div>' +
+    '<div class="hi-vacio">Cargando tu historial…</div>';
+  ov.classList.add('abierto');
+  document.body.style.overflow = 'hidden';
+  var cid = currentUser.cid;
+  // Solo los cierres de este conductor (en todos los vehículos que haya llevado)
+  fetch(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(r){ return r.json(); }).then(function(mats){
+    mats = (mats && typeof mats === 'object' && !mats.error) ? Object.keys(mats) : [];
+    return Promise.all(mats.map(function(m){
+      return fetch(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+        .then(function(d){ return { mat: m, d: (d && typeof d === 'object' && !d.error) ? d : {} }; });
+    }));
+  }).then(function(porMat){
+    var lista = [];
+    porMat.forEach(function(x){
+      Object.keys(x.d).forEach(function(periodo){
+        var r = x.d[periodo]; if (!r) return;
+        var hasta = r.semanaHastaTs || null, desde = r.semanaDesdeTs || null;
+        var mw = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo), mm = /^(\d{4})-(\d{2})$/.exec(periodo);
+        if (!hasta && mw) { var l = new Date(+mw[1], +mw[2]-1, +mw[3]).getTime(); desde = l; hasta = l + 6 * 86400000; }
+        if (!hasta && mm) { desde = new Date(+mm[1], +mm[2]-1, 1).getTime(); hasta = new Date(+mm[1], +mm[2], 0).getTime(); }
+        if (!hasta) hasta = Date.parse(r.fecha || '') || 0;
+        if (!desde) desde = hasta - 6 * 86400000;
+        lista.push({ periodo: periodo, mensual: !!mm, desde: desde, hasta: hasta, r: r, mat: r.matricula || x.mat.replace(/_/g, ' ') });
+      });
+    });
+    lista.sort(function(a, b){ return a.hasta - b.hasta; });
+    _hi.cierres = lista;
+    _hi.modo = 'semana';
+    _hi.desglose = false;
+    _hi.idx = _hiPeriodos().length - 1;
+    pintarHistorialIngresos();
+  }).catch(function(){
+    ov.innerHTML = '<div class="hi-cab"><button onclick="cerrarHistorialIngresos()" aria-label="Volver">←</button><h2>Ingresos</h2></div>' +
+      '<div class="hi-vacio">No se pudo cargar tu historial. Revisa tu conexión e inténtalo de nuevo.</div>';
+  });
+}
+function cerrarHistorialIngresos() {
+  var ov = document.getElementById('hi-overlay');
+  if (ov) ov.classList.remove('abierto');
+  document.body.style.overflow = '';
+}
+// Agrupa los cierres en periodos (semanas o meses) con sus totales
+function _hiPeriodos() {
+  var grupos = [], porClave = {};
+  _hi.cierres.forEach(function(c){
+    var clave, desde, hasta, etq, corta;
+    if (_hi.modo === 'mes') {
+      var d = new Date(c.hasta);
+      clave = d.getFullYear() + '-' + d.getMonth();
+      desde = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      hasta = new Date(d.getFullYear(), d.getMonth() + 1, 0).getTime();
+      etq = _HI_MESES_L[d.getMonth()].charAt(0).toUpperCase() + _HI_MESES_L[d.getMonth()].slice(1) + ' ' + d.getFullYear();
+      corta = _HI_MESES[d.getMonth()] + '.';
+    } else {
+      clave = c.periodo + '|' + c.mat;
+      desde = c.desde; hasta = c.hasta;
+      var a = new Date(desde), b = new Date(hasta);
+      etq = a.getDate() + (a.getMonth() !== b.getMonth() ? ' ' + _HI_MESES[a.getMonth()] + '.' : '') + '–' + b.getDate() + ' ' + _HI_MESES[b.getMonth()] + '.' + (b.getFullYear() !== new Date().getFullYear() ? ' ' + b.getFullYear() : '');
+      corta = a.getDate() + ' ' + _HI_MESES[a.getMonth()] + '.';
+      if (c.mensual) { etq = _HI_MESES_L[a.getMonth()] + ' ' + a.getFullYear(); corta = _HI_MESES[a.getMonth()] + '.'; }
+    }
+    if (!porClave[clave]) { porClave[clave] = { clave: clave, desde: desde, hasta: hasta, etq: etq, corta: corta, cierres: [] }; grupos.push(porClave[clave]); }
+    porClave[clave].cierres.push(c);
+  });
+  grupos.forEach(function(g){
+    var s = function(k){ return g.cierres.reduce(function(t, c){ return t + Number(c.r[k] || 0); }, 0); };
+    g.sueldo = s('sueldo'); g.resultado = s('resultado');
+    g.netoApps = s('uberNetoReal') + s('boltNetoReal') + s('cabifyNetoReal');
+    g.parteApps = s('netoAppsConductor'); g.privados = s('privadosCutTotal') + s('transfersCutTotal');
+    g.propinas = s('uberPropinas') + s('boltPropinas') + s('cabifyPropinas') + s('propinasDatafonoTotal');
+    g.promos = s('promoTotal'); g.efectivo = s('efectivoAppsTotal') + s('privadosEfectivoTotal') + s('transfersEfectivoTotal');
+    g.gastos = s('gastosTotal'); g.ajustes = s('ajustesTotal');
+    g.porcentaje = (g.cierres[g.cierres.length - 1].r || {}).porcentajeConductor;
+    g.vehiculos = Array.from(new Set(g.cierres.map(function(c){ return c.mat; }))).join(', ');
+  });
+  return grupos;
+}
+function pintarHistorialIngresos() {
+  var ov = document.getElementById('hi-overlay'); if (!ov) return;
+  var cab = '<div class="hi-cab"><button onclick="cerrarHistorialIngresos()" aria-label="Volver">←</button><h2>Ingresos</h2></div>' +
+    '<div class="hi-seg" role="tablist">' +
+      '<button role="tab" class="' + (_hi.modo === 'semana' ? 'on' : '') + '" onclick="cambiarModoHistorial(\'semana\')">Por semana</button>' +
+      '<button role="tab" class="' + (_hi.modo === 'mes' ? 'on' : '') + '" onclick="cambiarModoHistorial(\'mes\')">Por mes</button>' +
+    '</div>';
+  var ps = _hiPeriodos();
+  if (!ps.length) {
+    ov.innerHTML = cab + '<div class="hi-vacio">Todavía no tienes semanas cerradas.<br>Cuando tu administrador cierre tu primera semana, aparecerá aquí.</div>';
+    return;
+  }
+  if (_hi.idx < 0 || _hi.idx >= ps.length) _hi.idx = ps.length - 1;
+  var sel = ps[_hi.idx];
+  // Ventana de barras alrededor del periodo elegido
+  var N = 7, ini = Math.max(0, Math.min(_hi.idx - N + 1 + Math.min(3, ps.length - 1 - _hi.idx), ps.length - N));
+  if (ps.length <= N) ini = 0;
+  var vis = ps.slice(ini, ini + N);
+  var max = Math.max.apply(null, vis.map(function(p){ return Math.max(0, p.sueldo); }).concat([1]));
+  var cobrar = sel.resultado >= 0;
+  var html = cab +
+    '<div class="hi-top">' +
+      '<button class="hi-flecha" onclick="moverHistorial(-1)" aria-label="Anterior"' + (_hi.idx <= 0 ? ' disabled' : '') + '>‹</button>' +
+      '<div class="hi-centro"><div class="hi-total">' + _hiEur(sel.sueldo) + '</div>' +
+        '<div class="hi-rango">' + sel.etq + '</div>' +
+        '<span class="hi-estado" style="color:' + (cobrar ? '#1ec773' : '#ff6b7a') + ';border:1.5px solid ' + (cobrar ? '#1ec773' : '#ff6b7a') + '">' +
+          (cobrar ? 'A cobrar: ' : 'A devolver: ') + _hiEur(Math.abs(sel.resultado)) + '</span></div>' +
+      '<button class="hi-flecha" onclick="moverHistorial(1)" aria-label="Siguiente"' + (_hi.idx >= ps.length - 1 ? ' disabled' : '') + '>›</button>' +
+    '</div>' +
+    '<div class="hi-barras">' + vis.map(function(p, i){
+      var alto = Math.max(6, Math.round(Math.max(0, p.sueldo) / max * 100));
+      var esSel = (ini + i) === _hi.idx;
+      return '<div class="hi-col' + (esSel ? ' sel' : '') + (p.sueldo <= 0 ? ' vacia' : '') + '" onclick="elegirHistorial(' + (ini + i) + ')">' +
+        (esSel ? '<span class="hi-burbuja" style="bottom:calc(' + alto + '% + 12px)">' + _hiEur(p.sueldo) + '</span>' : '') +
+        '<div class="hi-barra" style="height:' + alto + '%"></div></div>';
+    }).join('') + '</div>' +
+    '<div class="hi-etqs">' + vis.map(function(p, i){ return '<span class="' + ((ini + i) === _hi.idx ? 'sel' : '') + '">' + p.corta + '</span>'; }).join('') + '</div>' +
+    '<button class="hi-btn-desglose" onclick="alternarDesgloseHistorial()">' + (_hi.desglose ? 'Ocultar desglose' : 'Mostrar desglose') + '</button>' +
+    '<div class="hi-desglose' + (_hi.desglose ? ' abierto' : '') + '">' +
+      '<div class="hi-linea"><span>Facturación neta de las apps</span><b>' + _hiEur(sel.netoApps) + '</b></div>' +
+      '<div class="hi-linea"><span>Tu parte' + (sel.porcentaje ? ' (' + sel.porcentaje + ' %)' : '') + '</span><b>' + _hiEur(sel.parteApps) + '</b></div>' +
+      (sel.privados ? '<div class="hi-linea"><span>Viajes privados y transfers</span><b>' + _hiEur(sel.privados) + '</b></div>' : '') +
+      '<div class="hi-linea"><span>Propinas</span><b>' + _hiEur(sel.propinas) + '</b></div>' +
+      '<div class="hi-linea"><span>Promociones</span><b>' + _hiEur(sel.promos) + '</b></div>' +
+      '<div class="hi-linea total"><span>Tus ingresos</span><b>' + _hiEur(sel.sueldo) + '</b></div>' +
+      '<div class="hi-linea"><span>Efectivo que cobraste</span><b>− ' + _hiEur(sel.efectivo) + '</b></div>' +
+      '<div class="hi-linea"><span>Gastos que pagaste</span><b>+ ' + _hiEur(sel.gastos) + '</b></div>' +
+      (sel.ajustes ? '<div class="hi-linea"><span>Ajustes de semanas anteriores</span><b>' + (sel.ajustes >= 0 ? '+ ' : '− ') + _hiEur(Math.abs(sel.ajustes)) + '</b></div>' : '') +
+      '<div class="hi-linea total"><span>' + (cobrar ? 'A cobrar' : 'A devolver') + '</span><b style="color:' + (cobrar ? '#1ec773' : '#ff6b7a') + '">' + _hiEur(Math.abs(sel.resultado)) + '</b></div>' +
+    '</div>' +
+    '<div class="hi-sec">Actividad</div>' +
+    '<div class="hi-tarjetas">' +
+      '<div class="hi-tarjeta"><div class="t">' + (_hi.modo === 'mes' ? 'Semanas cerradas' : 'Vehículo') + '</div><div class="n" style="font-size:' + (_hi.modo === 'mes' ? '22px' : '17px') + '">' + (_hi.modo === 'mes' ? sel.cierres.length : sel.vehiculos) + '</div></div>' +
+      '<div class="hi-tarjeta"><div class="t">Propinas</div><div class="n">' + _hiEur(sel.propinas) + '</div></div>' +
+    '</div>';
+  ov.innerHTML = html;
+}
+function cambiarModoHistorial(modo) { _hi.modo = modo; _hi.idx = _hiPeriodos().length - 1; pintarHistorialIngresos(); }
+function moverHistorial(d) { _hi.idx += d; pintarHistorialIngresos(); }
+function elegirHistorial(i) { _hi.idx = i; pintarHistorialIngresos(); }
+function alternarDesgloseHistorial() { _hi.desglose = !_hi.desglose; pintarHistorialIngresos(); }
 
 function base64ToBlob(b64, mimeType) {
   var byteChars = atob(b64);
