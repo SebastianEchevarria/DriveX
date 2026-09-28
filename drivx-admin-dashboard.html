@@ -99,6 +99,9 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 .sb-logo .txt{font-size:15px;font-weight:900}
 .sb-logo .sub{font-size:10px;color:var(--text3);letter-spacing:1px}
 .sb-section{font-size:10px;font-weight:800;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:8px 20px;margin-top:10px}
+.sb-item.oculto-empresa{display:none !important}
+.sb-item.oculto-soporte{opacity:.45;border-style:dashed !important}
+.sb-item.oculto-soporte::after{content:'oculto';font-size:9.5px;font-weight:800;color:#ffc53d;border:1px solid #ffc53d;border-radius:6px;padding:1px 5px;margin-left:6px}
 .sb-item{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 16px;margin:0 12px 8px;border-radius:12px;color:rgba(255,255,255,.9);font-size:14px;font-weight:600;cursor:pointer;border:1.5px solid rgba(0,212,255,.25);background:rgba(0,212,255,.03);width:calc(100% - 24px);text-align:center;font-family:inherit;box-shadow:0 0 5px rgba(0,212,255,.15),0 0 10px rgba(0,212,255,.08)}
 .sb-item:hover{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.5)}
 .sb-item.active{background:rgba(0,212,255,.14);color:#fff;border-color:rgba(0,212,255,.95);box-shadow:0 0 10px rgba(0,212,255,.9),0 0 22px rgba(0,212,255,.65),0 0 38px rgba(0,212,255,.4),inset 0 0 14px rgba(0,212,255,.15)}
@@ -349,7 +352,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <button class="sb-item" id="nav-conductores" onclick="showDashScreen('conductores')">Conductores</button>
     <button class="sb-item" id="nav-facturacion" onclick="showDashScreen('facturacion')"><span style="font-family:var(--mono);font-weight:900;font-size:19px;color:#00e676;text-shadow:0 0 4px rgba(0,230,118,1),0 0 10px rgba(0,230,118,.85),0 0 18px rgba(0,230,118,.6),0 0 28px rgba(0,230,118,.35)">&euro;</span>Facturación</button>
     <button class="sb-item" id="nav-estadisticas" onclick="showDashScreen('estadisticas')">Estadísticas</button>
-    <button class="sb-item disabled">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
+    <button class="sb-item disabled" id="nav-informes">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
     <button class="sb-item" id="nav-suscripcion" onclick="showDashScreen('suscripcion')" style="display:none">💳 Suscripción</button>
     <button class="sb-item" id="nav-configuracion" onclick="showDashScreen('configuracion')">Configuración</button>
 
@@ -1058,7 +1061,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-9';
+var APP_VERSION = '2026-09-28-10';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1470,6 +1473,7 @@ function enterShell() {
   cargarNombreEmpresa();
   var navSusc = document.getElementById('nav-suscripcion');
   if (navSusc) navSusc.style.display = isAdmin ? 'flex' : 'none';
+  cargarAjustesEmpresa();
 
   // Cargamos el límite de la suscripción para todos los roles — así el
   // aviso de "límite alcanzado" en Flota funciona da igual quién intente
@@ -1849,6 +1853,7 @@ function _onEventoRemotoDash(e) {
   // Cambios hechos por el propio Dashboard hace un momento: ya pintados.
   if (Date.now() - _dashUltimaEscrituraPropia < 2500) return;
   var carpeta = msg.path.replace(/^\//, '').split('/')[0];
+  if (carpeta === 'ajustes_empresa') { cargarAjustesEmpresa(); return; }
   var act = document.querySelector('.dash-screen.active');
   if (!act) return;
   var pid = act.id.replace('dash-', '');
@@ -2048,6 +2053,12 @@ function toggleMobileSidebar() {
 }
 
 function showDashScreen(id) {
+  // Apartado desactivado para esta empresa → vamos al primero disponible
+  if (!window.MODO_SOPORTE && typeof seccionVisible === 'function' && !seccionVisible(id)) {
+    var _alt = primeraSeccionVisible();
+    if (!_alt || _alt === id) return;
+    id = _alt;
+  }
   document.querySelectorAll('.dash-screen').forEach(function(s){ s.classList.remove('active'); });
   document.querySelectorAll('.sb-item').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('dash-' + id).classList.add('active');
@@ -7394,6 +7405,49 @@ function mostrarBloqueoSuspension() {
     '<div style="font-size:14px;line-height:1.6;margin-bottom:20px">El acceso de <b>' + String(EMPRESA_NOMBRE || 'tu empresa').replace(/[<>&]/g,'') + '</b> a DRIVX está suspendido. Tus datos están guardados. Para reactivarlo, escríbenos a <b>drivx.apps@gmail.com</b>.</div>' +
     '<button onclick="doLogout()" style="padding:12px 20px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);color:#fff;font-weight:800;cursor:pointer;font-family:inherit">Cerrar sesión</button></div>';
   document.body.appendChild(b);
+}
+
+// ══════════════ AJUSTES POR EMPRESA (desde el panel master) ══════════════
+// Qué apartados del menú ve esta empresa. Se guardan en "ajustes_empresa"
+// dentro de su carpeta. Lo desactivado desaparece del menú y no se puede
+// abrir. En modo soporte se ve todo, marcado como "oculto".
+var SECCIONES_DASH = ['inicio','flota','gastos','citas','propietarios','conductores','facturacion','estadisticas','informes','suscripcion','configuracion'];
+var AJUSTES_EMPRESA = {};
+function seccionVisible(id) {
+  var m = AJUSTES_EMPRESA && AJUSTES_EMPRESA.menu;
+  return !(m && m[id] === false);
+}
+function primeraSeccionVisible() {
+  for (var i = 0; i < SECCIONES_DASH.length; i++) {
+    var s = SECCIONES_DASH[i];
+    var nav = document.getElementById('nav-' + s);
+    if (!seccionVisible(s) || !nav || nav.classList.contains('disabled') || nav.style.display === 'none') continue;
+    if (document.getElementById('dash-' + s)) return s;
+  }
+  return null;
+}
+function aplicarAjustesEmpresa() {
+  SECCIONES_DASH.forEach(function(s){
+    var nav = document.getElementById('nav-' + s);
+    if (!nav) return;
+    var visible = seccionVisible(s);
+    nav.classList.toggle('oculto-empresa', !visible && !window.MODO_SOPORTE);
+    nav.classList.toggle('oculto-soporte', !visible && !!window.MODO_SOPORTE);
+  });
+  if (!window.MODO_SOPORTE) {
+    var act = document.querySelector('.dash-screen.active');
+    var id = act ? act.id.replace('dash-', '') : '';
+    if (id && !seccionVisible(id)) {
+      var p = primeraSeccionVisible();
+      if (p) showDashScreen(p);
+    }
+  }
+}
+function cargarAjustesEmpresa() {
+  return fetch(FIREBASE_URL + '/ajustes_empresa.json').then(function(r){ return r.json(); }).then(function(a){
+    AJUSTES_EMPRESA = (a && typeof a === 'object' && !a.error) ? a : {};
+    aplicarAjustesEmpresa();
+  }).catch(function(){});
 }
 
 // ── Alta del ADMINISTRADOR de una empresa nueva (viene de la web) ──

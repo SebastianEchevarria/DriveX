@@ -101,6 +101,27 @@
     color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:700;z-index:50;transition:transform .25s;max-width:90vw}
   #toast.ver{transform:translate(-50%,0)}
 
+  /* ── Ajustes ── */
+  .velo{display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+  .velo.abierto{display:flex}
+  .caja{width:100%;max-width:480px;margin:auto;background:var(--panel);border:2.5px solid var(--gold);border-radius:20px;box-shadow:0 0 18px rgba(255,197,61,.6)}
+  .caja-cab{padding:18px 20px;border-bottom:1px solid var(--line)}
+  .caja-cab h2{font-family:var(--display);font-size:20px;margin:0}
+  .caja-cab p{margin:6px 0 0;color:var(--dim);font-size:13.5px;line-height:1.5}
+  .caja-cuerpo{padding:8px 20px}
+  .interruptor{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .interruptor:last-child{border-bottom:none}
+  .interruptor span.t{flex:1;font-size:15px;font-weight:700}
+  .interruptor span.d{display:block;font-size:12.5px;font-weight:500;color:var(--dim);margin-top:2px}
+  .interruptor input{position:absolute;opacity:0;pointer-events:none}
+  .pista{flex-shrink:0;width:46px;height:26px;border-radius:100px;background:rgba(255,255,255,.14);position:relative;transition:background .15s}
+  .pista::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
+  .interruptor input:checked + .pista{background:var(--green);box-shadow:0 0 8px rgba(0,230,118,.6)}
+  .interruptor input:checked + .pista::after{transform:translateX(20px)}
+  .interruptor input:focus-visible + .pista{outline:2px solid var(--gold);outline-offset:2px}
+  .caja-pie{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px 18px;border-top:1px solid var(--line)}
+  .ocultos{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--gold)}
+
   @media (max-width:900px){
     .cifras{grid-template-columns:1fr 1fr}
     .cifra.principal{grid-column:1/-1}
@@ -154,6 +175,20 @@
 
     <section class="lista" id="lista"><div class="vacio">Cargando empresas…</div></section>
   </main>
+</div>
+
+<div class="velo" id="velo-ajustes" onclick="if(event.target===this)cerrarAjustes()">
+  <div class="caja" role="dialog" aria-modal="true" aria-labelledby="aj-titulo">
+    <div class="caja-cab">
+      <h2 id="aj-titulo">Ajustes</h2>
+      <p>Elige qué apartados del menú ve esta empresa en su Dashboard. Lo desactivado desaparece de su menú al momento. Sus datos no se borran.</p>
+    </div>
+    <div class="caja-cuerpo" id="aj-lista"></div>
+    <div class="caja-pie">
+      <button class="btn btn-linea" onclick="cerrarAjustes()">Cancelar</button>
+      <button class="btn btn-oro" id="aj-guardar" onclick="guardarAjustes()">Guardar ajustes</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast" role="status"></div>
@@ -295,7 +330,8 @@ function pintar(){
       '<div><div class="nombre">Flota original</div><div class="sub">Datos anteriores al sistema de empresas. Se moverá a su propia empresa en la fase de seguridad.</div></div>' +
       '<div class="num"><b>' + o.vehiculosEnFlota + '</b> vehículos en flota<br><b>' + o.conductores + '</b> conductores</div>' +
       '<div></div>' +
-      '<div class="acciones"><button class="btn btn-cian" onclick="entrarSoporte(\'ORIGINAL\')">Entrar como soporte</button></div>' +
+      '<div class="acciones"><button class="btn btn-cian" onclick="entrarSoporte(\'ORIGINAL\')">Entrar como soporte</button>' +
+        '<button class="btn btn-linea" onclick="abrirAjustes(\'ORIGINAL\')">⚙️ Ajustes</button></div>' +
     '</article>';
   }
   lista.forEach(function(x){
@@ -309,9 +345,12 @@ function pintar(){
         '<b>' + x.conductores + '</b> conductores, <b>' + x.usuariosDashboard + '</b> admins<br>' +
         '<b>' + x.supervisores + '</b> supervisores, <b>' + x.propietarios + '</b> propietarios</div>' +
       '<div><span class="estado ' + est + '">' + (est === 'suspendida' ? 'Suspendida' : 'Activa') + '</span>' +
-        '<div class="sub">Alta: ' + fecha(i.creadoTs) + '</div></div>' +
+        '<div class="sub">Alta: ' + fecha(i.creadoTs) + '</div>' +
+        (contarOcultos(x.ajustes) ? '<span class="ocultos">' + contarOcultos(x.ajustes) + ' apartado' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + ' oculto' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + '</span>' : '') +
+      '</div>' +
       '<div class="acciones">' +
         '<button class="btn btn-cian" onclick="entrarSoporte(\'' + x.codigo + '\')">Entrar como soporte</button>' +
+        '<button class="btn btn-linea" onclick="abrirAjustes(\'' + x.codigo + '\')">⚙️ Ajustes</button>' +
         (stripe ? '<a class="btn btn-linea" href="' + stripe + '" target="_blank" rel="noopener">Ver en Stripe</a>' : '') +
         (est === 'suspendida'
           ? '<button class="btn btn-verde" onclick="cambiarEstado(\'' + x.codigo + '\',\'activa\',this)">Reactivar</button>'
@@ -322,6 +361,58 @@ function pintar(){
   if (!html) html = '<div class="vacio">' + (q ? 'Ninguna empresa coincide con «' + esc(q) + '».' : 'Todavía no hay empresas registradas. Aparecerán aquí en cuanto alguien contrate desde la web.') + '</div>';
   document.getElementById('lista').innerHTML = html;
 }
+// ══ AJUSTES POR EMPRESA ══
+var SECCIONES_MENU = [
+  ['inicio', 'Inicio', 'Pantalla principal con avisos y resumen'],
+  ['flota', 'Flota', 'Vehículos, documentación e invitaciones a conductores'],
+  ['gastos', 'Gastos', 'Tickets de gastos por vehículo'],
+  ['citas', 'Citas y revisiones', 'ITV, talleres y revisiones'],
+  ['propietarios', 'Propietarios', 'Titulares de vehículos e historial'],
+  ['conductores', 'Conductores', 'Fichas y documentos de conductores'],
+  ['facturacion', 'Facturación', 'Liquidaciones y cierres semanales'],
+  ['estadisticas', 'Estadísticas', 'Gráficos y evolución'],
+  ['informes', 'Informes', 'Próximamente'],
+  ['suscripcion', 'Suscripción', 'Contratar o quitar vehículos'],
+  ['configuracion', 'Configuración', 'Usuarios del equipo, invitaciones y registro de actividad']
+];
+var _ajEmpresa = null;
+function ajustesDe(codigo){
+  if (codigo === 'ORIGINAL') return (DATOS.original && DATOS.original.ajustes) || {};
+  var x = (DATOS.empresas || []).find(function(e){ return e.codigo === codigo; });
+  return (x && x.ajustes) || {};
+}
+function contarOcultos(aj){
+  var m = (aj && aj.menu) || {};
+  return SECCIONES_MENU.filter(function(s){ return m[s[0]] === false; }).length;
+}
+function abrirAjustes(codigo){
+  _ajEmpresa = codigo;
+  var aj = ajustesDe(codigo), m = aj.menu || {};
+  var nombre = codigo === 'ORIGINAL' ? 'Flota original' : (((DATOS.empresas || []).find(function(e){ return e.codigo === codigo; }) || {}).info || {}).nombre || codigo;
+  document.getElementById('aj-titulo').textContent = 'Ajustes de ' + nombre;
+  document.getElementById('aj-lista').innerHTML = SECCIONES_MENU.map(function(s){
+    return '<label class="interruptor"><span class="t">' + s[1] + '<span class="d">' + s[2] + '</span></span>' +
+      '<input type="checkbox" data-sec="' + s[0] + '"' + (m[s[0]] === false ? '' : ' checked') + '><span class="pista" aria-hidden="true"></span></label>';
+  }).join('');
+  document.getElementById('velo-ajustes').classList.add('abierto');
+}
+function cerrarAjustes(){ document.getElementById('velo-ajustes').classList.remove('abierto'); _ajEmpresa = null; }
+function guardarAjustes(){
+  if (!_ajEmpresa) return;
+  var menu = {};
+  document.querySelectorAll('#aj-lista input[data-sec]').forEach(function(i){ menu[i.getAttribute('data-sec')] = i.checked; });
+  if (!Object.keys(menu).some(function(k){ return menu[k]; })) { toast('Deja al menos un apartado activo.'); return; }
+  var btn = document.getElementById('aj-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
+  var codigo = _ajEmpresa;
+  api('ajustes', { empresa: codigo, ajustes: { menu: menu } }).then(function(d){
+    if (codigo === 'ORIGINAL') { if (DATOS.original) DATOS.original.ajustes = d.ajustes; }
+    else { var x = (DATOS.empresas || []).find(function(e){ return e.codigo === codigo; }); if (x) x.ajustes = d.ajustes; }
+    toast('Ajustes guardados. Ya se aplican en su Dashboard.');
+    cerrarAjustes(); pintar();
+  }).catch(function(err){ toast('No se pudieron guardar: ' + err.message); })
+    .then(function(){ btn.disabled = false; btn.textContent = 'Guardar ajustes'; });
+}
+
 function entrarSoporte(codigo){
   window.open('/drivx-admin-dashboard.html?soporte=' + encodeURIComponent(codigo), '_blank', 'noopener');
 }
