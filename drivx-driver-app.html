@@ -1236,7 +1236,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-4';
+var APP_VERSION = '2026-09-28-5';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1301,10 +1301,12 @@ function callAI(base64, mediaType, prompt) {
 
   var llamada;
   if (useProxy) {
-    llamada = fetch('/api/ai', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ base64:base64, mediaType:mt, prompt:prompt })
+    llamada = (firebase.auth().currentUser ? firebase.auth().currentUser.getIdToken() : Promise.resolve('')).then(function(token){
+      return fetch('/api/ai', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ base64:base64, mediaType:mt, prompt:prompt })
+      });
     }).then(function(r){
       return r.json().then(function(d){
         if (!r.ok) throw new Error((d && (d.error || d.message)) || ('HTTP ' + r.status));

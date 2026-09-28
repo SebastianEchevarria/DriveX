@@ -363,7 +363,7 @@ function pintar(){
 
   var html = '';
   // La flota original (sin empresa) siempre visible arriba si no se filtra
-  if (FILTRO === 'todas' && (!q || 'flota original'.indexOf(q) !== -1) && DATOS.original) {
+  if (FILTRO === 'todas' && (!q || 'flota original'.indexOf(q) !== -1) && DATOS.original && !(DATOS.original.migracion && DATOS.original.migracion.copiaBorradaTs)) {
     var o = DATOS.original;
     html += '<article class="fila original">' +
       '<div><div class="nombre">Flota original</div><div class="sub">' + (o.migracion && o.migracion.codigo
@@ -371,7 +371,9 @@ function pintar(){
           : 'Datos anteriores al sistema de empresas.') + '</div></div>' +
       '<div class="num"><b>' + o.vehiculosEnFlota + '</b> vehículos en flota<br><b>' + o.conductores + '</b> conductores</div>' +
       '<div></div>' +
-      '<div class="acciones">' + (o.migracion && o.migracion.codigo ? '' : '<button class="btn btn-oro" onclick="abrirMigrar()">🚚 Convertir en empresa</button>') +
+      '<div class="acciones">' + (o.migracion && o.migracion.codigo
+          ? '<button class="btn btn-rojo" onclick="borrarCopiaOriginal()">🗑 Borrar copia de seguridad</button>'
+          : '<button class="btn btn-oro" onclick="abrirMigrar()">🚚 Convertir en empresa</button>') +
         '<button class="btn btn-cian" onclick="entrarSoporte(\'ORIGINAL\')">Entrar como soporte</button>' +
         '<button class="btn btn-linea" onclick="abrirUsuarios(\'ORIGINAL\')">👥 Usuarios</button>' +
         '<button class="btn btn-linea" onclick="abrirAjustes(\'ORIGINAL\')">⚙️ Ajustes</button></div>' +
@@ -537,6 +539,35 @@ function migrar(simular){
     .then(function(){ bs.disabled = false; });
 }
 
+// ══ BORRAR LA COPIA DE SEGURIDAD DE LA FLOTA ORIGINAL ══
+function borrarCopiaOriginal(){
+  var mig = (DATOS.original && DATOS.original.migracion) || {};
+  dialogoMaster('Borrar la copia de seguridad',
+    'Se borrarán para siempre los datos antiguos de la flota original (la copia que quedó al migrar). ' +
+    'La empresa ' + (mig.nombre || '') + ' (' + (mig.codigo || '') + ') NO se toca.\n\n' +
+    'Asegúrate antes de que en ' + (mig.nombre || 'la empresa') + ' está todo correcto. Para confirmar, escribe BORRAR:',
+    function(txt){
+      if (txt !== 'BORRAR') { toast('No se ha borrado nada: tenías que escribir BORRAR.'); return; }
+      api('borrar_copia_original', { confirmacion: 'BORRAR' }).then(function(d){
+        toast('Copia de seguridad borrada (' + d.nodosBorrados + ' apartados).');
+        cargarEmpresas();
+      }).catch(function(err){ toast('No se pudo borrar: ' + err.message); });
+    });
+}
+function dialogoMaster(titulo, texto, alAceptar){
+  var v = document.createElement('div');
+  v.className = 'velo abierto';
+  v.innerHTML = '<div class="caja" role="dialog" aria-modal="true" style="max-width:460px;border-color:var(--red);box-shadow:0 0 18px rgba(255,71,87,.6)">' +
+    '<div class="caja-cab"><h2>' + esc(titulo) + '</h2><p style="white-space:pre-line">' + esc(texto) + '</p></div>' +
+    '<div class="caja-cuerpo" style="padding-top:14px"><div class="campo"><input id="dm-input" type="text" autocomplete="off" placeholder="BORRAR"></div></div>' +
+    '<div class="caja-pie"><button class="btn btn-linea" id="dm-no">Cancelar</button><button class="btn btn-rojo" id="dm-si">Borrar para siempre</button></div></div>';
+  document.body.appendChild(v);
+  var cerrar = function(){ v.remove(); };
+  v.querySelector('#dm-no').onclick = cerrar;
+  v.querySelector('#dm-si').onclick = function(){ var t = v.querySelector('#dm-input').value.trim(); cerrar(); alAceptar(t); };
+  setTimeout(function(){ v.querySelector('#dm-input').focus(); }, 30);
+}
+
 function entrarSoporte(codigo){
   window.open('/drivx-admin-dashboard.html?soporte=' + encodeURIComponent(codigo), '_blank', 'noopener');
 }
@@ -556,7 +587,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-28-3';
+var APP_VERSION = '2026-09-28-4';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {

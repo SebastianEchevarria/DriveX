@@ -1060,7 +1060,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-14';
+var APP_VERSION = '2026-09-28-15';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5104,9 +5104,11 @@ function comprimirImagenBase64Admin(base64, mediaType, maxDim, calidad) {
   });
 }
 function llamarIaNomina(base64, mediaType, prompt) {
-  return fetch('/api/ai', {
-    method: 'POST', headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ base64: base64, mediaType: mediaType, prompt: prompt })
+  return (firebase.auth().currentUser ? firebase.auth().currentUser.getIdToken() : Promise.resolve('')).then(function(token){
+    return fetch('/api/ai', {
+      method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ base64: base64, mediaType: mediaType, prompt: prompt })
+    });
   }).then(function(r){
     return r.json().then(function(d){
       if (!r.ok) throw new Error((d && (d.error || d.message)) || ('HTTP ' + r.status));
