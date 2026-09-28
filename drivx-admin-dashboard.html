@@ -234,6 +234,8 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       <input type="password" id="login-pass" placeholder="••••••••">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    <button type="button" onclick="recuperarContrasenaDash()" style="display:block;width:100%;margin-top:10px;background:none;border:none;color:#fff;text-decoration:underline;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">¿Has olvidado tu contraseña?</button>
+    <div id="login-recuperar-msg" style="display:none;margin-top:8px;font-size:12.5px;line-height:1.5;text-align:center;color:#fff"></div>
     <button onclick="mostrarAltaEmpresaDash()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:2px solid rgba(0,230,118,.9);background:rgba(0,230,118,.1);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🏢 Acabo de contratar DRIVX · Crear cuenta</button>
     <button onclick="mostrarActivarDash()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1.5px solid var(--border2);background:transparent;color:var(--text3);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Activar cuenta con código de invitación</button>
     </div>
@@ -1061,7 +1063,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-11';
+var APP_VERSION = '2026-09-28-12';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1246,6 +1248,29 @@ function intentarLoginFirebaseAuth(email, pass) {
 function migrarCuentaAFirebaseAuth(email, pass) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Promise.resolve();
   return firebase.auth().createUserWithEmailAndPassword(email, pass).catch(function(){ /* si ya existía por cualquier motivo, no pasa nada */ });
+}
+
+// ══ ¿HAS OLVIDADO TU CONTRASEÑA? ══
+// Firebase envía al email un enlace para crear una contraseña nueva.
+// Sirve para todas las apps DRIVX: es la misma cuenta.
+function recuperarContrasenaDash() {
+  var email = (document.getElementById('login-email').value || '').trim().toLowerCase();
+  var msg = document.getElementById('login-recuperar-msg');
+  msg.style.display = 'block';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Escribe primero tu email en el campo de arriba y vuelve a pulsar.';
+    return;
+  }
+  msg.style.color = '#fff'; msg.textContent = 'Enviando…';
+  try { firebase.auth().languageCode = 'es'; } catch(e) {}
+  var ok = function(){
+    msg.style.color = 'var(--green)';
+    msg.textContent = '📧 Si ese email tiene cuenta DRIVX, te hemos enviado un enlace para crear una contraseña nueva. Revisa también la carpeta de spam.';
+  };
+  firebase.auth().sendPasswordResetEmail(email).then(ok).catch(function(err){
+    if (err && err.code === 'auth/user-not-found') ok();
+    else { msg.style.color = 'var(--red)'; msg.textContent = 'No se pudo enviar: ' + (err && err.message ? err.message : 'inténtalo de nuevo'); }
+  });
 }
 
 function doLogin() {
