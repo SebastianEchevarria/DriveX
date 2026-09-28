@@ -120,6 +120,13 @@
   .interruptor input:checked + .pista::after{transform:translateX(20px)}
   .interruptor input:focus-visible + .pista{outline:2px solid var(--gold);outline-offset:2px}
   .caja-pie{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px 18px;border-top:1px solid var(--line)}
+  .grupo-app{margin:14px 0 4px;font-family:var(--display);font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .grupo-app .pto{width:10px;height:10px;border-radius:50%}
+  .persona{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .persona .quien2{flex:1;min-width:0}
+  .persona .quien2 b{display:block;font-size:14.5px}
+  .persona .quien2 span{display:block;font-size:12.5px;color:var(--dim);overflow-wrap:anywhere}
+  .pendiente{font-size:11px;font-weight:800;color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:1px 6px;margin-left:6px}
   .ocultos{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--gold)}
 
   @media (max-width:900px){
@@ -188,6 +195,17 @@
       <button class="btn btn-linea" onclick="cerrarAjustes()">Cancelar</button>
       <button class="btn btn-oro" id="aj-guardar" onclick="guardarAjustes()">Guardar ajustes</button>
     </div>
+  </div>
+</div>
+
+<div class="velo" id="velo-usuarios" onclick="if(event.target===this)cerrarUsuarios()">
+  <div class="caja" role="dialog" aria-modal="true" aria-labelledby="us-titulo" style="max-width:560px">
+    <div class="caja-cab">
+      <h2 id="us-titulo">Usuarios</h2>
+      <p>Abre la app de cualquier persona de esta empresa tal y como la ve ella, en modo soporte. Lo que cambies se guardará como si lo hiciera esa persona.</p>
+    </div>
+    <div class="caja-cuerpo" id="us-lista" style="padding-bottom:16px"></div>
+    <div class="caja-pie"><button class="btn btn-linea" onclick="cerrarUsuarios()">Cerrar</button></div>
   </div>
 </div>
 
@@ -331,6 +349,7 @@ function pintar(){
       '<div class="num"><b>' + o.vehiculosEnFlota + '</b> vehículos en flota<br><b>' + o.conductores + '</b> conductores</div>' +
       '<div></div>' +
       '<div class="acciones"><button class="btn btn-cian" onclick="entrarSoporte(\'ORIGINAL\')">Entrar como soporte</button>' +
+        '<button class="btn btn-linea" onclick="abrirUsuarios(\'ORIGINAL\')">👥 Usuarios</button>' +
         '<button class="btn btn-linea" onclick="abrirAjustes(\'ORIGINAL\')">⚙️ Ajustes</button></div>' +
     '</article>';
   }
@@ -350,6 +369,7 @@ function pintar(){
       '</div>' +
       '<div class="acciones">' +
         '<button class="btn btn-cian" onclick="entrarSoporte(\'' + x.codigo + '\')">Entrar como soporte</button>' +
+        '<button class="btn btn-linea" onclick="abrirUsuarios(\'' + x.codigo + '\')">👥 Usuarios</button>' +
         '<button class="btn btn-linea" onclick="abrirAjustes(\'' + x.codigo + '\')">⚙️ Ajustes</button>' +
         (stripe ? '<a class="btn btn-linea" href="' + stripe + '" target="_blank" rel="noopener">Ver en Stripe</a>' : '') +
         (est === 'suspendida'
@@ -413,6 +433,42 @@ function guardarAjustes(){
     .then(function(){ btn.disabled = false; btn.textContent = 'Guardar ajustes'; });
 }
 
+// ══ USUARIOS DE UNA EMPRESA (ver sus apps como ellos) ══
+var APPS_SOPORTE = [
+  ['dashboard',   'Dashboard',   '#00d4ff', 'drivx-admin-dashboard.html'],
+  ['supervisor',  'Supervisor',  '#ffb300', 'drivx-supervisor-app.html'],
+  ['propietario', 'Propietario', '#8b6bff', 'drivx-propietario-app.html'],
+  ['driver',      'Driver',      '#00e676', 'drivx-driver-app.html']
+];
+function abrirUsuarios(codigo){
+  var nombre = codigo === 'ORIGINAL' ? 'Flota original' : (((DATOS.empresas || []).find(function(e){ return e.codigo === codigo; }) || {}).info || {}).nombre || codigo;
+  document.getElementById('us-titulo').textContent = 'Usuarios de ' + nombre;
+  document.getElementById('us-lista').innerHTML = '<div class="vacio" style="padding:20px">Cargando usuarios…</div>';
+  document.getElementById('velo-usuarios').classList.add('abierto');
+  api('usuarios', { empresa: codigo }).then(function(d){
+    var html = '';
+    APPS_SOPORTE.forEach(function(a){
+      var gente = d[a[0]] || [];
+      html += '<div class="grupo-app"><span class="pto" style="background:' + a[2] + ';box-shadow:0 0 8px ' + a[2] + '"></span>' + a[1] + ' <span style="color:var(--dim);font-weight:500;font-size:13px">(' + gente.length + ')</span></div>';
+      if (!gente.length) { html += '<div class="sub" style="padding:4px 0 8px">Nadie todavía.</div>'; return; }
+      gente.sort(function(x,y){ return (x.nombre||'').localeCompare(y.nombre||''); }).forEach(function(u){
+        html += '<div class="persona"><div class="quien2"><b>' + esc(u.nombre || u.email || 'Sin nombre') +
+          (u.activo ? '' : '<span class="pendiente">Invitación pendiente</span>') + '</b>' +
+          '<span>' + esc(u.email || '') + (u.rol ? ' · ' + esc(u.rol) : '') + (u.detalle ? ' · ' + esc(u.detalle) : '') + '</span></div>' +
+          (u.activo ? '<button class="btn btn-cian" onclick="verComo(\'' + a[3] + '\',\'' + codigo + '\',\'' + esc(u.id) + '\')">Ver como</button>' : '') +
+        '</div>';
+      });
+    });
+    document.getElementById('us-lista').innerHTML = html;
+  }).catch(function(err){
+    document.getElementById('us-lista').innerHTML = '<div class="vacio" style="padding:20px">No se pudieron cargar: ' + esc(err.message) + '</div>';
+  });
+}
+function cerrarUsuarios(){ document.getElementById('velo-usuarios').classList.remove('abierto'); }
+function verComo(archivo, codigo, id){
+  window.open('/' + archivo + '?soporte=' + encodeURIComponent(codigo) + '&u=' + encodeURIComponent(id), '_blank', 'noopener');
+}
+
 function entrarSoporte(codigo){
   window.open('/drivx-admin-dashboard.html?soporte=' + encodeURIComponent(codigo), '_blank', 'noopener');
 }
@@ -430,6 +486,23 @@ function cambiarEstado(codigo, estado, btn){
     pintarCifras(); pintar();
   }).catch(function(err){ toast('No se pudo cambiar: ' + err.message); btn.disabled = false; });
 }
+
+// ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
+var APP_VERSION = '2026-09-28-1';
+function comprobarVersion(){
+  fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
+    if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
+      var b = document.createElement('div');
+      b.id = 'aviso-version';
+      b.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:60;background:#16233a;border:2px solid var(--gold);border-radius:12px;padding:10px 14px;display:flex;gap:12px;align-items:center;box-shadow:0 0 14px rgba(255,197,61,.6);font-size:14px;font-weight:700';
+      b.innerHTML = 'Hay una versión nueva del panel master <button class="btn btn-oro" onclick="location.href=location.pathname+\'?_v=\'+Date.now()">Actualizar</button>';
+      document.body.appendChild(b);
+    }
+  }).catch(function(){});
+}
+setTimeout(comprobarVersion, 800);
+setInterval(comprobarVersion, 20000);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) comprobarVersion(); });
 
 // Si ya había sesión master abierta, entra directamente
 auth.onAuthStateChanged(function(u){

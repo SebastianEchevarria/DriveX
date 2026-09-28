@@ -1238,7 +1238,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-2';
+var APP_VERSION = '2026-09-28-3';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1441,6 +1441,7 @@ window.addEventListener('appinstalled', function() {
 });
 
 function maybeShowPwaBanner() {
+  if (window.MODO_SOPORTE || window._PARAM_SOPORTE) return;
   if (_pwaAlreadyStandalone() || _pwaIsInstalled) return;
   if (!_pwaDeferredPrompt) return; // el navegador todavía no ofreció instalar
   var banner = document.getElementById('pwa-install-banner');
@@ -2336,6 +2337,7 @@ function estaSuscritoAPush() {
 // pide directamente el permiso de notificaciones — sin que tenga que ir
 // a buscarlo a su perfil.
 function ofrecerPushSiPrimeraVezDriver() {
+  if (window.MODO_SOPORTE || window._PARAM_SOPORTE) return;
   if (!pushSoportadoPorNavegador()) return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
   activarPushDriver();
@@ -4498,10 +4500,12 @@ function emailKey(email) {
 function setEmpresa(codigo) {
   EMPRESA_ID = codigo || null;
   FIREBASE_URL = EMPRESA_ID ? (FIREBASE_BASE + '/empresas/' + EMPRESA_ID) : FIREBASE_BASE;
-  try {
-    if (EMPRESA_ID) localStorage.setItem('drivx_empresa', EMPRESA_ID);
-    else localStorage.removeItem('drivx_empresa');
-  } catch(e) {}
+  if (!window.MODO_SOPORTE) {
+    try {
+      if (EMPRESA_ID) localStorage.setItem('drivx_empresa', EMPRESA_ID);
+      else localStorage.removeItem('drivx_empresa');
+    } catch(e) {}
+  }
   if (EMPRESA_ID) {
     // Empresa nueva: sin los vehículos/conductores de ejemplo de la flota original
     ['VEHICULOS', 'CONDUCTORES', 'CCAA_BASE'].forEach(function(n){
@@ -4514,7 +4518,8 @@ function cargarNombreEmpresa() {
   return fetch(FIREBASE_URL + '/empresa_info.json').then(function(r){ return r.json(); }).then(function(info){
     EMPRESA_NOMBRE = (info && info.nombre) || '';
     pintarNombreEmpresa();
-    if (info && info.estado === 'suspendida') mostrarBloqueoSuspension();
+    if (window.MODO_SOPORTE) pintarFranjaSoporte();
+    else if (info && info.estado === 'suspendida') mostrarBloqueoSuspension();
   }).catch(function(){});
 }
 // Empresa suspendida desde el panel master: la app queda bloqueada
@@ -4542,8 +4547,78 @@ function pintarNombreEmpresa() {
       'border:1.5px solid rgba(0,212,255,.9);box-shadow:0 0 8px rgba(0,212,255,.6);border-radius:100px;padding:3px 12px;font-family:inherit';
     document.body.appendChild(el);
   }
-  if (el) { el.textContent = EMPRESA_NOMBRE ? ('🏢 ' + EMPRESA_NOMBRE) : ''; el.style.display = EMPRESA_NOMBRE ? 'block' : 'none'; }
+  if (el) { el.textContent = EMPRESA_NOMBRE ? ('🏢 ' + EMPRESA_NOMBRE) : ''; el.style.display = (EMPRESA_NOMBRE && !window.MODO_SOPORTE) ? 'block' : 'none'; }
 }
+// ══════════════ MODO SOPORTE (solo cuenta MASTER) ══════════════
+// El panel master abre esta app con ?soporte=CODIGO&u=ID para ver lo que
+// ve una persona concreta de esa empresa. El servidor comprueba que la
+// sesión es la cuenta master verificada. En este modo no se activan
+// notificaciones, no se guarda la sesión en el navegador y la app no se
+// bloquea aunque la empresa esté suspendida.
+window.MODO_SOPORTE = null;
+window._PARAM_SOPORTE = (function(){
+  try {
+    var q = new URLSearchParams(location.search);
+    var c = (q.get('soporte') || '').trim().toUpperCase();
+    var u = (q.get('u') || '').trim();
+    if (c && u && (c === 'ORIGINAL' || /^DRX-[A-Z0-9]{5}$/.test(c))) return { codigo: c, id: u };
+  } catch(e) {}
+  return null;
+})();
+function verificarMasterSoporte() {
+  return _firebaseAuthListo.then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) throw new Error('Abre primero el panel master e inicia sesión con tu cuenta master.');
+    return u.getIdToken().then(function(token){
+      return fetch('/api/master', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body: JSON.stringify({ accion:'verificar' }) });
+    }).then(function(r){ return r.json().then(function(d){ if (!r.ok || !d.ok) throw new Error(d.error || 'Acceso de soporte denegado'); }); });
+  });
+}
+function pintarFranjaSoporte() {
+  if (!window.MODO_SOPORTE) return;
+  var f = document.getElementById('franja-soporte');
+  if (!f) {
+    f = document.createElement('div');
+    f.id = 'franja-soporte';
+    f.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top, 0px) + 6px);left:50%;transform:translateX(-50%);z-index:99990;display:flex;align-items:center;gap:8px;' +
+      'max-width:94vw;padding:5px 6px 5px 12px;border-radius:100px;background:#c8102e;color:#fff;font-size:11.5px;font-weight:900;box-shadow:0 0 14px rgba(255,40,60,.85);font-family:inherit';
+    document.body.appendChild(f);
+  }
+  var emp = window.MODO_SOPORTE.codigo === 'ORIGINAL' ? 'Flota original' : (EMPRESA_NOMBRE || window.MODO_SOPORTE.codigo);
+  f.innerHTML = '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🛠 SOPORTE · ' + String(emp).replace(/[<>&]/g,'') + ' · ' + String(window.MODO_SOPORTE.persona || '').replace(/[<>&]/g,'') + '</span>' +
+    '<button onclick="salirModoSoporte()" style="flex-shrink:0;padding:3px 10px;border-radius:100px;border:1.5px solid #fff;background:rgba(255,255,255,.15);color:#fff;font-weight:800;font-size:11px;cursor:pointer;font-family:inherit">Salir</button>';
+  var b = document.getElementById('drivx-empresa-badge'); if (b) b.style.display = 'none';
+}
+function salirModoSoporte() { window.close(); setTimeout(function(){ location.href = '/drivx-master.html'; }, 200); }
+function mostrarErrorSoporte(msg) {
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#05080e;display:flex;align-items:center;justify-content:center;padding:24px;color:#fff;text-align:center;font-family:inherit';
+  d.innerHTML = '<div style="max-width:380px;font-size:15px;line-height:1.6">⛔ ' + String(msg).replace(/[<>&]/g,'') + '<br><br><a href="/drivx-master.html" style="color:#ffc53d;font-weight:800">Ir al panel master</a></div>';
+  document.body.appendChild(d);
+}
+function arrancarModoSoporte() {
+  var p = window._PARAM_SOPORTE;
+  verificarMasterSoporte().then(function(){
+    window.MODO_SOPORTE = { codigo: p.codigo, persona: '' };
+    setEmpresa(p.codigo === 'ORIGINAL' ? null : p.codigo);
+    return entrarComoSoporte(p.id);
+  }).then(function(){ pintarFranjaSoporte(); })
+    .catch(function(err){ mostrarErrorSoporte(err && err.message ? err.message : 'Acceso denegado'); });
+}
+if (window._PARAM_SOPORTE) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(arrancarModoSoporte, 0); });
+  else setTimeout(arrancarModoSoporte, 0);
+}
+function entrarComoSoporte(id) {
+  return fetch(FIREBASE_URL + '/conductores_registro/' + encodeURIComponent(id) + '.json').then(function(r){ return r.json(); }).then(function(m){
+    if (!m || !m.cid) throw new Error('No se encontró ese conductor.');
+    window.MODO_SOPORTE.persona = 'Driver de ' + (m.nombre || m.email || '');
+    loginAs({ email: m.email, cid: m.cid, nombre: m.nombre, matricula: m.matricula, modelo: m.modelo, ciudad: m.ciudad, turno: m.turno, invite: m.code, telefono: m.telefono });
+    // No dejamos la sesión de esa persona guardada en este navegador
+    try { localStorage.removeItem('drivx_session_user'); localStorage.removeItem('drivx_current_user'); } catch(e) {}
+  });
+}
+
 function resolverEmpresaDeEmail(email) {
   if (!email || email.indexOf('@') === -1) return Promise.resolve(null);
   return fetch(FIREBASE_BASE + '/directorio_usuarios/' + encodeURIComponent(emailKey(email)) + '.json')
@@ -5172,6 +5247,7 @@ function offerBiometricRegister(email,pass){
 }
 function doLogout(){document.getElementById('logout-modal').style.display='flex';}
 function confirmLogout(){
+  if (window.MODO_SOPORTE) { salirModoSoporte(); return; }
   document.getElementById('logout-modal').style.display='none';
   document.getElementById('navbar').classList.remove('visible');
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
@@ -5193,6 +5269,7 @@ function confirmLogout(){
 // conductor cerró sesión de verdad o ya fichó su salida.
 (function restaurarSesion(){
   try {
+    if (window._PARAM_SOPORTE) return; // modo soporte: no restauramos la sesión guardada
     var u = JSON.parse(localStorage.getItem('drivx_session_user') || 'null');
     if (u) { setEmpresa(localStorage.getItem('drivx_empresa')); loginAs(u); }
   } catch(e) {}
