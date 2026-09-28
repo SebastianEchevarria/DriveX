@@ -217,6 +217,9 @@
     </div>
     <div class="caja-cuerpo" style="padding-top:14px;padding-bottom:6px">
       <div class="campo"><label for="mg-nombre">Nombre de la empresa</label><input id="mg-nombre" type="text" value="VTC MASTER TEST" maxlength="120"></div>
+      <div class="campo"><label for="mg-tnombre">Nombre del administrador titular</label><input id="mg-tnombre" type="text" placeholder="Tu nombre" maxlength="80"></div>
+      <div class="campo"><label for="mg-temail">Email del administrador titular (uno real tuyo)</label><input id="mg-temail" type="email" placeholder="tuemail@gmail.com" autocomplete="off"></div>
+      <div class="campo"><label for="mg-tpass">Contraseña del administrador (mínimo 6 caracteres)</label><input id="mg-tpass" type="password" autocomplete="new-password"></div>
       <div id="mg-resultado" style="font-size:14px;line-height:1.6"></div>
     </div>
     <div class="caja-pie">
@@ -505,7 +508,10 @@ function migrar(simular){
   bs.disabled = true; bm.disabled = true;
   var res = document.getElementById('mg-resultado');
   res.innerHTML = '<div class="sub">' + (simular ? 'Simulando…' : 'Migrando… no cierres esta ventana.') + '</div>';
-  api('migrar_original', { nombre: nombre, simular: simular }).then(function(d){
+  var tEmail = document.getElementById('mg-temail').value.trim().toLowerCase();
+  if (!tEmail) { toast('Escribe el email del administrador titular.'); bs.disabled = false; return; }
+  api('migrar_original', { nombre: nombre, simular: simular, titularEmail: tEmail,
+    titularPass: document.getElementById('mg-tpass').value, titularNombre: document.getElementById('mg-tnombre').value.trim() }).then(function(d){
     if (d.yaMigrada) {
       res.innerHTML = '<div class="aviso ok">Ya estaba migrada a <b>' + esc(d.codigo) + '</b> (' + esc(d.nombre) + ').</div>';
       return;
@@ -518,7 +524,9 @@ function migrar(simular){
       (r.nodos || []).map(function(n){ return esc(n.nodo) + ' (' + n.elementos + ')'; }).join(', ') + '</div>';
     html += '<b>Usuarios activos:</b> ' + (r.usuariosActivos || 0) + '<br>';
     html += '<b>Invitaciones pendientes:</b> ' + (r.invitacionesPendientes || 0) + '<br>';
-    html += '<b>Administrador titular:</b> ' + esc(r.adminTitular || '') + (r.adminTieneCuenta ? ' ✅ tiene cuenta' : ' ⚠️ <span style="color:var(--gold)">aún no tiene cuenta segura: antes de migrar, entra una vez en el Dashboard con ese email y su contraseña</span>') + '<br>';
+    html += '<b>Administrador titular:</b> ' + esc(r.adminTitular || '') + (r.adminTieneCuenta
+      ? ' ✅ ya tiene cuenta DRIVX (entrará con su contraseña actual)'
+      : (r.faltaContrasenaTitular ? ' ⚠️ <span style="color:var(--gold)">escribe una contraseña de al menos 6 caracteres</span>' : ' ✅ se le creará la cuenta con la contraseña que has escrito')) + '<br>';
     if (d.hecho) html += '<b>Cuentas creadas:</b> ' + (r.cuentasCreadas || 0) + ', <b>ya existían:</b> ' + (r.cuentasExistentes || 0) + '<br>';
     if ((r.conflictos || []).length) html += '<div class="aviso error" style="margin-top:10px">Estos emails ya pertenecen a otra empresa y no se vincularán: ' + r.conflictos.map(function(c){ return esc(c.email) + ' (' + esc(c.empresa) + ')'; }).join(', ') + '</div>';
     if ((r.sinContrasena || []).length) html += '<div class="aviso error" style="margin-top:10px">Sin contraseña guardada (tendrán que recibir una invitación nueva): ' + r.sinContrasena.map(esc).join(', ') + '</div>';
@@ -548,7 +556,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-28-2';
+var APP_VERSION = '2026-09-28-3';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
