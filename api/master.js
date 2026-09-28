@@ -9,6 +9,8 @@
 //   { accion: 'ajustes', empresa, ajustes } → guarda los ajustes de esa empresa
 //        (qué apartados del menú del Dashboard ve). empresa 'ORIGINAL' = flota original.
 //   { accion: 'usuarios', empresa }         → todas las personas de la empresa, por app
+//   { accion: 'migrar_original', nombre, simular } → convierte la flota original
+//        (datos en la raíz) en una empresa más. Con simular:true solo informa.
 //
 // SEGURIDAD: solo responde si el token es de la cuenta MASTER
 // (MASTER_EMAIL, por defecto drivx.apps@gmail.com) Y ese email está
@@ -87,6 +89,125 @@ async function resumenDe(db, base) {
   };
 }
 
+// ══════════════ MIGRACIÓN DE LA FLOTA ORIGINAL A EMPRESA ══════════════
+// Copia (no mueve: la raíz queda como copia de seguridad) todos los datos de
+// la flota original a empresas/{CODIGO}/, vincula a cada usuario con esa
+// empresa, crea su cuenta de acceso segura con la contraseña que ya tenía y
+// quita las contraseñas legibles de la copia nueva.
+const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original'];
+const ADMIN_TITULAR_ORIGINAL = { email: 'admin@vtcinfinity.com', nombre: 'Admin VTC' };
+const ALFABETO_COD = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function emailKeyM(email) { return String(email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_'); }
+function passwordParaFirebase(pass) { pass = String(pass || ''); while (pass.length < 6) pass += '·'; return pass; }
+async function nodosRaiz() {
+  const tok = await admin.app().options.credential.getAccessToken();
+  const url = String(process.env.FIREBASE_DATABASE_URL).replace(/\/$/, '') + '/.json?shallow=true&access_token=' + encodeURIComponent(tok.access_token);
+  const d = await (await fetch(url)).json();
+  return d && typeof d === 'object' ? Object.keys(d).filter((k) => !NODOS_SISTEMA.includes(k)) : [];
+}
+async function reservarCodigo(db) {
+  for (let i = 0; i < 20; i++) {
+    let c = 'DRX-'; for (let j = 0; j < 5; j++) c += ALFABETO_COD[Math.floor(Math.random() * ALFABETO_COD.length)];
+    const r = await db.ref('empresas/' + c + '/empresa_info').transaction((a) => (a !== null ? undefined : { reservado: true }));
+    if (r.committed) return c;
+  }
+  throw new Error('No se pudo generar un código');
+}
+async function migrarOriginal(db, nombre, simular) {
+  const previa = (await db.ref('migracion_original').once('value')).val();
+  if (previa && previa.codigo) return { yaMigrada: true, codigo: previa.codigo, nombre: previa.nombre, ts: previa.ts };
+
+  const nodos = await nodosRaiz();
+  const datos = {};
+  for (const k of nodos) datos[k] = (await db.ref(k).once('value')).val();
+
+  // Personas y sus cuentas
+  const personas = []; // { email, pass, app, ruta, activo, inviteCode }
+  const add = (app, carpeta, campoActivo) => {
+    const o = datos[carpeta] || {};
+    Object.keys(o).forEach((id) => {
+      const v = o[id]; if (!v || typeof v !== 'object') return;
+      personas.push({ app, carpeta, id, email: String(v.email || '').toLowerCase(), pass: v.pass || '', activo: campoActivo ? !!v[campoActivo] : true, inviteCode: v.inviteCode || v.code || '' });
+    });
+  };
+  add('dashboard', 'usuarios_dashboard', 'inviteUsado');
+  add('supervisor', 'usuarios_supervisor', 'inviteUsado');
+  add('propietario', 'propietarios', 'inviteUsado');
+  add('driver', 'conductores_registro', null);
+  const invitesDriver = datos.invites || {};
+
+  const resumen = {
+    nodos: nodos.map((k) => ({ nodo: k, elementos: datos[k] && typeof datos[k] === 'object' ? Object.keys(datos[k]).length : 1 })),
+    usuariosActivos: personas.filter((p) => p.activo && p.email).length,
+    invitacionesPendientes: personas.filter((p) => !p.activo && p.inviteCode).length + Object.keys(invitesDriver).filter((c) => invitesDriver[c] && !invitesDriver[c].usado).length,
+    conflictos: [], cuentasCreadas: 0, cuentasExistentes: 0, sinContrasena: [],
+  };
+
+  // ¿Emails ya vinculados a OTRA empresa?
+  const emails = Array.from(new Set(personas.filter((p) => p.activo && p.email).map((p) => p.email).concat([ADMIN_TITULAR_ORIGINAL.email])));
+  for (const e of emails) {
+    const d = (await db.ref('directorio_usuarios/' + emailKeyM(e)).once('value')).val();
+    if (d && d.empresa) resumen.conflictos.push({ email: e, empresa: d.empresa });
+  }
+  let adminTieneCuenta = false;
+  try { await admin.auth().getUserByEmail(ADMIN_TITULAR_ORIGINAL.email); adminTieneCuenta = true; } catch (e) {}
+  resumen.adminTitular = ADMIN_TITULAR_ORIGINAL.email;
+  resumen.adminTieneCuenta = adminTieneCuenta;
+
+  if (simular) return { simulacion: true, resumen };
+
+  // ── 1) Código y datos ──
+  const codigo = await reservarCodigo(db);
+  const base = 'empresas/' + codigo + '/';
+  const copia = {};
+  nodos.forEach((k) => { if (datos[k] !== null && datos[k] !== undefined) copia[k] = datos[k]; });
+  // Sin contraseñas legibles en la copia nueva
+  ['usuarios_dashboard', 'usuarios_supervisor', 'propietarios', 'conductores_registro'].forEach((c) => {
+    const o = copia[c]; if (!o || typeof o !== 'object') return;
+    Object.keys(o).forEach((id) => { if (o[id] && typeof o[id] === 'object') delete o[id].pass; });
+  });
+  // Administrador titular
+  copia.usuarios_dashboard = copia.usuarios_dashboard || {};
+  const yaEsta = Object.keys(copia.usuarios_dashboard).some((k) => String((copia.usuarios_dashboard[k] || {}).email || '').toLowerCase() === ADMIN_TITULAR_ORIGINAL.email);
+  if (!yaEsta) copia.usuarios_dashboard['u_titular'] = { nombre: ADMIN_TITULAR_ORIGINAL.nombre, email: ADMIN_TITULAR_ORIGINAL.email, role: 'admin', inviteUsado: true, esTitular: true, ts: Date.now() };
+  delete copia.empresa_info;
+  await db.ref(base.slice(0, -1)).update(copia);
+  await db.ref(base + 'empresa_info').set({
+    codigo, tipo: 'empresa', nombre, nif: '', direccion: '', cp: '', ciudad: '', email: ADMIN_TITULAR_ORIGINAL.email,
+    estado: 'activa', adminCreado: true, adminEmail: ADMIN_TITULAR_ORIGINAL.email, origen: 'migracion_flota_original', creadoTs: Date.now(),
+  });
+
+  // ── 2) Cuentas de acceso seguras (misma contraseña que ya usaban) ──
+  for (const p of personas) {
+    if (!p.activo || !p.email) continue;
+    let existe = false;
+    try { await admin.auth().getUserByEmail(p.email); existe = true; } catch (e) {}
+    if (existe) { resumen.cuentasExistentes++; continue; }
+    if (!p.pass) { resumen.sinContrasena.push(p.email); continue; }
+    try { await admin.auth().createUser({ email: p.email, password: passwordParaFirebase(p.pass) }); resumen.cuentasCreadas++; }
+    catch (e) { resumen.sinContrasena.push(p.email); }
+  }
+
+  // ── 3) Directorio (email → empresa) ──
+  const conflictivos = new Set(resumen.conflictos.map((c) => c.email));
+  for (const e of emails) {
+    if (conflictivos.has(e)) continue;
+    await db.ref('directorio_usuarios/' + emailKeyM(e)).set({ empresa: codigo, email: e, ts: Date.now(), origen: 'migracion' });
+  }
+
+  // ── 4) Invitaciones pendientes → índice ──
+  for (const p of personas) {
+    if (p.activo || !p.inviteCode) continue;
+    await db.ref('indice_invitaciones/' + p.inviteCode).set({ empresa: codigo, app: p.app, ts: Date.now() });
+  }
+  for (const c of Object.keys(invitesDriver)) {
+    if (invitesDriver[c] && !invitesDriver[c].usado) await db.ref('indice_invitaciones/' + c).set({ empresa: codigo, app: 'driver', ts: Date.now() });
+  }
+
+  await db.ref('migracion_original').set({ codigo, nombre, ts: Date.now() });
+  return { hecho: true, codigo, resumen };
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') { res.status(405).json({ error: 'Método no permitido' }); return; }
@@ -112,6 +233,7 @@ module.exports = async function handler(req, res) {
       }));
       // La flota original (datos en la raíz, sin empresa todavía)
       const original = await resumenDe(db, '');
+      original.migracion = (await db.ref('migracion_original').once('value')).val();
       const modoPrueba = String(process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test');
       res.status(200).json({ ok: true, empresas, original, modoPrueba, precio: 299 });
       return;
@@ -126,6 +248,14 @@ module.exports = async function handler(req, res) {
       if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
       await ref.update({ estado, estadoCambiadoTs: Date.now(), estadoCambiadoPor: 'MASTER' });
       res.status(200).json({ ok: true, empresa, estado });
+      return;
+    }
+
+    if (accion === 'migrar_original') {
+      const nombre = String((req.body && req.body.nombre) || '').trim().slice(0, 120);
+      if (!nombre) { res.status(400).json({ error: 'Escribe el nombre de la empresa.' }); return; }
+      const r = await migrarOriginal(db, nombre, !!(req.body && req.body.simular));
+      res.status(200).json(Object.assign({ ok: true }, r));
       return;
     }
 
