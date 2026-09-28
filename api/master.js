@@ -95,7 +95,6 @@ async function resumenDe(db, base) {
 // empresa, crea su cuenta de acceso segura con la contraseña que ya tenía y
 // quita las contraseñas legibles de la copia nueva.
 const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original'];
-const ADMIN_TITULAR_ORIGINAL = { email: 'admin@vtcinfinity.com', nombre: 'Admin VTC' };
 const ALFABETO_COD = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function emailKeyM(email) { return String(email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_'); }
 function passwordParaFirebase(pass) { pass = String(pass || ''); while (pass.length < 6) pass += '·'; return pass; }
@@ -113,7 +112,8 @@ async function reservarCodigo(db) {
   }
   throw new Error('No se pudo generar un código');
 }
-async function migrarOriginal(db, nombre, simular) {
+async function migrarOriginal(db, nombre, simular, titular) {
+  const ADMIN_TITULAR_ORIGINAL = { email: titular.email, nombre: titular.nombre || 'Administrador' };
   const previa = (await db.ref('migracion_original').once('value')).val();
   if (previa && previa.codigo) return { yaMigrada: true, codigo: previa.codigo, nombre: previa.nombre, ts: previa.ts };
 
@@ -153,8 +153,17 @@ async function migrarOriginal(db, nombre, simular) {
   try { await admin.auth().getUserByEmail(ADMIN_TITULAR_ORIGINAL.email); adminTieneCuenta = true; } catch (e) {}
   resumen.adminTitular = ADMIN_TITULAR_ORIGINAL.email;
   resumen.adminTieneCuenta = adminTieneCuenta;
+  const titularEnOtra = resumen.conflictos.find((c) => c.email === ADMIN_TITULAR_ORIGINAL.email);
+  if (titularEnOtra) throw new Error('El email del administrador titular ya pertenece a otra empresa (' + titularEnOtra.empresa + '). Usa otro.');
+  if (!adminTieneCuenta && String(titular.pass || '').length < 6) {
+    if (simular) resumen.faltaContrasenaTitular = true;
+    else throw new Error('Escribe una contraseña de al menos 6 caracteres para el administrador titular.');
+  }
 
   if (simular) return { simulacion: true, resumen };
+
+  // Cuenta segura del administrador titular (si aún no la tiene)
+  if (!adminTieneCuenta) await admin.auth().createUser({ email: ADMIN_TITULAR_ORIGINAL.email, password: String(titular.pass) });
 
   // ── 1) Código y datos ──
   const codigo = await reservarCodigo(db);
@@ -254,7 +263,12 @@ module.exports = async function handler(req, res) {
     if (accion === 'migrar_original') {
       const nombre = String((req.body && req.body.nombre) || '').trim().slice(0, 120);
       if (!nombre) { res.status(400).json({ error: 'Escribe el nombre de la empresa.' }); return; }
-      const r = await migrarOriginal(db, nombre, !!(req.body && req.body.simular));
+      const tEmail = String((req.body && req.body.titularEmail) || '').trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(tEmail)) { res.status(400).json({ error: 'Escribe un email válido para el administrador titular.' }); return; }
+      if (tEmail === MASTER_EMAIL) { res.status(400).json({ error: 'La cuenta master no puede ser administradora de una empresa. Usa otro email.' }); return; }
+      const r = await migrarOriginal(db, nombre, !!(req.body && req.body.simular), {
+        email: tEmail, pass: String((req.body && req.body.titularPass) || ''), nombre: String((req.body && req.body.titularNombre) || '').trim().slice(0, 80),
+      });
       res.status(200).json(Object.assign({ ok: true }, r));
       return;
     }
