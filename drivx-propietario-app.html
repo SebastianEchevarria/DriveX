@@ -739,7 +739,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-6';
+var APP_VERSION = '2026-09-28-7';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1716,6 +1716,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     var nombreGestion = EMPRESA_NOMBRE || 'INFINITY', porcentajeGestion = 0;
     var pagosDetalle=[], ticketsConductor=[], ticketsPropietario=[];
     var kmTotalGeneral = 0, kmPorVehiculo = [];
+    var ajustesConductoresTotal = 0, ajustesPropietarioTotal = 0, ajustesPropietarioItems = [];
 
     vehiculosConDatos.forEach(function(snap){
       uberTotal += snap.uberTotal||0; boltTotal += snap.boltTotal||0; cabifyTotal += snap.cabifyTotal||0;
@@ -1731,6 +1732,9 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       (snap.pagosDetalle||[]).forEach(function(p){ pagosDetalle.push(p); });
       (snap.ticketsConductor||[]).forEach(function(t){ ticketsConductor.push(t); });
       (snap.ticketsPropietario||[]).forEach(function(t){ ticketsPropietario.push(t); });
+      ajustesConductoresTotal += Number(snap.ajustesConductoresTotal || 0);
+      ajustesPropietarioTotal += Number(snap.ajustesPropietarioTotal || 0);
+      (snap.ajustesPropietarioItems || []).forEach(function(a){ ajustesPropietarioItems.push(a); });
       if (snap.kmSemana && snap.kmSemana.total > 0) {
         kmTotalGeneral += snap.kmSemana.total;
         kmPorVehiculo.push({ matricula: snap.matricula, total: snap.kmSemana.total, porConductor: snap.kmSemana.porConductor || [] });
@@ -1739,10 +1743,11 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
 
     var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
     var facturacionTotal = facturacionAppsTotal + brandingTotal;
-    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
-    var beneficio = facturacionTotal - gastosTotalGeneral;
+    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal + ajustesConductoresTotal;
+    var beneficio = facturacionTotal - gastosTotalGeneral + ajustesPropietarioTotal;
 
     pintarResumenGeneralO({
+      ajustesConductoresTotal: ajustesConductoresTotal, ajustesPropietarioTotal: ajustesPropietarioTotal, ajustesPropietarioItems: ajustesPropietarioItems,
       vehiculosSinEnviar: vehiculosSinEnviar,
       uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
       privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
@@ -1952,6 +1957,28 @@ function pintarResumenGeneralO(d) {
     '<span style="font-size:12px;font-weight:900;color:#fff">' + (pagosEsPagar ? 'Total a pagar (conductores + ' + d.nombreGestion + ')' : 'Total a devolver por conductores') + '</span>' +
     '<span style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + (pagosEsPagar ? '#ffd700' : 'var(--red)') + '">€ ' + Math.abs(d.pagosARealizarTotal).toFixed(2).replace('.',',') + '</span>' +
   '</div>';
+
+  // ± Ajustes de semanas anteriores (correcciones de errores)
+  if ((d.ajustesPropietarioItems && d.ajustesPropietarioItems.length) || Math.abs(d.ajustesConductoresTotal || 0) > 0.001) {
+    var fmtA = function(n){ return Math.abs(n).toFixed(2).replace('.', ','); };
+    var signoA = function(a){ return (a.tipo === 'abono' ? 1 : -1) * Number(a.importe || 0); };
+    html += '<div style="margin-top:14px;padding:12px 14px;border-radius:12px;border:2px solid rgba(255,179,0,.95);background:rgba(255,179,0,.07);box-shadow:0 0 10px rgba(255,179,0,.5)">' +
+      '<div style="font-size:12px;font-weight:900;color:#fff;margin-bottom:6px">± Ajustes de semanas anteriores</div>';
+    (d.ajustesPropietarioItems || []).forEach(function(a){
+      var v = signoA(a);
+      html += '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+        '<div style="min-width:0"><div style="font-size:11.5px;font-weight:700;color:#fff">' + String(a.concepto || '').replace(/[<>&]/g,'') + '</div>' +
+        '<div style="font-size:10px;color:#fff;opacity:.7">' + (a.matricula || '') + (a.semanaOrigen ? ' · de la ' + String(a.semanaOrigen).toLowerCase() : '') + '</div></div>' +
+        '<div style="font-family:var(--mono);font-size:12.5px;font-weight:900;white-space:nowrap;color:' + (v >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (v >= 0 ? '+ ' : '− ') + '€ ' + fmtA(v) + '</div></div>';
+    });
+    if (Math.abs(d.ajustesConductoresTotal || 0) > 0.001) {
+      var c = -(d.ajustesConductoresTotal || 0); // lo que se abona a conductores es un coste para ti
+      html += '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+        '<div style="font-size:11.5px;font-weight:700;color:#fff">Ajustes de conductores</div>' +
+        '<div style="font-family:var(--mono);font-size:12.5px;font-weight:900;white-space:nowrap;color:' + (c >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (c >= 0 ? '+ ' : '− ') + '€ ' + fmtA(c) + '</div></div>';
+    }
+    html += '</div>';
+  }
 
   var colorBeneficio = d.beneficio >= 0 ? '0,230,118' : '255,71,87';
   var colorBeneficioVar = d.beneficio >= 0 ? 'var(--green)' : 'var(--red)';

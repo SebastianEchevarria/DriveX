@@ -405,6 +405,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
       <!-- ── GASTOS ── -->
       <div class="dash-screen" id="dash-gastos">
+        <div id="ajustes-gastos-box"></div>
         <div id="gastos-list"></div>
       </div>
 
@@ -1060,7 +1061,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-15';
+var APP_VERSION = '2026-09-28-16';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5572,7 +5573,55 @@ function calcularLiquidacionAcumulada(cid, matricula, uid, opciones) {
     .then(function(b){ return _calcularLiquidacionCore(cid, matricula, uid, opcionesSemanaDesdeBaseline(b)); });
 }
 
+// ══════════════ AJUSTES DE FACTURACIÓN ══════════════
+// Correcciones de semanas ya cerradas: una semana cerrada NUNCA se toca; el
+// error se compensa con un ajuste en la semana abierta.
+//   ajustes_facturacion/{id} = { cid, conductor, matricula, afecta:'conductor'|'propietario',
+//     tipo:'abono'|'cargo', importe, concepto, semanaOrigen, origen:'manual'|'automatico',
+//     creadoTs, creadoPor, liquidadoEn? }
+// Abono = a favor (se le suma). Cargo = en contra (se le descuenta).
+// Cada ajuste cuenta en la semana natural en la que se crea.
+function cargarAjustesFacturacion() {
+  return fetch(FIREBASE_URL + '/ajustes_facturacion.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(o){
+    o = (o && typeof o === 'object' && !o.error) ? o : {};
+    return Object.keys(o).map(function(k){ var a = Object.assign({}, o[k]); a.id = k; return a; }).filter(function(a){ return a && Number(a.importe) > 0; });
+  });
+}
+function importeConSignoAjuste(a) { return (a.tipo === 'abono' ? 1 : -1) * Number(a.importe || 0); }
 function _calcularLiquidacionCore(cid, matricula, uid, opciones) {
+  return _calcularLiquidacionBase(cid, matricula, uid, opciones).then(function(d){
+    if (!d || !opciones || !opciones.rango) return d;
+    var R = opciones.rango;
+    return cargarAjustesFacturacion().then(function(todos){
+      var items = todos.filter(function(a){ return a.afecta === 'conductor' && a.cid === cid && a.creadoTs >= R.desde && a.creadoTs <= R.hasta; });
+      var total = items.reduce(function(s, a){ return s + importeConSignoAjuste(a); }, 0);
+      d.ajustesItems = items;
+      d.ajustesTotal = Math.round(total * 100) / 100;
+      d.resultado = (d.resultado || 0) + d.ajustesTotal;
+      return d;
+    });
+  });
+}
+function htmlAjustesLiquidacion(d) {
+  var items = (d && d.ajustesItems) || [];
+  if (!items.length) return '';
+  var fmt = function(n){ return Math.abs(n).toFixed(2).replace('.', ','); };
+  var h2 = '<div style="margin-bottom:12px;padding:10px 12px;border-radius:12px;border:2px solid rgba(255,179,0,.9);background:rgba(255,179,0,.07);box-shadow:0 0 10px rgba(255,179,0,.45)">' +
+    '<div style="font-size:11px;font-weight:900;color:#fff;letter-spacing:.3px;margin-bottom:6px">± AJUSTES DE SEMANAS ANTERIORES</div>';
+  items.forEach(function(a){
+    var v = importeConSignoAjuste(a);
+    h2 += '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+      '<div style="min-width:0"><div style="font-size:11.5px;font-weight:700;color:#fff">' + String(a.concepto || '').replace(/[<>&]/g,'') + '</div>' +
+      '<div style="font-size:10px;color:#fff;opacity:.7">' + (a.semanaOrigen ? 'De la ' + String(a.semanaOrigen).toLowerCase() : '') + (a.origen === 'automatico' ? ' · automático' : '') + '</div></div>' +
+      '<div style="font-family:var(--mono);font-size:12.5px;font-weight:900;white-space:nowrap;color:' + (v >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (v >= 0 ? '+ ' : '− ') + '€ ' + fmt(v) + '</div></div>';
+  });
+  var t = Number(d.ajustesTotal || 0);
+  h2 += '<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1.5px solid rgba(255,179,0,.6);margin-top:2px">' +
+    '<span style="font-size:11.5px;font-weight:900;color:#fff">Total ajustes</span>' +
+    '<span style="font-family:var(--mono);font-size:13px;font-weight:900;color:' + (t >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (t >= 0 ? '+ ' : '− ') + '€ ' + fmt(t) + '</span></div></div>';
+  return h2;
+}
+function _calcularLiquidacionBase(cid, matricula, uid, opciones) {
   if (!matricula) return Promise.resolve(null);
   var matSlug = matricula.replace(/\s/g,'_');
   var info = _facturacionConductoresIndex[uid];
@@ -5731,6 +5780,32 @@ function _turnoOrdenVeh(turno) {
 // en vivo del admin (abrirResumenGeneralVehiculo) como para el snapshot que
 // se guarda al pulsar "Cerrar y enviar" (lo que verá el propietario).
 function calcularResumenVehiculoParaFacturacion(matricula) {
+  return _calcularResumenVehiculoBase(matricula).then(function(r){
+    if (!r) return r;
+    // Ajustes de los conductores: lo que se les abona es un coste más del vehículo
+    var ajC = Number(r.ajustesConductoresTotal || 0);
+    r.gastosTotalGeneral += ajC;
+    r.beneficio -= ajC;
+    var P = r.periodoLiq;
+    delete r.periodoLiq;
+    r.ajustesPropietarioItems = []; r.ajustesPropietarioTotal = 0;
+    if (!P) return r;
+    return cargarAjustesFacturacion().then(function(todos){
+      var items = todos.filter(function(a){ return a.afecta === 'propietario' && a.matricula === matricula && a.creadoTs >= P.desde && a.creadoTs <= P.hasta; });
+      var tot = Math.round(items.reduce(function(s, a){ return s + importeConSignoAjuste(a); }, 0) * 100) / 100;
+      r.ajustesPropietarioItems = items;
+      r.ajustesPropietarioTotal = tot;
+      r.beneficio += tot;
+      // Durante un cierre, los ajustes del propietario quedan liquidados
+      if (_liqRangoForzado) items.forEach(function(a){
+        fetch(FIREBASE_URL + '/ajustes_facturacion/' + a.id + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ liquidadoEn: P.clave, liquidadoEtiqueta: P.etiqueta }) }).catch(function(){});
+      });
+      return r;
+    });
+  });
+}
+function _calcularResumenVehiculoBase(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return Promise.resolve(null);
 
@@ -5832,7 +5907,9 @@ function calcularResumenVehiculoParaFacturacion(matricula) {
       pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
       beneficio:beneficio,
       ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario,
-      kmSemana: { total: kmTotalVehiculo, porConductor: kmPorConductor }
+      kmSemana: { total: kmTotalVehiculo, porConductor: kmPorConductor },
+      ajustesConductoresTotal: Math.round(datosConductores.reduce(function(s, d){ return s + Number((d && d.ajustesTotal) || 0); }, 0) * 100) / 100,
+      periodoLiq: (datosConductores.find(function(d){ return d && d.periodo; }) || {}).periodo || null
     };
   });
 }
@@ -6185,6 +6262,8 @@ function pintarLiquidacion(uid, d) {
       '<div style="font-size:10px;font-weight:700;color:' + (_enc ? 'var(--cyan)' : '#ffd700') + ';margin-top:2px">' + (_enc ? 'SEMANA EN CURSO · se podrá cerrar a partir del lunes' : 'PENDIENTE DE CIERRE') + '</div>' +
     '</div>';
   }
+
+  html += htmlAjustesLiquidacion(d);
 
   // RESULTADO — arriba de todo
   html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">';
@@ -8427,7 +8506,7 @@ function pintarLiquidacionHistorialHtml(uidLocal, d) {
 
   var totalNeto = (d.uberNetoReal||0) + (d.boltNetoReal||0) + (d.cabifyNetoReal||0) + (d.privadosCutTotal||0) + (d.transfersCutTotal||0);
   var tieneDesgloseGastos = typeof d.gastosSinDatafonoTotal === 'number';
-  var html = '';
+  var html = htmlAjustesLiquidacion(d);
 
   function casillaPlat(color, textColor, label, valor) {
     return '<div style="background:rgba(' + color + ',.08);border:1.5px solid rgba(' + color + ',.75);border-radius:10px;padding:9px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(' + color + ',.55),0 0 16px rgba(' + color + ',.3);display:flex;justify-content:space-between;align-items:center">' +
@@ -8640,6 +8719,7 @@ function renderGastos() {
 function paintGastos() {
   var container = document.getElementById('gastos-list');
   if (!container) return;
+  pintarAjustesGastos();
 
   var vehByMatSlug = {};
   getAllVehiculos().forEach(function(v){ vehByMatSlug[matSlug(v.matricula)] = v; });
@@ -8777,6 +8857,7 @@ function paintGastos() {
             html += '<div style="font-size:10px;color:var(--purple);font-weight:800;margin-top:2px">🏢 Pagado por el propietario · no cuenta en la cuenta del conductor</div>';
           }
           html += '</div>';
+          if (puedeEditar()) html += '<button onclick="editarTicketDesdeGastos(\''+m.matSlug+'\',\''+catDef.key+'\',\''+tid+'\')" class="edit-btn" title="Editar importe" style="margin-right:6px">✏️</button>';
           if (t.url) {
             html += '<button onclick="window.open(\''+t.url+'\',\'_blank\')" class="edit-btn">Ver</button>';
             html += '<a href="'+cloudinaryDownloadUrl(t.url)+'" download class="edit-btn" style="text-decoration:none;display:inline-flex;align-items:center;margin-left:6px">⬇</a>';
@@ -8873,6 +8954,8 @@ function eliminarTodoGastosMatricula(mSlug) {
   if (!puedeEditar()) return Promise.reject(new Error('sin permiso'));
   var catData = _gastosDataCache[mSlug] || {};
   var urls = [];
+  var _ticketsBorrados = [];
+  Object.keys(catData).forEach(function(cat){ Object.keys(catData[cat] || {}).forEach(function(tid){ _ticketsBorrados.push({ cat: cat, t: catData[cat][tid] }); }); });
   CATEGORIAS_GASTOS.forEach(function(catDef){
     var cat = catData[catDef.key];
     if (!cat) return;
@@ -8885,6 +8968,7 @@ function eliminarTodoGastosMatricula(mSlug) {
   // propósito para que las imágenes de los tickets se puedan seguir viendo
   // desde el Registro de actividad después de eliminarlos de la app.
   return fetch(FIREBASE_URL + '/gastos/' + mSlug + '.json', { method: 'DELETE' }).then(fbCheck).then(function(){
+    ajustesPorTicketsBorrados(mSlug, _ticketsBorrados);
     return urls;
   });
 }
@@ -8952,6 +9036,230 @@ function onTicketCheckChange(mgid) {
     selAll.indeterminate = checkedRows.length > 0 && checkedRows.length < visibleRows.length;
   }
 }
+// ══ AJUSTES EN LA PANTALLA DE GASTOS ══
+function pintarAjustesGastos() {
+  var box = document.getElementById('ajustes-gastos-box');
+  if (!box) return;
+  cargarAjustesFacturacion().then(function(todos){
+    var pendientes = todos.filter(function(a){ return !a.liquidadoEn; }).sort(function(a,b){ return b.creadoTs - a.creadoTs; });
+    var fmt = function(n){ return Math.abs(n).toFixed(2).replace('.', ','); };
+    var html = '<div style="margin-bottom:16px;padding:14px 16px;border-radius:16px;border:2px solid rgba(255,179,0,1);background:rgba(255,179,0,.06);box-shadow:0 0 12px rgba(255,179,0,.55),0 0 26px rgba(255,179,0,.25)">' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:200px"><div style="font-size:14px;font-weight:900;color:#fff">± Ajustes de semanas anteriores</div>' +
+        '<div style="font-size:11.5px;color:#fff;opacity:.8;margin-top:3px">Corrige errores de una semana ya cerrada: se suman o descuentan en la semana abierta.</div></div>' +
+        (puedeEditar() ? '<button onclick="abrirNuevoAjuste()" style="padding:10px 16px;border-radius:10px;border:2px solid rgba(255,179,0,1);background:rgba(255,179,0,.16);color:#fff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(255,179,0,.6)">＋ Nuevo ajuste</button>' : '') +
+      '</div>';
+    if (pendientes.length) {
+      html += '<div style="margin-top:12px;font-size:10.5px;font-weight:800;color:#fff;opacity:.8;letter-spacing:.3px">PENDIENTES DE LIQUIDAR (' + pendientes.length + ')</div>';
+      pendientes.forEach(function(a){
+        var v = importeConSignoAjuste(a);
+        var quien = a.afecta === 'propietario' ? ('Propietario · ' + a.matricula) : ((a.conductor || 'Conductor') + ' · ' + a.matricula);
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+          '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:#fff">' + String(a.concepto || '').replace(/[<>&]/g,'') + '</div>' +
+          '<div style="font-size:10.5px;color:#fff;opacity:.75">' + quien + (a.semanaOrigen ? ' · de la ' + String(a.semanaOrigen).toLowerCase() : '') + (a.origen === 'automatico' ? ' · automático' : '') + '</div></div>' +
+          '<div style="font-family:var(--mono);font-size:13px;font-weight:900;white-space:nowrap;color:' + (v >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (v >= 0 ? '+ ' : '− ') + '€ ' + fmt(v) + '</div>' +
+          (puedeEditar() ? '<button onclick="borrarAjuste(\'' + a.id + '\')" title="Borrar ajuste" style="flex-shrink:0;padding:6px 9px;border-radius:8px;border:1.5px solid rgba(255,71,87,.8);background:rgba(255,71,87,.1);color:#fff;cursor:pointer">🗑</button>' : '') +
+        '</div>';
+      });
+    }
+    html += '</div>';
+    box.innerHTML = html;
+  });
+}
+function borrarAjuste(id) {
+  dialogoLed({ icono:'🗑', titulo:'¿Borrar este ajuste?', texto:'Todavía no se ha liquidado, así que no afecta a ninguna semana cerrada.', color:'rojo', aceptar:'Borrar' }).then(function(ok){
+    if (!ok) return;
+    fetch(FIREBASE_URL + '/ajustes_facturacion/' + id + '.json', { method:'DELETE' }).then(fbCheck).then(function(){
+      toast('🗑 Ajuste borrado'); registrarActividad('Gastos', 'Borró un ajuste de facturación', id); pintarAjustesGastos();
+    }).catch(function(err){ alert('No se pudo borrar: ' + err.message); });
+  });
+}
+// Últimas semanas naturales (para elegir de qué semana viene el error)
+function semanasRecientes(n) {
+  var l = lunesDe(Date.now()), out = [];
+  for (var i = 1; i <= n; i++) { var d = l - i * 7 * DIA_MS; out.push(etiquetaSemana(d, d + 6 * DIA_MS)); }
+  return out;
+}
+// Formulario de ajuste. pref (opcional) = datos ya rellenos (ajuste automático)
+function abrirNuevoAjuste(pref) {
+  pref = pref || {};
+  var viejo = document.getElementById('nuevo-ajuste-modal'); if (viejo) viejo.remove();
+  var m = document.createElement('div');
+  m.id = 'nuevo-ajuste-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:10060;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  var vehs = getAllVehiculos().map(function(v){ return v.matricula; }).sort();
+  var semanas = semanasRecientes(8);
+  var campo = 'width:100%;box-sizing:border-box;padding:11px 12px;border-radius:10px;border:1.5px solid rgba(0,212,255,.6);background:rgba(255,255,255,.04);color:#fff;font-size:14px;font-family:inherit;color-scheme:dark';
+  var etq = 'display:block;font-size:11px;font-weight:800;color:#fff;letter-spacing:.3px;margin:12px 0 6px';
+  var boton = function(grupo, valor, texto, activo){ return '<button type="button" data-g="' + grupo + '" data-v="' + valor + '" onclick="_ajSel(this)" style="flex:1;padding:10px;border-radius:10px;border:2px solid ' + (activo ? 'rgba(0,212,255,1)' : 'rgba(255,255,255,.2)') + ';background:' + (activo ? 'rgba(0,212,255,.15)' : 'rgba(255,255,255,.03)') + ';color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">' + texto + '</button>'; };
+  m.innerHTML = '<div style="width:100%;max-width:460px;margin:auto;background:var(--surface);border:2.5px solid rgba(255,179,0,1);border-radius:20px;padding:22px 20px;box-shadow:0 0 18px rgba(255,179,0,.9),0 0 40px rgba(255,179,0,.4)">' +
+    '<div style="font-size:17px;font-weight:900;color:#fff;text-align:center">± Nuevo ajuste</div>' +
+    (pref.aviso ? '<div style="margin-top:12px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(255,179,0,.8);background:rgba(255,179,0,.08);font-size:12.5px;color:#fff;line-height:1.5">' + pref.aviso + '</div>' : '') +
+    '<label style="' + etq + '">VEHÍCULO</label><select id="aj-mat" style="' + campo + '" onchange="_ajCargarConductores()">' +
+      vehs.map(function(x){ return '<option' + (x === pref.matricula ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>' +
+    '<label style="' + etq + '">¿A QUIÉN AFECTA?</label><div style="display:flex;gap:8px">' +
+      boton('afecta','conductor','🚗 Conductor', pref.afecta !== 'propietario') + boton('afecta','propietario','🏢 Propietario', pref.afecta === 'propietario') + '</div>' +
+    '<div id="aj-cond-wrap"><label style="' + etq + '">CONDUCTOR</label><select id="aj-cond" style="' + campo + '"><option value="">Cargando…</option></select></div>' +
+    '<label style="' + etq + '">TIPO</label><div style="display:flex;gap:8px">' +
+      boton('tipo','abono','＋ Abono (a su favor)', pref.tipo !== 'cargo') + boton('tipo','cargo','− Cargo (en su contra)', pref.tipo === 'cargo') + '</div>' +
+    '<label style="' + etq + '">IMPORTE (€)</label><input id="aj-importe" type="number" step="0.01" min="0" inputmode="decimal" value="' + (pref.importe != null ? Number(pref.importe).toFixed(2) : '') + '" style="' + campo + ';font-family:var(--mono);font-weight:800">' +
+    '<label style="' + etq + '">SEMANA DE ORIGEN DEL ERROR</label><select id="aj-semana" style="' + campo + '">' +
+      semanas.map(function(s){ return '<option' + (s === pref.semanaOrigen ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
+      (pref.semanaOrigen && semanas.indexOf(pref.semanaOrigen) === -1 ? '<option selected>' + pref.semanaOrigen + '</option>' : '') + '</select>' +
+    '<label style="' + etq + '">CONCEPTO (lo verá la persona afectada)</label><textarea id="aj-concepto" rows="3" maxlength="200" placeholder="Ej: Peaje AP-7 del 23/09 no registrado" style="' + campo + ';resize:vertical">' + String(pref.concepto || '').replace(/[<>&]/g,'') + '</textarea>' +
+    '<div id="aj-error" style="display:none;color:var(--red);font-size:12.5px;margin-top:10px;text-align:center"></div>' +
+    '<div style="display:flex;gap:10px;margin-top:16px">' +
+      '<button onclick="document.getElementById(\'nuevo-ajuste-modal\').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.04);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>' +
+      '<button id="aj-guardar" onclick="guardarNuevoAjuste()" style="flex:1;padding:12px;border-radius:12px;border:2px solid rgba(255,179,0,1);background:rgba(255,179,0,.2);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,179,0,.6)">Guardar ajuste</button>' +
+    '</div></div>';
+  document.body.appendChild(m);
+  m.setAttribute('data-origen', pref.origen || 'manual');
+  m.setAttribute('data-cid-pref', pref.cid || '');
+  _ajCargarConductores();
+  _ajActualizarVisibilidad();
+}
+function _ajSel(btn) {
+  var g = btn.getAttribute('data-g');
+  document.querySelectorAll('#nuevo-ajuste-modal button[data-g="' + g + '"]').forEach(function(b){
+    var on = b === btn;
+    b.style.borderColor = on ? 'rgba(0,212,255,1)' : 'rgba(255,255,255,.2)';
+    b.style.background = on ? 'rgba(0,212,255,.15)' : 'rgba(255,255,255,.03)';
+    b.setAttribute('data-on', on ? '1' : '');
+  });
+  _ajActualizarVisibilidad();
+}
+function _ajValor(g) {
+  var sel = null;
+  document.querySelectorAll('#nuevo-ajuste-modal button[data-g="' + g + '"]').forEach(function(b){ if (b.style.borderColor.indexOf('0, 212, 255') !== -1 || b.style.borderColor.indexOf('0,212,255') !== -1) sel = b.getAttribute('data-v'); });
+  return sel;
+}
+function _ajActualizarVisibilidad() {
+  var w = document.getElementById('aj-cond-wrap');
+  if (w) w.style.display = _ajValor('afecta') === 'propietario' ? 'none' : 'block';
+}
+function _ajCargarConductores() {
+  var sel = document.getElementById('aj-cond'); if (!sel) return;
+  var mat = document.getElementById('aj-mat').value;
+  var pref = (document.getElementById('nuevo-ajuste-modal') || {}).getAttribute ? document.getElementById('nuevo-ajuste-modal').getAttribute('data-cid-pref') : '';
+  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var lista = Object.keys(all).map(function(k){ return all[k]; }).filter(function(c){ return c && c.matricula === mat; });
+    sel.innerHTML = lista.length ? lista.map(function(c){ return '<option value="' + c.cid + '"' + (c.cid === pref ? ' selected' : '') + '>' + String(c.nombre || c.email || c.cid).replace(/[<>&]/g,'') + '</option>'; }).join('')
+                                 : '<option value="">Este vehículo no tiene conductores</option>';
+  }).catch(function(){ sel.innerHTML = '<option value="">No se pudieron cargar</option>'; });
+}
+function guardarNuevoAjuste() {
+  var modal = document.getElementById('nuevo-ajuste-modal');
+  var err = document.getElementById('aj-error');
+  var fallo = function(t){ err.textContent = t; err.style.display = 'block'; };
+  var afecta = _ajValor('afecta') || 'conductor';
+  var tipo = _ajValor('tipo') || 'abono';
+  var mat = document.getElementById('aj-mat').value;
+  var condSel = document.getElementById('aj-cond');
+  var cid = afecta === 'conductor' ? condSel.value : '';
+  var nombreCond = afecta === 'conductor' && condSel.selectedIndex >= 0 ? condSel.options[condSel.selectedIndex].text : '';
+  var importe = parseFloat(String(document.getElementById('aj-importe').value).replace(',', '.'));
+  var concepto = document.getElementById('aj-concepto').value.trim();
+  var semana = document.getElementById('aj-semana').value;
+  if (!mat) return fallo('Elige un vehículo.');
+  if (afecta === 'conductor' && !cid) return fallo('Elige el conductor.');
+  if (isNaN(importe) || importe <= 0) return fallo('Escribe un importe mayor que 0.');
+  if (!concepto) return fallo('Escribe el concepto: la persona afectada verá de dónde viene el ajuste.');
+  var btn = document.getElementById('aj-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
+  var ajuste = { afecta: afecta, tipo: tipo, matricula: mat, cid: cid || null, conductor: nombreCond || null,
+    importe: Math.round(importe * 100) / 100, concepto: concepto, semanaOrigen: semana,
+    origen: modal.getAttribute('data-origen') || 'manual', creadoTs: Date.now(), creadoPor: (currentUser && currentUser.nombre) || '' };
+  fetch(FIREBASE_URL + '/ajustes_facturacion.json', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(ajuste) })
+    .then(fbCheck).then(function(){
+      modal.remove();
+      toast('✓ Ajuste guardado: se aplicará en la semana abierta');
+      registrarActividad('Gastos', 'Creó un ajuste de facturación', mat + ' · ' + (tipo === 'abono' ? '+' : '−') + ajuste.importe + ' € · ' + concepto);
+      pintarAjustesGastos();
+    }).catch(function(e){ btn.disabled = false; btn.textContent = 'Guardar ajuste'; fallo('No se pudo guardar: ' + e.message); });
+}
+
+// ══ AJUSTES AUTOMÁTICOS: editar o borrar un ticket de una semana ya cerrada ══
+// ¿La semana de este ticket ya está cerrada para su conductor?
+function comprobarTicketSemanaCerrada(mSlug, t) {
+  return fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+    all = all || {};
+    var c = Object.keys(all).map(function(k){ return all[k]; }).find(function(x){ return x && x.nombre === t.conductor && matSlug(x.matricula || '') === mSlug; });
+    if (!c) return { cerrada: false };
+    return fetch(FIREBASE_URL + '/facturacion_baseline/' + mSlug + '/' + c.cid + '.json').then(function(r){ return r.json(); }).then(function(b){
+      var ts = fechaGastoTs(t);
+      var cerrada = !!(b && b.semanaHastaTs && ts <= b.semanaHastaTs);
+      var l = lunesDe(ts);
+      return { cerrada: cerrada, cid: c.cid, conductor: c.nombre, matricula: c.matricula, etiqueta: etiquetaSemana(l, l + 6 * DIA_MS) };
+    });
+  }).catch(function(){ return { cerrada: false }; });
+}
+function _descTicket(cat, t) {
+  var lab = ((CATEGORIAS_GASTOS.find(function(c){ return c.key === cat; }) || {}).label) || cat;
+  return lab + ' del ' + (t.fecha || '') ;
+}
+function editarTicketDesdeGastos(mSlug, cat, tid) {
+  if (!puedeEditar()) return;
+  var t = ((_gastosDataCache[mSlug] || {})[cat] || {})[tid];
+  if (!t) return;
+  var esDatafono = cat === 'datafono';
+  var valorActual = esDatafono ? Number(t.importeOriginal || t.importe || 0) : Number(t.importe || 0);
+  dialogoLed({
+    icono: '✏️', titulo: 'Editar ticket', texto: _descTicket(cat, t) + (t.conductor ? ' · ' + t.conductor : '') + (esDatafono ? '\nImporte total del ticket (la propina de ' + Number(t.propina||0).toFixed(2) + ' € se mantiene)' : ''),
+    tipo: 'numero', valor: valorActual.toFixed(2), sufijo: '€', min: 0, aceptar: 'Guardar',
+    validar: function(v){ var n = parseFloat(String(v).replace(',', '.')); return (isNaN(n) || n < 0) ? 'Escribe un importe válido.' : ''; }
+  }).then(function(v){
+    if (v === null) return;
+    var nuevoTotal = Math.round(parseFloat(String(v).replace(',', '.')) * 100) / 100;
+    var viejoImporte = Number(t.importe || 0);
+    var body = esDatafono ? { importeOriginal: nuevoTotal, importe: Math.round((nuevoTotal - Number(t.propina || 0)) * 100) / 100 } : { importe: nuevoTotal };
+    if (esDatafono && body.importe < 0) { alert('El total no puede ser menor que la propina.'); return; }
+    var nuevoImporte = body.importe;
+    fetch(FIREBASE_URL + '/gastos/' + mSlug + '/' + cat + '/' + tid + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) })
+      .then(fbCheck).then(function(){
+        registrarActividad('Gastos', 'Editó un ticket', mSlug + ' · ' + _descTicket(cat, t) + ' · ' + viejoImporte.toFixed(2) + ' € → ' + nuevoImporte.toFixed(2) + ' €', t.url ? [t.url] : []);
+        toast('✓ Ticket actualizado');
+        renderGastos();
+        var diff = Math.round((nuevoImporte - viejoImporte) * 100) / 100;
+        if (!diff || t.pagadoPor === 'propietario') return;
+        comprobarTicketSemanaCerrada(mSlug, t).then(function(s){
+          if (!s.cerrada) return;
+          abrirNuevoAjuste({
+            origen: 'automatico', afecta: 'conductor', cid: s.cid, matricula: s.matricula,
+            tipo: diff > 0 ? 'abono' : 'cargo', importe: Math.abs(diff), semanaOrigen: s.etiqueta,
+            concepto: 'Corrección ticket ' + _descTicket(cat, t) + ' (' + viejoImporte.toFixed(2).replace('.', ',') + ' € → ' + nuevoImporte.toFixed(2).replace('.', ',') + ' €)',
+            aviso: '⚠️ Este ticket es de la <b>' + s.etiqueta.toLowerCase() + '</b>, que ya está cerrada. La semana cerrada no se modifica: revisa este ajuste y guárdalo para compensarlo en la semana abierta.'
+          });
+        });
+      }).catch(function(err){ alert('No se pudo guardar: ' + err.message); });
+  });
+}
+// Tras borrar tickets: los de semanas cerradas generan un cargo automático
+function ajustesPorTicketsBorrados(mSlug, tickets) {
+  var cuenta = tickets.filter(function(x){ return x.t && x.t.pagadoPor !== 'propietario' && Number(x.t.importe) > 0; });
+  if (!cuenta.length) return;
+  Promise.all(cuenta.map(function(x){ return comprobarTicketSemanaCerrada(mSlug, x.t).then(function(s){ return { x: x, s: s }; }); })).then(function(res){
+    var porCond = {};
+    res.forEach(function(r){
+      if (!r.s.cerrada) return;
+      var k = r.s.cid;
+      (porCond[k] = porCond[k] || { s: r.s, total: 0, desc: [] });
+      var imp = Number(r.x.t.importe || 0) + (r.x.cat === 'datafono' ? Number(r.x.t.propina || 0) : 0);
+      porCond[k].total += imp;
+      porCond[k].desc.push(_descTicket(r.x.cat, r.x.t) + ' ' + imp.toFixed(2).replace('.', ',') + ' €');
+    });
+    Object.keys(porCond).forEach(function(k){
+      var g = porCond[k];
+      var ajuste = { afecta:'conductor', tipo:'cargo', matricula: g.s.matricula, cid: k, conductor: g.s.conductor,
+        importe: Math.round(g.total * 100) / 100, concepto: 'Ticket' + (g.desc.length > 1 ? 's' : '') + ' eliminado' + (g.desc.length > 1 ? 's' : '') + ': ' + g.desc.join(', '),
+        semanaOrigen: g.s.etiqueta, origen: 'automatico', creadoTs: Date.now(), creadoPor: (currentUser && currentUser.nombre) || '' };
+      fetch(FIREBASE_URL + '/ajustes_facturacion.json', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(ajuste) }).then(fbCheck).then(function(){
+        toast('± Ajuste automático: −' + ajuste.importe.toFixed(2) + ' € a ' + (g.s.conductor || 'conductor') + ' (tickets de una semana cerrada)');
+        pintarAjustesGastos();
+      }).catch(function(){});
+    });
+  });
+}
+
 function eliminarSeleccionados(mgid, mSlug) {
   if (!puedeEditar()) return;
   var btn = document.getElementById('delsel_' + mgid);
@@ -8965,6 +9273,7 @@ function eliminarSeleccionados(mgid, mSlug) {
       var row = chk.closest('.ticket-row');
       return { cat: row.getAttribute('data-cat'), tid: row.getAttribute('data-tid'), url: row.getAttribute('data-url') };
     });
+    var _ticketsBorrados = refs.map(function(r){ return { cat: r.cat, t: (((_gastosDataCache[mSlug] || {})[r.cat]) || {})[r.tid] }; });
     // OJO: ya NO se borra el archivo de Cloudinary — se deja ahí a
     // propósito para que la imagen del ticket se pueda seguir viendo
     // desde el Registro de actividad después de eliminarlo de la app.
@@ -8972,6 +9281,7 @@ function eliminarSeleccionados(mgid, mSlug) {
       return fetch(FIREBASE_URL + '/gastos/' + mSlug + '/' + r.cat + '/' + r.tid + '.json', { method:'DELETE' }).then(fbCheck);
     })).then(function(){
       renderGastos();
+      ajustesPorTicketsBorrados(mSlug, _ticketsBorrados);
       var vLog = getAllVehiculos().find(function(v){ return matSlug(v.matricula) === mSlug; });
       var imagenesLog = refs.map(function(r){ return r.url; }).filter(Boolean);
       registrarActividad('Gastos', 'Eliminó ' + checked.length + ' ticket' + (checked.length>1?'s':''), (vLog ? vLog.matricula : mSlug), imagenesLog);
@@ -10374,6 +10684,12 @@ function confirmarCierrePeriodo() {
     writes.push(fetch(FIREBASE_URL + '/facturacion_cierres/' + matSlug + '/' + r.cid + '/' + (perR ? perR.clave : p.periodo) + '.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(registro)
     }));
+    (r.delta.ajustesItems || []).forEach(function(a){
+      writes.push(fetch(FIREBASE_URL + '/ajustes_facturacion/' + a.id + '.json', {
+        method: 'PATCH', headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ liquidadoEn: perR ? perR.clave : p.periodo, liquidadoEtiqueta: perR ? perR.etiqueta : '' })
+      }));
+    });
     writes.push(fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlug + '/' + r.cid + '.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevaBaseline)
     }));
