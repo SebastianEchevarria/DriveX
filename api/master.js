@@ -8,6 +8,7 @@
 //   { accion: 'estado', empresa, estado }   → 'activa' | 'suspendida'
 //   { accion: 'ajustes', empresa, ajustes } → guarda los ajustes de esa empresa
 //        (qué apartados del menú del Dashboard ve). empresa 'ORIGINAL' = flota original.
+//   { accion: 'usuarios', empresa }         → todas las personas de la empresa, por app
 //
 // SEGURIDAD: solo responde si el token es de la cuenta MASTER
 // (MASTER_EMAIL, por defecto drivx.apps@gmail.com) Y ese email está
@@ -125,6 +126,27 @@ module.exports = async function handler(req, res) {
       if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
       await ref.update({ estado, estadoCambiadoTs: Date.now(), estadoCambiadoPor: 'MASTER' });
       res.status(200).json({ ok: true, empresa, estado });
+      return;
+    }
+
+    if (accion === 'usuarios') {
+      const empresa = String((req.body && req.body.empresa) || '');
+      if (empresa !== 'ORIGINAL' && !/^DRX-[A-Z0-9]{5}$/.test(empresa)) { res.status(400).json({ error: 'Empresa inválida' }); return; }
+      const base = empresa === 'ORIGINAL' ? '' : 'empresas/' + empresa + '/';
+      const [dash, sup, props, cond] = await Promise.all([
+        contar(db, base + 'usuarios_dashboard'),
+        contar(db, base + 'usuarios_supervisor'),
+        contar(db, base + 'propietarios'),
+        contar(db, base + 'conductores_registro'),
+      ]);
+      const lista = (o, fn) => Object.keys(o).filter((k) => o[k]).map((k) => fn(k, o[k]));
+      res.status(200).json({
+        ok: true,
+        dashboard: lista(dash, (k, v) => ({ id: k, nombre: v.nombre || '', email: v.email || '', rol: v.role || '', activo: !!v.inviteUsado })),
+        supervisor: lista(sup, (k, v) => ({ id: k, nombre: v.nombre || '', email: v.email || '', detalle: Array.isArray(v.ccaa) ? v.ccaa.join(', ') : '', activo: !!v.inviteUsado })),
+        propietario: lista(props, (k, v) => ({ id: k, nombre: v.nombre || '', email: v.email || '', detalle: (v.matriculas || []).join(', '), activo: !!v.inviteUsado })),
+        driver: lista(cond, (k, v) => ({ id: k, nombre: v.nombre || '', email: v.email || '', detalle: [v.matricula, v.turno ? 'turno ' + v.turno : ''].filter(Boolean).join(' · '), activo: true })),
+      });
       return;
     }
 
