@@ -1061,7 +1061,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-19';
+var APP_VERSION = '2026-09-28-20';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -9160,8 +9160,7 @@ function _ajFiltrarVehiculos() {
   }).sort(function(a, b){ return a.matricula.localeCompare(b.matricula); });
   sel.innerHTML = lista.length
     ? lista.map(function(v){
-        var nombres = conds.filter(function(c){ return c.matricula === v.matricula; }).map(function(c){ return c.nombre; }).filter(Boolean);
-        return '<option value="' + v.matricula + '"' + (v.matricula === previa ? ' selected' : '') + '>' + v.matricula + (nombres.length ? ' · ' + nombres.join(', ') : '') + '</option>';
+        return '<option value="' + v.matricula + '"' + (v.matricula === previa ? ' selected' : '') + '>' + v.matricula + '</option>';
       }).join('')
     : '<option value="">Ningún vehículo coincide</option>';
   var n = document.getElementById('aj-num-veh'); if (n) n.textContent = '(' + lista.length + ')';
