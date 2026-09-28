@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-7';
+var APP_VERSION = '2026-09-28-8';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4105,6 +4105,10 @@ function toggleCondDocsO(cuid) {
 }
 
 function conductorPerfilBodyHtml(c) {
+  return '<button onclick="abrirHistorialConductor(\'' + c.cid + '\',\'' + String(c.nombre||'').replace(/'/g,"\\'") + '\')" style="width:100%;margin-bottom:16px;padding:12px;border-radius:12px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.7)">📚 Historial de facturación</button>' +
+    _conductorPerfilBodyHtmlBase(c);
+}
+function _conductorPerfilBodyHtmlBase(c) {
   function docThumbP(url, label) {
     if (!url) return '<div style="font-size:11px;color:var(--text3)">' + label + ': no disponible</div>';
     return '<div style="display:inline-block;text-align:center;margin:0 8px 8px 0">' +
@@ -4715,7 +4719,7 @@ function abrirTodosConductoresVehiculo(matricula) {
           (esMensualCard
             ? ('<input type="file" id="nomina-input-' + uid + '" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onNominaFile(this,\'' + info.cid + '\',\'' + info.matricula.replace(/'/g,"\\'") + '\',\'' + uid + '\')">' +
                '<button id="nomina-btn-' + uid + '" onclick="document.getElementById(\'nomina-input-' + uid + '\').click()" title="Subir nómina para extraer días trabajados y líquido a percibir" data-estado="azul" style="display:flex;align-items:center;gap:8px;flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.8),0 0 22px rgba(0,212,255,.5);padding:8px 12px;white-space:nowrap">📄 Subir nómina</button>')
-            : ('<button id="cerrar-cond-btn-' + uid + '" onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar la semana de facturación" style="flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;white-space:nowrap">🔒 Cerrar semana</button>')
+            : ('<button onclick="abrirHistorialConductor(\'' + info.cid + '\',\'' + String(info.nombre||'').replace(/'/g,"\\'") + '\')" title="Historial de semanas cerradas" style="flex-shrink:0;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-size:12px;font-weight:800;padding:8px 10px;cursor:pointer;font-family:inherit;margin-right:6px;box-shadow:0 0 8px rgba(0,212,255,.6)">📚 Historial</button>' + '<button id="cerrar-cond-btn-' + uid + '" onclick="cerrarPeriodoConductor(\'' + info.cid + '\',\'' + uid + '\')" title="Cerrar la semana de facturación" style="flex-shrink:0;border-radius:10px;border:2px solid rgba(255,215,0,1);background:rgba(255,215,0,.14);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,215,0,.8),0 0 22px rgba(255,215,0,.5);display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;white-space:nowrap">🔒 Cerrar semana</button>')
           ) +
         '</div>' +
       '</div>' +
@@ -8107,6 +8111,103 @@ function toggleMatHistorial(mgid) {
 // vivo (una tarjeta por conductor, lado a lado) + botón para ver el
 // resumen que recibió el propietario esa semana ──
 var _historialTicketsCache = {};
+// ══════════════ HISTORIAL DE FACTURACIÓN DE UN CONDUCTOR ══════════════
+// Todas las semanas (y meses) cerradas de un conductor, de la más reciente
+// a la más antigua, con el detalle completo de cada cierre tal y como se
+// cerró. Lee "facturacion_cierres" (el registro permanente de cada cierre),
+// en todas las matrículas: si el conductor cambió de vehículo, sale todo.
+var _histCondDatos = [];
+function etiquetaCierreConductor(periodo, reg) {
+  if (reg && reg.etiqueta) return reg.etiqueta;
+  var m = /^(\d{4})-(\d{2})$/.exec(periodo || '');
+  if (m) return 'MES DE ' + MESES_ES[parseInt(m[2],10)-1].toUpperCase() + ' DE ' + m[1];
+  return etiquetaSemanaDesdeClave(periodo);
+}
+function abrirHistorialConductor(cid, nombre) {
+  var modal = document.getElementById('historial-conductor-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'historial-conductor-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10035;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+    modal.onclick = function(e){ if (e.target === modal) modal.style.display = 'none'; };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="background:var(--surface);border:2.5px solid rgba(0,212,255,1);border-radius:20px;max-width:560px;width:100%;margin:auto;box-shadow:0 0 20px rgba(0,212,255,1),0 0 44px rgba(0,212,255,.5)">' +
+      '<div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0;z-index:1">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:var(--cyan);letter-spacing:.5px">📚 HISTORIAL DE FACTURACIÓN</div>' +
+        '<div style="font-size:17px;font-weight:900;color:#fff;margin-top:3px">' + (nombre || 'Conductor') + '</div></div>' +
+        '<button class="modal-close" onclick="document.getElementById(\'historial-conductor-modal\').style.display=\'none\'">✕</button>' +
+      '</div>' +
+      '<div id="hist-cond-body" style="padding:16px 18px 20px"><div style="text-align:center;color:var(--text3);font-size:13px;padding:20px">Cargando historial…</div></div>' +
+    '</div>';
+  modal.style.display = 'flex';
+
+  fetch(FIREBASE_URL + '/facturacion_cierres.json').then(function(r){ return r.json(); }).then(function(todo){
+    todo = todo || {};
+    var lista = [];
+    Object.keys(todo).forEach(function(mSlug){
+      var porCond = (todo[mSlug] || {})[cid];
+      if (!porCond) return;
+      Object.keys(porCond).forEach(function(periodo){
+        var reg = porCond[periodo];
+        if (!reg) return;
+        var orden = reg.semanaHastaTs || Date.parse(reg.fecha || '') || 0;
+        lista.push({ mSlug: mSlug, periodo: periodo, reg: reg, orden: orden });
+      });
+    });
+    lista.sort(function(a,b){ return b.orden - a.orden; });
+    _histCondDatos = lista;
+    pintarHistorialConductor();
+  }).catch(function(){
+    document.getElementById('hist-cond-body').innerHTML = '<div style="text-align:center;color:var(--red);font-size:13px;padding:20px">No se pudo cargar el historial.</div>';
+  });
+}
+function pintarHistorialConductor() {
+  var body = document.getElementById('hist-cond-body');
+  if (!body) return;
+  var lista = _histCondDatos;
+  if (!lista.length) {
+    body.innerHTML = '<div style="text-align:center;color:#fff;font-size:13px;padding:24px">Este conductor todavía no tiene semanas cerradas.</div>';
+    return;
+  }
+  var fmt = function(n){ return Math.abs(n||0).toFixed(2).replace('.',','); };
+  var html = '<div style="font-size:12px;color:#fff;opacity:.85;margin-bottom:12px">' + lista.length + ' cierre' + (lista.length !== 1 ? 's' : '') + ' · toca uno para ver el detalle completo</div>';
+  lista.forEach(function(it, i){
+    var r = it.reg, res = Number(r.resultado || 0), paga = res >= 0;
+    var col = paga ? '255,215,0' : '255,71,87';
+    html += '<div style="border:2px solid rgba(' + col + ',.85);border-radius:14px;margin-bottom:10px;background:rgba(' + col + ',.05);box-shadow:0 0 8px rgba(' + col + ',.35)">' +
+      '<div onclick="toggleDetalleHistorialConductor(' + i + ')" style="display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12.5px;font-weight:900;color:#fff;letter-spacing:.2px">' + etiquetaCierreConductor(it.periodo, r) + '</div>' +
+          '<div style="font-size:11px;color:#fff;opacity:.8;margin-top:3px;font-family:var(--mono)">' + (r.matricula || it.mSlug.replace(/_/g,' ')) +
+            (r.fecha ? ' · cerrada el ' + new Date(r.fecha).toLocaleDateString('es-ES') : '') + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0">' +
+          '<div style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + (paga ? '#ffd700' : 'var(--red)') + '">€ ' + fmt(res) + '</div>' +
+          '<div style="font-size:9.5px;font-weight:800;color:#fff;opacity:.85">' + (paga ? 'A PAGAR AL CONDUCTOR' : 'DEVUELVE EL CONDUCTOR') + '</div>' +
+        '</div>' +
+        '<span id="hist-cond-chv-' + i + '" style="color:var(--cyan);font-size:18px;flex-shrink:0">›</span>' +
+      '</div>' +
+      '<div id="hist-cond-det-' + i + '" style="display:none;padding:4px 14px 16px;border-top:1px solid rgba(255,255,255,.08)"></div>' +
+    '</div>';
+  });
+  body.innerHTML = html;
+}
+function toggleDetalleHistorialConductor(i) {
+  var det = document.getElementById('hist-cond-det-' + i);
+  var chv = document.getElementById('hist-cond-chv-' + i);
+  if (!det) return;
+  var abrir = det.style.display === 'none';
+  if (abrir && !det.innerHTML) {
+    var it = _histCondDatos[i];
+    var uidLocal = 'histcond_' + it.mSlug + '_' + it.periodo;
+    _historialTicketsCache[uidLocal] = { gastos: it.reg.gastosItems || [], datafono: it.reg.datafonoItems || [] };
+    det.innerHTML = '<div style="padding-top:12px">' + pintarLiquidacionHistorialHtml(uidLocal, it.reg) + '</div>';
+  }
+  det.style.display = abrir ? 'block' : 'none';
+  if (chv) chv.textContent = abrir ? '⌄' : '›';
+}
+
 function abrirDetalleHistorial(mSlug, periodo, matricula) {
   var modal = document.getElementById('historial-detalle-modal');
   if (!modal) {
@@ -8300,7 +8401,7 @@ function abrirTicketsHistorialModal(uidLocal, tipo) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'tickets-historial-modal';
-    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10011;align-items:center;justify-content:center;padding:16px';
+    modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10045;align-items:center;justify-content:center;padding:16px';
     document.body.appendChild(modal);
   }
   var html = '<div style="background:var(--surface);border:2px solid rgba(255,71,87,.85);border-radius:18px;max-width:440px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 0 18px rgba(255,71,87,.55),0 0 40px rgba(255,71,87,.3)">';
