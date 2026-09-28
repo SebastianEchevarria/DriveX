@@ -17,7 +17,7 @@
 //      VAPID_PUBLIC_KEY  = BG_O2jr22zuUniJQMKqnj5rD3-dni53kh5OQaEpeeJ0v2DQtgElHACwV_oaNWAVOMrO-d8loghqX3A0rLDUjH2c
 //      VAPID_PRIVATE_KEY = fs8oJ08MhBJDZDXUDJIlFBUWJ8sqfNRWZT5HgHJ2b-8
 //      VAPID_SUBJECT     = mailto:tu-email@ejemplo.com   (un contacto de tu empresa)
-//      FIREBASE_URL      = (la misma URL de tu Realtime Database que ya usan las apps)
+//      (usa también FIREBASE_SERVICE_ACCOUNT y FIREBASE_DATABASE_URL, ya configuradas)
 //
 //    ¡IMPORTANTE! La clave privada (VAPID_PRIVATE_KEY) es secreta — solo
 //    debe vivir aquí, en el servidor. Nunca la pongas en los archivos
@@ -29,6 +29,14 @@
 // A partir de ahí, el Dashboard ya sabe llamar a este endpoint solo.
 
 const webpush = require('web-push');
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+  });
+}
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT || 'mailto:admin@drivx.app',
@@ -36,6 +44,14 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
+function emailKey(email) {
+  return String(email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_');
+}
+
+// SEGURIDAD: solo puede enviar avisos alguien con sesión DRIVX, y SOLO a
+// los dispositivos de SU empresa (se deduce de su cuenta, no de lo que
+// mande el navegador). La base de datos se lee con credenciales de
+// servidor, así que funciona con las reglas de seguridad activadas.
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método no permitido' });
@@ -43,37 +59,32 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { title, body, url, tag, target, empresaId } = req.body || {};
+    const { title, body, url, tag, target } = req.body || {};
     if (!title || !body) {
       res.status(400).json({ error: 'Falta title o body' });
       return;
     }
 
-    const FIREBASE_ROOT = process.env.FIREBASE_URL;
-    if (!FIREBASE_ROOT) {
-      res.status(500).json({ error: 'Falta la variable de entorno FIREBASE_URL' });
-      return;
-    }
+    const h = String(req.headers.authorization || '');
+    const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+    if (!token) { res.status(401).json({ error: 'Sin sesión' }); return; }
+    let dec;
+    try { dec = await admin.auth().verifyIdToken(token); }
+    catch (e) { res.status(401).json({ error: 'Sesión caducada' }); return; }
 
-    // MULTI-EMPRESA: cada empresa tiene sus dispositivos suscritos dentro
-    // de su carpeta (empresas/{CODIGO}/push_subscriptions). Así un aviso de
-    // una empresa NUNCA llega a los móviles de otra.
-    const empresa = String(empresaId || '').trim();
-    if (empresa && !/^DRX-[A-Z0-9]{5}$/.test(empresa)) {
-      res.status(400).json({ error: 'Empresa inválida' });
-      return;
-    }
-    const FIREBASE_URL = empresa ? (FIREBASE_ROOT + '/empresas/' + empresa) : FIREBASE_ROOT;
+    const db = admin.database();
+    const dir = (await db.ref('directorio_usuarios/' + emailKey(dec.email)).once('value')).val();
+    const empresa = dir && dir.empresa;
+    if (!empresa) { res.status(403).json({ error: 'Tu cuenta no pertenece a ninguna empresa' }); return; }
+    const base = 'empresas/' + empresa + '/';
 
-    // Leemos todas las suscripciones guardadas de esta empresa
-    const subsResp = await fetch(FIREBASE_URL + '/push_subscriptions.json');
-    const subsData = (await subsResp.json()) || {};
-
+    // Todas las suscripciones de ESTA empresa
+    const subsData = (await db.ref(base + 'push_subscriptions').once('value')).val() || {};
     const entries = Object.keys(subsData).map((id) => ({ id, ...subsData[id] }));
 
     // Filtro opcional por destinatario: { role: 'ccaa_manager', ccaa: 'Andalucía' }
-    // Si no se manda target, se avisa a todos los suscritos.
     const destinatarios = entries.filter((e) => {
+      if (!e || !e.subscription) return false;
       if (!target) return true;
       if (target.role && e.role !== target.role && e.role !== 'admin') return false;
       if (target.ccaa && e.ccaaAsignada && e.ccaaAsignada !== target.ccaa) return false;
@@ -87,21 +98,17 @@ module.exports = async function handler(req, res) {
       tag: tag || undefined,
     });
 
-    let enviados = 0;
-    let caducados = 0;
-    let errores = 0;
-
+    let enviados = 0, caducados = 0, errores = 0;
     await Promise.all(
       destinatarios.map(async (d) => {
         try {
           await webpush.sendNotification(d.subscription, payload);
           enviados++;
         } catch (err) {
-          // 404/410 = el navegador ya no acepta este dispositivo (se
-          // desinstaló, se revocó el permiso, etc.) — lo limpiamos.
+          // 404/410 = el navegador ya no acepta este dispositivo: lo limpiamos
           if (err.statusCode === 404 || err.statusCode === 410) {
             caducados++;
-            await fetch(FIREBASE_URL + '/push_subscriptions/' + d.id + '.json', { method: 'DELETE' }).catch(() => {});
+            await db.ref(base + 'push_subscriptions/' + d.id).remove().catch(() => {});
           } else {
             errores++;
           }

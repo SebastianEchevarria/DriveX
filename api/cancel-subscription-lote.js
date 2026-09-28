@@ -27,14 +27,31 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { loteId, cantidadAQuitar } = req.body || {};
-    if (!loteId || !cantidadAQuitar) {
+    const { loteId } = req.body || {};
+    const cantidadAQuitar = parseInt((req.body || {}).cantidadAQuitar, 10);
+    if (!loteId || !cantidadAQuitar || cantidadAQuitar < 1) {
       res.status(400).json({ error: 'Faltan datos' });
       return;
     }
 
+    // SEGURIDAD: solo un administrador (MASTER) de la empresa, con su
+    // sesión DRIVX. La empresa se deduce de su cuenta, no del navegador.
+    const h = String(req.headers.authorization || '');
+    const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+    if (!token) { res.status(401).json({ error: 'Sin sesión. Vuelve a entrar.' }); return; }
+    let dec;
+    try { dec = await admin.auth().verifyIdToken(token); }
+    catch (e) { res.status(401).json({ error: 'Sesión caducada. Vuelve a entrar.' }); return; }
     const db = admin.database();
-    const loteRef = db.ref('suscripcion_lotes/' + loteId);
+    const key = String(dec.email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_');
+    const dir = (await db.ref('directorio_usuarios/' + key).once('value')).val();
+    const empresa = dir && dir.empresa;
+    if (!empresa) { res.status(403).json({ error: 'Tu cuenta no pertenece a ninguna empresa.' }); return; }
+    const usuarios = (await db.ref('empresas/' + empresa + '/usuarios_dashboard').once('value')).val() || {};
+    const esAdmin = Object.keys(usuarios).some((k) => usuarios[k] && String(usuarios[k].email || '').toLowerCase() === String(dec.email || '').toLowerCase() && usuarios[k].role === 'admin');
+    if (!esAdmin) { res.status(403).json({ error: 'Solo el administrador MASTER puede quitar vehículos.' }); return; }
+    const base = 'empresas/' + empresa + '/';
+    const loteRef = db.ref(base + 'suscripcion_lotes/' + loteId);
     const snap = await loteRef.once('value');
     const lote = snap.val();
     if (!lote) {
