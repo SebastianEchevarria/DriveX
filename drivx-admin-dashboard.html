@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-8';
+var APP_VERSION = '2026-09-28-9';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1331,6 +1331,7 @@ function finishLoginWithBiometricOffer(email, pass) {
 }
 
 function doLogout() {
+  if (window.MODO_SOPORTE) { window.close(); setTimeout(function(){ location.href = '/drivx-master.html'; }, 200); return; }
   currentUser = null;
   localStorage.removeItem('drivx_admin_user');
   setEmpresa(null);
@@ -1423,9 +1424,9 @@ function enterShell() {
   var _pwaFlagKey = 'drivx_pwa_banner_seen_' + (currentUser.nombre || 'admin');
   if (!localStorage.getItem(_pwaFlagKey)) {
     localStorage.setItem(_pwaFlagKey, '1');
-    setTimeout(maybeShowPwaBanner, 900);
+    if (!window.MODO_SOPORTE) setTimeout(maybeShowPwaBanner, 900);
   }
-  setTimeout(ofrecerPushSiPrimeraVez, 2500);
+  if (!window.MODO_SOPORTE) setTimeout(ofrecerPushSiPrimeraVez, 2500);
 
   // El registro de actividad se limpia solo — cualquier entrada de más de
   // 72h se borra, aunque nadie llegue a abrir el visor.
@@ -1491,9 +1492,11 @@ function enterShell() {
   setInterval(function(){ if (document.getElementById('dash-citas').classList.contains('active')) renderCitas(); }, 8000);
 
   iniciarSincronizacionInstantanea();
-  registrarServiceWorkerPush();
-  verificarYEnviarPushesInicio();
-  setInterval(verificarYEnviarPushesInicio, 5 * 60000); // cada 5 minutos mientras el Dashboard esté abierto
+  if (!window.MODO_SOPORTE) {
+    registrarServiceWorkerPush();
+    verificarYEnviarPushesInicio();
+    setInterval(verificarYEnviarPushesInicio, 5 * 60000);
+  } // cada 5 minutos mientras el Dashboard esté abierto
 }
 
 // ══ NOTIFICACIONES PUSH ══
@@ -7191,10 +7194,12 @@ function emailKey(email) {
 function setEmpresa(codigo) {
   EMPRESA_ID = codigo || null;
   FIREBASE_URL = EMPRESA_ID ? (FIREBASE_BASE + '/empresas/' + EMPRESA_ID) : FIREBASE_BASE;
-  try {
-    if (EMPRESA_ID) localStorage.setItem('drivx_empresa', EMPRESA_ID);
-    else localStorage.removeItem('drivx_empresa');
-  } catch(e) {}
+  if (!window.MODO_SOPORTE) {
+    try {
+      if (EMPRESA_ID) localStorage.setItem('drivx_empresa', EMPRESA_ID);
+      else localStorage.removeItem('drivx_empresa');
+    } catch(e) {}
+  }
   if (EMPRESA_ID) {
     // Una empresa nueva empieza de cero: sin los vehículos/conductores
     // de ejemplo ni las comunidades autónomas de la flota original.
@@ -7208,6 +7213,8 @@ function cargarNombreEmpresa() {
   return fetch(FIREBASE_URL + '/empresa_info.json').then(function(r){ return r.json(); }).then(function(info){
     EMPRESA_NOMBRE = (info && info.nombre) || '';
     pintarNombreEmpresa();
+    if (window.MODO_SOPORTE) pintarFranjaSoporte();
+    else if (info && info.estado === 'suspendida') mostrarBloqueoSuspension();
   }).catch(function(){});
 }
 // Nombre del concepto de gestión que ve el propietario: en una empresa,
@@ -7330,6 +7337,63 @@ function registrarEnDirectorio(email) {
     method: 'PUT', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ empresa: EMPRESA_ID, email: email, ts: Date.now() })
   });
+}
+
+// ══════════════ MODO SOPORTE (solo cuenta MASTER) ══════════════
+// El panel master abre este Dashboard con ?soporte=CODIGO. Comprobamos en
+// el SERVIDOR que la sesión es la cuenta master verificada; si lo es,
+// entramos en esa empresa como "Soporte DRIVX", con una franja roja fija
+// arriba. Lo que se haga queda en su registro de actividad como Soporte.
+// No se guarda nada en este navegador (ni sesión ni empresa).
+window.MODO_SOPORTE = null;
+function iniciarModoSoporte(codigo) {
+  var loginBox = document.querySelector('#screen-login .login-box');
+  if (loginBox) loginBox.innerHTML = '<div style="text-align:center;color:#fff;font-size:15px;font-weight:800;padding:30px 10px">🛠 Comprobando acceso de soporte…</div>';
+  _firebaseAuthListo.then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) throw new Error('Abre primero el panel master e inicia sesión con tu cuenta master.');
+    return u.getIdToken().then(function(token){
+      return fetch('/api/master', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body: JSON.stringify({ accion:'verificar' }) });
+    }).then(function(r){ return r.json().then(function(d){ if (!r.ok || !d.ok) throw new Error(d.error || 'Acceso de soporte denegado'); return u; }); });
+  }).then(function(u){
+    window.MODO_SOPORTE = { codigo: codigo };
+    setEmpresa(codigo === 'ORIGINAL' ? null : codigo);
+    currentUser = { nombre: 'Soporte DRIVX', email: u.email, role: 'admin', soporte: true };
+    enterShell();
+    pintarFranjaSoporte();
+    registrarActividad('Soporte', 'Entró en modo soporte', 'Cuenta master');
+  }).catch(function(err){
+    if (loginBox) loginBox.innerHTML = '<div style="text-align:center;color:#fff;font-size:14px;line-height:1.6;padding:24px 10px">⛔ ' + (err.message || 'Acceso denegado') +
+      '<br><br><a href="/drivx-master.html" style="color:#ffc53d;font-weight:800">Ir al panel master</a></div>';
+  });
+}
+function pintarFranjaSoporte() {
+  if (!window.MODO_SOPORTE) return;
+  var f = document.getElementById('franja-soporte');
+  if (!f) {
+    f = document.createElement('div');
+    f.id = 'franja-soporte';
+    f.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99990;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;' +
+      'padding:calc(env(safe-area-inset-top, 0px) + 6px) 12px 6px;background:#c8102e;color:#fff;font-size:13px;font-weight:900;letter-spacing:.3px;box-shadow:0 0 16px rgba(255,40,60,.8)';
+    document.body.appendChild(f);
+    document.body.style.paddingTop = '34px';
+  }
+  var nombre = window.MODO_SOPORTE.codigo === 'ORIGINAL' ? 'Flota original' : (EMPRESA_NOMBRE || window.MODO_SOPORTE.codigo);
+  f.innerHTML = '<span>🛠 MODO SOPORTE · ' + String(nombre).replace(/[<>&]/g,'') + (window.MODO_SOPORTE.codigo !== 'ORIGINAL' ? ' (' + window.MODO_SOPORTE.codigo + ')' : '') + '</span>' +
+    '<button onclick="window.close(); setTimeout(function(){ location.href=\'/drivx-master.html\'; }, 200);" style="padding:4px 12px;border-radius:8px;border:1.5px solid #fff;background:rgba(255,255,255,.15);color:#fff;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit">Salir del modo soporte</button>';
+}
+// Empresa suspendida desde el panel master: nadie de la empresa puede usarla
+function mostrarBloqueoSuspension() {
+  if (document.getElementById('bloqueo-suspension')) return;
+  var b = document.createElement('div');
+  b.id = 'bloqueo-suspension';
+  b.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(5,8,14,.97);display:flex;align-items:center;justify-content:center;padding:24px';
+  b.innerHTML = '<div style="max-width:420px;text-align:center;color:#fff;border:2.5px solid rgba(255,71,87,1);border-radius:20px;padding:30px 24px;background:#0c1420;box-shadow:0 0 18px rgba(255,71,87,.7)">' +
+    '<div style="font-size:40px;margin-bottom:10px">⛔</div>' +
+    '<div style="font-size:18px;font-weight:900;margin-bottom:10px">Acceso suspendido</div>' +
+    '<div style="font-size:14px;line-height:1.6;margin-bottom:20px">El acceso de <b>' + String(EMPRESA_NOMBRE || 'tu empresa').replace(/[<>&]/g,'') + '</b> a DRIVX está suspendido. Tus datos están guardados. Para reactivarlo, escríbenos a <b>drivx.apps@gmail.com</b>.</div>' +
+    '<button onclick="doLogout()" style="padding:12px 20px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);color:#fff;font-weight:800;cursor:pointer;font-family:inherit">Cerrar sesión</button></div>';
+  document.body.appendChild(b);
 }
 
 // ── Alta del ADMINISTRADOR de una empresa nueva (viene de la web) ──
@@ -11337,6 +11401,8 @@ function deleteVehicleDoc(docType) {
 // ══ SESIÓN PERSISTENTE ══
 (function(){
   var _qs = new URLSearchParams(location.search);
+  var qSoporte = (_qs.get('soporte') || '').trim().toUpperCase();
+  if (qSoporte && (qSoporte === 'ORIGINAL' || /^DRX-[A-Z0-9]{5}$/.test(qSoporte))) { iniciarModoSoporte(qSoporte); return; }
   var qInvite = (_qs.get('invite') || '').trim().toUpperCase();
   if (qInvite) {
     localStorage.removeItem('drivx_admin_user');

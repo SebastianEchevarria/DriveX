@@ -1269,7 +1269,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-2';
+var APP_VERSION = '2026-09-28-3';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2306,8 +2306,23 @@ function cargarNombreEmpresa() {
   return fetch(FIREBASE_URL + '/empresa_info.json').then(function(r){ return r.json(); }).then(function(info){
     EMPRESA_NOMBRE = (info && info.nombre) || '';
     pintarNombreEmpresa();
+    if (info && info.estado === 'suspendida') mostrarBloqueoSuspension();
   }).catch(function(){});
 }
+// Empresa suspendida desde el panel master: la app queda bloqueada
+function mostrarBloqueoSuspension() {
+  if (document.getElementById('bloqueo-suspension')) return;
+  var b = document.createElement('div');
+  b.id = 'bloqueo-suspension';
+  b.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(5,8,14,.97);display:flex;align-items:center;justify-content:center;padding:24px';
+  b.innerHTML = '<div style="max-width:400px;text-align:center;color:#fff;border:2.5px solid rgba(255,71,87,1);border-radius:20px;padding:28px 22px;background:#0c1420;box-shadow:0 0 18px rgba(255,71,87,.7);font-family:inherit">' +
+    '<div style="font-size:40px;margin-bottom:10px">⛔</div>' +
+    '<div style="font-size:18px;font-weight:900;margin-bottom:10px">Acceso suspendido</div>' +
+    '<div style="font-size:14px;line-height:1.6;margin-bottom:20px">El acceso de <b>' + String(EMPRESA_NOMBRE || 'tu empresa').replace(/[<>&]/g,'') + '</b> a DRIVX está suspendido temporalmente. Consulta con tu empresa.</div>' +
+    '<button onclick="document.getElementById(\'bloqueo-suspension\').remove(); if (typeof confirmLogout === \'function\') confirmLogout();" style="padding:12px 20px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);color:#fff;font-weight:800;cursor:pointer;font-family:inherit">Cerrar sesión</button></div>';
+  document.body.appendChild(b);
+}
+
 function pintarNombreEmpresa() {
   var el = document.getElementById('drivx-empresa-badge');
   if (!el && EMPRESA_NOMBRE) {
