@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-5';
+var APP_VERSION = '2026-09-28-1';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1749,20 +1749,101 @@ function verificarYEnviarPushesInicio() {
 // actualiza al momento.
 var _dashSSE = null;
 var _dashSyncDebounce = null;
+var _dashSSEReintento = null;
+var _dashSSEConectado = false;
+var _dashActualizacionPendiente = null; // pantalla que tiene cambios sin aplicar
+
+// ══ SINCRONIZACIÓN EN TIEMPO REAL ══
+// Firebase avisa al instante de cualquier cambio (EventSource / streaming).
+// La conexión va AUTENTICADA (con el token de la sesión), porque los datos
+// de cada empresa están protegidos. Si el token caduca (cada hora) o se
+// corta la conexión, se reconecta sola con un token nuevo.
 function iniciarSincronizacionInstantanea() {
-  if (_dashSSE || typeof EventSource === 'undefined') return;
-  try {
-    _dashSSE = new EventSource(FIREBASE_URL + '/.json');
-    _dashSSE.addEventListener('put', _onCambioRemotoDash);
-    _dashSSE.addEventListener('patch', _onCambioRemotoDash);
-  } catch(e) {}
+  if (typeof EventSource === 'undefined') return;
+  conectarSincronizacionDash(false);
+  // Red de seguridad: si por lo que sea la conexión en vivo no está activa,
+  // refrescamos igualmente cada 15s para no quedarnos con datos viejos.
+  setInterval(function(){ if (!_dashSSEConectado) _onCambioRemotoDash(); }, 15000);
+  // Si había cambios esperando (porque había una ventana abierta), se
+  // aplican en cuanto se cierra.
+  setInterval(function(){
+    if (_dashActualizacionPendiente && puedeRefrescarPantallaDash()) aplicarCambiosPendientesDash();
+  }, 800);
+}
+function conectarSincronizacionDash(tokenNuevo) {
+  clearTimeout(_dashSSEReintento);
+  if (_dashSSE) { try { _dashSSE.close(); } catch(e) {} _dashSSE = null; }
+  _dashSSEConectado = false;
+  var u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+  var tokenP = u ? u.getIdToken(!!tokenNuevo).catch(function(){ return null; }) : Promise.resolve(null);
+  tokenP.then(function(token){
+    try {
+      var es = new EventSource(FIREBASE_URL + '/.json' + (token ? ('?auth=' + encodeURIComponent(token)) : ''));
+      _dashSSE = es;
+      es.onopen = function(){ _dashSSEConectado = true; };
+      es.addEventListener('put', function(e){ _dashSSEConectado = true; _onCambioRemotoDash(e); });
+      es.addEventListener('patch', function(e){ _dashSSEConectado = true; _onCambioRemotoDash(e); });
+      // Token caducado → reconectar con uno nuevo
+      es.addEventListener('auth_revoked', function(){ conectarSincronizacionDash(true); });
+      // Permiso denegado u otro corte → reintentar en unos segundos
+      es.addEventListener('cancel', function(){ _dashSSEConectado = false; _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 5000); });
+      es.onerror = function(){
+        _dashSSEConectado = false;
+        _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 3000);
+      };
+    } catch(e) {
+      _dashSSEReintento = setTimeout(function(){ conectarSincronizacionDash(true); }, 5000);
+    }
+  });
+}
+// Al volver a la pestaña / despertar el ordenador, reconectamos por si acaso
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden && typeof currentUser !== 'undefined' && currentUser && !_dashSSEConectado) conectarSincronizacionDash(true);
+});
+
+// ¿Se puede redibujar la pantalla ahora sin molestar? No, si hay una
+// ventana abierta o se está escribiendo en un campo (se perdería lo escrito).
+function puedeRefrescarPantallaDash() {
+  var a = document.activeElement;
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return false;
+  var modales = document.querySelectorAll('[id$="-modal"]');
+  for (var i = 0; i < modales.length; i++) {
+    var st = window.getComputedStyle(modales[i]);
+    if (st.display !== 'none' && st.visibility !== 'hidden') return false;
+  }
+  return true;
 }
 function _onCambioRemotoDash() {
   clearTimeout(_dashSyncDebounce);
   _dashSyncDebounce = setTimeout(function(){
     var activo = document.querySelector('.dash-screen.active');
     if (!activo) return;
-    var id = activo.id.replace('dash-', '');
+    _dashActualizacionPendiente = activo.id.replace('dash-', '');
+    if (puedeRefrescarPantallaDash()) aplicarCambiosPendientesDash();
+  }, 400);
+}
+var _dashRefrescosRecientes = [];
+function aplicarCambiosPendientesDash() {
+  var id = _dashActualizacionPendiente;
+  _dashActualizacionPendiente = null;
+  if (!id) return;
+  // Protección anti-bucle: si una pantalla guarda algo al dibujarse, eso
+  // provocaría refrescos sin fin. Si detectamos demasiados seguidos,
+  // pasamos a la píldora "toca para actualizar" durante un rato.
+  var ahora = Date.now();
+  _dashRefrescosRecientes = _dashRefrescosRecientes.filter(function(t){ return ahora - t < 10000; });
+  if (_dashRefrescosRecientes.length >= 8) {
+    if (id !== 'inicio') mostrarPildoraActualizacionDash(id);
+    return;
+  }
+  _dashRefrescosRecientes.push(ahora);
+  var activo = document.querySelector('.dash-screen.active');
+  if (!activo || activo.id !== 'dash-' + id) return; // ya cambió de pantalla (y esa se pinta sola al entrar)
+  // Conservamos la posición de scroll para que no "salte" la pantalla
+  var cont = document.getElementById('content');
+  var scrollCont = cont ? cont.scrollTop : 0;
+  var scrollWin = window.scrollY;
+  try {
     if (id === 'inicio') {
       renderInicioStats();
       renderFichajeAlerts();
@@ -1770,10 +1851,19 @@ function _onCambioRemotoDash() {
       renderUberEfectivoAlerts();
       renderCitasVencidasAlerts();
       renderProximasCitasInicio();
+      if (typeof renderInvitacionesPendientesInicio === 'function') renderInvitacionesPendientesInicio();
     } else {
-      mostrarPildoraActualizacionDash(id);
+      aplicarActualizacionPantallaDash(id);
     }
-  }, 700);
+  } catch(e) {}
+  setTimeout(function(){
+    if (cont) cont.scrollTop = scrollCont;
+    window.scrollTo(0, scrollWin);
+  }, 60);
+  setTimeout(function(){
+    if (cont) cont.scrollTop = scrollCont;
+    window.scrollTo(0, scrollWin);
+  }, 450);
 }
 function mostrarPildoraActualizacionDash(screenId) {
   var pill = document.getElementById('dash-update-pill');
