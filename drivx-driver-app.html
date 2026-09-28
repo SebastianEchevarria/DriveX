@@ -1236,7 +1236,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-5';
+var APP_VERSION = '2026-09-28-6';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2940,6 +2940,8 @@ function onCatFile(input, cat) {
     var b64 = img.base64;
     var mt  = img.mediaType;
     var hash = imageHash(b64);
+    var dhashP = calcularDHashImagen(b64, mt);
+    _huellaTicketPendiente = null;
 
     procTxt.textContent = '🤖 IA verificando ticket de ' + catNames[cat] + '...';
 
@@ -2950,7 +2952,7 @@ function onCatFile(input, cat) {
       return;
     }
 
-    var prompt = 'Clasifica este ticket. Responde SOLO con JSON sin markdown: {"categoria":"gasolina|peaje|parking|datafono|lavado|otros","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null"}. REGLAS: peaje=si ves AUTOPISTA/autovia/estacion de peaje/via/cobr/CESA/Abertis/factura simplificada autopista/clase ligero/IVA 21 incluido. gasolina=si ves gasolina/diesel/litros/precio litro/surtidor/PLENERGY/Repsol/Cepsa/BP/Galp/kWh/recarga/"Total suminist"/"Total reservado"/"ESTACIÓN DE SERVICIO"/"ESTACIONES DE SERVICIO"/"E/S " (abreviatura de Estación de Servicio, ej. "E/S EL PEÑASCO"). parking=si ves QR/aparcamiento/parking/plaza/ticket salida. datafono=si ves VISA/Mastercard/contactless/VENTA/TPV/Comercia/Payments/nombre cliente/recibo de la app SumUp (Productos, Subtotal, Total, Desglose de IVA, Pago con Visa/tarjeta, dominio sales-receipt.sumup.com). lavado=si ves lavado/car wash/limpieza vehiculo. otros=cualquier otro caso. PRIORIDAD IMPORTANTE: las gasolineras casi siempre imprimen, debajo del ticket de combustible, la confirmación de pago con tarjeta (REDSYS, TPV, Comercio, Mastercard/Visa, nº de operación) — eso NO convierte el ticket en datafono. Si aparece CUALQUIERA de estas palabras: "Surtidor", "Litros", "Total suminist", "Total reservado", o el nombre de una gasolinera (PLENERGY, Repsol, Cepsa, BP, Galp, etc.), clasifica SIEMPRE como gasolina, aunque también aparezcan REDSYS/TPV/Comercio/Mastercard/Visa en el mismo ticket. Solo clasifica como datafono cuando NO haya ningún indicio de gasolinera. REGLA CRÍTICA — "ESTACIÓN DE SERVICIO" MANDA SIEMPRE SOBRE PEAJE: si el encabezado del ticket dice "ESTACIÓN DE SERVICIO" / "ESTACIONES DE SERVICIO" / "E/S [nombre]" (p.ej. "CAMPSA ESTACIONES DE SERVICIO", "E/S EL PEÑASCO"), clasifica SIEMPRE como gasolina, aunque el ticket incluya también una línea de "LAVADO DE PRESIÓN" u otro servicio adicional — el importe total de ese ticket (combustible + lavado juntos) se registra entero como gasolina, nunca como peaje ni como lavado aparte. IMPORTANTE PARA DATAFONO/SUMUP: el importe es el campo "Total" (el número en negrita al final, después de Subtotal) — NUNCA el Subtotal ni el desglose de IVA.' + (cat === 'gasolina' ? ' ⚠️ REGLA CRÍTICA E INAPELABLE PARA EL IMPORTE DE GASOLINA: muchos tickets de gasolinera españolas (PLENERGY, Repsol, Cepsa...) muestran TRES importes distintos al final: "Total cobrado", "Total suministro" (o "Total suminist.") y "Total devuelto". Si ves estos tres campos, tu campo "importe" DEBE ser exactamente el número de "Total suministro" — JAMÁS el de "Total cobrado" ni el de "Total devuelto". Ejemplo real (CASO GUARDADO): PLENERGY, Total cobrado=20,00 / Total suminist.=20,00 / Total devuelto=0,00 → tu respuesta debe llevar "importe":20.00, tomado siempre de "Total suminist.", nunca de "Total cobrado" aunque coincidan. Revisa los tres campos con atención antes de responder; si solo hay un total (sin desglose de cobrado/devuelto), usa ese. ⚠️ OTRA REGLA CRÍTICA PARA EL IMPORTE DE GASOLINA — "IMPORTE DE PREPAGO" NUNCA ES EL TOTAL: algunos tickets (ej. CAMPSA, Estaciones de Servicio) muestran "A.Importe de prepago" (o "Importe de prepago") ANTES del total — ese número es solo el pre-autorizado del combustible, NO el importe final del ticket. El importe correcto es siempre el que aparece en la línea "Total:", y si además hay una línea "EFECTIVO" con el mismo número, eso confirma que es el correcto. Ejemplo real (CASO GUARDADO): ticket con "LAVADO DE PRESION 1,00€" + combustible, "A.Importe de prepago: 10,00€", "Total: 11,00€", "EFECTIVO: 11,00€" → tu respuesta debe llevar "importe":11.00 (la suma del lavado + el combustible, el "Total" real), NUNCA 10.00 (que es solo el prepago del combustible sin el lavado).' : '');
+    var prompt = 'Clasifica este ticket. Responde SOLO con JSON sin markdown: {"categoria":"gasolina|peaje|parking|datafono|lavado|otros","importe":NUMERO_O_NULL,"hora":"HH:MM o null","fecha":"dd/mm o null","establecimiento":"texto o null","fecha_completa":"dd/mm/aaaa o null","num_ticket":"texto o null"}. REGLAS: peaje=si ves AUTOPISTA/autovia/estacion de peaje/via/cobr/CESA/Abertis/factura simplificada autopista/clase ligero/IVA 21 incluido. gasolina=si ves gasolina/diesel/litros/precio litro/surtidor/PLENERGY/Repsol/Cepsa/BP/Galp/kWh/recarga/"Total suminist"/"Total reservado"/"ESTACIÓN DE SERVICIO"/"ESTACIONES DE SERVICIO"/"E/S " (abreviatura de Estación de Servicio, ej. "E/S EL PEÑASCO"). parking=si ves QR/aparcamiento/parking/plaza/ticket salida. datafono=si ves VISA/Mastercard/contactless/VENTA/TPV/Comercia/Payments/nombre cliente/recibo de la app SumUp (Productos, Subtotal, Total, Desglose de IVA, Pago con Visa/tarjeta, dominio sales-receipt.sumup.com). lavado=si ves lavado/car wash/limpieza vehiculo. otros=cualquier otro caso. PRIORIDAD IMPORTANTE: las gasolineras casi siempre imprimen, debajo del ticket de combustible, la confirmación de pago con tarjeta (REDSYS, TPV, Comercio, Mastercard/Visa, nº de operación) — eso NO convierte el ticket en datafono. Si aparece CUALQUIERA de estas palabras: "Surtidor", "Litros", "Total suminist", "Total reservado", o el nombre de una gasolinera (PLENERGY, Repsol, Cepsa, BP, Galp, etc.), clasifica SIEMPRE como gasolina, aunque también aparezcan REDSYS/TPV/Comercio/Mastercard/Visa en el mismo ticket. Solo clasifica como datafono cuando NO haya ningún indicio de gasolinera. REGLA CRÍTICA — "ESTACIÓN DE SERVICIO" MANDA SIEMPRE SOBRE PEAJE: si el encabezado del ticket dice "ESTACIÓN DE SERVICIO" / "ESTACIONES DE SERVICIO" / "E/S [nombre]" (p.ej. "CAMPSA ESTACIONES DE SERVICIO", "E/S EL PEÑASCO"), clasifica SIEMPRE como gasolina, aunque el ticket incluya también una línea de "LAVADO DE PRESIÓN" u otro servicio adicional — el importe total de ese ticket (combustible + lavado juntos) se registra entero como gasolina, nunca como peaje ni como lavado aparte. IMPORTANTE PARA DATAFONO/SUMUP: el importe es el campo "Total" (el número en negrita al final, después de Subtotal) — NUNCA el Subtotal ni el desglose de IVA. DATOS EXTRA SOLO PARA CONTROL DE DUPLICADOS (no cambian nada de lo anterior): "fecha_completa" = la fecha del ticket con el año, en formato dd/mm/aaaa (null si no aparece); "num_ticket" = el número que identifica ESTE ticket concreto: nº de ticket, factura, factura simplificada, albarán, operación, transacción, autorización o referencia (si hay varios, prioriza ticket, factura o albarán; cópialo tal cual; null si no hay ninguno).' + (cat === 'gasolina' ? ' ⚠️ REGLA CRÍTICA E INAPELABLE PARA EL IMPORTE DE GASOLINA: muchos tickets de gasolinera españolas (PLENERGY, Repsol, Cepsa...) muestran TRES importes distintos al final: "Total cobrado", "Total suministro" (o "Total suminist.") y "Total devuelto". Si ves estos tres campos, tu campo "importe" DEBE ser exactamente el número de "Total suministro" — JAMÁS el de "Total cobrado" ni el de "Total devuelto". Ejemplo real (CASO GUARDADO): PLENERGY, Total cobrado=20,00 / Total suminist.=20,00 / Total devuelto=0,00 → tu respuesta debe llevar "importe":20.00, tomado siempre de "Total suminist.", nunca de "Total cobrado" aunque coincidan. Revisa los tres campos con atención antes de responder; si solo hay un total (sin desglose de cobrado/devuelto), usa ese. ⚠️ OTRA REGLA CRÍTICA PARA EL IMPORTE DE GASOLINA — "IMPORTE DE PREPAGO" NUNCA ES EL TOTAL: algunos tickets (ej. CAMPSA, Estaciones de Servicio) muestran "A.Importe de prepago" (o "Importe de prepago") ANTES del total — ese número es solo el pre-autorizado del combustible, NO el importe final del ticket. El importe correcto es siempre el que aparece en la línea "Total:", y si además hay una línea "EFECTIVO" con el mismo número, eso confirma que es el correcto. Ejemplo real (CASO GUARDADO): ticket con "LAVADO DE PRESION 1,00€" + combustible, "A.Importe de prepago: 10,00€", "Total: 11,00€", "EFECTIVO: 11,00€" → tu respuesta debe llevar "importe":11.00 (la suma del lavado + el combustible, el "Total" real), NUNCA 10.00 (que es solo el prepago del combustible sin el lavado).' : '');
 
     analyzeImage(b64, mt, prompt).then(function(text) {
       proc.classList.remove('visible');
@@ -2974,23 +2976,45 @@ function onCatFile(input, cat) {
       var fecha  = parsed && parsed.fecha  ? parsed.fecha  : null;
       var nombre = parsed && parsed.establecimiento ? parsed.establecimiento : catNames[cat];
 
-      var isDup = data.gastos[cat].some(function(t) {
-        if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
-        if (!hora || !t.hora) return false;
-        return t.hora === hora;
+      var _extra = {
+        cat: cat, importe: importe, hora: hora, establecimiento: nombre,
+        fechaCompleta: parsed && parsed.fecha_completa ? String(parsed.fecha_completa) : null,
+        numTicket: parsed && parsed.num_ticket ? String(parsed.num_ticket) : null
+      };
+      procTxt.textContent = '🔎 Comprobando que no esté ya subido...';
+      proc.classList.add('visible');
+      return dhashP.then(function(dh){
+        _extra.dhash = dh;
+        return comprobarDuplicadoTicket(_extra);
+      }).then(function(dup){
+        proc.classList.remove('visible');
+        if (dup && dup.tipo === 'seguro') {
+          toast('⛔ Ticket ya subido anteriormente');
+          mostrarTicketDuplicado('Este ticket ya se subió ' + dup.descripcion + '. No se puede registrar dos veces.');
+          return;
+        }
+        _huellaTicketPendiente = {
+          numTicket: _extra.numTicket, fechaCompleta: _extra.fechaCompleta, dhash: _extra.dhash || null,
+          posibleDuplicado: (dup && dup.tipo === 'sospechoso') ? dup.ref : null
+        };
+        var isDup = data.gastos[cat].some(function(t) {
+          if (Math.abs((t.importe||0) - importe) >= 0.01) return false;
+          if (!hora || !t.hora) return false;
+          return t.hora === hora;
+        });
+        if (isDup) {
+          toast('⚠ Duplicado — mismo importe y hora ya registrados');
+          mostrarTicketDuplicado('Ya tienes un ticket de ' + catNames[cat] + ' registrado con el mismo importe (€ ' + importe.toFixed(2).replace('.',',') + ') y la misma hora (' + hora + '). No se ha vuelto a registrar.');
+          return;
+        }
+
+        if (limit && data.gastos[cat].length >= limit) {
+          toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
+        }
+
+        gastosHashes[hash] = true;
+        mostrarConfirmarPrecioGasto({ cat: cat, importe: importe, nombre: nombre, fecha: fecha, hora: hora, file: file });
       });
-      if (isDup) {
-        toast('⚠ Duplicado — mismo importe y hora ya registrados');
-        mostrarTicketDuplicado('Ya tienes un ticket de ' + catNames[cat] + ' registrado con el mismo importe (€ ' + importe.toFixed(2).replace('.',',') + ') y la misma hora (' + hora + '). No se ha vuelto a registrar.');
-        return;
-      }
-
-      if (limit && data.gastos[cat].length >= limit) {
-        toast('⚠ Máximo ' + limit + ' tickets de ' + catNames[cat] + ' por turno'); return;
-      }
-
-      gastosHashes[hash] = true;
-      mostrarConfirmarPrecioGasto({ cat: cat, importe: importe, nombre: nombre, fecha: fecha, hora: hora, file: file });
     }).catch(function(e) {
       proc.classList.remove('visible');
       console.error('[Gastos IA] error:', e);
@@ -2999,6 +3023,91 @@ function onCatFile(input, cat) {
     }); // fin comprimirImagenBase64
   };
   reader.readAsDataURL(file);
+}
+
+// ══════════════ DETECCIÓN DE TICKETS DUPLICADOS ══════════════
+// Se compara cada ticket nuevo con TODOS los tickets de la empresa (todos
+// los vehículos, conductores y semanas):
+//   · mismo número de ticket/factura/albarán        → duplicado seguro
+//   · misma foto (firma de la imagen casi igual)     → duplicado seguro
+//   · misma fecha completa + hora exacta + importe   → duplicado seguro
+//   · mismo importe + fecha + establecimiento (sin hora ni número que lo
+//     confirmen) → se sube, pero queda marcado "posible duplicado" para el admin
+var _huellaTicketPendiente = null;
+function calcularDHashImagen(b64, mt) {
+  return new Promise(function(resolve){
+    try {
+      var img = new Image();
+      img.onload = function(){
+        try {
+          var c = document.createElement('canvas'); c.width = 9; c.height = 8;
+          var ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, 9, 8);
+          var px = ctx.getImageData(0, 0, 9, 8).data, gris = [];
+          for (var i = 0; i < px.length; i += 4) gris.push(px[i] * 0.299 + px[i+1] * 0.587 + px[i+2] * 0.114);
+          var bits = '';
+          for (var y = 0; y < 8; y++) for (var x = 0; x < 8; x++) bits += gris[y*9 + x] > gris[y*9 + x + 1] ? '1' : '0';
+          var hex = '';
+          for (var k = 0; k < 64; k += 4) hex += parseInt(bits.substr(k, 4), 2).toString(16);
+          resolve(hex);
+        } catch(e) { resolve(null); }
+      };
+      img.onerror = function(){ resolve(null); };
+      img.src = 'data:' + (mt || 'image/jpeg') + ';base64,' + b64;
+    } catch(e) { resolve(null); }
+  });
+}
+function _distanciaHash(a, b) {
+  if (!a || !b || a.length !== b.length) return 99;
+  var d = 0;
+  for (var i = 0; i < a.length; i++) {
+    var x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
+    while (x) { d += x & 1; x >>= 1; }
+  }
+  return d;
+}
+function _normTexto(s) { return String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, ''); }
+function _normFecha(s) {
+  var m = /(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(String(s || ''));
+  if (!m) return '';
+  var y = +m[3]; if (y < 100) y += 2000;
+  return y + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+}
+function comprobarDuplicadoTicket(nuevo) {
+  return fetch(FIREBASE_URL + '/gastos.json').then(function(r){ return r.json(); }).then(function(todo){
+    todo = (todo && typeof todo === 'object' && !todo.error) ? todo : {};
+    var num = _normTexto(nuevo.numTicket), fecha = _normFecha(nuevo.fechaCompleta), est = _normTexto(nuevo.establecimiento);
+    var hora = String(nuevo.hora || '').trim(), seguro = null, sospechoso = null;
+    Object.keys(todo).forEach(function(mSlug){
+      var porCat = todo[mSlug] || {};
+      Object.keys(porCat).forEach(function(c){
+        var tickets = porCat[c] || {};
+        Object.keys(tickets).forEach(function(tid){
+          if (seguro) return;
+          var t = tickets[tid]; if (!t || typeof t !== 'object') return;
+          var mismoImporte = Math.abs(Number(t.importe || 0) - Number(nuevo.importe || 0)) < 0.01 ||
+                             Math.abs(Number(t.importeOriginal || 0) - Number(nuevo.importe || 0)) < 0.01;
+          var ref = { tid: tid, matricula: t.matricula || mSlug.replace(/_/g, ' '), cat: c, conductor: t.conductor || '', ts: t.ts || 0, importe: Number(t.importe || 0), fecha: t.fechaCompleta || t.fecha || '' };
+          var motivo = null;
+          if (num.length >= 4 && _normTexto(t.numTicket) === num) motivo = 'mismo número de ticket';
+          else if (nuevo.dhash && t.dhash && _distanciaHash(nuevo.dhash, t.dhash) <= 5) motivo = 'misma foto';
+          else if (fecha && hora && mismoImporte && _normFecha(t.fechaCompleta) === fecha && String(t.hora || '').trim() === hora) motivo = 'misma fecha, hora e importe';
+          if (motivo) { ref.motivo = motivo; seguro = ref; return; }
+          if (!sospechoso && mismoImporte && c === nuevo.cat && fecha && _normFecha(t.fechaCompleta) === fecha && est && _normTexto(t.nombre) === est) {
+            ref.motivo = 'mismo importe, fecha y establecimiento';
+            sospechoso = ref;
+          }
+        });
+      });
+    });
+    var describir = function(r){
+      var cuando = r.ts ? new Date(r.ts).toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' }) : '';
+      return (cuando ? 'el ' + cuando : 'antes') + (r.conductor ? ' por ' + r.conductor : '') + ' (' + r.matricula + ', ' + r.motivo + ')';
+    };
+    if (seguro) return { tipo: 'seguro', ref: seguro, descripcion: describir(seguro) };
+    if (sospechoso) return { tipo: 'sospechoso', ref: sospechoso, descripcion: describir(sospechoso) };
+    return null;
+  }).catch(function(){ return null; }); // si falla la conexión, no bloqueamos al conductor
 }
 
 function base64ToBlob(b64, mimeType) {
@@ -3022,6 +3131,14 @@ function uploadTicketToFirebase(cat, ticket, file) {
     conductor: currentUser.nombre || '',
     propina: ticket.propina || 0, importeOriginal: ticket.importeOriginal || ticket.importe
   };
+  // Huella para detectar duplicados (número de ticket, fecha completa, firma de la foto)
+  if (_huellaTicketPendiente) {
+    if (_huellaTicketPendiente.numTicket) record.numTicket = _huellaTicketPendiente.numTicket;
+    if (_huellaTicketPendiente.fechaCompleta) record.fechaCompleta = _huellaTicketPendiente.fechaCompleta;
+    if (_huellaTicketPendiente.dhash) record.dhash = _huellaTicketPendiente.dhash;
+    if (_huellaTicketPendiente.posibleDuplicado) record.posibleDuplicado = _huellaTicketPendiente.posibleDuplicado;
+    _huellaTicketPendiente = null;
+  }
   function saveRecord(url) {
     if (url) record.url = url;
     fetch(FIREBASE_URL + '/gastos/' + matSlug + '/' + cat + '/' + ticketId + '.json', {

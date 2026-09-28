@@ -1061,7 +1061,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-16';
+var APP_VERSION = '2026-09-28-17';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -8855,6 +8855,11 @@ function paintGastos() {
           }
           if (t.pagadoPor === 'propietario') {
             html += '<div style="font-size:10px;color:var(--purple);font-weight:800;margin-top:2px">🏢 Pagado por el propietario · no cuenta en la cuenta del conductor</div>';
+          }
+          if (t.posibleDuplicado) {
+            var _pd = t.posibleDuplicado;
+            html += '<div style="margin-top:5px;padding:5px 8px;border-radius:8px;border:1.5px solid rgba(255,71,87,.9);background:rgba(255,71,87,.1);font-size:10.5px;color:#fff;font-weight:800;line-height:1.4">⚠ Posible duplicado: coincide con un ticket de ' +
+              (_pd.conductor || 'otro conductor') + ' (' + (_pd.matricula || '') + ', € ' + Number(_pd.importe || 0).toFixed(2) + (_pd.fecha ? ', ' + _pd.fecha : '') + ') · ' + (_pd.motivo || '') + '. Revísalo y bórralo si es el mismo.</div>';
           }
           html += '</div>';
           if (puedeEditar()) html += '<button onclick="editarTicketDesdeGastos(\''+m.matSlug+'\',\''+catDef.key+'\',\''+tid+'\')" class="edit-btn" title="Editar importe" style="margin-right:6px">✏️</button>';
