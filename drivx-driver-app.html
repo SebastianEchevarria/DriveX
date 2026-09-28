@@ -927,7 +927,8 @@ html::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg
     <!-- Paso 5: resultado -->
     <div id="inv-step-result" style="display:none">
       <div id="inv-result-box" style="border-radius:14px;padding:16px;margin-bottom:16px"></div>
-      <button class="btn-primary" onclick="finalizeRegistro()" style="width:100%">✓ Finalizar activación</button>
+      <div id="inv-final-error" style="display:none;background:rgba(255,71,87,.12);border:1.5px solid rgba(255,71,87,.8);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#fff;line-height:1.5"></div>
+      <button class="btn-primary" id="inv-final-btn" onclick="finalizeRegistro()" style="width:100%">✓ Finalizar activación</button>
     </div>
 
   </div>
@@ -1237,7 +1238,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-1';
+var APP_VERSION = '2026-09-27-2';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1774,17 +1775,35 @@ function finalizeRegistro() {
     cid: cid
   };
 
+  var finalBtn = document.getElementById('inv-final-btn');
+  var finalErr = document.getElementById('inv-final-error');
+  if (finalErr) finalErr.style.display = 'none';
+  if (finalBtn) { finalBtn.disabled = true; finalBtn.textContent = 'Activando cuenta…'; }
+  function comprobarEscritura(r) {
+    if (r && r.ok === false) { var e = new Error('La base de datos rechazó el guardado (' + r.status + ')'); e.code = 'db/' + r.status; throw e; }
+    return r;
+  }
+
   // Creamos la cuenta real de Firebase ANTES de escribir nada — así las
   // escrituras de activación ya van autenticadas, como exigen las reglas
   // de seguridad.
-  firebase.auth().createUserWithEmailAndPassword(inv.email, passwordParaFirebase(pass)).then(function(){
+  firebase.auth().createUserWithEmailAndPassword(inv.email, passwordParaFirebase(pass)).catch(function(err){
+    // Si ese email ya tiene cuenta (p.ej. un intento anterior que se quedó
+    // a medias), probamos a entrar con la contraseña que acaba de elegir.
+    if (err && err.code === 'auth/email-already-in-use') {
+      return firebase.auth().signInWithEmailAndPassword(inv.email, passwordParaFirebase(pass)).catch(function(){
+        var e = new Error('email-en-uso'); e.code = 'drivx/email-en-uso'; throw e;
+      });
+    }
+    throw err;
+  }).then(function(){
     return Promise.all([
       fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
         method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(registro)
-      }),
+      }).then(comprobarEscritura),
       fetch(FIREBASE_URL + '/invites/' + inv.code + '/usado.json', {
         method:'PUT', headers:{'Content-Type':'application/json'}, body: 'true'
-      }),
+      }).then(comprobarEscritura),
       registrarEnDirectorio(inv.email)
     ]);
   }).then(function(){
@@ -1808,8 +1827,23 @@ function finalizeRegistro() {
     } else {
       loginAs(u);
     }
-  }).catch(function(){
-    toast('❌ No se pudo completar el registro. Revisa tu conexión e inténtalo de nuevo.');
+  }).catch(function(err){
+    var code = (err && err.code) || '';
+    var msg;
+    if (code === 'drivx/email-en-uso') {
+      msg = '❌ Ya existe una cuenta DRIVX con el email <b>' + (inv.email || '') + '</b>.<br>Si ya tienes cuenta, cierra esta ventana e inicia sesión. Si no, pide a tu administrador que te invite con otro email.';
+    } else if (code === 'auth/network-request-failed') {
+      msg = '❌ Sin conexión a internet. Revisa tu conexión y vuelve a pulsar el botón.';
+    } else if (code === 'auth/invalid-email') {
+      msg = '❌ El email de la invitación no es válido. Pide a tu administrador una invitación nueva.';
+    } else if (code.indexOf('db/') === 0) {
+      msg = '❌ La cuenta se creó, pero no se pudieron guardar tus datos. Vuelve a pulsar el botón. Si se repite, avisa a tu administrador (código: ' + code + ').';
+    } else {
+      msg = '❌ No se pudo completar el registro' + (code ? ' (código: ' + code + ')' : '') + '. Vuelve a intentarlo.';
+    }
+    if (finalErr) { finalErr.innerHTML = msg; finalErr.style.display = 'block'; }
+    else toast(msg.replace(/<[^>]+>/g, ''));
+    if (finalBtn) { finalBtn.disabled = false; finalBtn.textContent = '✓ Finalizar activación'; }
   });
 }
 
