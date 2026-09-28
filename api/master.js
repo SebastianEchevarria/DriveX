@@ -9,6 +9,8 @@
 //   { accion: 'ajustes', empresa, ajustes } → guarda los ajustes de esa empresa
 //        (qué apartados del menú del Dashboard ve). empresa 'ORIGINAL' = flota original.
 //   { accion: 'usuarios', empresa }         → todas las personas de la empresa, por app
+//   { accion: 'borrar_copia_original', confirmacion:'BORRAR' } → borra la copia de
+//        seguridad de la flota original (solo si ya se migró a empresa)
 //   { accion: 'migrar_original', nombre, simular } → convierte la flota original
 //        (datos en la raíz) en una empresa más. Con simular:true solo informa.
 //
@@ -257,6 +259,22 @@ module.exports = async function handler(req, res) {
       if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
       await ref.update({ estado, estadoCambiadoTs: Date.now(), estadoCambiadoPor: 'MASTER' });
       res.status(200).json({ ok: true, empresa, estado });
+      return;
+    }
+
+    if (accion === 'borrar_copia_original') {
+      if ((req.body && req.body.confirmacion) !== 'BORRAR') { res.status(400).json({ error: 'Falta la confirmación.' }); return; }
+      const mig = (await db.ref('migracion_original').once('value')).val();
+      if (!mig || !mig.codigo) { res.status(409).json({ error: 'La flota original todavía no se ha migrado a una empresa. No se borra nada.' }); return; }
+      if (!(await db.ref('empresas/' + mig.codigo + '/empresa_info').once('value')).exists()) {
+        res.status(409).json({ error: 'No se encuentra la empresa ' + mig.codigo + '. Por seguridad no se borra la copia.' }); return;
+      }
+      const nodos = await nodosRaiz(); // todo lo de la raíz menos los nodos del sistema
+      const borrar = {};
+      nodos.forEach((k) => { borrar[k] = null; });
+      if (nodos.length) await db.ref().update(borrar);
+      await db.ref('migracion_original').update({ copiaBorradaTs: Date.now(), nodosBorrados: nodos.length });
+      res.status(200).json({ ok: true, nodosBorrados: nodos.length, empresa: mig.codigo });
       return;
     }
 

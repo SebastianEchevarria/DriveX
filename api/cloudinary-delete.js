@@ -4,10 +4,28 @@
 // por eso este borrado pasa por aquí, en el servidor de Vercel.
 
 const crypto = require('crypto');
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+  });
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
+  }
+
+  // SEGURIDAD: ninguna app lo usa ya (las fotos de los tickets se conservan).
+  // Solo la cuenta master puede borrar archivos, para tareas de mantenimiento.
+  const h = String(req.headers.authorization || '');
+  const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+  let dec = null;
+  try { dec = token ? await admin.auth().verifyIdToken(token) : null; } catch (e) { dec = null; }
+  if (!dec || dec.superadmin !== true) {
+    return res.status(403).json({ error: 'Acceso denegado' });
   }
 
   const { publicIds } = req.body || {};
