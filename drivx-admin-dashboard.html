@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-6';
+var APP_VERSION = '2026-09-28-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4610,7 +4610,7 @@ function paintEstadisticas(cierresVeh, cierresCond) {
     html += '</div>';
 
     html += '<div id="body_' + boxId + '" style="display:none;padding:0 18px 18px;border-top:1px solid rgba(0,212,255,.2)">';
-    html += '<div style="font-size:11px;color:var(--text3);margin:14px 0">' + item.modelo + ' · Semana del ' + formatearPeriodoSemanal(item.periodo) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3);margin:14px 0">' + item.modelo + ' · ' + etiquetaSemanaDesdeClave(item.periodo) + '</div>';
 
     lista.forEach(function(c, idx){
       html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">' +
@@ -4812,7 +4812,9 @@ function aplicarEstadoCierreConductor(cid, matricula, uid) {
   var matSlugV = matricula.replace(/\s/g,'_');
   fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlugV + '/' + cid + '.json').then(function(r){ return r.json(); }).then(function(baseline){
     var cerrada = false;
-    if (baseline && baseline.ultimoCierreTs) {
+    if (baseline && baseline.semanaHastaTs) {
+      cerrada = baseline.semanaHastaTs >= lunesDe(Date.now()) - 1; // la semana anterior ya está cerrada
+    } else if (baseline && baseline.ultimoCierreTs) {
       var dias = Math.floor((Date.now() - baseline.ultimoCierreTs) / 86400000);
       cerrada = dias < DIAS_AVISO_CIERRE;
     }
@@ -4857,6 +4859,7 @@ function aplicarEstadoCierreVehiculo(matricula) {
     return fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlugV + '/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; });
   })).then(function(baselines){
     var todosCerrados = baselines.every(function(b){
+      if (b && b.semanaHastaTs) return b.semanaHastaTs >= lunesDe(Date.now()) - 1;
       if (!b || !b.ultimoCierreTs) return false;
       var dias = Math.floor((Date.now() - b.ultimoCierreTs) / 86400000);
       return dias < DIAS_AVISO_CIERRE;
@@ -5471,7 +5474,98 @@ var _gastosPorConductorCache = {};
 // RESULTADO = SUELDO − EFECTIVO REAL
 //   positivo → el propietario debe pagar esa cantidad al conductor
 //   negativo → el conductor debe devolver esa cantidad al propietario
-function calcularLiquidacionAcumulada(cid, matricula, uid) {
+// ══════════════ SEMANA NATURAL DE FACTURACIÓN ══════════════
+// La semana de facturación es la semana NATURAL de los gastos: de lunes
+// 00:00:00 a domingo 23:59:59. Los gastos (y viajes privados / transfers)
+// se asignan a su semana por su FECHA, no por cuándo se suben. Al cerrar
+// (normalmente el lunes) se cierra la última semana terminada.
+// Los datos de Uber / Bolt / Cabify son el CSV de la semana (cada subida
+// sustituye a la anterior): cuentan una sola vez, en el primer cierre
+// posterior a su subida.
+var MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+var DIA_MS = 86400000;
+function lunesDe(ts) {
+  var d = new Date(ts); d.setHours(0,0,0,0);
+  var dow = d.getDay() || 7;
+  d.setDate(d.getDate() - dow + 1);
+  return d.getTime();
+}
+function claveSemanaDeLunes(lunesTs) {
+  var l = new Date(lunesTs);
+  return l.getFullYear() + '-S' + String(l.getMonth()+1).padStart(2,'0') + String(l.getDate()).padStart(2,'0');
+}
+// "SEMANA DEL 21 AL 27 DE SEPTIEMBRE" · "SEMANA DEL 28 DE SEPTIEMBRE AL 4 DE OCTUBRE"
+function etiquetaSemana(desdeTs, hastaTs) {
+  var a = new Date(desdeTs), b = new Date(hastaTs);
+  var varias = (lunesDe(hastaTs) - lunesDe(desdeTs)) >= 7 * DIA_MS;
+  var txt = (varias ? 'SEMANAS DEL ' : 'SEMANA DEL ') + a.getDate();
+  if (a.getMonth() !== b.getMonth() || a.getFullYear() !== b.getFullYear()) {
+    txt += ' DE ' + MESES_ES[a.getMonth()].toUpperCase();
+    if (a.getFullYear() !== b.getFullYear()) txt += ' DE ' + a.getFullYear();
+  }
+  txt += ' AL ' + b.getDate() + ' DE ' + MESES_ES[b.getMonth()].toUpperCase();
+  if (a.getFullYear() !== b.getFullYear()) txt += ' DE ' + b.getFullYear();
+  return txt;
+}
+function etiquetaSemanaDesdeClave(periodo) {
+  var m = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo || '');
+  if (!m) return periodo || '—';
+  var lunes = new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10)).getTime();
+  return etiquetaSemana(lunes, lunes + 6 * DIA_MS);
+}
+// Fecha real de un gasto: la del ticket si es coherente; si no, la de subida
+function fechaGastoTs(t) {
+  var ts = Number(t.ts || 0);
+  var f = String(t.fecha || '').trim(), d = null, m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(f))) d = new Date(+m[1], +m[2]-1, +m[3]);
+  else if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(f))) { var y = +m[3]; if (y < 100) y += 2000; d = new Date(y, +m[2]-1, +m[1]); }
+  if (d && !isNaN(d.getTime())) {
+    var hm = /^(\d{1,2}):(\d{2})/.exec(String(t.hora || ''));
+    d.setHours(hm ? +hm[1] : 12, hm ? +hm[2] : 0, 0, 0);
+    var dt = d.getTime();
+    if (!ts || (dt >= ts - 45 * DIA_MS && dt <= ts + 2 * DIA_MS)) return dt;
+  }
+  return ts;
+}
+// Semana pendiente de cierre para un conductor (según su último cierre).
+// null = la semana anterior ya está cerrada (estamos en la semana en curso).
+function rangoPendienteDeCierre(baseline) {
+  var hasta = lunesDe(Date.now()) - 1; // domingo pasado 23:59:59.999
+  var desde;
+  if (baseline && baseline.semanaHastaTs) desde = baseline.semanaHastaTs + 1;
+  else if (baseline && baseline.ultimoCierreTs) {
+    // Cierres antiguos (antes de este sistema): si se cerró de lunes a
+    // miércoles, se estaba cerrando la semana anterior.
+    var dow = new Date(baseline.ultimoCierreTs).getDay() || 7;
+    desde = dow <= 3 ? lunesDe(baseline.ultimoCierreTs) : lunesDe(baseline.ultimoCierreTs) + 7 * DIA_MS;
+  } else desde = 0;
+  if (desde > hasta) return null;
+  var lunesUltima = lunesDe(hasta);
+  var desdeEtiqueta = desde ? lunesDe(desde) : lunesUltima;
+  return { desde: desde, hasta: hasta, clave: claveSemanaDeLunes(lunesUltima), etiqueta: etiquetaSemana(desdeEtiqueta, hasta), enCurso: false };
+}
+function opcionesSemanaDesdeBaseline(baseline) {
+  var pend = rangoPendienteDeCierre(baseline);
+  var cierreAnteriorTs = (baseline && baseline.ultimoCierreTs) || 0;
+  if (pend) return { rango: { desde: pend.desde, hasta: pend.hasta }, cierreAnteriorTs: cierreAnteriorTs, periodo: pend };
+  var l = lunesDe(Date.now()), fin = l + 7 * DIA_MS - 1;
+  return { rango: { desde: l, hasta: fin }, cierreAnteriorTs: cierreAnteriorTs,
+           periodo: { desde: l, hasta: fin, clave: claveSemanaDeLunes(l), etiqueta: etiquetaSemana(l, fin), enCurso: true } };
+}
+var _liqRangoForzado = null; // { cid: opciones } — se usa durante un cierre
+
+function calcularLiquidacionAcumulada(cid, matricula, uid, opciones) {
+  if (!matricula) return Promise.resolve(null);
+  var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; }) || {};
+  if ((v.tipoFacturacion || 'semanal') === 'mensual' || opciones === false) return _calcularLiquidacionCore(cid, matricula, uid, null);
+  if (opciones) return _calcularLiquidacionCore(cid, matricula, uid, opciones);
+  if (_liqRangoForzado && _liqRangoForzado[cid]) return _calcularLiquidacionCore(cid, matricula, uid, _liqRangoForzado[cid]);
+  return fetch(FIREBASE_URL + '/facturacion_baseline/' + matricula.replace(/\s/g,'_') + '/' + cid + '.json')
+    .then(function(r){ return r.json(); }).catch(function(){ return null; })
+    .then(function(b){ return _calcularLiquidacionCore(cid, matricula, uid, opcionesSemanaDesdeBaseline(b)); });
+}
+
+function _calcularLiquidacionCore(cid, matricula, uid, opciones) {
   if (!matricula) return Promise.resolve(null);
   var matSlug = matricula.replace(/\s/g,'_');
   var info = _facturacionConductoresIndex[uid];
@@ -5487,6 +5581,17 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
   ]).then(function(results){
     var uber = results[0] || {}, bolt = results[1] || {}, cabify = results[2] || {};
     var hojas = results[3] || {}, transfersD = results[4] || {}, gastosD = results[5] || {};
+
+    // Semana natural: cada CSV de plataforma cuenta solo si se subió
+    // después del cierre anterior (si no, ya se liquidó en ese cierre).
+    var R = opciones && opciones.rango ? opciones.rango : null;
+    if (R) {
+      var cAnt = opciones.cierreAnteriorTs || 0;
+      if (uber.ts && uber.ts <= cAnt) uber = {};
+      if (bolt.ts && bolt.ts <= cAnt) bolt = {};
+      if (cabify.ts && cabify.ts <= cAnt) cabify = {};
+    }
+    function enRango(ts) { return !R || (ts >= R.desde && ts <= R.hasta); }
 
     var uberNetoReal = (typeof uber.netoReal === 'number') ? uber.netoReal : ((uber.neto||0) - (uber.propinas||0) - (uber.promociones||0));
     var uberPropinas = Number(uber.propinas || 0);
@@ -5505,11 +5610,11 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
     var cabifyPromo = Number(cabify.promociones || 0);
     var cabifyEfectivo = Number(cabify.efectivo || 0);
 
-    var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid && enRango(Number(h.ts||0)); });
     var privadosCutTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
     var privadosEfectivoTotal = privadosPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
-    var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid === cid; });
+    var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid === cid && enRango(Number(h.ts||0)); });
     var transfersCutTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
     var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
 
@@ -5520,6 +5625,7 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
       Object.keys(catObj).forEach(function(tid){
         var t = catObj[tid];
         if (!(t && (t.conductor||'') === nombreConductor)) return;
+        if (!enRango(fechaGastoTs(t))) return; // gasto de otra semana natural
         var importe = Number(t.importe||0);
         var propinaTicket = Number(t.propina||0);
         var pagadoPorPropietario = t.pagadoPor === 'propietario';
@@ -5571,7 +5677,8 @@ function calcularLiquidacionAcumulada(cid, matricula, uid) {
       cabifyNetoReal: cabifyNetoReal, cabifyPropinas: cabifyPropinas, cabifyPromo: cabifyPromo, cabifyEfectivo: cabifyEfectivo,
       // Listas completas de viajes privados y transfers de este conductor
       // (no acumulados — son los registros en sí, se filtran por fecha al cerrar)
-      privadosItems: privadosPropios, transfersItems: transfersPropios
+      privadosItems: privadosPropios, transfersItems: transfersPropios,
+      periodo: (opciones && opciones.periodo) || null
     };
   });
 }
@@ -6062,6 +6169,15 @@ function pintarLiquidacion(uid, d) {
   }
 
   var html = '';
+
+  // Semana que se está liquidando
+  if (d.periodo && d.periodo.etiqueta) {
+    var _enc = d.periodo.enCurso;
+    html += '<div style="text-align:center;margin-bottom:10px;padding:8px 10px;border-radius:10px;border:1.5px solid ' + (_enc ? 'rgba(0,212,255,.7)' : 'rgba(255,215,0,.9)') + ';background:' + (_enc ? 'rgba(0,212,255,.08)' : 'rgba(255,215,0,.1)') + '">' +
+      '<div style="font-size:12px;font-weight:900;color:#fff;letter-spacing:.3px">' + d.periodo.etiqueta + '</div>' +
+      '<div style="font-size:10px;font-weight:700;color:' + (_enc ? 'var(--cyan)' : '#ffd700') + ';margin-top:2px">' + (_enc ? 'SEMANA EN CURSO · se podrá cerrar a partir del lunes' : 'PENDIENTE DE CIERRE') + '</div>' +
+    '</div>';
+  }
 
   // RESULTADO — arriba de todo
   html += '<div style="background:rgba(' + colorResultado + ',.1);border:2.5px solid rgba(' + colorResultado + ',1);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 0 18px rgba(' + colorResultado + ',.95),0 0 38px rgba(' + colorResultado + ',.6);text-align:center">';
@@ -8010,7 +8126,7 @@ function abrirDetalleHistorial(mSlug, periodo, matricula) {
     '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px">' +
       '<button onclick="document.getElementById(\'historial-detalle-modal\').style.display=\'none\'" style="padding:10px 18px;border-radius:10px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.7),0 0 22px rgba(255,71,87,.4)">← ATRÁS</button>' +
       '<button onclick="abrirResumenPropietarioHistorial(\''+mSlug+'\',\''+periodo+'\',\''+matricula.replace(/'/g,"\\'")+'\')" style="padding:10px 18px;border-radius:10px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-weight:900;font-size:12.5px;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.7),0 0 22px rgba(0,212,255,.4)">👁️ Ver resumen del propietario</button>' +
-      '<div style="color:#fff;font-size:13px;font-weight:800;margin-left:6px">' + matricula + ' · Semana del ' + formatearPeriodoSemanal(periodo) + '</div>' +
+      '<div style="color:#fff;font-size:13px;font-weight:800;margin-left:6px">' + matricula + ' · ' + etiquetaSemanaDesdeClave(periodo) + '</div>' +
     '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;justify-content:center">';
 
@@ -9843,12 +9959,24 @@ function iniciarCierrePeriodo(matricula, tipo, cids) {
   document.getElementById('cierre-periodo-modal').style.display = 'flex';
 
   Promise.all(cids.map(function(info){
-    return Promise.all([
-      calcularLiquidacionAcumulada(info.cid, matricula, info.uid),
-      fetch(FIREBASE_URL + '/facturacion_baseline/' + matricula.replace(/\s/g,'_') + '/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
-    ]).then(function(r){
-      var acumulado = r[0]; var baseline = r[1] || {};
+    return fetch(FIREBASE_URL + '/facturacion_baseline/' + matricula.replace(/\s/g,'_') + '/' + info.cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(bl){
+      var opcSemana = tipo === 'semanal' ? opcionesSemanaDesdeBaseline(bl) : null;
+      return calcularLiquidacionAcumulada(info.cid, matricula, info.uid, opcSemana || undefined).then(function(ac){ return [ac, bl, opcSemana]; });
+    }).then(function(r){
+      var acumulado = r[0]; var baseline = r[1] || {}; var opcSemana = r[2];
       if (!acumulado) return null;
+      if (opcSemana) {
+        // SEMANAL: el cálculo ya es exactamente el de esa semana natural
+        // (gastos y viajes por fecha, CSV de plataformas una sola vez).
+        var dSem = {};
+        for (var kk in acumulado) dSem[kk] = acumulado[kk];
+        dSem.privadosItems  = acumulado.privadosItems  || [];
+        dSem.transfersItems = acumulado.transfersItems || [];
+        dSem.gastosItems    = acumulado.gastosItems    || [];
+        dSem.datafonoItems  = acumulado.datafonoItems  || [];
+        delete dSem.periodo;
+        return { cid: info.cid, nombre: info.nombre, acumulado: acumulado, baseline: baseline, delta: dSem, opciones: opcSemana };
+      }
       var delta = {};
       var camposNumericos = [
         'sueldo','netoAppsTotal','netoAppsConductor','privadosCutTotal','transfersCutTotal','propinasTotal','promoTotal',
@@ -9883,7 +10011,21 @@ function iniciarCierrePeriodo(matricula, tipo, cids) {
     });
   })).then(function(resultados){
     resultados = resultados.filter(Boolean);
-    _cierrePendiente = { matricula: matricula, tipo: tipo, periodo: getPeriodKey(tipo), resultados: resultados };
+    if (tipo === 'semanal') {
+      var enCurso = resultados.filter(function(r){ return r.opciones && r.opciones.periodo.enCurso; });
+      if (enCurso.length) {
+        var pe = enCurso[0].opciones.periodo;
+        document.getElementById('cierre-periodo-modal').style.display = 'none';
+        alert('La semana anterior ya está cerrada' + (enCurso.length < resultados.length ? ' para ' + enCurso.map(function(r){ return r.nombre; }).join(', ') : '') + '.\n\n' +
+          'La ' + pe.etiqueta.toLowerCase() + ' todavía está en curso: se podrá cerrar a partir del lunes, cuando termine.');
+        return;
+      }
+      var etq = resultados.length ? resultados[0].opciones.periodo.etiqueta : '';
+      document.getElementById('cierre-periodo-titulo').textContent = 'Cerrar ' + etq.toLowerCase() + ' · ' + matricula + (cids.length===1 ? ' · ' + cids[0].nombre : '');
+    }
+    var _clave = (tipo === 'semanal' && resultados.length) ? resultados[0].opciones.periodo.clave : getPeriodKey(tipo);
+    var _etq = (tipo === 'semanal' && resultados.length) ? resultados[0].opciones.periodo.etiqueta : '';
+    _cierrePendiente = { matricula: matricula, tipo: tipo, periodo: _clave, etiqueta: _etq, resultados: resultados };
 
     var body = resultados.map(function(r){
       var esPagar = r.delta.resultado >= 0;
@@ -9953,12 +10095,23 @@ function confirmarCierrePeriodo() {
     registro.matricula = p.matricula;
     registro.tipo = p.tipo;
     registro.fecha = fechaCierre;
+    var perR = (r.opciones && r.opciones.periodo) || null;
+    if (perR) {
+      registro.etiqueta = perR.etiqueta;
+      registro.semanaDesdeTs = perR.desde;
+      registro.semanaHastaTs = perR.hasta;
+    }
 
     var nuevaBaseline = {};
     camposBaseline.forEach(function(k){ nuevaBaseline[k] = r.acumulado[k] || 0; });
     nuevaBaseline.ultimoCierreTs = ahoraTs;
+    if (perR) {
+      nuevaBaseline.semanaDesdeTs = perR.desde;
+      nuevaBaseline.semanaHastaTs = perR.hasta;
+      nuevaBaseline.ultimaSemanaClave = perR.clave;
+    }
 
-    writes.push(fetch(FIREBASE_URL + '/facturacion_cierres/' + matSlug + '/' + r.cid + '/' + p.periodo + '.json', {
+    writes.push(fetch(FIREBASE_URL + '/facturacion_cierres/' + matSlug + '/' + r.cid + '/' + (perR ? perR.clave : p.periodo) + '.json', {
       method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(registro)
     }));
     writes.push(fetch(FIREBASE_URL + '/facturacion_baseline/' + matSlug + '/' + r.cid + '.json', {
@@ -10016,7 +10169,7 @@ function confirmarCierrePeriodo() {
   });
 
   Promise.all(writes).then(function(){
-    toast('✅ Periodo cerrado y enviado a la app del conductor · ' + p.matricula);
+    toast('✅ ' + (p.etiqueta ? p.etiqueta.charAt(0) + p.etiqueta.slice(1).toLowerCase() : 'Periodo') + ' cerrada y enviada · ' + p.matricula);
     generarExcelFacturacion();
     registrarActividad('Facturación', 'Cerró periodo (' + p.tipo + ')', p.matricula);
 
@@ -10035,7 +10188,15 @@ function confirmarCierrePeriodo() {
     // Además de enviar al conductor, actualizamos el snapshot de
     // facturación que ve el propietario en su app — solo se actualiza aquí,
     // nunca en vivo, así el propietario ve siempre datos ya cerrados.
+    // El resumen del propietario se calcula con la MISMA semana que se acaba
+    // de cerrar (no con la nueva semana en curso).
+    if (p.tipo === 'semanal') {
+      _liqRangoForzado = {};
+      p.resultados.forEach(function(r){ if (r.opciones) _liqRangoForzado[r.cid] = r.opciones; });
+    }
     enviarFacturacionPropietarioSnapshot(p.matricula).then(function(d){
+      _liqRangoForzado = null;
+      if (d && p.etiqueta) { d.etiqueta = p.etiqueta; d.periodo = p.periodo; }
       if (d) toast('✅ Facturación enviada al propietario · ' + p.matricula);
       // Guardamos también una copia fija de este resumen del propietario
       // bajo su periodo — esto es lo que alimenta "Historial Facturación",
@@ -10050,7 +10211,7 @@ function confirmarCierrePeriodo() {
       if (d && d.pid) {
         enviarPushNotificacion('💰 Facturación lista', 'La facturación de ' + p.matricula + ' ya está disponible', 'facturacion_prop_' + d.pid + '_' + p.periodo, '/drivx-propietario-app.html', { pid: d.pid }, '/icon-propietario-180.png');
       }
-    }).catch(function(){});
+    }).catch(function(){ _liqRangoForzado = null; });
   }).catch(function(err){
     alert('No se pudo cerrar el periodo: ' + err.message);
   });
