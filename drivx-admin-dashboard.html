@@ -207,6 +207,32 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 @media (min-width:861px){
   .historial-cond-card{width:400px;flex-shrink:0}
 }
+/* ══════ RENDIMIENTO (gráfico semanas/meses, estilo DRIVX) ══════ */
+.rd-caja{padding:14px 12px 12px;border-radius:18px;background:rgba(10,16,26,.72);border:2px solid rgba(0,230,118,1);
+  box-shadow:0 0 12px rgba(0,230,118,.65),0 0 28px rgba(0,230,118,.25);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff}
+.rd-titulo{font-size:12px;font-weight:900;letter-spacing:.4px;margin:0 4px 10px;text-shadow:0 0 8px rgba(0,230,118,.8)}
+.rd-titulo span{font-weight:700;opacity:.75;letter-spacing:0;text-shadow:none}
+.rd-seg{display:flex;padding:3px;border-radius:12px;background:rgba(0,0,0,.35);border:1.5px solid rgba(0,212,255,.85);box-shadow:0 0 8px rgba(0,212,255,.45)}
+.rd-seg button{flex:1;padding:8px;border:none;border-radius:9px;background:none;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit}
+.rd-seg button.on{background:rgba(0,212,255,.22);box-shadow:inset 0 0 0 1.5px rgba(0,212,255,1),0 0 10px rgba(0,212,255,.55)}
+.rd-top{display:flex;align-items:center;gap:8px;margin-top:14px}
+.rd-flecha{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.1);color:#fff;font-size:19px;cursor:pointer;box-shadow:0 0 8px rgba(0,212,255,.6)}
+.rd-flecha:disabled{opacity:.25;cursor:default;box-shadow:none}
+.rd-centro{flex:1;text-align:center;min-width:0}
+.rd-total{font-family:var(--mono);font-size:26px;font-weight:900;line-height:1.1;text-shadow:0 0 10px rgba(0,230,118,.85),0 0 20px rgba(0,230,118,.35)}
+.rd-rango{font-size:12.5px;font-weight:700;opacity:.85;margin-top:4px}
+.rd-barras{display:flex;align-items:flex-end;gap:6px;height:150px;padding:38px 2px 0}
+.rd-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer;position:relative;min-width:0}
+.rd-barra{width:100%;max-width:34px;border-radius:100px;min-height:10px;background:rgba(0,212,255,.22);border:1.5px solid rgba(0,212,255,.85);box-shadow:0 0 7px rgba(0,212,255,.45)}
+.rd-col.sel .rd-barra{background:rgba(0,230,118,.55);border-color:rgba(0,230,118,1);box-shadow:0 0 10px rgba(0,230,118,1),0 0 22px rgba(0,230,118,.5)}
+.rd-col.vacia .rd-barra{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.25);box-shadow:none}
+.rd-burbuja{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,230,118,.2);border:1.5px solid rgba(0,230,118,1);color:#fff;
+  font-family:var(--mono);font-size:11px;font-weight:900;padding:3px 8px;border-radius:100px;box-shadow:0 0 8px rgba(0,230,118,.8);z-index:1}
+.rd-burbuja::after{content:'';position:absolute;left:50%;top:100%;width:2px;height:7px;background:rgba(0,230,118,1);transform:translateX(-50%)}
+.rd-etqs{display:flex;gap:6px;padding:8px 2px 0}
+.rd-etqs span{flex:1;text-align:center;font-size:10.5px;font-weight:700;opacity:.7;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-etqs span.sel{opacity:1;color:#00e676;text-shadow:0 0 6px rgba(0,230,118,.9)}
+.rd-vacio{margin-top:12px;padding:18px 10px;text-align:center;font-size:13px;opacity:.85;line-height:1.5}
 </style>
 </head>
 <body>
@@ -602,6 +628,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     </div>
 
     <div style="padding:20px 22px">
+      <div id="vd-rendimiento" style="margin-bottom:20px"></div>
       <div class="sb-section" style="padding:0 0 10px">Estado ITV</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
         <div id="vd-itv" style="font-size:13px;font-weight:700;flex:1">—</div>
@@ -1061,7 +1088,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-20';
+var APP_VERSION = '2026-09-28-21';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4115,8 +4142,120 @@ function toggleCondDocsO(cuid) {
   if (chev) chev.textContent = open ? '▾' : '▴';
 }
 
+// ══════════════ RENDIMIENTO (gráfico de semanas / meses, estilo DRIVX) ══════════════
+// Mismo formato que "Mis ingresos" de la app Driver, sin desglose.
+//   rendimientoMontar(idContenedor, { tipo:'conductor', cid })          → ingresos del conductor
+//   rendimientoMontar(idContenedor, { tipo:'vehiculo', matSlug })       → facturación del vehículo
+// Los datos salen de los CIERRES (facturacion_cierres y facturacion_cierres_vehiculo),
+// así que muestran exactamente lo que se cerró cada semana.
+var _rdEstado = {};
+var _RD_MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+var _RD_MES_L = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function _rdEur(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+function _rdFechasDeClave(periodo) {
+  var mw = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo || ''), mm = /^(\d{4})-(\d{2})$/.exec(periodo || '');
+  if (mw) { var l = new Date(+mw[1], +mw[2]-1, +mw[3]).getTime(); return { desde: l, hasta: l + 6 * 86400000, mensual: false }; }
+  if (mm) return { desde: new Date(+mm[1], +mm[2]-1, 1).getTime(), hasta: new Date(+mm[1], +mm[2], 0).getTime(), mensual: true };
+  return null;
+}
+function _rdCargar(fuente) {
+  var leer = function(url){ return fetch(url).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){ return (d && typeof d === 'object' && !d.error) ? d : {}; }); };
+  if (fuente.tipo === 'vehiculo') {
+    return leer(FIREBASE_URL + '/facturacion_cierres_vehiculo/' + fuente.matSlug + '.json').then(function(d){
+      return Object.keys(d).map(function(p){
+        var f = _rdFechasDeClave(p); if (!f || !d[p]) return null;
+        var r = d[p];
+        var total = typeof r.facturacionTotal === 'number' ? r.facturacionTotal :
+          (Number(r.uberTotal||0) + Number(r.boltTotal||0) + Number(r.cabifyTotal||0) + Number(r.privadosFacturacionTotal||0) + Number(r.transfersFacturacionTotal||0) + Number(r.brandingTotal||0));
+        return { periodo: p, desde: f.desde, hasta: f.hasta, mensual: f.mensual, valor: total };
+      }).filter(Boolean);
+    });
+  }
+  return leer(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(mats){
+    return Promise.all(Object.keys(mats).map(function(m){ return leer(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + fuente.cid + '.json'); }));
+  }).then(function(listas){
+    var out = [];
+    listas.forEach(function(d){
+      Object.keys(d).forEach(function(p){
+        var r = d[p]; if (!r) return;
+        var f = _rdFechasDeClave(p) || {};
+        var hasta = r.semanaHastaTs || f.hasta || Date.parse(r.fecha || '') || 0;
+        var desde = r.semanaDesdeTs || f.desde || (hasta - 6 * 86400000);
+        out.push({ periodo: p, desde: desde, hasta: hasta, mensual: !!f.mensual, valor: Number(r.sueldo || 0) });
+      });
+    });
+    return out;
+  });
+}
+function _rdPeriodos(st) {
+  var grupos = [], porClave = {};
+  st.lista.slice().sort(function(a, b){ return a.hasta - b.hasta; }).forEach(function(c){
+    var clave, desde, hasta, etq, corta;
+    if (st.modo === 'mes') {
+      var d = new Date(c.hasta);
+      clave = d.getFullYear() + '-' + d.getMonth();
+      etq = _RD_MES_L[d.getMonth()].charAt(0).toUpperCase() + _RD_MES_L[d.getMonth()].slice(1) + ' ' + d.getFullYear();
+      corta = _RD_MES[d.getMonth()] + '.';
+    } else {
+      clave = c.periodo;
+      var a = new Date(c.desde), b = new Date(c.hasta);
+      etq = c.mensual ? (_RD_MES_L[a.getMonth()] + ' ' + a.getFullYear())
+        : a.getDate() + (a.getMonth() !== b.getMonth() ? ' ' + _RD_MES[a.getMonth()] + '.' : '') + '–' + b.getDate() + ' ' + _RD_MES[b.getMonth()] + '.' + (b.getFullYear() !== new Date().getFullYear() ? ' ' + b.getFullYear() : '');
+      corta = c.mensual ? _RD_MES[a.getMonth()] + '.' : a.getDate() + ' ' + _RD_MES[a.getMonth()] + '.';
+    }
+    if (!porClave[clave]) { porClave[clave] = { etq: etq, corta: corta, valor: 0, n: 0 }; grupos.push(porClave[clave]); }
+    porClave[clave].valor += c.valor; porClave[clave].n++;
+  });
+  return grupos;
+}
+function rendimientoMontar(contId, fuente) {
+  var cont = document.getElementById(contId); if (!cont) return;
+  var titulo = fuente.tipo === 'vehiculo' ? 'Facturación del vehículo' : 'Ingresos del conductor';
+  cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
+  _rdCargar(fuente).then(function(lista){
+    _rdEstado[contId] = { fuente: fuente, titulo: titulo, lista: lista, modo: 'semana', idx: -1 };
+    rendimientoPintar(contId);
+  });
+}
+function rendimientoPintar(contId) {
+  var st = _rdEstado[contId], cont = document.getElementById(contId);
+  if (!st || !cont) return;
+  var ps = _rdPeriodos(st);
+  var cab = '<div class="rd-titulo">📈 RENDIMIENTO <span>· ' + st.titulo + '</span></div>' +
+    '<div class="rd-seg"><button class="' + (st.modo === 'semana' ? 'on' : '') + '" onclick="rendimientoModo(\'' + contId + '\',\'semana\')">Por semana</button>' +
+    '<button class="' + (st.modo === 'mes' ? 'on' : '') + '" onclick="rendimientoModo(\'' + contId + '\',\'mes\')">Por mes</button></div>';
+  if (!ps.length) {
+    cont.innerHTML = '<div class="rd-caja">' + cab + '<div class="rd-vacio">Todavía no hay semanas cerradas. Aparecerán aquí con el primer cierre.</div></div>';
+    return;
+  }
+  if (st.idx < 0 || st.idx >= ps.length) st.idx = ps.length - 1;
+  var sel = ps[st.idx];
+  var N = 7, ini = ps.length <= N ? 0 : Math.max(0, Math.min(st.idx - N + 1 + Math.min(3, ps.length - 1 - st.idx), ps.length - N));
+  var vis = ps.slice(ini, ini + N);
+  var max = Math.max.apply(null, vis.map(function(p){ return Math.max(0, p.valor); }).concat([1]));
+  cont.innerHTML = '<div class="rd-caja">' + cab +
+    '<div class="rd-top">' +
+      '<button class="rd-flecha" onclick="rendimientoMover(\'' + contId + '\',-1)" aria-label="Anterior"' + (st.idx <= 0 ? ' disabled' : '') + '>‹</button>' +
+      '<div class="rd-centro"><div class="rd-total">' + _rdEur(sel.valor) + '</div><div class="rd-rango">' + sel.etq + (st.modo === 'mes' ? ' · ' + sel.n + ' semana' + (sel.n !== 1 ? 's' : '') : '') + '</div></div>' +
+      '<button class="rd-flecha" onclick="rendimientoMover(\'' + contId + '\',1)" aria-label="Siguiente"' + (st.idx >= ps.length - 1 ? ' disabled' : '') + '>›</button>' +
+    '</div>' +
+    '<div class="rd-barras">' + vis.map(function(p, i){
+      var alto = Math.max(6, Math.round(Math.max(0, p.valor) / max * 100)), esSel = (ini + i) === st.idx;
+      return '<div class="rd-col' + (esSel ? ' sel' : '') + (p.valor <= 0 ? ' vacia' : '') + '" onclick="rendimientoElegir(\'' + contId + '\',' + (ini + i) + ')">' +
+        (esSel ? '<span class="rd-burbuja" style="bottom:calc(' + alto + '% + 10px)">' + _rdEur(p.valor) + '</span>' : '') +
+        '<div class="rd-barra" style="height:' + alto + '%"></div></div>';
+    }).join('') + '</div>' +
+    '<div class="rd-etqs">' + vis.map(function(p, i){ return '<span class="' + ((ini + i) === st.idx ? 'sel' : '') + '">' + p.corta + '</span>'; }).join('') + '</div>' +
+  '</div>';
+}
+function rendimientoModo(id, modo) { var st = _rdEstado[id]; if (!st) return; st.modo = modo; st.idx = -1; rendimientoPintar(id); }
+function rendimientoMover(id, d) { var st = _rdEstado[id]; if (!st) return; st.idx += d; rendimientoPintar(id); }
+function rendimientoElegir(id, i) { var st = _rdEstado[id]; if (!st) return; st.idx = i; rendimientoPintar(id); }
+
 function conductorPerfilBodyHtml(c) {
-  return '<button onclick="abrirHistorialConductor(\'' + c.cid + '\',\'' + String(c.nombre||'').replace(/'/g,"\\'") + '\')" style="width:100%;margin-bottom:16px;padding:12px;border-radius:12px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.7)">📚 Historial de facturación</button>' +
+  setTimeout(function(){ rendimientoMontar('rd-cond-' + c.cid, { tipo:'conductor', cid: c.cid }); }, 0);
+  return '<div id="rd-cond-' + c.cid + '" style="margin-bottom:14px"></div>' +
+    '<button onclick="abrirHistorialConductor(\'' + c.cid + '\',\'' + String(c.nombre||'').replace(/'/g,"\\'") + '\')" style="width:100%;margin-bottom:16px;padding:12px;border-radius:12px;border:2px solid rgba(0,212,255,1);background:rgba(0,212,255,.12);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.7)">📚 Historial de facturación</button>' +
     _conductorPerfilBodyHtmlBase(c);
 }
 function _conductorPerfilBodyHtmlBase(c) {
@@ -11118,6 +11257,7 @@ function openVehicleDetail(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   _vdCurrentMat = matricula;
+  rendimientoMontar('vd-rendimiento', { tipo:'vehiculo', matSlug: matSlug(matricula) });
 
   document.getElementById('vd-plate').innerHTML = plateHtml(v.matricula) + (v.icon === '⚡' ? evBadgeHtml(44) : '');
   document.getElementById('vd-model').textContent = v.modelo + ' · ' + v.ciudad + ' · ' + v.ccaa;
