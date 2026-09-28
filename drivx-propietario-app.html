@@ -589,7 +589,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-1';
+var APP_VERSION = '2026-09-28-1';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1583,7 +1583,7 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
     var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0, brandingTotal=0;
     var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0, abonadosPorPropietarioTotal=0;
     var sueldosTotal=0, infinityTotal=0, pagosARealizarTotal=0;
-    var nombreGestion = 'INFINITY', porcentajeGestion = 0;
+    var nombreGestion = EMPRESA_NOMBRE || 'INFINITY', porcentajeGestion = 0;
     var pagosDetalle=[], ticketsConductor=[], ticketsPropietario=[];
     var kmTotalGeneral = 0, kmPorVehiculo = [];
 

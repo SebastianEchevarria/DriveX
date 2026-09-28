@@ -1058,7 +1058,7 @@ var USERS_DASH = {
 };
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-3';
+var APP_VERSION = '2026-09-28-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5669,7 +5669,7 @@ function calcularResumenVehiculoParaFacturacion(matricula) {
 
     var brandingTotal = Number(propietario.branding || 0);
     var porcentajeGestion = Number(propietario.porcentajeGestion || 0);
-    var nombreGestion = propietario.nombreCampoGestion || 'INFINITY';
+    var nombreGestion = propietario.nombreCampoGestion || nombreGestionPorDefecto();
     var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
     var facturacionTotal = facturacionAppsTotal + brandingTotal;
 
@@ -7070,6 +7070,11 @@ function cargarNombreEmpresa() {
     pintarNombreEmpresa();
   }).catch(function(){});
 }
+// Nombre del concepto de gestión que ve el propietario: en una empresa,
+// su propio nombre; en la flota original, "INFINITY" como siempre.
+function nombreGestionPorDefecto() {
+  return (EMPRESA_ID && EMPRESA_NOMBRE) ? EMPRESA_NOMBRE : 'INFINITY';
+}
 function pintarNombreEmpresa() {
   ['sb-empresa-logo', 'inicio-empresa-logo'].forEach(function(id){
     var el = document.getElementById(id);
@@ -7850,7 +7855,7 @@ function abrirResumenPropietarioAgregado(pid, periodo) {
     matricula: (p.matriculas||[]).join(', '), pid: pid, sinPropietario: false,
     uberTotal:0, boltTotal:0, cabifyTotal:0, privadosFacturacionTotal:0, transfersFacturacionTotal:0, brandingTotal:0,
     combustibleTotal:0, peajesTotal:0, parkingTotal:0, limpiezaTotal:0, otrosTotal:0, abonadosPorPropietarioTotal:0,
-    sueldosTotal:0, infinityTotal:0, pagosARealizarTotal:0, nombreGestion:'INFINITY', porcentajeGestion:0,
+    sueldosTotal:0, infinityTotal:0, pagosARealizarTotal:0, nombreGestion:nombreGestionPorDefecto(), porcentajeGestion:0,
     pagosDetalle:[], ticketsConductor:[], ticketsPropietario:[], kmSemana:{ total:0, porConductor:[] }
   };
   snapsDeEstaSemana.forEach(function(snap){
@@ -9515,7 +9520,9 @@ function openAddPropietarioModal() {
   document.getElementById('ap-fecha-alta').value = new Date().toISOString().slice(0,10);
   document.getElementById('ap-cuenta').value = '';
   document.getElementById('ap-porcentaje-gestion').value = '';
-  document.getElementById('ap-nombre-gestion').value = '';
+  var _ng = document.getElementById('ap-nombre-gestion');
+  _ng.value = (EMPRESA_ID && EMPRESA_NOMBRE) ? EMPRESA_NOMBRE : '';
+  _ng.placeholder = nombreGestionPorDefecto();
   seleccionarIvaGestion(true);
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
@@ -9544,7 +9551,8 @@ function editarPropietarioAbrir(pid) {
   document.getElementById('ap-fecha-alta').value = p.fechaAlta || '';
   document.getElementById('ap-cuenta').value = p.cuentaBancaria || '';
   document.getElementById('ap-porcentaje-gestion').value = (typeof p.porcentajeGestion === 'number') ? p.porcentajeGestion : '';
-  document.getElementById('ap-nombre-gestion').value = p.nombreCampoGestion || '';
+  document.getElementById('ap-nombre-gestion').value = p.nombreCampoGestion || ((EMPRESA_ID && EMPRESA_NOMBRE) ? EMPRESA_NOMBRE : '');
+  document.getElementById('ap-nombre-gestion').placeholder = nombreGestionPorDefecto();
   seleccionarIvaGestion(p.ivaGestion !== false);
   document.getElementById('ap-invite-result').style.display = 'none';
   document.getElementById('ap-save-btn').disabled = false;
@@ -9657,7 +9665,7 @@ function guardarPropietario() {
       nombre: nombre, doc: doc, email: email, telefono: telefono || '',
       fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
       porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
-      nombreCampoGestion: nombreGestion || 'INFINITY',
+      nombreCampoGestion: nombreGestion || nombreGestionPorDefecto(),
       ivaGestion: ivaGestion
     };
     fetch(FIREBASE_URL + '/propietarios/' + pidEdit + '.json', {
@@ -9686,7 +9694,7 @@ function guardarPropietario() {
     nombre: nombre, doc: doc, email: email, telefono: telefono || '',
     fechaAlta: fechaAlta || '', cuentaBancaria: cuenta || '', matriculas: matriculas,
     porcentajeGestion: isNaN(porcentajeGestion) ? 0 : porcentajeGestion,
-    nombreCampoGestion: nombreGestion || 'INFINITY',
+    nombreCampoGestion: nombreGestion || nombreGestionPorDefecto(),
     ivaGestion: ivaGestion,
     inviteCode: code, inviteUsado: false, ts: Date.now()
   };
