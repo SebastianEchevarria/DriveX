@@ -1060,7 +1060,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-13';
+var APP_VERSION = '2026-09-28-14';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -6381,10 +6381,17 @@ function editarPorcentajeConductor(cid, uid) {
   if (!puedeEditar()) return;
   var info = _facturacionConductoresIndex[uid];
   var actual = (info && info.porcentaje) || 30;
-  var nuevo = prompt('¿Qué porcentaje de la Facturación Neto Total cobra este conductor?', actual);
-  if (nuevo === null) return;
-  nuevo = parseFloat(nuevo);
-  if (isNaN(nuevo) || nuevo < 0 || nuevo > 100) { toast('⚠ Introduce un porcentaje válido (0-100)'); return; }
+  dialogoLed({
+    icono: '💶', titulo: 'Porcentaje del conductor', texto: '¿Qué porcentaje de la Facturación Neto Total cobra este conductor?',
+    tipo: 'numero', valor: actual, sufijo: '%', min: 0, max: 100, aceptar: 'Guardar',
+    validar: function(v){ var n = parseFloat(String(v).replace(',', '.')); return (isNaN(n) || n < 0 || n > 100) ? 'Escribe un porcentaje entre 0 y 100.' : ''; }
+  }).then(function(v){
+    if (v === null) return;
+    guardarPorcentajeConductor(cid, uid, parseFloat(String(v).replace(',', '.')));
+  });
+}
+function guardarPorcentajeConductor(cid, uid, nuevo) {
+  var info = _facturacionConductoresIndex[uid];
 
   fetch(FIREBASE_URL + '/conductores_registro/' + cid + '/porcentaje.json', {
     method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(nuevo)
@@ -10639,6 +10646,76 @@ function confirmarCambioTipoFacturacion() {
   });
 }
 
+// ══════════════ VENTANA EMERGENTE CON ESTILO DRIVX ══════════════
+// Sustituye a los cuadros grises del navegador (alert / prompt / confirm)
+// por una ventana con contorno LED, como el resto de la app.
+//   dialogoLed({ titulo, texto, icono, tipo:'fecha'|'numero'|'texto', valor,
+//                sufijo, min, max, aceptar, cancelar, color:'cian'|'rojo'|'ambar',
+//                soloAceptar }) → Promise con el valor (o true), o null si cancela
+var _COLORES_LED = { cian:'0,212,255', rojo:'255,71,87', ambar:'255,179,0', verde:'0,230,118' };
+function dialogoLed(o) {
+  o = o || {};
+  return new Promise(function(resolve){
+    var rgb = _COLORES_LED[o.color || 'cian'] || _COLORES_LED.cian;
+    var velo = document.createElement('div');
+    velo.className = 'dialogo-led';
+    velo.setAttribute('role', 'dialog');
+    velo.setAttribute('aria-modal', 'true');
+    velo.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px';
+    var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+    var campo = '';
+    if (o.tipo) {
+      var tipoInput = o.tipo === 'fecha' ? 'date' : (o.tipo === 'numero' ? 'number' : 'text');
+      campo = '<div style="display:flex;align-items:center;gap:10px;margin:4px 0 20px">' +
+        '<input id="dlg-led-input" type="' + tipoInput + '" value="' + esc(o.valor) + '"' +
+          (o.min != null ? ' min="' + o.min + '"' : '') + (o.max != null ? ' max="' + o.max + '"' : '') +
+          (o.tipo === 'numero' ? ' step="any" inputmode="decimal"' : '') +
+          ' style="flex:1;min-width:0;padding:13px 14px;border-radius:12px;border:2px solid rgba(' + rgb + ',.75);background:rgba(' + rgb + ',.07);color:#fff;font-size:16px;font-weight:700;font-family:var(--mono);color-scheme:dark;outline:none">' +
+        (o.sufijo ? '<span style="font-size:18px;font-weight:900;color:#fff">' + esc(o.sufijo) + '</span>' : '') +
+      '</div>';
+    }
+    velo.innerHTML = '<div style="width:100%;max-width:400px;background:var(--surface);border:2.5px solid rgba(' + rgb + ',1);border-radius:20px;padding:24px 22px 20px;' +
+        'box-shadow:0 0 18px rgba(' + rgb + ',1),0 0 42px rgba(' + rgb + ',.5),0 20px 50px rgba(0,0,0,.6)">' +
+      (o.icono ? '<div style="font-size:34px;text-align:center;margin-bottom:8px">' + o.icono + '</div>' : '') +
+      (o.titulo ? '<div style="font-size:17px;font-weight:900;color:#fff;text-align:center;margin-bottom:8px;text-shadow:0 0 8px rgba(' + rgb + ',.6)">' + esc(o.titulo) + '</div>' : '') +
+      (o.texto ? '<div style="font-size:14px;color:#fff;text-align:center;line-height:1.55;margin-bottom:' + (o.tipo ? '16px' : '22px') + ';white-space:pre-line">' + esc(o.texto) + '</div>' : '') +
+      campo +
+      '<div id="dlg-led-error" style="display:none;color:var(--red);font-size:12.5px;text-align:center;margin:-10px 0 14px"></div>' +
+      '<div style="display:flex;gap:10px">' +
+        (o.soloAceptar ? '' : '<button id="dlg-led-no" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.04);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">' + esc(o.cancelar || 'Cancelar') + '</button>') +
+        '<button id="dlg-led-si" style="flex:1;padding:13px;border-radius:12px;border:2px solid rgba(' + rgb + ',1);background:rgba(' + rgb + ',.2);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(' + rgb + ',.7)">' + esc(o.aceptar || 'Aceptar') + '</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(velo);
+    var input = velo.querySelector('#dlg-led-input');
+    var cerrar = function(val){ document.removeEventListener('keydown', teclas, true); velo.remove(); resolve(val); };
+    var aceptar = function(){
+      if (!input) { cerrar(true); return; }
+      var v = String(input.value || '').trim();
+      if (o.validar) {
+        var err = o.validar(v);
+        if (err) { var e = velo.querySelector('#dlg-led-error'); e.textContent = err; e.style.display = 'block'; input.focus(); return; }
+      }
+      cerrar(v);
+    };
+    var teclas = function(ev){
+      if (ev.key === 'Escape') { ev.preventDefault(); cerrar(o.soloAceptar ? true : null); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); aceptar(); }
+    };
+    document.addEventListener('keydown', teclas, true);
+    velo.querySelector('#dlg-led-si').onclick = aceptar;
+    var no = velo.querySelector('#dlg-led-no'); if (no) no.onclick = function(){ cerrar(null); };
+    velo.addEventListener('click', function(ev){ if (ev.target === velo && !o.soloAceptar) cerrar(null); });
+    setTimeout(function(){ (input || velo.querySelector('#dlg-led-si')).focus(); }, 30);
+  });
+}
+// Todos los avisos de la app (alert) usan también esta ventana
+window.alert = function(msg) {
+  var t = String(msg == null ? '' : msg);
+  var esError = /^(❌|⚠|No se pudo|Error)/.test(t) || /no se pudo/i.test(t);
+  dialogoLed({ texto: t.replace(/^(❌|⚠️?)\s*/, ''), icono: esError ? '⚠️' : 'ℹ️', color: esError ? 'rojo' : 'cian', aceptar: 'Entendido', soloAceptar: true });
+};
+
 function editarFechaItv() {
   if (!puedeEditar() || !_vdCurrentMat) return;
   var mySlug = matSlug(_vdCurrentMat);
@@ -10648,11 +10725,16 @@ function editarFechaItv() {
     return;
   }
   var fechaActual = (actual.docs && actual.docs.itv && actual.docs.itv.fecha) || '';
-  var nueva = prompt('Nueva fecha de vencimiento de ITV (formato AAAA-MM-DD):', fechaActual);
-  if (nueva === null) return;
-  nueva = nueva.trim();
-  if (nueva && !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) { alert('Formato de fecha no válido. Usa AAAA-MM-DD, por ejemplo 2026-08-10.'); return; }
-
+  dialogoLed({
+    icono: '📅', titulo: 'Fecha de vencimiento de la ITV', texto: _vdCurrentMat,
+    tipo: 'fecha', valor: fechaActual, aceptar: 'Guardar fecha',
+    validar: function(v){ return (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) ? 'Elige una fecha válida.' : ''; }
+  }).then(function(nueva){
+    if (nueva === null) return;
+    guardarFechaItv(mySlug, nueva);
+  });
+}
+function guardarFechaItv(mySlug, nueva) {
   fetch(FIREBASE_URL + '/vehiculos_extra/' + mySlug + '/docs/itv.json', {
     method: 'PATCH', headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ fecha: nueva || null, ok: !!nueva })
@@ -11473,7 +11555,10 @@ function viewVehicleDoc(docType) {
 
 function deleteVehicleDoc(docType) {
   if (!_vdCurrentMat || !puedeEditar()) return;
-  if (!confirm('¿Eliminar este documento?')) return;
+  dialogoLed({ icono: '🗑', titulo: '¿Eliminar este documento?', texto: 'Se quitará de la ficha del vehículo.', color: 'rojo', aceptar: 'Eliminar' })
+    .then(function(ok){ if (ok) eliminarDocVehiculoConfirmado(docType); });
+}
+function eliminarDocVehiculoConfirmado(docType) {
   var mySlug = matSlug(_vdCurrentMat);
   var matriculaDocLog = _vdCurrentMat;
   fbDeleteDoc(mySlug, docType).then(function(){
