@@ -63,7 +63,34 @@ async function buscarInvitacion(db, empresa, tipo, code) {
   return null;
 }
 
-// ── ¿Este email es ya un miembro ACTIVO de esta empresa/flota? ──
+// ── ¿En qué apps es ya miembro ACTIVO este email? ──
+// Devuelve una lista de tipos: ['dashboard','supervisor','propietario','driver']
+async function tiposActivos(db, empresa, email, rutaExcluir) {
+  const b = base(empresa);
+  const e = String(email || '').toLowerCase();
+  const tipos = [];
+  const fuentes = [
+    ['dashboard', 'usuarios_dashboard', 'inviteUsado'],
+    ['supervisor', 'usuarios_supervisor', 'inviteUsado'],
+    ['propietario', 'propietarios', 'inviteUsado'],
+    ['driver', 'conductores_registro', null],
+  ];
+  for (const [tipo, carpeta, campoActivo] of fuentes) {
+    const datos = (await db.ref(b + carpeta).once('value')).val() || {};
+    const activo = Object.keys(datos).some((id) => {
+      const v = datos[id];
+      if (!v || String(v.email || '').toLowerCase() !== e) return false;
+      if (b + carpeta + '/' + id === rutaExcluir) return false;
+      if (campoActivo && !v[campoActivo]) return false;
+      return true;
+    });
+    if (activo) tipos.push(tipo);
+  }
+  return tipos;
+}
+const NOMBRE_APP = { dashboard: 'el Dashboard', supervisor: 'la app Supervisor', propietario: 'la app Propietario', driver: 'la app Driver' };
+
+// ── ¿Este email es ya un miembro ACTIVO de esta empresa/flota (en cualquier app)? ──
 async function esMiembroActivo(db, empresa, email, rutaExcluir) {
   const b = base(empresa);
   const e = String(email || '').toLowerCase();
@@ -152,6 +179,7 @@ function construirEmail({ tipo, code, email, empresaNombre, inv }) {
     <p style="font-size:15px;margin:0 0 8px">Tu <b>código de invitación</b>:</p>
     <div style="font-family:'Courier New',monospace;font-size:30px;font-weight:700;letter-spacing:4px;text-align:center;padding:18px;border:2px solid ${app.color};border-radius:14px;background:#0a1a24;color:#ffffff;margin:0 0 12px">${esc(code)}</div>
     <p style="font-size:12.5px;color:#ffb300;text-align:center;margin:0 0 24px">⚠️ Es de un solo uso: solo sirve para activar tu cuenta una vez. No lo compartas.</p>
+    ${inv.yaTieneCuenta ? `<div style="background:#0a2a1c;border:1.5px solid #00e676;border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.5;margin:0 0 24px">🔑 <b>Ya tienes cuenta DRIVX con este email</b> (${esc(inv.appsActivas.join(', '))}). Al activar, escribe <b>la misma contraseña</b> que ya usas.</div>` : ''}
 
     <div style="text-align:center;margin:0 0 14px">
       <a href="${enlace}" style="display:inline-block;background:${app.color};color:#02131d;text-decoration:none;font-weight:900;font-size:16px;padding:15px 34px;border-radius:12px">Abrir la app y activar mi cuenta →</a>
@@ -169,7 +197,9 @@ function construirEmail({ tipo, code, email, empresaNombre, inv }) {
 </div>`;
   const text =
     `Te han invitado a ${app.nombre}\n\n${empresaNombre} te ha dado acceso como ${app.rol}.\n\n` +
-    `Código de invitación (un solo uso): ${code}\n\nAbre la app y activa tu cuenta aquí:\n${enlace}\n`;
+    `Código de invitación (un solo uso): ${code}\n\n` +
+    (inv.yaTieneCuenta ? `Ya tienes cuenta DRIVX con este email: al activar, usa la misma contraseña que ya usas.\n\n` : '') +
+    `Abre la app y activa tu cuenta aquí:\n${enlace}\n`;
   return { subject: `${empresaNombre} te invita a ${app.nombre} · Código ${code}`, html, text };
 }
 
@@ -234,15 +264,24 @@ module.exports = async function handler(req, res) {
     if (inv.usado) { res.status(409).json({ error: 'Este código ya se usó (es de un solo uso).' }); return; }
     if (!inv.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(inv.email)) { res.status(400).json({ error: 'La invitación no tiene un email válido.' }); return; }
 
+    // Una misma persona puede tener varios papeles (admin + supervisor,
+    // conductor + supervisor…). Solo bloqueamos si YA está activa en
+    // ESTA misma app.
+    const activasEn = await tiposActivos(db, empresa, inv.email, inv.ruta);
+    if (activasEn.includes(tipo)) {
+      res.status(409).json({ error: 'Esa persona ya tiene una cuenta activa en ' + NOMBRE_APP[tipo] + ' con este email.' });
+      return;
+    }
+    // Si está activa en otras apps, conserva su cuenta (misma contraseña).
+    // Si no está activa en ninguna, liberamos cualquier cuenta antigua.
     const estadoEmail = await liberarEmailSiProcede(db, empresa, inv.email, inv.ruta);
     if (estadoEmail === 'otra_empresa') {
-      res.status(409).json({ error: 'Ese email ya está en uso en otra cuenta DRIVX. Usa otro email para esta persona.', estadoEmail });
+      res.status(409).json({ error: 'Ese email ya está en uso en otra cuenta DRIVX ajena a tu empresa. Usa otro email para esta persona.', estadoEmail });
       return;
     }
-    if (estadoEmail === 'activo') {
-      res.status(409).json({ error: 'Esa persona ya tiene una cuenta activa en tu empresa con este email.', estadoEmail });
-      return;
-    }
+    const yaTieneCuenta = activasEn.length > 0;
+    inv.yaTieneCuenta = yaTieneCuenta;
+    inv.appsActivas = activasEn.map((t) => NOMBRE_APP[t]);
 
     let empresaNombre = 'DRIVX';
     if (empresa) {
