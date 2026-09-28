@@ -43,19 +43,29 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { title, body, url, tag, target } = req.body || {};
+    const { title, body, url, tag, target, empresaId } = req.body || {};
     if (!title || !body) {
       res.status(400).json({ error: 'Falta title o body' });
       return;
     }
 
-    const FIREBASE_URL = process.env.FIREBASE_URL;
-    if (!FIREBASE_URL) {
+    const FIREBASE_ROOT = process.env.FIREBASE_URL;
+    if (!FIREBASE_ROOT) {
       res.status(500).json({ error: 'Falta la variable de entorno FIREBASE_URL' });
       return;
     }
 
-    // Leemos todas las suscripciones guardadas por el Dashboard
+    // MULTI-EMPRESA: cada empresa tiene sus dispositivos suscritos dentro
+    // de su carpeta (empresas/{CODIGO}/push_subscriptions). Así un aviso de
+    // una empresa NUNCA llega a los móviles de otra.
+    const empresa = String(empresaId || '').trim();
+    if (empresa && !/^DRX-[A-Z0-9]{5}$/.test(empresa)) {
+      res.status(400).json({ error: 'Empresa inválida' });
+      return;
+    }
+    const FIREBASE_URL = empresa ? (FIREBASE_ROOT + '/empresas/' + empresa) : FIREBASE_ROOT;
+
+    // Leemos todas las suscripciones guardadas de esta empresa
     const subsResp = await fetch(FIREBASE_URL + '/push_subscriptions.json');
     const subsData = (await subsResp.json()) || {};
 
