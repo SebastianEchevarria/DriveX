@@ -81,8 +81,16 @@
   .filtros button[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft);color:var(--gold)}
 
   .lista{display:flex;flex-direction:column;gap:10px;margin-bottom:40px}
-  .fila{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;
-    grid-template-columns:minmax(220px,1.6fr) minmax(170px,1fr) 150px auto;gap:16px;align-items:center}
+  /* Mismas columnas (de ancho fijo) en todas las filas, para que todo cuadre en vertical */
+  .fila,.cab-lista{display:grid;grid-template-columns:250px 215px 130px 120px 1fr;gap:18px;align-items:center}
+  .fila .num{white-space:nowrap}
+  .fila{background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:16px 18px}
+  .cab-lista{padding:0 20px 2px;font-size:11.5px;font-weight:800;letter-spacing:.6px;color:var(--dim);text-transform:uppercase}
+  .cab-lista span:last-child{text-align:right}
+  .fila > div{min-width:0}
+  .paga{font-family:var(--display);font-weight:700;font-size:18px;color:var(--gold);line-height:1.2}
+  .paga small{display:block;font-family:var(--body);font-size:12px;font-weight:600;color:var(--dim);margin-top:3px}
+  .estado-col .sub{margin-top:6px}
   .fila.suspendida{border-color:rgba(255,71,87,.6);background:linear-gradient(90deg,rgba(255,71,87,.06),var(--panel) 40%)}
   .fila.original{border:1.5px dashed rgba(0,212,255,.5)}
   .nombre{font-family:var(--display);font-weight:700;font-size:18px;line-height:1.25}
@@ -129,6 +137,11 @@
   .pendiente{font-size:11px;font-weight:800;color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:1px 6px;margin-left:6px}
   .ocultos{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--gold)}
 
+  @media (max-width:1100px){
+    .fila{grid-template-columns:1fr 1fr;gap:12px}
+    .fila > .acciones{grid-column:1/-1}
+    .cab-lista{display:none}
+  }
   @media (max-width:900px){
     .cifras{grid-template-columns:1fr 1fr}
     .cifra.principal{grid-column:1/-1}
@@ -366,7 +379,7 @@ function pintar(){
     return [i.nombre, x.codigo, i.nif, i.email, i.ciudad].join(' ').toLowerCase().indexOf(q) !== -1;
   });
 
-  var html = '';
+  var html = '<div class="cab-lista" aria-hidden="true"><span>Empresa</span><span>Vehículos y equipo</span><span>Paga</span><span>Estado</span><span>Acciones</span></div>';
   // La flota original (sin empresa) siempre visible arriba si no se filtra
   if (FILTRO === 'todas' && (!q || 'flota original'.indexOf(q) !== -1) && DATOS.original && !(DATOS.original.migracion && DATOS.original.migracion.copiaBorradaTs)) {
     var o = DATOS.original;
@@ -375,7 +388,8 @@ function pintar(){
           ? 'Ya migrada a <span class="codigo">' + esc(o.migracion.codigo) + '</span> (' + esc(o.migracion.nombre || '') + '). Esto es la copia de seguridad.'
           : 'Datos anteriores al sistema de empresas.') + '</div></div>' +
       '<div class="num"><b>' + o.vehiculosEnFlota + '</b> vehículos en flota<br><b>' + o.conductores + '</b> conductores</div>' +
-      '<div></div>' +
+      '<div class="paga" style="color:var(--dim)">—</div>' +
+      '<div class="estado-col"><span class="estado" style="color:var(--cyan);border:1.5px solid rgba(0,212,255,.7)">' + (o.migracion && o.migracion.codigo ? 'Copia' : 'Original') + '</span></div>' +
       '<div class="acciones">' + (o.migracion && o.migracion.codigo
           ? '<button class="btn btn-rojo" onclick="borrarCopiaOriginal()">🗑 Borrar copia de seguridad</button>'
           : '<button class="btn btn-oro" onclick="abrirMigrar()">🚚 Convertir en empresa</button>') +
@@ -391,10 +405,11 @@ function pintar(){
       '<div><div class="nombre">' + esc(i.nombre || 'Sin nombre') + '</div>' +
         '<div class="sub"><span class="codigo">' + esc(x.codigo) + '</span>&nbsp; ' + (i.tipo === 'particular' ? 'Particular' : 'Empresa') + ', ' + esc(i.nif || 'sin NIF') + '<br>' +
         esc(i.email || '') + (i.ciudad ? '<br>' + esc(i.ciudad) : '') + '</div></div>' +
-      '<div class="num"><b>' + x.vehiculosContratados + '</b> contratados, <b>' + x.vehiculosEnFlota + '</b> en flota<br>' +
-        '<b>' + x.conductores + '</b> conductores, <b>' + x.usuariosDashboard + '</b> admins<br>' +
-        '<b>' + x.supervisores + '</b> supervisores, <b>' + x.propietarios + '</b> propietarios</div>' +
-      '<div><span class="estado ' + est + '">' + (est === 'suspendida' ? 'Suspendida' : 'Activa') + '</span>' +
+      '<div class="num"><b>' + x.vehiculosContratados + '</b> contratados · <b>' + x.vehiculosEnFlota + '</b> en flota<br>' +
+        '<b>' + x.conductores + '</b> conductores · <b>' + x.usuariosDashboard + '</b> admins<br>' +
+        '<b>' + x.supervisores + '</b> supervisores · <b>' + x.propietarios + '</b> propietarios</div>' +
+      '<div class="paga">' + euros(x.vehiculosContratados * (DATOS.precio || 299)) + '<small>al año · ' + x.vehiculosContratados + ' veh. × ' + (DATOS.precio || 299) + ' €</small></div>' +
+      '<div class="estado-col"><span class="estado ' + est + '">' + (est === 'suspendida' ? 'Suspendida' : 'Activa') + '</span>' +
         '<div class="sub">Alta: ' + fecha(i.creadoTs) + '</div>' +
         (contarOcultos(x.ajustes) ? '<span class="ocultos">' + contarOcultos(x.ajustes) + ' apartado' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + ' oculto' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + '</span>' : '') +
       '</div>' +
@@ -651,7 +666,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-29-2';
+var APP_VERSION = '2026-09-29-3';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
