@@ -34,6 +34,14 @@ if (!admin.apps.length) {
 }
 
 const PRECIO_BASE = 299;
+// País del IBAN para las transferencias. Stripe da IBAN de: DE, FR, IE o NL (todavía
+// no de España). Es una transferencia SEPA normal: al cliente le cuesta lo mismo que
+// una nacional. Se puede cambiar con la variable STRIPE_TRANSFER_COUNTRY.
+// País del IBAN que Stripe da a cada cliente para transferir. Stripe solo los
+// emite de DE, FR, IE o NL (no de España); para el cliente es igual: una
+// transferencia SEPA desde España cuesta y tarda lo mismo. Por defecto, IE.
+const PAIS_IBAN = ['DE', 'FR', 'IE', 'NL'].includes(String(process.env.STRIPE_TRANSFER_COUNTRY || '').toUpperCase())
+  ? String(process.env.STRIPE_TRANSFER_COUNTRY).toUpperCase() : 'IE';
 const IVA_PCT = 21;
 
 // Tasa de IVA 21 % (sin incluir en el precio): se busca en Stripe y, si no existe, se crea
@@ -124,7 +132,7 @@ module.exports = async function handler(req, res) {
           days_until_due: 10,
           payment_settings: {
             payment_method_types: ['customer_balance'],
-            payment_method_options: { customer_balance: { funding_type: 'bank_transfer', bank_transfer: { type: 'eu_bank_transfer', eu_bank_transfer: { country: 'ES' } } } },
+            payment_method_options: { customer_balance: { funding_type: 'bank_transfer', bank_transfer: { type: 'eu_bank_transfer', eu_bank_transfer: { country: PAIS_IBAN } } } },
           },
           metadata: meta,
         });
@@ -135,7 +143,7 @@ module.exports = async function handler(req, res) {
         // IBAN propio de este cliente (cualquier transferencia a él se asigna sola)
         const fi = await stripe.customers.createFundingInstructions(customer.id, {
           currency: 'eur', funding_type: 'bank_transfer',
-          bank_transfer: { type: 'eu_bank_transfer', eu_bank_transfer: { country: 'ES' } },
+          bank_transfer: { type: 'eu_bank_transfer', eu_bank_transfer: { country: PAIS_IBAN } },
         });
         const addr = ((fi.bank_transfer || {}).financial_addresses || []).find((a) => a.iban) || {};
         const ib = addr.iban || {};
@@ -163,7 +171,7 @@ module.exports = async function handler(req, res) {
                 <h1 style="font-size:20px;margin:0 0 12px">Datos para tu transferencia</h1>
                 <p style="font-size:15px;line-height:1.6;margin:0 0 18px">Hola ${nombre}, para activar DRIVX (${qty} vehículo${qty !== 1 ? 's' : ''}) haz una transferencia con estos datos:</p>
                 <table style="width:100%;border-collapse:collapse;margin-bottom:18px">${fila('IBAN', datos.iban)}${fila('BIC', datos.bic)}${fila('Titular', datos.titular)}${fila('Importe', euros(datos.importe))}${fila('Concepto', datos.concepto)}</table>
-                <p style="font-size:13px;color:#9ab0c8;margin:0 0 18px">${qty} × ${PRECIO_BASE} € + IVA (${IVA_PCT} %). Este IBAN es exclusivo para ti: cualquier transferencia a él se asigna automáticamente a tu cuenta.</p>
+                <p style="font-size:13px;color:#9ab0c8;margin:0 0 18px">${qty} × ${PRECIO_BASE} € + IVA (${IVA_PCT} %). Este IBAN es exclusivo para ti: cualquier transferencia a él se asigna automáticamente a tu cuenta. Es una transferencia SEPA normal: se hace desde cualquier banco español y cuesta lo mismo que una nacional.</p>
                 <div style="background:#0a2a1c;border:1.5px solid #00e676;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 20px">✅ En cuanto recibamos el pago (normalmente 1–2 días hábiles) te enviaremos por email tu <b>código de acceso</b> y el enlace a tu Dashboard.</div>
                 ${datos.factura ? `<div style="text-align:center"><a href="${datos.factura}" style="display:inline-block;background:#00d4ff;color:#02131d;text-decoration:none;font-weight:900;padding:13px 28px;border-radius:12px">Ver factura</a></div>` : ''}
               </div></div>`,
@@ -207,6 +215,8 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json({ url: session.url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // El detalle técnico queda en los registros de Vercel; al cliente, un mensaje claro
+    console.error('create-checkout-session:', err && err.message);
+    res.status(500).json({ error: 'No se pudo preparar el pago. Inténtalo de nuevo en unos minutos o escríbenos a drivx.apps@gmail.com.' });
   }
 };
