@@ -15,6 +15,15 @@
 //   { accion: 'activar_alta', codigo, nombre }            (con sesión)
 //       → crea su usuario administrador y lo vincula a la empresa
 //
+// PRIVACIDAD DENTRO DE LA EMPRESA (con sesión):
+//   { accion: 'lista', carpeta, empresa? }  carpeta = conductores_registro | usuarios_supervisor | propietarios
+//       → devuelve SOLO lo que esa persona puede ver:
+//         Dashboard: todo · Propietario: todo de los conductores de SUS vehículos ·
+//         Conductor: su ficha + nombre/turno de sus compañeros de vehículo ·
+//         Supervisor: nombre/matrícula/turno de los conductores de sus comunidades
+//   { accion: 'cierres', cid, empresa? }  → semanas cerradas de un conductor (si puede verlas)
+//   { accion: 'sincronizar', empresa? }   → (Dashboard) actualiza qué papel tiene cada persona
+//
 // Variables de entorno: FIREBASE_SERVICE_ACCOUNT, FIREBASE_DATABASE_URL
 
 const admin = require('firebase-admin');
@@ -70,6 +79,79 @@ async function vincular(db, email, empresa) {
   if (!d) await ref.set({ empresa, email: String(email).toLowerCase(), ts: Date.now() });
 }
 
+// ══════════════ PAPELES DE CADA PERSONA (para las reglas de seguridad) ══════════════
+// directorio_usuarios/{email} = { empresa, email, roles:{dashboard,supervisor,propietario,driver},
+//                                 cid?, pid?, supId? }
+// Las reglas de Firebase usan estos datos para decidir qué puede leer cada uno.
+function slugMat(m) { return String(m || '').replace(/\s/g, '_'); }
+async function leerListas(db, empresa) {
+  const b = 'empresas/' + empresa + '/';
+  const [dash, sup, props, cond, vehs] = await Promise.all(
+    ['usuarios_dashboard', 'usuarios_supervisor', 'propietarios', 'conductores_registro', 'vehiculos_extra']
+      .map((c) => db.ref(b + c).once('value').then((x) => x.val() || {}))
+  );
+  return { dash, sup, props, cond, vehs };
+}
+function papelesDe(L, email) {
+  const e = String(email || '').toLowerCase();
+  const igual = (v) => v && String(v.email || '').toLowerCase() === e;
+  const r = { roles: {}, cid: null, pid: null, supId: null, matriculas: [], ccaa: [] };
+  Object.keys(L.dash).forEach((k) => { if (igual(L.dash[k]) && L.dash[k].inviteUsado) r.roles.dashboard = true; });
+  Object.keys(L.sup).forEach((k) => { if (igual(L.sup[k]) && L.sup[k].inviteUsado) { r.roles.supervisor = true; r.supId = k; r.ccaa = L.sup[k].ccaa || []; } });
+  Object.keys(L.props).forEach((k) => { if (igual(L.props[k]) && L.props[k].inviteUsado) { r.roles.propietario = true; r.pid = k; r.matriculas = L.props[k].matriculas || []; } });
+  Object.keys(L.cond).forEach((k) => { if (igual(L.cond[k])) { r.roles.driver = true; r.cid = L.cond[k].cid || k; } });
+  return r;
+}
+async function sincronizarPersona(db, empresa, email, L, extra) {
+  const p = papelesDe(L, email);
+  if (extra) {
+    Object.assign(p.roles, extra.roles || {});
+    ['cid', 'pid', 'supId'].forEach((k) => { if (extra[k]) p[k] = extra[k]; });
+  }
+  const ref = db.ref('directorio_usuarios/' + emailKey(email));
+  const d = (await ref.once('value')).val();
+  if (d && d.empresa && d.empresa !== empresa) return; // pertenece a otra empresa: no se toca
+  await ref.set({
+    empresa, email: String(email).toLowerCase(), ts: (d && d.ts) || Date.now(),
+    roles: p.roles, cid: p.cid || null, pid: p.pid || null, supId: p.supId || null,
+  });
+}
+// Todas las personas de una empresa + mapa de matrículas de cada propietario
+async function sincronizarEmpresa(db, empresa) {
+  const L = await leerListas(db, empresa);
+  const emails = new Set();
+  [L.dash, L.sup, L.props, L.cond].forEach((o) => Object.keys(o).forEach((k) => { if (o[k] && o[k].email) emails.add(String(o[k].email).toLowerCase()); }));
+  for (const e of emails) await sincronizarPersona(db, empresa, e, L);
+  // matriculasMap: las reglas lo usan para saber de qué vehículos es cada propietario
+  const upd = {};
+  Object.keys(L.props).forEach((pid) => {
+    const m = {};
+    (L.props[pid].matriculas || []).forEach((x) => { m[slugMat(x)] = true; });
+    upd['empresas/' + empresa + '/propietarios/' + pid + '/matriculasMap'] = Object.keys(m).length ? m : null;
+  });
+  if (Object.keys(upd).length) await db.ref().update(upd);
+  return emails.size;
+}
+// Quién llama y a qué empresa pertenece (la cuenta master puede indicar la empresa)
+async function quienLlama(db, req, b) {
+  const tok = await tokenDe(req);
+  if (!tok) { const e = new Error('Sin sesión'); e.status = 401; throw e; }
+  let empresa = null;
+  if (tok.superadmin === true && /^DRX-[A-Z0-9]{5}$/.test(String(b.empresa || ''))) empresa = b.empresa;
+  else {
+    const d = (await db.ref('directorio_usuarios/' + emailKey(tok.email)).once('value')).val();
+    empresa = d && d.empresa;
+  }
+  if (!empresa) { const e = new Error('Tu cuenta no pertenece a ninguna empresa'); e.status = 403; throw e; }
+  const L = await leerListas(db, empresa);
+  const p = papelesDe(L, tok.email);
+  if (tok.superadmin === true) p.roles.dashboard = true;
+  return { tok, empresa, L, p };
+}
+function proyeccionConductor(c) {
+  return { cid: c.cid, nombre: c.nombre || '', matricula: c.matricula || '', turno: c.turno || '', modelo: c.modelo || '' };
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') { res.status(405).json({ error: 'Método no permitido' }); return; }
@@ -106,6 +188,21 @@ module.exports = async function handler(req, res) {
         await db.ref(inv.ruta).update({ inviteUsado: true, pass: null, activadoTs: Date.now() });
         await db.ref('indice_invitaciones/' + code).remove();
       }
+      // Papeles de esta persona para las reglas de seguridad
+      const extra = { roles: {} };
+      if (inv.tipo === 'driver') {
+        const cidNuevo = String(b.cid || '');
+        if (!/^[A-Za-z0-9_-]{3,60}$/.test(cidNuevo)) { res.status(400).json({ error: 'Falta el identificador del conductor.' }); return; }
+        extra.roles.driver = true; extra.cid = cidNuevo;
+      }
+      if (inv.tipo === 'dashboard') extra.roles.dashboard = true;
+      if (inv.tipo === 'supervisor') { extra.roles.supervisor = true; extra.supId = inv.id; }
+      if (inv.tipo === 'propietario') {
+        extra.roles.propietario = true; extra.pid = inv.id;
+        const m = {}; (inv.registro.matriculas || []).forEach((x) => { m[slugMat(x)] = true; });
+        await db.ref(inv.ruta + '/matriculasMap').set(Object.keys(m).length ? m : null);
+      }
+      await sincronizarPersona(db, inv.empresa, inv.email, await leerListas(db, inv.empresa), extra);
       const reg = Object.assign({}, inv.registro); delete reg.pass;
       res.status(200).json({ ok: true, empresa: inv.empresa, tipo: inv.tipo, id: inv.id, registro: reg });
       return;
@@ -135,7 +232,63 @@ module.exports = async function handler(req, res) {
       const usuario = { nombre, email: emailEmpresa, role: 'admin', inviteUsado: true, esTitular: true, ts: Date.now() };
       await db.ref('empresas/' + codigo + '/usuarios_dashboard/u_titular').set(usuario);
       await infoRef.update({ adminCreado: true, adminEmail: emailEmpresa });
+      await sincronizarPersona(db, codigo, emailEmpresa, await leerListas(db, codigo), { roles: { dashboard: true } });
       res.status(200).json({ ok: true, empresa: codigo, usuario });
+      return;
+    }
+
+    // ═══ Privacidad: listas filtradas según quién pregunta ═══
+    if (b.accion === 'lista') {
+      const { tok, empresa, L, p } = await quienLlama(db, req, b);
+      const out = {};
+      if (b.carpeta === 'conductores_registro') {
+        const misMats = new Set(p.matriculas.map(slugMat));
+        const miVeh = p.cid && L.cond[p.cid] ? slugMat(L.cond[p.cid].matricula) : null;
+        const ccaaDeMat = {};
+        Object.keys(L.vehs).forEach((k) => { const v = L.vehs[k]; if (v && v.matricula) ccaaDeMat[slugMat(v.matricula)] = v.ccaa; });
+        Object.keys(L.cond).forEach((k) => {
+          const c = L.cond[k]; if (!c) return;
+          const mat = slugMat(c.matricula);
+          if (p.roles.dashboard || (p.roles.propietario && misMats.has(mat)) || (p.cid && (c.cid || k) === p.cid)) {
+            const copia = Object.assign({}, c); delete copia.pass; out[k] = copia;
+          } else if ((miVeh && mat === miVeh) || (p.roles.supervisor && (p.ccaa || []).indexOf(ccaaDeMat[mat]) !== -1)) {
+            out[k] = proyeccionConductor(c);
+          }
+        });
+      } else if (b.carpeta === 'usuarios_supervisor') {
+        Object.keys(L.sup).forEach((k) => { if (p.roles.dashboard || k === p.supId) { const c = Object.assign({}, L.sup[k]); delete c.pass; out[k] = c; } });
+      } else if (b.carpeta === 'propietarios') {
+        Object.keys(L.props).forEach((k) => { if (p.roles.dashboard || k === p.pid) { const c = Object.assign({}, L.props[k]); delete c.pass; out[k] = c; } });
+      } else { res.status(400).json({ error: 'Carpeta no válida' }); return; }
+      // De paso, mantenemos al día los papeles de quien pregunta
+      if (tok.superadmin !== true) await sincronizarPersona(db, empresa, tok.email, L);
+      res.status(200).json({ ok: true, datos: out });
+      return;
+    }
+
+    if (b.accion === 'cierres') {
+      const { empresa, L, p } = await quienLlama(db, req, b);
+      const cid = String(b.cid || '');
+      if (!cid) { res.status(400).json({ error: 'Falta el conductor' }); return; }
+      const misMats = new Set(p.matriculas.map(slugMat));
+      const puedeTodo = p.roles.dashboard || cid === p.cid;
+      if (!puedeTodo && !p.roles.propietario) { res.status(403).json({ error: 'Sin permiso' }); return; }
+      const todos = (await db.ref('empresas/' + empresa + '/facturacion_cierres').once('value')).val() || {};
+      const out = {};
+      Object.keys(todos).forEach((mat) => {
+        if (!puedeTodo && !misMats.has(mat)) return;
+        const r = todos[mat] && todos[mat][cid];
+        if (r) out[mat] = r;
+      });
+      res.status(200).json({ ok: true, cierres: out });
+      return;
+    }
+
+    if (b.accion === 'sincronizar') {
+      const { empresa, p } = await quienLlama(db, req, b);
+      if (!p.roles.dashboard) { res.status(403).json({ error: 'Solo el Dashboard' }); return; }
+      const n = await sincronizarEmpresa(db, empresa);
+      res.status(200).json({ ok: true, personas: n });
       return;
     }
 
