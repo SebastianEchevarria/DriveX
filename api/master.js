@@ -9,6 +9,10 @@
 //   { accion: 'ajustes', empresa, ajustes } → guarda los ajustes de esa empresa
 //        (qué apartados del menú del Dashboard ve). empresa 'ORIGINAL' = flota original.
 //   { accion: 'usuarios', empresa }         → todas las personas de la empresa, por app
+//   { accion: 'ocultar', empresa, ocultar:true|false } → ocultar/mostrar en el listado master
+//   { accion: 'eliminar_empresa', empresa, confirmacion:<CÓDIGO> } → borra TODO de una empresa
+//        suspendida: sus datos, las cuentas de sus usuarios, sus invitaciones y sus
+//        suscripciones de Stripe (se cancelan para que no se le cobre más)
 //   { accion: 'borrar_copia_original', confirmacion:'BORRAR' } → borra la copia de
 //        seguridad de la flota original (solo si ya se migró a empresa)
 //   { accion: 'migrar_original', nombre, simular } → convierte la flota original
@@ -24,6 +28,7 @@
 //   (opcional) MASTER_EMAIL
 
 const admin = require('firebase-admin');
+const Stripe = require('stripe');
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -96,7 +101,7 @@ async function resumenDe(db, base) {
 // la flota original a empresas/{CODIGO}/, vincula a cada usuario con esa
 // empresa, crea su cuenta de acceso segura con la contraseña que ya tenía y
 // quita las contraseñas legibles de la copia nueva.
-const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original'];
+const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original', 'empresas_eliminadas'];
 const ALFABETO_COD = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function emailKeyM(email) { return String(email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_'); }
 function passwordParaFirebase(pass) { pass = String(pass || ''); while (pass.length < 6) pass += '·'; return pass; }
@@ -259,6 +264,60 @@ module.exports = async function handler(req, res) {
       if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
       await ref.update({ estado, estadoCambiadoTs: Date.now(), estadoCambiadoPor: 'MASTER' });
       res.status(200).json({ ok: true, empresa, estado });
+      return;
+    }
+
+    if (accion === 'ocultar') {
+      const empresa = String((req.body && req.body.empresa) || '');
+      if (!/^DRX-[A-Z0-9]{5}$/.test(empresa)) { res.status(400).json({ error: 'Empresa inválida' }); return; }
+      const ref = db.ref('empresas/' + empresa + '/empresa_info');
+      if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
+      await ref.update({ ocultaEnMaster: !!(req.body && req.body.ocultar) });
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (accion === 'eliminar_empresa') {
+      const empresa = String((req.body && req.body.empresa) || '');
+      if (!/^DRX-[A-Z0-9]{5}$/.test(empresa)) { res.status(400).json({ error: 'Empresa inválida' }); return; }
+      if ((req.body && req.body.confirmacion) !== empresa) { res.status(400).json({ error: 'Para confirmar, escribe el código de la empresa.' }); return; }
+      const info = (await db.ref('empresas/' + empresa + '/empresa_info').once('value')).val();
+      if (!info) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
+      if (info.estado !== 'suspendida') { res.status(409).json({ error: 'Solo se pueden eliminar empresas suspendidas. Suspéndela primero.' }); return; }
+      const resumen = { cuentas: 0, suscripcionesCanceladas: 0, invitaciones: 0, errores: [] };
+
+      // 1) Cancelar sus suscripciones de Stripe (que no se le vuelva a cobrar)
+      if (process.env.STRIPE_SECRET_KEY) {
+        const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+        const lotes = (await db.ref('empresas/' + empresa + '/suscripcion_lotes').once('value')).val() || {};
+        const subs = new Set(Object.keys(lotes).map((k) => lotes[k] && lotes[k].stripeSubscriptionId).filter(Boolean));
+        for (const id of subs) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(id);
+            if (sub && sub.status !== 'canceled') { await stripe.subscriptions.cancel(id); resumen.suscripcionesCanceladas++; }
+          } catch (e) { resumen.errores.push('Stripe ' + id + ': ' + e.message); }
+        }
+      }
+      // 2) Cuentas de acceso y directorio de sus usuarios (solo los de esta empresa)
+      const dir = (await db.ref('directorio_usuarios').once('value')).val() || {};
+      for (const k of Object.keys(dir)) {
+        const d = dir[k];
+        if (!d || d.empresa !== empresa) continue;
+        try { const u = await admin.auth().getUserByEmail(d.email); await admin.auth().deleteUser(u.uid); resumen.cuentas++; } catch (e) { /* no tenía cuenta */ }
+        await db.ref('directorio_usuarios/' + k).remove();
+      }
+      // 3) Invitaciones pendientes y registros de alta que apuntan a ella
+      const idx = (await db.ref('indice_invitaciones').once('value')).val() || {};
+      const borrar = {};
+      Object.keys(idx).forEach((c) => { if (idx[c] && idx[c].empresa === empresa) { borrar['indice_invitaciones/' + c] = null; resumen.invitaciones++; } });
+      const altas = (await db.ref('altas_por_sesion').once('value')).val() || {};
+      Object.keys(altas).forEach((sid) => { if (altas[sid] && altas[sid].codigo === empresa) borrar['altas_por_sesion/' + sid] = null; });
+      // 4) Todos sus datos
+      borrar['empresas/' + empresa] = null;
+      // Constancia mínima de que existió (sin datos personales de sus usuarios)
+      borrar['empresas_eliminadas/' + empresa] = { nombre: info.nombre || '', nif: info.nif || '', email: info.email || '', altaTs: info.creadoTs || null, eliminadaTs: Date.now() };
+      await db.ref().update(borrar);
+      res.status(200).json(Object.assign({ ok: true, empresa }, resumen));
       return;
     }
 
