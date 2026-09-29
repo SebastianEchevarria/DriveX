@@ -178,6 +178,7 @@
         <button aria-pressed="true" data-f="todas" onclick="filtrar(this)">Todas</button>
         <button aria-pressed="false" data-f="activa" onclick="filtrar(this)">Activas</button>
         <button aria-pressed="false" data-f="suspendida" onclick="filtrar(this)">Suspendidas</button>
+        <button aria-pressed="false" data-f="ocultas" onclick="filtrar(this)">Ocultas</button>
       </div>
     </div>
 
@@ -356,7 +357,10 @@ function pintar(){
   var lista = (DATOS.empresas || []).slice().sort(function(a,b){ return (b.info.creadoTs||0) - (a.info.creadoTs||0); });
   lista = lista.filter(function(x){
     var est = x.info.estado || 'activa';
-    if (FILTRO !== 'todas' && est !== FILTRO) return false;
+    var oculta = !!x.info.ocultaEnMaster;
+    // Las ocultas solo se ven en el filtro "Ocultas"
+    if (FILTRO === 'ocultas') { if (!oculta) return false; }
+    else { if (oculta) return false; if (FILTRO !== 'todas' && est !== FILTRO) return false; }
     if (!q) return true;
     var i = x.info;
     return [i.nombre, x.codigo, i.nif, i.email, i.ciudad].join(' ').toLowerCase().indexOf(q) !== -1;
@@ -400,7 +404,9 @@ function pintar(){
         '<button class="btn btn-linea" onclick="abrirAjustes(\'' + x.codigo + '\')">⚙️ Ajustes</button>' +
         (stripe ? '<a class="btn btn-linea" href="' + stripe + '" target="_blank" rel="noopener">Ver en Stripe</a>' : '') +
         (est === 'suspendida'
-          ? '<button class="btn btn-verde" onclick="cambiarEstado(\'' + x.codigo + '\',\'activa\',this)">Reactivar</button>'
+          ? '<button class="btn btn-verde" onclick="cambiarEstado(\'' + x.codigo + '\',\'activa\',this)">Reactivar</button>' +
+            '<button class="btn btn-linea" onclick="ocultarEmpresa(\'' + x.codigo + '\',' + (!i.ocultaEnMaster) + ',this)">' + (i.ocultaEnMaster ? '👁 Mostrar' : '🙈 Ocultar') + '</button>' +
+            '<button class="btn btn-rojo" onclick="eliminarEmpresa(\'' + x.codigo + '\')">🗑 Eliminar</button>'
           : '<button class="btn btn-rojo" onclick="cambiarEstado(\'' + x.codigo + '\',\'suspendida\',this)">Suspender</button>') +
       '</div>' +
     '</article>';
@@ -555,13 +561,13 @@ function borrarCopiaOriginal(){
       }).catch(function(err){ toast('No se pudo borrar: ' + err.message); });
     });
 }
-function dialogoMaster(titulo, texto, alAceptar){
+function dialogoMaster(titulo, texto, alAceptar, placeholder, textoBoton){
   var v = document.createElement('div');
   v.className = 'velo abierto';
   v.innerHTML = '<div class="caja" role="dialog" aria-modal="true" style="max-width:460px;border-color:var(--red);box-shadow:0 0 18px rgba(255,71,87,.6)">' +
     '<div class="caja-cab"><h2>' + esc(titulo) + '</h2><p style="white-space:pre-line">' + esc(texto) + '</p></div>' +
-    '<div class="caja-cuerpo" style="padding-top:14px"><div class="campo"><input id="dm-input" type="text" autocomplete="off" placeholder="BORRAR"></div></div>' +
-    '<div class="caja-pie"><button class="btn btn-linea" id="dm-no">Cancelar</button><button class="btn btn-rojo" id="dm-si">Borrar para siempre</button></div></div>';
+    '<div class="caja-cuerpo" style="padding-top:14px"><div class="campo"><input id="dm-input" type="text" autocomplete="off" placeholder="' + esc(placeholder || 'BORRAR') + '"></div></div>' +
+    '<div class="caja-pie"><button class="btn btn-linea" id="dm-no">Cancelar</button><button class="btn btn-rojo" id="dm-si">' + esc(textoBoton || 'Borrar para siempre') + '</button></div></div>';
   document.body.appendChild(v);
   var cerrar = function(){ v.remove(); };
   v.querySelector('#dm-no').onclick = cerrar;
@@ -596,6 +602,36 @@ function sincronizarPermisosTodas(){
   }).then(function(){ btn.disabled = false; btn.textContent = '🔐 Actualizar permisos'; });
 }
 
+// ══ OCULTAR / ELIMINAR EMPRESAS SUSPENDIDAS ══
+function ocultarEmpresa(codigo, ocultar, btn){
+  btn.disabled = true;
+  api('ocultar', { empresa: codigo, ocultar: ocultar }).then(function(){
+    var x = (DATOS.empresas || []).find(function(e){ return e.codigo === codigo; });
+    if (x) x.info.ocultaEnMaster = ocultar;
+    toast(ocultar ? 'Empresa oculta. La verás en el filtro «Ocultas».' : 'Empresa visible de nuevo.');
+    pintar();
+  }).catch(function(err){ toast('No se pudo: ' + err.message); btn.disabled = false; });
+}
+function eliminarEmpresa(codigo){
+  var x = (DATOS.empresas || []).find(function(e){ return e.codigo === codigo; }) || { info: {} };
+  var nombre = x.info.nombre || codigo;
+  dialogoMaster('Eliminar «' + nombre + '» para siempre',
+    'Se borrará TODO de esta empresa y no se podrá recuperar:\n' +
+    '• todos sus datos (vehículos, conductores, gastos, facturación, historial…)\n' +
+    '• las cuentas de acceso de sus usuarios\n' +
+    '• sus invitaciones pendientes\n' +
+    '• sus suscripciones de Stripe se cancelan (no se le volverá a cobrar)\n\n' +
+    'Las fotos de los tickets se conservan en Cloudinary. Para confirmar, escribe el código de la empresa: ' + codigo,
+    function(txt){
+      if (String(txt).trim().toUpperCase() !== codigo) { toast('No se ha borrado nada: el código no coincide.'); return; }
+      toast('Eliminando ' + nombre + '…');
+      api('eliminar_empresa', { empresa: codigo, confirmacion: codigo }).then(function(d){
+        toast('🗑 ' + nombre + ' eliminada · ' + d.cuentas + ' cuentas, ' + d.suscripcionesCanceladas + ' suscripciones canceladas' + (d.errores && d.errores.length ? ' · avisos: ' + d.errores.length : ''));
+        cargarEmpresas();
+      }).catch(function(err){ toast('No se pudo eliminar: ' + err.message); });
+    }, codigo, 'Eliminar para siempre');
+}
+
 function entrarSoporte(codigo){
   window.open('/drivx-admin-dashboard.html?soporte=' + encodeURIComponent(codigo), '_blank', 'noopener');
 }
@@ -615,7 +651,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-29-1';
+var APP_VERSION = '2026-09-29-2';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {

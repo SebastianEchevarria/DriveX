@@ -278,7 +278,7 @@ html,body { height:100%; background:var(--bg) url('data:image/jpeg;base64,/9j/4A
         <div class="header-sub">Tus vehículos y conductores</div>
       </div>
     </div>
-    <div style="padding:0 16px 14px">
+    <div id="push-config-wrap-owner" style="padding:0 16px 14px;display:none">
       <div id="push-config-box-owner" style="background:rgba(0,212,255,.05);border:2px solid rgba(0,212,255,.6);border-radius:16px;padding:14px 16px">
         <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:5px">🔔 Notificaciones push</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">Recibe un aviso en este dispositivo en cuanto tu facturación semanal esté lista.</div>
@@ -787,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-1';
+var APP_VERSION = '2026-09-29-2';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1199,6 +1199,9 @@ function actualizarBotonPushOwner() {
   if (!btn) return;
   if (!pushSoportadoPorNavegador()) { btn.textContent = 'Tu navegador no admite notificaciones push'; btn.disabled = true; return; }
   estaSuscritoAPush().then(function(suscrito){
+    // Si ya están activadas (o estamos en modo soporte), el recuadro no se muestra
+    var wrap = document.getElementById('push-config-wrap-owner');
+    if (wrap) wrap.style.display = (suscrito || window.MODO_SOPORTE) ? 'none' : 'block';
     if (Notification.permission === 'denied') { btn.textContent = '🚫 Bloqueadas — revisa los permisos del sitio'; btn.disabled = true; return; }
     btn.disabled = false;
     if (suscrito) {
@@ -1434,12 +1437,14 @@ function cargarInicio() {
         var kmTotalVeh = Math.round(Number(kmTotalVehiculos[vid] || 0));
 
         return '<div class="veh-card" style="border:1.5px solid rgba(0,212,255,.75);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 12px rgba(0,212,255,.55),0 0 26px rgba(0,212,255,.35),0 0 44px rgba(0,212,255,.18)">' +
-          '<div class="veh-top" style="align-items:center;margin-bottom:4px">' +
+          '<div class="veh-top" onclick="toggleVehCardO(\''+vid+'\')" style="align-items:center;margin-bottom:4px;cursor:pointer">' +
             plateHtmlO(v.matricula) +
             (v.icon === '⚡' ? evBadgeHtmlO(44) : '') +
             '<span style="margin-left:auto;border:1.5px solid '+borderColor+';color:'+borderColor+';font-size:11px;font-weight:800;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04)">🔒 solo lectura</span>' +
+          '<span id="vehchev-'+vid+'" style="margin-left:10px;color:var(--cyan);font-size:18px;transition:transform .2s;display:inline-block;transform:rotate('+(vehAbiertaO(vid)?'180':'0')+'deg)">▾</span>' +
           '</div>' +
           '<div class="veh-model" style="margin:0 0 12px 2px">'+v.modelo+' · '+v.ccaa+'</div>' +
+          '<div id="vehcuerpo-'+vid+'" style="display:'+(vehAbiertaO(vid)?'block':'none')+'">' +
           (function(){ var _rid = 'rd-veh-' + matSlugO(v.matricula); setTimeout(function(){ rendimientoMontar(_rid, { tipo:'vehiculo', matSlug: matSlugO(v.matricula) }); }, 0); return '<div id="' + _rid + '" style="margin-bottom:12px"></div>'; })() +
           '<div style="font-size:12px;font-weight:700;color:'+itvColor+';margin-bottom:12px">'+itvTxt+'</div>' +
           '<div style="display:flex;align-items:center;gap:12px;background:rgba(0,212,255,.06);border:2px solid rgba(0,212,255,.85);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 0 10px rgba(0,212,255,.6),0 0 22px rgba(0,212,255,.35)">' +
@@ -1466,6 +1471,7 @@ function cargarInicio() {
             '<span id="gastoschev-'+vid+'" style="color:var(--cyan);font-size:14px;transition:transform .2s">▾</span>' +
           '</button>' +
           '<div id="gastosveh-'+vid+'" style="display:none;padding-top:10px">' + gastosHtmlO + '</div>' +
+          '</div>' +
         '</div>';
       }).join('');
     });
@@ -2157,9 +2163,14 @@ function _rdPeriodos(st) {
 function rendimientoMontar(contId, fuente) {
   var cont = document.getElementById(contId); if (!cont) return;
   var titulo = fuente.tipo === 'vehiculo' ? 'Facturación del vehículo' : 'Ingresos del conductor';
-  cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
+  var previo = _rdEstado[contId];
+  // Si ya se había pintado (refresco automático), se repinta al momento con lo
+  // que había y se conserva la semana/mes que estabas mirando.
+  if (previo && previo.lista) rendimientoPintar(contId);
+  else cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
   _rdCargar(fuente).then(function(lista){
-    _rdEstado[contId] = { fuente: fuente, titulo: titulo, lista: lista, modo: 'semana', idx: -1 };
+    var mismo = previo && previo.fuente && JSON.stringify(previo.fuente) === JSON.stringify(fuente);
+    _rdEstado[contId] = { fuente: fuente, titulo: titulo, lista: lista, modo: mismo ? previo.modo : 'semana', idx: mismo ? previo.idx : -1 };
     rendimientoPintar(contId);
   });
 }
@@ -2198,6 +2209,17 @@ function rendimientoModo(id, modo) { var st = _rdEstado[id]; if (!st) return; st
 function rendimientoMover(id, d) { var st = _rdEstado[id]; if (!st) return; st.idx += d; rendimientoPintar(id); }
 function rendimientoElegir(id, i) { var st = _rdEstado[id]; if (!st) return; st.idx = i; rendimientoPintar(id); }
 
+// Tarjetas de vehículo plegables: por defecto se ven recogidas (solo matrícula
+// y modelo) y cada propietario puede abrir las que quiera; se recuerda.
+function vehAbiertaO(vid) { try { return localStorage.getItem('drivx_owner_veh_abierta_' + vid) === '1'; } catch(e) { return false; } }
+function toggleVehCardO(vid) {
+  var cuerpo = document.getElementById('vehcuerpo-' + vid), chev = document.getElementById('vehchev-' + vid);
+  if (!cuerpo) return;
+  var abrir = cuerpo.style.display === 'none';
+  cuerpo.style.display = abrir ? 'block' : 'none';
+  if (chev) chev.style.transform = 'rotate(' + (abrir ? '180' : '0') + 'deg)';
+  try { localStorage.setItem('drivx_owner_veh_abierta_' + vid, abrir ? '1' : '0'); } catch(e) {}
+}
 function toggleFacturacionCondO(fuid, cid, matricula) {
   var body = document.getElementById('body_' + fuid);
   var chev = document.getElementById('chev_' + fuid);

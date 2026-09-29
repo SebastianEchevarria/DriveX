@@ -208,7 +208,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
   .historial-cond-card{width:400px;flex-shrink:0}
 }
 /* ══════ RENDIMIENTO (gráfico semanas/meses, estilo DRIVX) ══════ */
-.rd-caja{padding:14px 12px 12px;border-radius:18px;background:rgba(10,16,26,.72);border:2px solid rgba(0,230,118,1);
+.rd-caja{position:relative;z-index:0;padding:14px 12px 12px;border-radius:18px;background:rgba(10,16,26,.72);border:2px solid rgba(0,230,118,1);
   box-shadow:0 0 12px rgba(0,230,118,.65),0 0 28px rgba(0,230,118,.25);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff}
 .rd-titulo{font-size:12px;font-weight:900;letter-spacing:.4px;margin:0 4px 10px;text-shadow:0 0 8px rgba(0,230,118,.8)}
 .rd-titulo span{font-weight:700;opacity:.75;letter-spacing:0;text-shadow:none}
@@ -233,6 +233,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 .rd-etqs span{flex:1;text-align:center;font-size:10.5px;font-weight:700;opacity:.7;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rd-etqs span.sel{opacity:1;color:#00e676;text-shadow:0 0 6px rgba(0,230,118,.9)}
 .rd-vacio{margin-top:12px;padding:18px 10px;text-align:center;font-size:13px;opacity:.85;line-height:1.5}
+#vehicle-detail-modal .rd-caja,#conductor-perfil-modal .rd-caja{backdrop-filter:none;-webkit-backdrop-filter:none}
 </style>
 </head>
 <body>
@@ -619,7 +620,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 
 <div id="vehicle-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:2px solid rgba(0,212,255,.65);border-radius:20px;box-shadow:0 0 18px rgba(0,212,255,.55),0 0 40px rgba(0,212,255,.3),0 20px 50px rgba(0,0,0,.6);max-width:560px;width:100%;max-height:88vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);border-radius:20px 20px 0 0">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;isolation:isolate;background:var(--surface);border-radius:20px 20px 0 0">
       <div style="display:flex;align-items:center;gap:14px">
         <div id="vd-plate" style="flex:1;display:flex;align-items:center;gap:10px">—</div>
         <button onclick="closeVehicleDetail()" class="modal-close">✕</button>
@@ -1088,7 +1089,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-1';
+var APP_VERSION = '2026-09-29-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4211,9 +4212,14 @@ function _rdPeriodos(st) {
 function rendimientoMontar(contId, fuente) {
   var cont = document.getElementById(contId); if (!cont) return;
   var titulo = fuente.tipo === 'vehiculo' ? 'Facturación del vehículo' : 'Ingresos del conductor';
-  cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
+  var previo = _rdEstado[contId];
+  // Si ya se había pintado (refresco automático), se repinta al momento con lo
+  // que había y se conserva la semana/mes que estabas mirando.
+  if (previo && previo.lista) rendimientoPintar(contId);
+  else cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
   _rdCargar(fuente).then(function(lista){
-    _rdEstado[contId] = { fuente: fuente, titulo: titulo, lista: lista, modo: 'semana', idx: -1 };
+    var mismo = previo && previo.fuente && JSON.stringify(previo.fuente) === JSON.stringify(fuente);
+    _rdEstado[contId] = { fuente: fuente, titulo: titulo, lista: lista, modo: mismo ? previo.modo : 'semana', idx: mismo ? previo.idx : -1 };
     rendimientoPintar(contId);
   });
 }
