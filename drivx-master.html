@@ -135,6 +135,13 @@
   .persona .quien2 b{display:block;font-size:14.5px}
   .persona .quien2 span{display:block;font-size:12.5px;color:var(--dim);overflow-wrap:anywhere}
   .pendiente{font-size:11px;font-weight:800;color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:1px 6px;margin-left:6px}
+  .pend-caja{margin:0 0 18px;padding:14px 18px;border-radius:16px;border:2px solid var(--gold);background:rgba(255,197,61,.06);box-shadow:0 0 12px rgba(255,197,61,.35)}
+  .pend-caja h3{margin:0 0 4px;font-family:var(--display);font-size:16px}
+  .pend-caja p{margin:0 0 10px;color:var(--dim);font-size:13px}
+  .pend-fila{display:grid;grid-template-columns:250px 215px 130px 120px 1fr;gap:18px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
+  .pend-fila > div{min-width:0}
+  .aviso-pago{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:800;color:var(--red);border:1.5px solid rgba(255,71,87,.8);border-radius:6px;padding:2px 7px}
+  @media (max-width:1100px){ .pend-fila{grid-template-columns:1fr 1fr} }
   .ocultos{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--gold)}
 
   @media (max-width:1100px){
@@ -195,6 +202,7 @@
       </div>
     </div>
 
+    <section id="pendientes"></section>
     <section class="lista" id="lista"><div class="vacio">Cargando empresas…</div></section>
   </main>
 </div>
@@ -348,13 +356,33 @@ function cargarEmpresas(){
   api('listar').then(function(d){ DATOS = d; pintarCifras(); pintar(); })
     .catch(function(err){ document.getElementById('lista').innerHTML = '<div class="vacio">No se pudo cargar el listado: ' + esc(err.message) + '</div>'; });
 }
+function pintarPendientes(){
+  var cont = document.getElementById('pendientes');
+  var p = (DATOS && DATOS.pendientes) || [];
+  if (!p.length) { cont.innerHTML = ''; return; }
+  var stripeBase = 'https://dashboard.stripe.com/' + (DATOS.modoPrueba ? 'test/' : '');
+  cont.innerHTML = '<div class="pend-caja"><h3>🏦 Transferencias pendientes (' + p.length + ')</h3>' +
+    '<p>Altas que han elegido pagar por transferencia. No tienes que hacer nada: en cuanto Stripe reciba el dinero, se crea la empresa y se le envía su código.</p>' +
+    p.map(function(x){
+      return '<div class="pend-fila">' +
+        '<div><b>' + esc(x.nombre || '') + '</b><div class="sub">' + esc(x.email || '') + (x.nif ? '<br>' + esc(x.nif) : '') + '</div></div>' +
+        '<div class="num"><b>' + (x.cantidad || 0) + '</b> vehículos<br>Concepto: <b>' + esc(x.concepto || '—') + '</b></div>' +
+        '<div class="paga">' + euros(x.importe || 0) + '<small>IVA incluido</small></div>' +
+        '<div class="sub">Pedida: ' + fecha(x.ts) + '</div>' +
+        '<div class="acciones">' +
+          (x.factura ? '<a class="btn btn-linea" href="' + esc(x.factura) + '" target="_blank" rel="noopener">Ver factura</a>' : '') +
+          (x.customer ? '<a class="btn btn-linea" href="' + stripeBase + 'customers/' + encodeURIComponent(x.customer) + '" target="_blank" rel="noopener">Ver en Stripe</a>' : '') +
+        '</div></div>';
+    }).join('') + '</div>';
+}
 function pintarCifras(){
+  pintarPendientes();
   var e = DATOS.empresas || [];
   var activas = e.filter(function(x){ return (x.info.estado || 'activa') !== 'suspendida'; });
   var veh = activas.reduce(function(s,x){ return s + x.vehiculosContratados; }, 0);
   var cond = e.reduce(function(s,x){ return s + x.conductores; }, 0);
   document.getElementById('cifras').innerHTML =
-    '<div class="cifra principal"><div class="n">' + euros(veh * (DATOS.precio || 299)) + '</div><div class="t">Ingresos anuales contratados' + (DATOS.modoPrueba ? '<span class="modo-prueba">Stripe en modo prueba</span>' : '') + '</div></div>' +
+    '<div class="cifra principal"><div class="n">' + euros(veh * (DATOS.precio || 299)) + '</div><div class="t">Ingresos anuales contratados (sin IVA)' + (DATOS.modoPrueba ? '<span class="modo-prueba">Stripe en modo prueba</span>' : '') + '</div></div>' +
     '<div class="cifra"><div class="n">' + e.length + '</div><div class="t">Empresas y particulares (' + activas.length + ' activas)</div></div>' +
     '<div class="cifra"><div class="n">' + veh + '</div><div class="t">Vehículos contratados</div></div>' +
     '<div class="cifra"><div class="n">' + cond + '</div><div class="t">Conductores registrados</div></div>';
@@ -408,9 +436,10 @@ function pintar(){
       '<div class="num"><b>' + x.vehiculosContratados + '</b> contratados · <b>' + x.vehiculosEnFlota + '</b> en flota<br>' +
         '<b>' + x.conductores + '</b> conductores · <b>' + x.usuariosDashboard + '</b> admins<br>' +
         '<b>' + x.supervisores + '</b> supervisores · <b>' + x.propietarios + '</b> propietarios</div>' +
-      '<div class="paga">' + euros(x.vehiculosContratados * (DATOS.precio || 299)) + '<small>al año · ' + x.vehiculosContratados + ' veh. × ' + (DATOS.precio || 299) + ' €</small></div>' +
+      '<div class="paga">' + euros(x.vehiculosContratados * (DATOS.precio || 299)) + '<small>al año + IVA · ' + x.vehiculosContratados + ' veh. × ' + (DATOS.precio || 299) + ' €</small></div>' +
       '<div class="estado-col"><span class="estado ' + est + '">' + (est === 'suspendida' ? 'Suspendida' : 'Activa') + '</span>' +
         '<div class="sub">Alta: ' + fecha(i.creadoTs) + '</div>' +
+        (i.pagoPendiente ? '<span class="aviso-pago">⚠ Cobro fallido</span>' : '') +
         (contarOcultos(x.ajustes) ? '<span class="ocultos">' + contarOcultos(x.ajustes) + ' apartado' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + ' oculto' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + '</span>' : '') +
       '</div>' +
       '<div class="acciones">' +
@@ -666,7 +695,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-29-3';
+var APP_VERSION = '2026-09-29-4';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
