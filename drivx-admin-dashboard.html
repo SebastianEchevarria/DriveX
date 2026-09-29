@@ -417,6 +417,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
           <div id="inicio-empresa-logo" style="display:none;margin:4px auto 0;width:100%;box-sizing:border-box;text-align:center;font-size:16px;font-weight:900;letter-spacing:.3px;line-height:1.25;color:#fff;text-shadow:0 0 6px rgba(0,212,255,.7),0 0 14px rgba(0,212,255,.35);white-space:nowrap;overflow-wrap:anywhere;max-width:260px;margin-top:8px"></div>
         </div>
         <div id="invitaciones-pendientes-inicio"></div>
+        <div id="parados-inicio"></div>
         <div id="fichaje-alerts"></div>
         <div id="huecos-flota-alerts"></div>
         <div id="uber-efectivo-alerts"></div>
@@ -629,6 +630,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     </div>
 
     <div style="padding:20px 22px">
+      <div id="vd-estado" style="margin-bottom:16px"></div>
       <div id="vd-rendimiento" style="margin-bottom:20px"></div>
       <div class="sb-section" style="padding:0 0 10px">Estado ITV</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px">
@@ -1089,7 +1091,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-5';
+var APP_VERSION = '2026-09-29-6';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1485,6 +1487,7 @@ function enterShell() {
   if (navSusc) navSusc.style.display = isAdmin ? 'flex' : 'none';
   cargarAjustesEmpresa();
   sincronizarPermisosEmpresa();
+  cargarEstadosVehiculos().then(alRefrescarEstadosVeh);
 
   // Cargamos el límite de la suscripción para todos los roles — así el
   // aviso de "límite alcanzado" en Flota funciona da igual quién intente
@@ -1869,6 +1872,7 @@ function _onEventoRemotoDash(e) {
   if (Date.now() - _dashUltimaEscrituraPropia < 2500) return;
   var carpeta = msg.path.replace(/^\//, '').split('/')[0];
   if (carpeta === 'ajustes_empresa') { cargarAjustesEmpresa(); return; }
+  if (carpeta === 'vehiculos_estado') { cargarEstadosVehiculos().then(alRefrescarEstadosVeh); return; }
   var act = document.querySelector('.dash-screen.active');
   if (!act) return;
   var pid = act.id.replace('dash-', '');
@@ -2129,6 +2133,8 @@ function normalizeVehiculoExtra(v, key) {
 }
 
 function renderInicioStats() {
+  renderParadosInicio();
+  cargarEstadosVehiculos().then(renderParadosInicio);
   fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).then(function(data){
     data = data || {};
     VEHICULOS_EXTRA = Object.keys(data).map(function(k){ return normalizeVehiculoExtra(data[k], k); });
@@ -3036,6 +3042,7 @@ function paintFlota() {
       html += '<div class="veh-top" style="align-items:center;margin-bottom:4px">';
       html += plateHtml(v.matricula);
       if (v.icon === '⚡') html += evBadgeHtml(44);
+      if (estadoVehDe(v.matricula)) html += '<span style="margin-left:8px">' + estadoVehBadgeHtml(v.matricula) + '</span>';
       html += isAdmin
         ? '<span class="edit-btn" style="margin-left:auto;border-color:rgba(0,212,255,.85);box-shadow:0 0 6px rgba(0,212,255,.7),0 0 14px rgba(0,212,255,.5),0 0 24px rgba(0,212,255,.3)">VER ›</span>'
         : '<span class="manager-lock" style="margin-left:auto">🔒 solo lectura</span>';
@@ -11302,11 +11309,193 @@ function guardarFechaItv(mySlug, nueva) {
   });
 }
 
+// ══════════════ VEHÍCULO PARADO (revisión, ITV, taller…) ══════════════
+// vehiculos_estado/{matrícula}  = parada activa (motivo, nota, desde, quién)
+// vehiculos_paradas/{matrícula} = historial de todas las paradas (inicio y fin)
+// Lo marcan y desmarcan el Supervisor y el Dashboard (admin/manager). Mientras
+// está parado, el conductor NO puede fichar con ese vehículo, y el conductor y
+// el propietario lo ven en sus apps (y reciben un aviso push).
+var MOTIVOS_PARADA = [
+  { k:'revision',  t:'Revisión',           i:'🔧' },
+  { k:'itv',       t:'ITV',                i:'📋' },
+  { k:'taller',    t:'Taller mecánico',    i:'🛠️' },
+  { k:'chapa',     t:'Chapa y pintura',    i:'🎨' },
+  { k:'neumaticos',t:'Neumáticos',         i:'🛞' },
+  { k:'averia',    t:'Avería',             i:'⚠️' },
+  { k:'accidente', t:'Accidente o siniestro', i:'💥' },
+  { k:'otro',      t:'Otro',               i:'📌' }
+];
+var _estadosVeh = {};
+function _slugParada(m) { return String(m || '').replace(/\s/g, '_'); }
+function motivoParadaInfo(e) {
+  var m = MOTIVOS_PARADA.find(function(x){ return x.k === (e && e.motivo); }) || MOTIVOS_PARADA[MOTIVOS_PARADA.length - 1];
+  var txt = (e && e.motivo === 'otro' && e.otroTexto) ? e.otroTexto : m.t;
+  return { icono: m.i, texto: txt };
+}
+function tiempoParado(desdeTs) {
+  var min = Math.max(0, Math.floor((Date.now() - (desdeTs || Date.now())) / 60000));
+  if (min < 60) return min + ' min';
+  var h = Math.floor(min / 60); if (h < 48) return h + ' h';
+  return Math.floor(h / 24) + ' días';
+}
+function cargarEstadosVehiculos() {
+  return fetch(FIREBASE_URL + '/vehiculos_estado.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){
+    _estadosVeh = (d && typeof d === 'object' && !d.error) ? d : {};
+    return _estadosVeh;
+  });
+}
+function estadoVehDe(matricula) { var e = _estadosVeh[_slugParada(matricula)]; return (e && e.parado) ? e : null; }
+function estadoVehBadgeHtml(matricula) {
+  var e = estadoVehDe(matricula); if (!e) return '';
+  var m = motivoParadaInfo(e);
+  return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;border:1.5px solid rgba(255,71,87,1);background:rgba(255,71,87,.15);color:#fff;font-size:11px;font-weight:900;box-shadow:0 0 8px rgba(255,71,87,.7);white-space:nowrap">🔧 PARADO · ' + m.texto.replace(/[<>&]/g,'') + '</span>';
+}
+// Botón grande de estado (ficha del vehículo / tarjeta del supervisor)
+function botonEstadoVehHtml(matricula, puedeCambiar) {
+  var e = estadoVehDe(matricula), mat = String(matricula).replace(/'/g, '');
+  if (!e) {
+    return '<button type="button" ' + (puedeCambiar ? 'onclick="event.stopPropagation();abrirMarcarParada(\'' + mat + '\')"' : 'disabled') +
+      ' style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;border:2px solid rgba(0,230,118,.95);background:rgba(0,230,118,.1);color:#fff;font-size:14px;font-weight:900;cursor:' + (puedeCambiar ? 'pointer' : 'default') + ';font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.55)">' +
+      '🟢 Vehículo operativo' + (puedeCambiar ? '<span style="font-weight:700;opacity:.8;font-size:12px">· marcar parada</span>' : '') + '</button>';
+  }
+  var m = motivoParadaInfo(e);
+  return '<button type="button" ' + (puedeCambiar ? 'onclick="event.stopPropagation();desactivarParada(\'' + mat + '\')"' : 'disabled') +
+    ' style="width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.14);color:#fff;cursor:' + (puedeCambiar ? 'pointer' : 'default') + ';font-family:inherit;box-shadow:0 0 12px rgba(255,71,87,.75)">' +
+    '<div style="font-size:14px;font-weight:900">🔴 PARADO · ' + m.icono + ' ' + m.texto.replace(/[<>&]/g,'') + '</div>' +
+    '<div style="font-size:11.5px;opacity:.85;margin-top:3px">Desde hace ' + tiempoParado(e.desdeTs) + (e.por ? ' · por ' + String(e.por).replace(/[<>&]/g,'') : '') + (e.nota ? ' · ' + String(e.nota).replace(/[<>&]/g,'') : '') + '</div>' +
+    (puedeCambiar ? '<div style="font-size:12px;font-weight:800;color:#00e676;margin-top:6px">Pulsa para ponerlo operativo de nuevo</div>' : '') +
+  '</button>';
+}
+function _modalParada(html) {
+  var v = document.getElementById('parada-modal'); if (v) v.remove();
+  v = document.createElement('div');
+  v.id = 'parada-modal';
+  v.style.cssText = 'position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  v.onclick = function(ev){ if (ev.target === v) v.remove(); };
+  v.innerHTML = '<div style="width:100%;max-width:420px;margin:auto;background:#0c1420;color:#fff;border:2.5px solid rgba(255,71,87,1);border-radius:20px;padding:22px 20px;box-shadow:0 0 18px rgba(255,71,87,.8),0 0 40px rgba(255,71,87,.35);font-family:inherit">' + html + '</div>';
+  document.body.appendChild(v);
+  return v;
+}
+function abrirMarcarParada(matricula) {
+  var mat = String(matricula).replace(/'/g, '');
+  var v = _modalParada(
+    '<div style="font-size:17px;font-weight:900;text-align:center">🔧 Marcar ' + mat + ' como parado</div>' +
+    '<div style="font-size:12.5px;opacity:.85;text-align:center;margin:6px 0 14px">Elige el motivo. Sus conductores no podrán fichar con él hasta que lo vuelvas a poner operativo.</div>' +
+    '<div id="parada-motivos" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+      MOTIVOS_PARADA.map(function(m){ return '<button type="button" data-k="' + m.k + '" onclick="_elegirMotivoParada(this)" style="padding:12px 8px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.04);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">' + m.i + ' ' + m.t + '</button>'; }).join('') +
+    '</div>' +
+    '<input id="parada-otro" type="text" maxlength="60" placeholder="¿Qué motivo?" style="display:none;width:100%;box-sizing:border-box;margin-top:10px;padding:11px 12px;border-radius:10px;border:1.5px solid rgba(255,71,87,.7);background:rgba(255,255,255,.05);color:#fff;font-size:14px;font-family:inherit">' +
+    '<input id="parada-nota" type="text" maxlength="120" placeholder="Nota opcional (ej: cita a las 10:00 en ITV Málaga)" style="width:100%;box-sizing:border-box;margin-top:10px;padding:11px 12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.05);color:#fff;font-size:14px;font-family:inherit">' +
+    '<div id="parada-error" style="display:none;color:#ff6b7a;font-size:12.5px;text-align:center;margin-top:10px"></div>' +
+    '<div style="display:flex;gap:10px;margin-top:16px">' +
+      '<button type="button" onclick="document.getElementById(\'parada-modal\').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:none;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>' +
+      '<button type="button" id="parada-ok" onclick="guardarParada(\'' + mat + '\')" style="flex:1;padding:12px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.2);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(255,71,87,.6)">Marcar parado</button>' +
+    '</div>');
+}
+function _elegirMotivoParada(btn) {
+  document.querySelectorAll('#parada-motivos button').forEach(function(b){
+    var on = b === btn;
+    b.setAttribute('data-on', on ? '1' : '');
+    b.style.borderColor = on ? 'rgba(255,71,87,1)' : 'rgba(255,255,255,.2)';
+    b.style.background = on ? 'rgba(255,71,87,.2)' : 'rgba(255,255,255,.04)';
+  });
+  document.getElementById('parada-otro').style.display = btn.getAttribute('data-k') === 'otro' ? 'block' : 'none';
+}
+function guardarParada(matricula) {
+  var sel = document.querySelector('#parada-motivos button[data-on="1"]');
+  var err = document.getElementById('parada-error');
+  if (!sel) { err.textContent = 'Elige un motivo.'; err.style.display = 'block'; return; }
+  var motivo = sel.getAttribute('data-k');
+  var otro = document.getElementById('parada-otro').value.trim();
+  if (motivo === 'otro' && !otro) { err.textContent = 'Escribe el motivo.'; err.style.display = 'block'; return; }
+  var nota = document.getElementById('parada-nota').value.trim();
+  var slug = _slugParada(matricula), ahora = Date.now(), por = nombreActorParada();
+  var btn = document.getElementById('parada-ok'); btn.disabled = true; btn.textContent = 'Guardando…';
+  var hist = { motivo: motivo, otroTexto: otro || null, nota: nota || null, desdeTs: ahora, por: por, desde: ORIGEN_PARADA };
+  fetch(FIREBASE_URL + '/vehiculos_paradas/' + slug + '.json', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(hist) })
+    .then(function(r){ if (!r.ok) throw new Error('Error ' + r.status); return r.json(); })
+    .then(function(res){
+      var estado = Object.assign({ parado: true, matricula: matricula, paradaId: res && res.name }, hist);
+      return fetch(FIREBASE_URL + '/vehiculos_estado/' + slug + '.json', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(estado) })
+        .then(function(r){ if (!r.ok) throw new Error('Error ' + r.status); _estadosVeh[slug] = estado; });
+    }).then(function(){
+      var v = document.getElementById('parada-modal'); if (v) v.remove();
+      var m = motivoParadaInfo({ motivo: motivo, otroTexto: otro });
+      if (typeof enviarPushNotificacion === 'function') enviarPushNotificacion('🔧 ' + matricula + ' parado · ' + m.texto,
+        'El vehículo está parado' + (nota ? ' (' + nota + ')' : '') + '. No se puede fichar con él hasta que vuelva a estar operativo.', 'parada-' + slug, null, { matricula: matricula });
+      if (typeof registrarActividad === 'function') { try { registrarActividad('Flota', 'Marcó vehículo parado', matricula + ' · ' + m.texto + (nota ? ' · ' + nota : '')); } catch(e) {} }
+      alRefrescarEstadosVeh();
+    }).catch(function(e){ btn.disabled = false; btn.textContent = 'Marcar parado'; err.textContent = 'No se pudo guardar: ' + e.message; err.style.display = 'block'; });
+}
+function desactivarParada(matricula) {
+  var e = estadoVehDe(matricula); if (!e) return;
+  var m = motivoParadaInfo(e), mat = String(matricula).replace(/'/g, '');
+  _modalParada(
+    '<div style="font-size:17px;font-weight:900;text-align:center">🟢 ¿' + mat + ' ya está operativo?</div>' +
+    '<div style="font-size:13px;opacity:.85;text-align:center;margin:8px 0 18px;line-height:1.5">Estaba parado por <b>' + m.texto.replace(/[<>&]/g,'') + '</b> desde hace ' + tiempoParado(e.desdeTs) + '. Sus conductores podrán volver a fichar.</div>' +
+    '<div style="display:flex;gap:10px">' +
+      '<button type="button" onclick="document.getElementById(\'parada-modal\').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:none;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>' +
+      '<button type="button" id="parada-fin" onclick="_confirmarFinParada(\'' + mat + '\')" style="flex:1;padding:12px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.18);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.6)">Poner operativo</button>' +
+    '</div>');
+}
+function _confirmarFinParada(matricula) {
+  var e = estadoVehDe(matricula); var slug = _slugParada(matricula);
+  var btn = document.getElementById('parada-fin'); if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  var fin = e && e.paradaId
+    ? fetch(FIREBASE_URL + '/vehiculos_paradas/' + slug + '/' + e.paradaId + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ hastaTs: Date.now(), cerradoPor: nombreActorParada() }) })
+    : Promise.resolve();
+  fin.then(function(){ return fetch(FIREBASE_URL + '/vehiculos_estado/' + slug + '.json', { method:'DELETE' }); })
+    .then(function(r){
+      if (r && !r.ok) throw new Error('Error ' + r.status);
+      delete _estadosVeh[slug];
+      var v = document.getElementById('parada-modal'); if (v) v.remove();
+      if (typeof enviarPushNotificacion === 'function') enviarPushNotificacion('🟢 ' + matricula + ' vuelve a estar operativo',
+        'Ya se puede fichar con el vehículo con normalidad.', 'parada-' + slug, null, { matricula: matricula });
+      if (typeof registrarActividad === 'function') { try { registrarActividad('Flota', 'Puso vehículo operativo', matricula); } catch(e2) {} }
+      alRefrescarEstadosVeh();
+    }).catch(function(err){ if (btn) { btn.disabled = false; btn.textContent = 'Poner operativo'; } alert('No se pudo guardar: ' + err.message); });
+}
+
+var ORIGEN_PARADA = 'dashboard';
+function nombreActorParada() { return (currentUser && currentUser.nombre) || 'Dashboard'; }
+function pintarEstadoVehDetalle() {
+  var c = document.getElementById('vd-estado');
+  if (c && _vdCurrentMat) c.innerHTML = botonEstadoVehHtml(_vdCurrentMat, puedeEditar());
+}
+// Aviso fijo en Inicio con todos los vehículos parados, hasta que se reactiven
+function renderParadosInicio() {
+  var c = document.getElementById('parados-inicio'); if (!c) return;
+  var visibles = {};
+  getAllVehiculos().forEach(function(v){ visibles[_slugParada(v.matricula)] = v; });
+  var lista = Object.keys(_estadosVeh).map(function(k){ return _estadosVeh[k]; })
+    .filter(function(e){ return e && e.parado && visibles[_slugParada(e.matricula)]; })
+    .sort(function(a, b){ return (a.desdeTs || 0) - (b.desdeTs || 0); });
+  if (!lista.length) { c.innerHTML = ''; return; }
+  c.innerHTML = '<div style="margin-bottom:16px;padding:14px 16px;border-radius:16px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.08);box-shadow:0 0 14px rgba(255,71,87,.6)">' +
+    '<div style="font-size:14px;font-weight:900;color:#fff;margin-bottom:8px">🔧 Vehículos parados (' + lista.length + ')</div>' +
+    lista.map(function(e){
+      var m = motivoParadaInfo(e);
+      return '<div onclick="openVehicleDetail(\'' + String(e.matricula).replace(/'/g,'') + '\')" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);cursor:pointer">' +
+        '<span style="font-family:var(--mono);font-weight:900;color:#fff;min-width:92px">' + e.matricula + '</span>' +
+        '<span style="flex:1;min-width:0;font-size:12.5px;color:#fff">' + m.icono + ' ' + m.texto.replace(/[<>&]/g,'') + (e.nota ? ' · <span style="opacity:.8">' + String(e.nota).replace(/[<>&]/g,'') + '</span>' : '') + '</span>' +
+        '<span style="font-size:11.5px;font-weight:800;color:#ff6b7a;white-space:nowrap">' + tiempoParado(e.desdeTs) + '</span></div>';
+    }).join('') + '</div>';
+}
+function alRefrescarEstadosVeh() {
+  renderParadosInicio();
+  var act = document.querySelector('.dash-screen.active');
+  if (act && act.id === 'dash-flota' && typeof renderFlota === 'function') renderFlota();
+  var mod = document.getElementById('vehicle-detail-modal');
+  if (mod && getComputedStyle(mod).display !== 'none') pintarEstadoVehDetalle();
+}
+
 function openVehicleDetail(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return;
   _vdCurrentMat = matricula;
   rendimientoMontar('vd-rendimiento', { tipo:'vehiculo', matSlug: matSlug(matricula) });
+  pintarEstadoVehDetalle();
+  cargarEstadosVehiculos().then(pintarEstadoVehDetalle);
 
   document.getElementById('vd-plate').innerHTML = plateHtml(v.matricula) + (v.icon === '⚡' ? evBadgeHtml(44) : '');
   document.getElementById('vd-model').textContent = v.modelo + ' · ' + v.ciudad + ' · ' + v.ccaa;
