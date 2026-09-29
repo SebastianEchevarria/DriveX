@@ -9,6 +9,9 @@
 //   { accion: 'ajustes', empresa, ajustes } → guarda los ajustes de esa empresa
 //        (qué apartados del menú del Dashboard ve). empresa 'ORIGINAL' = flota original.
 //   { accion: 'usuarios', empresa }         → todas las personas de la empresa, por app
+//   { accion: 'crear_gratuita', tipo, nombre, nif?, email, ciudad?, vehiculos, venceTs?, notas?, menu? }
+//        → crea una empresa SIN suscripción (cuenta de cortesía) y envía su código por email
+//   { accion: 'editar_gratuita', empresa, vehiculos, venceTs, notas }
 //   { accion: 'ocultar', empresa, ocultar:true|false } → ocultar/mostrar en el listado master
 //   { accion: 'eliminar_empresa', empresa, confirmacion:<CÓDIGO> } → borra TODO de una empresa
 //        suspendida: sus datos, las cuentas de sus usuarios, sus invitaciones y sus
@@ -29,6 +32,7 @@
 
 const admin = require('firebase-admin');
 const Stripe = require('stripe');
+const nodemailer = require('nodemailer');
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -80,12 +84,15 @@ async function resumenDe(db, base) {
     db.ref(base + 'ajustes_empresa').once('value').then((s) => s.val()),
   ]);
   const vehiculosContratados = Object.keys(lotes).reduce((s, k) => s + (Number(lotes[k] && lotes[k].cantidad) || 0), 0);
+  const vehiculosGratis = Object.keys(lotes).reduce((s, k) => s + ((lotes[k] && lotes[k].gratuito) ? (Number(lotes[k].cantidad) || 0) : 0), 0);
   const activos = (o) => Object.keys(o).filter((k) => o[k] && o[k].inviteUsado).length;
   let ultimaContratacion = 0;
   Object.keys(lotes).forEach((k) => { ultimaContratacion = Math.max(ultimaContratacion, Number(lotes[k] && lotes[k].creadoTs) || 0); });
   return {
     info: info || {},
     vehiculosContratados,
+    vehiculosGratis,
+    vehiculosPago: vehiculosContratados - vehiculosGratis,
     vehiculosEnFlota: Object.keys(vehExtra).length,
     conductores: Object.keys(conductores).length,
     usuariosDashboard: activos(dash),
@@ -224,6 +231,32 @@ async function migrarOriginal(db, nombre, simular, titular) {
   return { hecho: true, codigo, resumen };
 }
 
+// Email de bienvenida para cuentas gratuitas (de cortesía)
+async function emailCortesia({ email, nombre, codigo, vehiculos, venceTs }) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) throw new Error('Faltan SMTP_USER / SMTP_PASS');
+  const appUrl = process.env.APP_URL || 'https://drive-x-lilac-seven.vercel.app';
+  const enlace = appUrl + '/drivx-admin-dashboard.html?empresa=' + encodeURIComponent(codigo);
+  const hasta = venceTs ? new Date(venceTs).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const t = nodemailer.createTransport({ host: process.env.SMTP_HOST || 'smtp.gmail.com', port, secure: port === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+  await t.sendMail({
+    from: process.env.EMAIL_FROM || ('DRIVX <' + process.env.SMTP_USER + '>'), to: email,
+    subject: 'Bienvenido a DRIVX · Tu código de empresa: ' + codigo,
+    text: `¡Bienvenido a DRIVX, ${nombre}!\n\nTe hemos activado una cuenta de cortesía con ${vehiculos} vehículo(s)${hasta ? ' hasta el ' + hasta : ''}.\n\nCÓDIGO DE TU EMPRESA: ${codigo}\n\nCrea tu cuenta de administrador aquí:\n${enlace}\n`,
+    html: `<div style="background:#070b12;padding:32px 16px;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;background:#0c1420;border:2px solid #00d4ff;border-radius:18px;padding:30px 26px;color:#fff">
+      <div style="font-size:28px;font-weight:900;margin-bottom:22px">DRIV<span style="color:#00d4ff">X</span></div>
+      <h1 style="font-size:21px;margin:0 0 12px">¡Bienvenido a DRIVX, ${esc(nombre)}!</h1>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 18px">Te hemos activado una <b>cuenta de cortesía</b> con <b>${vehiculos} vehículo${vehiculos !== 1 ? 's' : ''}</b>${hasta ? ' hasta el <b>' + hasta + '</b>' : ''}. No tienes que pagar nada.</p>
+      <p style="font-size:15px;margin:0 0 8px">El <b>código único</b> de tu empresa:</p>
+      <div style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:4px;text-align:center;padding:18px;border:2px solid #00e676;border-radius:14px;background:#0a2a1c;margin:0 0 20px">${esc(codigo)}</div>
+      <p style="font-size:15px;margin:0 0 14px"><b>Primer paso:</b> abre tu Dashboard y crea tu cuenta de administrador con este mismo email.</p>
+      <div style="text-align:center;margin:0 0 14px"><a href="${enlace}" style="display:inline-block;background:#00d4ff;color:#02131d;text-decoration:none;font-weight:900;font-size:16px;padding:15px 34px;border-radius:12px">Abrir mi Dashboard →</a></div>
+      <p style="font-size:12px;color:#9ab0c8;text-align:center;margin:0;word-break:break-all">${enlace}</p>
+    </div></div>`,
+  });
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') { res.status(405).json({ error: 'Método no permitido' }); return; }
@@ -245,6 +278,12 @@ module.exports = async function handler(req, res) {
       const codigos = await codigosEmpresas();
       const empresas = await Promise.all(codigos.map(async (codigo) => {
         const r = await resumenDe(db, 'empresas/' + codigo + '/');
+        // Cuenta gratuita cuyo periodo ya terminó → se suspende (sus datos se conservan)
+        if (r.info && r.info.gratuita && r.info.venceTs && Date.now() > r.info.venceTs && (r.info.estado || 'activa') === 'activa') {
+          const cambios = { estado: 'suspendida', motivoSuspension: 'Periodo gratuito terminado', estadoCambiadoTs: Date.now() };
+          await db.ref('empresas/' + codigo + '/empresa_info').update(cambios);
+          Object.assign(r.info, cambios);
+        }
         return Object.assign({ codigo }, r);
       }));
       // La flota original (datos en la raíz, sin empresa todavía)
@@ -276,6 +315,66 @@ module.exports = async function handler(req, res) {
       if (!(await ref.once('value')).exists()) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
       await ref.update({ estado, estadoCambiadoTs: Date.now(), estadoCambiadoPor: 'MASTER' });
       res.status(200).json({ ok: true, empresa, estado });
+      return;
+    }
+
+    if (accion === 'crear_gratuita' || accion === 'editar_gratuita') {
+      const b = req.body || {};
+      const vehiculos = parseInt(b.vehiculos, 10);
+      if (!vehiculos || vehiculos < 1 || vehiculos > 500) { res.status(400).json({ error: 'Indica cuántos vehículos incluye (1 a 500).' }); return; }
+      const venceTs = b.venceTs ? Number(b.venceTs) : null;
+      if (venceTs !== null && (!venceTs || venceTs < Date.now() - 86400000)) { res.status(400).json({ error: 'La fecha de fin no es válida.' }); return; }
+      const notas = String(b.notas || '').trim().slice(0, 500);
+
+      if (accion === 'editar_gratuita') {
+        const empresa = String(b.empresa || '');
+        if (!/^DRX-[A-Z0-9]{5}$/.test(empresa)) { res.status(400).json({ error: 'Empresa inválida' }); return; }
+        const infoRef = db.ref('empresas/' + empresa + '/empresa_info');
+        const info = (await infoRef.once('value')).val();
+        if (!info) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
+        const lotes = (await db.ref('empresas/' + empresa + '/suscripcion_lotes').once('value')).val() || {};
+        const idGratis = Object.keys(lotes).find((k) => lotes[k] && lotes[k].gratuito);
+        const lote = { cantidad: vehiculos, precioUnitario: 0, gratuito: true, fechaContratacion: (idGratis && lotes[idGratis].fechaContratacion) || new Date().toISOString().slice(0, 10), creadoTs: (idGratis && lotes[idGratis].creadoTs) || Date.now() };
+        if (idGratis) await db.ref('empresas/' + empresa + '/suscripcion_lotes/' + idGratis).set(lote);
+        else await db.ref('empresas/' + empresa + '/suscripcion_lotes').push(lote);
+        const cambios = { gratuita: true, venceTs: venceTs, notasMaster: notas || null };
+        // Si estaba suspendida por fin del periodo gratuito y se amplía la fecha, se reactiva
+        if (info.estado === 'suspendida' && info.motivoSuspension === 'Periodo gratuito terminado' && (!venceTs || venceTs > Date.now())) {
+          cambios.estado = 'activa'; cambios.motivoSuspension = null; cambios.estadoCambiadoTs = Date.now();
+        }
+        await infoRef.update(cambios);
+        res.status(200).json({ ok: true, empresa });
+        return;
+      }
+
+      // ── Crear ──
+      const tipo = b.tipo === 'particular' ? 'particular' : 'empresa';
+      const nombre = String(b.nombre || '').trim().slice(0, 120);
+      const email = String(b.email || '').trim().toLowerCase();
+      if (!nombre) { res.status(400).json({ error: 'Escribe el nombre.' }); return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { res.status(400).json({ error: 'El email del administrador no es válido.' }); return; }
+      if (email === MASTER_EMAIL) { res.status(400).json({ error: 'La cuenta master no puede ser administradora de una empresa.' }); return; }
+      const dir = (await db.ref('directorio_usuarios/' + emailKeyM(email)).once('value')).val();
+      if (dir && dir.empresa) { res.status(409).json({ error: 'Ese email ya pertenece a otra empresa DRIVX (' + dir.empresa + '). Usa otro.' }); return; }
+
+      const codigo = await reservarCodigo(db);
+      const base = 'empresas/' + codigo + '/';
+      await db.ref(base + 'empresa_info').set({
+        codigo, tipo, nombre, nif: String(b.nif || '').trim().toUpperCase().slice(0, 20), direccion: '', cp: '',
+        ciudad: String(b.ciudad || '').trim().slice(0, 80), email, estado: 'activa', creadoTs: Date.now(),
+        gratuita: true, venceTs: venceTs, notasMaster: notas || null, creadoPor: 'MASTER',
+      });
+      await db.ref(base + 'suscripcion_lotes').push({ cantidad: vehiculos, precioUnitario: 0, gratuito: true, fechaContratacion: new Date().toISOString().slice(0, 10), creadoTs: Date.now() });
+      // Personalización: apartados del menú
+      if (b.menu && typeof b.menu === 'object') {
+        const menu = {};
+        SECCIONES_MENU.forEach((k) => { menu[k] = !(b.menu[k] === false); });
+        await db.ref(base + 'ajustes_empresa').set({ menu, actualizadoTs: Date.now() });
+      }
+      // Email con el código de acceso
+      let emailEnviado = false;
+      try { await emailCortesia({ email, nombre, codigo, vehiculos, venceTs }); emailEnviado = true; } catch (e) { /* se puede reenviar a mano */ }
+      res.status(200).json({ ok: true, codigo, emailEnviado });
       return;
     }
 
