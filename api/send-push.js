@@ -82,9 +82,24 @@ module.exports = async function handler(req, res) {
     const subsData = (await db.ref(base + 'push_subscriptions').once('value')).val() || {};
     const entries = Object.keys(subsData).map((id) => ({ id, ...subsData[id] }));
 
-    // Filtro opcional por destinatario: { role: 'ccaa_manager', ccaa: 'Andalucía' }
+    // Aviso de un vehículo concreto ({ matricula }): solo a SUS conductores y a SU propietario
+    let porVehiculo = null;
+    if (target && target.matricula) {
+      const slug = (m) => String(m || '').replace(/\s/g, '_');
+      const mat = slug(target.matricula);
+      const [conds, props] = await Promise.all([
+        db.ref(base + 'conductores_registro').once('value').then((x) => x.val() || {}),
+        db.ref(base + 'propietarios').once('value').then((x) => x.val() || {}),
+      ]);
+      const cids = new Set(Object.keys(conds).filter((k) => conds[k] && slug(conds[k].matricula) === mat).map((k) => conds[k].cid || k));
+      const pids = new Set(Object.keys(props).filter((k) => props[k] && (props[k].matriculas || []).some((x) => slug(x) === mat)));
+      porVehiculo = (e) => (e.role === 'conductor' && (cids.has(e.cid) || slug(e.matricula) === mat)) || (e.role === 'propietario' && pids.has(e.pid));
+    }
+
+    // Filtro opcional por destinatario: { role: 'ccaa_manager', ccaa: 'Andalucía' } o { matricula }
     const destinatarios = entries.filter((e) => {
       if (!e || !e.subscription) return false;
+      if (porVehiculo) return porVehiculo(e);
       if (!target) return true;
       if (target.role && e.role !== target.role && e.role !== 'admin') return false;
       if (target.ccaa && e.ccaaAsignada && e.ccaaAsignada !== target.ccaa) return false;
@@ -102,7 +117,10 @@ module.exports = async function handler(req, res) {
     await Promise.all(
       destinatarios.map(async (d) => {
         try {
-          await webpush.sendNotification(d.subscription, payload);
+          // Cada uno abre SU app al tocar el aviso
+          const urlApp = d.role === 'conductor' ? '/drivx-driver-app.html' : d.role === 'propietario' ? '/drivx-propietario-app.html' : d.role === 'supervisor' ? '/drivx-supervisor-app.html' : null;
+          const cuerpo = (porVehiculo && urlApp) ? JSON.stringify(Object.assign(JSON.parse(payload), { url: urlApp })) : payload;
+          await webpush.sendNotification(d.subscription, cuerpo);
           enviados++;
         } catch (err) {
           // 404/410 = el navegador ya no acepta este dispositivo: lo limpiamos
