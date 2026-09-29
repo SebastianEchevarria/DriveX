@@ -514,8 +514,8 @@
     <div class="price-grid" style="grid-template-columns:minmax(0,520px);justify-content:center">
       <div class="price-card hi">
         <div class="price-name">Todo incluido</div>
-        <div class="price-tag">299&euro;<span>/veh&iacute;culo/a&ntilde;o</span></div>
-        <div class="price-sub">Cada veh&iacute;culo se renueva un a&ntilde;o despu&eacute;s de contratarlo</div>
+        <div class="price-tag">299&euro;<span> + IVA /veh&iacute;culo/a&ntilde;o</span></div>
+        <div class="price-sub">IVA (21&nbsp;%) no incluido &middot; cada veh&iacute;culo se renueva un a&ntilde;o despu&eacute;s de contratarlo</div>
         <ul>
           <li><span class="check">&#10003;</span> Las 4 apps: Dashboard, Driver, Propietario y Supervisor</li>
           <li><span class="check">&#10003;</span> Facturaci&oacute;n autom&aacute;tica semanal (Uber, Bolt y Cabify)</li>
@@ -568,7 +568,7 @@
   <div class="wrap">
     <div class="final-cta">
       <h2>Tu flota ya deber&iacute;a llevar as&iacute; un a&ntilde;o</h2>
-      <p>299&euro; por veh&iacute;culo al a&ntilde;o. Todo incluido desde el primer veh&iacute;culo.</p>
+      <p>299&euro; + IVA por veh&iacute;culo al a&ntilde;o. Todo incluido desde el primer veh&iacute;culo.</p>
       <div class="hero-ctas" style="justify-content:center">
         <a href="mailto:hola@drivx.app?subject=Quiero%20una%20demo%20de%20DRIVX" class="btn btn-primary">Pedir una demo</a>
         <a href="mailto:hola@drivx.app" class="btn btn-ghost">Escribir a hola@drivx.app</a>
@@ -672,12 +672,28 @@ document.querySelectorAll('.faq-item').forEach(function(item){
         <button type="button" onclick="cxCambiarCantidad(-1)">&minus;</button>
         <input id="cxCantidad" type="number" min="1" max="500" value="1" oninput="cxActualizarTotal()">
         <button type="button" onclick="cxCambiarCantidad(1)">+</button>
-        <div class="cx-total"><b id="cxTotal">299&euro;</b><span>al a&ntilde;o &middot; 299&euro;/veh&iacute;culo</span></div>
+        <div class="cx-total"><b id="cxTotal">361,79&euro;</b><span id="cxTotalDet">299&euro; + 62,79&euro; IVA &middot; al a&ntilde;o</span></div>
       </div>
 
+      <label style="display:block;font-size:12.5px;font-weight:700;margin:4px 0 8px">Forma de pago *</label>
+      <div class="cx-tipo" style="margin-bottom:16px">
+        <button type="button" id="cxMetodoTarjeta" class="on" onclick="cxSetMetodo('tarjeta')">&#128179; Tarjeta</button>
+        <button type="button" id="cxMetodoTransferencia" onclick="cxSetMetodo('transferencia')">&#127974; Transferencia</button>
+      </div>
       <div class="cx-err" id="cxError"></div>
       <button type="button" id="cxPagar" onclick="cxEnviar()" class="btn btn-primary" style="width:100%;font-size:16px;padding:15px;font-weight:900;cursor:pointer">Continuar al pago &rarr;</button>
-      <div class="cx-legal">&#128274; Pago seguro con tarjeta a trav&eacute;s de Stripe. Podr&aacute;s a&ntilde;adir m&aacute;s veh&iacute;culos cuando quieras desde tu Dashboard.</div>
+      <div class="cx-legal" id="cxLegal">&#128274; Pago seguro con tarjeta a trav&eacute;s de Stripe. Podr&aacute;s a&ntilde;adir m&aacute;s veh&iacute;culos cuando quieras desde tu Dashboard.</div>
+    </div>
+
+    <div id="cxPasoTransferencia" style="display:none">
+      <div style="font-size:42px;text-align:center">&#127974;</div>
+      <h3 style="text-align:center">Datos para tu transferencia</h3>
+      <div class="cx-sub" style="text-align:center">Tambi&eacute;n te los hemos enviado por email.</div>
+      <div id="cxTrfDatos"></div>
+      <div class="cx-sub" style="text-align:left;background:rgba(0,230,118,.08);border:1.5px solid rgba(0,230,118,.8);border-radius:12px;padding:12px 14px;margin-top:14px">
+        &#9989; En cuanto recibamos el pago (normalmente 1&ndash;2 d&iacute;as h&aacute;biles) te enviaremos por email tu <b>c&oacute;digo de acceso</b> y el enlace a tu Dashboard. No tienes que hacer nada m&aacute;s.
+      </div>
+      <a id="cxTrfFactura" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="width:100%;box-sizing:border-box;margin-top:12px;display:none">Ver factura</a>
     </div>
 
     <div id="cxPasoBienvenida" style="display:none;text-align:center">
@@ -704,6 +720,7 @@ var cxTipo = 'empresa';
 
 function abrirContratacion(){
   document.getElementById('cxPasoForm').style.display = 'block';
+  document.getElementById('cxPasoTransferencia').style.display = 'none';
   document.getElementById('cxPasoBienvenida').style.display = 'none';
   document.getElementById('cxOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -727,9 +744,39 @@ function cxCantidadActual(){
   if (n > 500) n = 500;
   return n;
 }
+var IVA_PCT = 21;
+var cxMetodo = 'tarjeta';
+function cxEur(n){ return (Math.round(n * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€'; }
 function cxActualizarTotal(){
-  var total = cxCantidadActual() * PRECIO_VEHICULO;
-  document.getElementById('cxTotal').textContent = total.toLocaleString('es-ES') + '€';
+  var base = cxCantidadActual() * PRECIO_VEHICULO;
+  var iva = Math.round(base * IVA_PCT) / 100;
+  document.getElementById('cxTotal').textContent = cxEur(base + iva);
+  document.getElementById('cxTotalDet').textContent = cxEur(base) + ' + ' + cxEur(iva) + ' IVA · al año';
+}
+function cxSetMetodo(m){
+  cxMetodo = m;
+  document.getElementById('cxMetodoTarjeta').classList.toggle('on', m === 'tarjeta');
+  document.getElementById('cxMetodoTransferencia').classList.toggle('on', m === 'transferencia');
+  document.getElementById('cxPagar').textContent = m === 'tarjeta' ? 'Continuar al pago →' : 'Ver datos para la transferencia →';
+  document.getElementById('cxLegal').innerHTML = m === 'tarjeta'
+    ? '&#128274; Pago seguro con tarjeta a trav&eacute;s de Stripe. Podr&aacute;s a&ntilde;adir m&aacute;s veh&iacute;culos cuando quieras desde tu Dashboard.'
+    : '&#127974; Te daremos un IBAN exclusivo para ti (gestionado por Stripe). Tu cuenta se activar&aacute; autom&aacute;ticamente en cuanto llegue la transferencia.';
+}
+function cxMostrarTransferencia(d){
+  document.getElementById('cxPasoForm').style.display = 'none';
+  document.getElementById('cxPasoTransferencia').style.display = 'block';
+  var fila = function(etq, val, copiar){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.1)">' +
+      '<div style="flex:1;min-width:0"><div style="font-size:11.5px;opacity:.75">' + etq + '</div>' +
+      '<div style="font-family:var(--font-mono);font-size:15px;font-weight:700;overflow-wrap:anywhere">' + String(val || '—').replace(/[<>&]/g, '') + '</div></div>' +
+      (copiar && val ? '<button type="button" class="btn btn-ghost" style="padding:6px 10px;font-size:12px;cursor:pointer" onclick="navigator.clipboard && navigator.clipboard.writeText(\'' + String(val).replace(/'/g, '') + '\')">Copiar</button>' : '') +
+    '</div>';
+  };
+  document.getElementById('cxTrfDatos').innerHTML =
+    fila('IBAN', d.iban, true) + fila('BIC', d.bic, true) + fila('Titular', d.titular, false) +
+    fila('Importe (IVA incluido)', cxEur(d.importe || 0), true) + fila('Concepto', d.concepto, true);
+  var fac = document.getElementById('cxTrfFactura');
+  if (d.factura) { fac.href = d.factura; fac.style.display = 'block'; }
 }
 function cxCambiarCantidad(d){
   var inp = document.getElementById('cxCantidad');
@@ -751,7 +798,7 @@ function cxEnviar(){
     modo: 'alta', tipo: cxTipo,
     nombre: v('cxNombre'), nif: v('cxNif').toUpperCase(),
     direccion: v('cxDireccion'), cp: v('cxCp'), ciudad: v('cxCiudad'),
-    email: v('cxEmail'), cantidad: cxCantidadActual()
+    email: v('cxEmail'), cantidad: cxCantidadActual(), metodo: cxMetodo
   };
   if (!datos.nombre || !datos.nif || !datos.direccion || !datos.cp || !datos.ciudad || !datos.email) {
     cxMostrarError('Rellena todos los campos marcados con *.'); return;
@@ -768,11 +815,12 @@ function cxEnviar(){
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos)
   }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.transferencia && d.datos) { cxMostrarTransferencia(d.datos); btn.disabled = false; return; }
     if (d.url) { window.location.href = d.url; return; }
     throw new Error(d.error || 'No se pudo iniciar el pago');
   }).catch(function(err){
     cxMostrarError('❌ ' + err.message);
-    btn.disabled = false; btn.textContent = 'Continuar al pago →';
+    btn.disabled = false; btn.textContent = cxMetodo === 'tarjeta' ? 'Continuar al pago →' : 'Ver datos para la transferencia →';
   });
 }
 
@@ -834,7 +882,7 @@ function cxCopiarCodigo(){
 </div>
 <script>
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-27-5';
+var APP_VERSION = '2026-09-29-1';
 var APP_VERSION_KEY = 'landing';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
