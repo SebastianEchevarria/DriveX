@@ -702,14 +702,11 @@ body.hi-abierto > *:not(#hi-overlay){visibility:hidden}
     <div class="plat-card cabify-card">
       <div class="plat-header">
         <div class="plat-logo" style="background:var(--purple);color:#fff">C</div>
-        <div><div class="plat-name">Cabify</div><div class="plat-sub">Earnings · hoy</div></div>
+        <div><div class="plat-name">Cabify</div><div class="plat-sub">Subido por tu administrador</div></div>
       </div>
-      <div class="plat-amounts" style="grid-template-columns:1fr 1fr">
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-neto">€ —</div><div class="plat-amt-lbl">Facturación neta</div></div>
-        <div class="plat-amt"><div class="plat-amt-val" id="cabify-efectivo">€ —</div><div class="plat-amt-lbl">Pagado a bordo</div></div>
+      <div id="cabify-admin-body">
+        <div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Cabify.</div>
       </div>
-      <input type="file" id="input-cabify" accept="image/*,application/pdf" capture="environment" style="display:none" onchange="onPlatFile(this,'cabify')">
-      <button class="btn-upload" onclick="document.getElementById('input-cabify').click()">📸 Subir captura Cabify</button>
     </div>
 
     <!-- Separador: apps vs viajes privados -->
@@ -1297,7 +1294,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-8';
+var APP_VERSION = '2026-09-28-10';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1965,6 +1962,8 @@ function loginAs(u) {
   var nrElInicialCabify = document.getElementById('cabify-netoreal'); if (nrElInicialCabify) nrElInicialCabify.textContent = '€ —';
   var hrElInicial = document.getElementById('hojaruta-total'); if (hrElInicial) hrElInicial.textContent = '€ 0,00';
   var trElInicial = document.getElementById('transfer-total'); if (trElInicial) trElInicial.textContent = '€ 0,00';
+  var cabifyBodyInicial = document.getElementById('cabify-admin-body');
+  if (cabifyBodyInicial) cabifyBodyInicial.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Cabify.</div>';
   var boltBodyInicial = document.getElementById('bolt-admin-body');
   if (boltBodyInicial) boltBodyInicial.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Bolt.</div>';
 
@@ -2059,6 +2058,7 @@ function loginAs(u) {
   cargarBoltDesdeAdmin();
   setInterval(cargarBoltDesdeAdmin, 12000);
   cargarCabifyDesdeAdmin();
+  setInterval(cargarCabifyDesdeAdmin, 12000);
   setInterval(cargarCabifyDesdeAdmin, 12000);
   cargarNominasConductor();
   setInterval(cargarNominasConductor, 20000);
@@ -3849,94 +3849,67 @@ function updateBillingTotal() {
 // ══ LIQUIDACIÓN: lo mismo que calcula tu administrador en el Dashboard,
 // para que sepas exactamente cuánto te corresponde cobrar (o devolver). ══
 function recalcularLiquidacionDriver() {
-  if (!currentUser) return;
-  var matSlug = currentUser.matricula.replace(/\s/g,'_');
+  // La liquidación que ves aquí es SIEMPRE la de tu última semana cerrada,
+  // exactamente como la cerró tu administrador en el Dashboard (semana
+  // natural, gastos por fecha y ajustes incluidos). Así nunca hay
+  // diferencias entre lo que ves y lo que se te paga.
+  if (!currentUser || !currentUser.cid) return;
   var cid = currentUser.cid;
-  var nombreConductor = currentUser.nombre || '';
-
-  Promise.all([
-    fetch(FIREBASE_URL + '/facturacion_publicada/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/hojasruta/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/transfers/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/gastos/' + matSlug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
-  ]).then(function(results){
-    // Hasta que el admin no cierre la semana en el Dashboard, lo que edite o
-    // suba de Uber/Bolt/Cabify NO se refleja aquí — solo se ve lo publicado
-    // en el último cierre.
-    var publicado = results[0] || {};
-    var uber = publicado.uber || {}, bolt = publicado.bolt || {}, cabify = publicado.cabify || {};
-    var hojas = results[1] || {}, transfersD = results[2] || {}, gastosD = results[3] || {};
-
-    var uberNetoReal = (typeof uber.netoReal === 'number') ? uber.netoReal : ((uber.neto||0) - (uber.propinas||0) - (uber.promociones||0));
-    var uberPropinas = Number(uber.propinas || 0);
-    var uberPromo = Number(uber.promociones || 0);
-    var uberEfectivo = Number(uber.efectivo || 0);
-
-    var boltIngresosNetos = Number(bolt.ingresosNetos || 0);
-    var boltPeajes = Number(bolt.peajes || 0);
-    var boltCampanas = Number(bolt.ingresosCampanas || 0);
-    var boltPropinas = Number(bolt.propinas || 0);
-    var boltEfectivo = Number(bolt.efectivoRecaudado || 0);
-    var boltNetoReal = (typeof bolt.netoReal === 'number') ? bolt.netoReal : (boltIngresosNetos - boltPeajes - boltCampanas - boltPropinas);
-
-    var cabifyNetoReal = (typeof cabify.netoReal === 'number') ? cabify.netoReal : ((cabify.neto||0) - (cabify.propinas||0) - (cabify.promociones||0));
-    var cabifyPropinas = Number(cabify.propinas || 0);
-    var cabifyPromo = Number(cabify.promociones || 0);
-    var cabifyEfectivo = Number(cabify.efectivo || 0);
-
-    var privadosPropios = Object.keys(hojas).map(function(k){ return hojas[k]; }).filter(function(h){ return h && h.cid === cid; });
-    var privadosCutTotal = privadosPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
-    var privadosEfectivoTotal = privadosPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
-
-    var transfersPropios = Object.keys(transfersD).map(function(k){ return transfersD[k]; }).filter(function(h){ return h && h.cid === cid; });
-    var transfersCutTotal = transfersPropios.reduce(function(s,h){ return s + Number(h.cutConductor||0); }, 0);
-    var transfersEfectivoTotal = transfersPropios.filter(function(h){ return h.metodoPago === 'efectivo'; }).reduce(function(s,h){ return s + Number(h.precioTotal||0); }, 0);
-
-    var gastosTotal = 0, gastosSinDatafonoTotal = 0, datafonoTotal = 0, propinasDatafonoTotal = 0;
-    ['gasolina','peaje','parking','lavado','datafono','otros'].forEach(function(cat){
-      var catObj = gastosD[cat] || {};
-      Object.keys(catObj).forEach(function(tid){
-        var t = catObj[tid];
-        if (!(t && (t.conductor||'') === nombreConductor)) return;
-        // Los pagados directamente por el propietario no cuentan como
-        // gasto del conductor — se reflejarán en la cuenta del propietario.
-        if (t.pagadoPor === 'propietario') return;
-        var importe = Number(t.importe||0);
-        gastosTotal += importe;
-        if (cat === 'datafono') { datafonoTotal += importe; propinasDatafonoTotal += Number(t.propina||0); }
-        else { gastosSinDatafonoTotal += importe; }
+  var leer = function(url){ return fetch(url).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){ return (d && typeof d === 'object' && !d.error) ? d : {}; }); };
+  leer(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(mats){
+    return Promise.all(Object.keys(mats).map(function(m){ return leer(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + cid + '.json'); }));
+  }).then(function(listas){
+    var ultimo = null, ultimoOrden = -1;
+    listas.forEach(function(d){
+      Object.keys(d).forEach(function(periodo){
+        var r = d[periodo]; if (!r) return;
+        var orden = r.semanaHastaTs || Date.parse(r.fecha || '') || 0;
+        if (orden > ultimoOrden) { ultimoOrden = orden; ultimo = r; ultimo._periodo = periodo; }
       });
     });
-
-    var netoAppsTotal = uberNetoReal + boltNetoReal + cabifyNetoReal;
-    var propinasTotal = uberPropinas + boltPropinas + cabifyPropinas + propinasDatafonoTotal;
-    var promoBruto = uberPromo + boltCampanas + cabifyPromo;
-
-    var umbral = netoAppsTotal + privadosCutTotal + transfersCutTotal;
-    var promoRate = umbral >= 1000 ? 0.50 : 0.30;
-    var promoTotal = promoBruto * promoRate;
-
-    var porcentajeConductor = (typeof currentUser.porcentaje === 'number') ? currentUser.porcentaje : 30;
-    var netoAppsConductor = netoAppsTotal * (porcentajeConductor / 100);
-
-    var sueldo = netoAppsConductor + privadosCutTotal + transfersCutTotal + propinasTotal + promoTotal;
-
-    var efectivoAppsTotal = uberEfectivo + boltEfectivo + cabifyEfectivo;
-    var efectivoReal = (efectivoAppsTotal + privadosEfectivoTotal + transfersEfectivoTotal) - gastosTotal;
-
-    var resultado = sueldo - efectivoReal;
-
-    pintarLiquidacionDriver({
-      sueldo: sueldo, netoAppsTotal: netoAppsTotal, netoAppsConductor: netoAppsConductor, porcentajeConductor: porcentajeConductor,
-      privadosCutTotal: privadosCutTotal, transfersCutTotal: transfersCutTotal,
-      propinasTotal: propinasTotal, promoBruto: promoBruto, promoRate: promoRate, promoTotal: promoTotal, umbral: umbral,
-      efectivoReal: efectivoReal, efectivoAppsTotal: efectivoAppsTotal, privadosEfectivoTotal: privadosEfectivoTotal,
-      transfersEfectivoTotal: transfersEfectivoTotal, gastosTotal: gastosTotal, resultado: resultado,
-      gastosSinDatafonoTotal: gastosSinDatafonoTotal, datafonoTotal: datafonoTotal, propinasDatafonoTotal: propinasDatafonoTotal
-    });
+    var cont = document.getElementById('liquidacion-driver-box');
+    if (!ultimo) {
+      if (cont) cont.innerHTML = '<div style="padding:14px 16px;border-radius:14px;border:2px solid rgba(0,212,255,.85);background:rgba(10,16,26,.7);box-shadow:0 0 10px rgba(0,212,255,.5);font-size:13px;color:#fff;text-align:center;line-height:1.5">' +
+        '💶 Aquí verás tu liquidación en cuanto tu administrador cierre tu primera semana.</div>';
+      return;
+    }
+    var d = {};
+    for (var k in ultimo) d[k] = ultimo[k];
+    // Campos que la tarjeta necesita y que el cierre guarda con otros nombres
+    d.propinasTotal = typeof d.propinasTotal === 'number' ? d.propinasTotal :
+      Number(d.uberPropinas || 0) + Number(d.boltPropinas || 0) + Number(d.cabifyPropinas || 0) + Number(d.propinasDatafonoTotal || 0);
+    pintarLiquidacionDriver(d);
+    if (!cont) return;
+    // Cabecera con la semana y, si los hay, los ajustes de semanas anteriores
+    var etq = ultimo.etiqueta || _etiquetaSemanaDriver(ultimo._periodo);
+    var cab = '<div style="text-align:center;margin-bottom:10px;padding:8px 10px;border-radius:10px;border:1.5px solid rgba(0,230,118,.9);background:rgba(0,230,118,.08);box-shadow:0 0 8px rgba(0,230,118,.45)">' +
+      '<div style="font-size:12px;font-weight:900;color:#fff">' + etq + '</div>' +
+      '<div style="font-size:10px;font-weight:800;color:#00e676;margin-top:2px">ÚLTIMA SEMANA CERRADA</div></div>';
+    var aj = ultimo.ajustesItems || [];
+    if (aj.length) {
+      var fmt = function(n){ return Math.abs(n).toFixed(2).replace('.', ','); };
+      cab += '<div style="margin-bottom:10px;padding:10px 12px;border-radius:12px;border:2px solid rgba(255,179,0,.9);background:rgba(255,179,0,.07);box-shadow:0 0 10px rgba(255,179,0,.45)">' +
+        '<div style="font-size:11px;font-weight:900;color:#fff;margin-bottom:6px">± AJUSTES DE SEMANAS ANTERIORES</div>';
+      aj.forEach(function(a){
+        var v = (a.tipo === 'abono' ? 1 : -1) * Number(a.importe || 0);
+        cab += '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+          '<div style="min-width:0"><div style="font-size:11.5px;font-weight:700;color:#fff">' + String(a.concepto || '').replace(/[<>&]/g, '') + '</div>' +
+          '<div style="font-size:10px;color:#fff;opacity:.7">' + (a.semanaOrigen ? 'De la ' + String(a.semanaOrigen).toLowerCase() : '') + '</div></div>' +
+          '<div style="font-family:var(--mono);font-size:12.5px;font-weight:900;white-space:nowrap;color:' + (v >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (v >= 0 ? '+ ' : '− ') + '€ ' + fmt(v) + '</div></div>';
+      });
+      cab += '</div>';
+    }
+    cont.insertAdjacentHTML('afterbegin', cab);
   }).catch(function(){});
 }
-
+function _etiquetaSemanaDriver(periodo) {
+  var M = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  var mw = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo || ''), mm = /^(\d{4})-(\d{2})$/.exec(periodo || '');
+  if (mm) return 'MES DE ' + M[+mm[2]-1] + ' DE ' + mm[1];
+  if (!mw) return 'ÚLTIMO CIERRE';
+  var a = new Date(+mw[1], +mw[2]-1, +mw[3]), b = new Date(a.getTime() + 6 * 86400000);
+  return 'SEMANA DEL ' + a.getDate() + (a.getMonth() !== b.getMonth() ? ' DE ' + M[a.getMonth()] : '') + ' AL ' + b.getDate() + ' DE ' + M[b.getMonth()];
+}
 function pintarLiquidacionDriver(d) {
   var cont = document.getElementById('liquidacion-driver-box');
   if (!cont) return;
@@ -5253,21 +5226,45 @@ function cargarNominasConductor() {
 }
 
 function cargarCabifyDesdeAdmin() {
+  // Igual que Bolt: los datos de Cabify los sube tu administrador (Excel)
+  // y se publican en tu app al cerrar la semana.
   if (!currentUser) return;
-  fetch(FIREBASE_URL + '/facturacion_cabify/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(datos){
-    if (!datos) return;
-    platData.cabify.neto = Number(datos.neto||0);
-    platData.cabify.efectivo = Number(datos.efectivo||0);
+  fetch(FIREBASE_URL + '/facturacion_publicada/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(publicado){
+    var datos = publicado && publicado.cabify;
+    var cont = document.getElementById('cabify-admin-body');
+    if (!cont) return;
+    if (!datos) {
+      cont.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px 4px">Tu administrador todavía no ha subido tus datos de Cabify.</div>';
+      platData.cabify.neto = 0; platData.cabify.efectivo = 0; platData.cabify.netoReal = 0;
+      updateBillingTotal();
+      return;
+    }
+    function casilla(label, valor) {
+      return '<div style="background:rgba(124,92,252,.08);border:1.5px solid rgba(124,92,252,.8);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 0 8px rgba(124,92,252,.55),0 0 16px rgba(124,92,252,.28);display:flex;justify-content:space-between;align-items:center">' +
+        '<span style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.8)">' + label + '</span>' +
+        '<span style="font-family:var(--mono);font-size:15px;font-weight:800;color:#b9a6ff;text-shadow:0 0 5px rgba(124,92,252,.9)">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
+    }
     // Cabify ya reporta el neto directamente — no se le resta nada más.
-    platData.cabify.netoReal = platData.cabify.neto;
-
-    var netoEl = document.getElementById('cabify-neto'); if (netoEl) netoEl.textContent = '€ ' + platData.cabify.neto.toFixed(2).replace('.',',');
-    var efEl = document.getElementById('cabify-efectivo'); if (efEl) efEl.textContent = '€ ' + platData.cabify.efectivo.toFixed(2).replace('.',',');
-
+    var netoReal = (typeof datos.netoReal === 'number') ? datos.netoReal : Number(datos.neto || 0);
+    platData.cabify.neto = Number(datos.neto || 0);
+    platData.cabify.efectivo = Number(datos.efectivo || 0);
+    platData.cabify.propinas = Number(datos.propinas || 0);
+    platData.cabify.netoReal = netoReal;
     updateBillingTotal();
+
+    cont.innerHTML =
+      '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Actualizado por tu administrador · ' + (datos.fecha || '') + '</div>' +
+      casilla('Facturación neta', datos.neto) +
+      casilla('Pagado a bordo (efectivo)', datos.efectivo) +
+      (Number(datos.propinas || 0) ? casilla('Propinas', datos.propinas) : '') +
+      (Number(datos.promociones || 0) ? casilla('Promociones', datos.promociones) : '') +
+      '<div style="background:rgba(0,212,255,.1);border:2px solid rgba(0,212,255,1);border-radius:10px;padding:11px 13px;box-shadow:0 0 12px rgba(0,212,255,.9),0 0 26px rgba(0,212,255,.55);display:flex;justify-content:space-between;align-items:center">' +
+        '<span style="font-size:12px;font-weight:900;color:#fff;text-shadow:0 0 5px rgba(255,255,255,.9)">NETO REAL</span>' +
+        '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.95),0 0 14px rgba(0,212,255,.6)">€ ' + netoReal.toFixed(2).replace('.',',') + '</span>' +
+      '</div>';
   }).catch(function(){});
 }
-
 function cargarBoltDesdeAdmin() {
   if (!currentUser) return;
   fetch(FIREBASE_URL + '/facturacion_publicada/' + currentUser.cid + '.json').then(function(r){ return r.json(); }).then(function(publicado){
