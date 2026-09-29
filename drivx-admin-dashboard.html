@@ -1089,7 +1089,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-4';
+var APP_VERSION = '2026-09-29-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3132,7 +3132,7 @@ function cargarSuscripcionLotes() {
     data = data || {};
     _suscLotes = Object.keys(data).map(function(id){
       var v = data[id];
-      return { id: id, cantidad: v.cantidad || 1, precioUnitario: v.precioUnitario || PRECIO_VEHICULO, fechaContratacion: v.fechaContratacion, stripeSubscriptionId: v.stripeSubscriptionId || null, creadoTs: v.creadoTs || 0 };
+      return { id: id, cantidad: v.cantidad || 1, precioUnitario: (v.precioUnitario != null ? v.precioUnitario : PRECIO_VEHICULO), gratuito: !!v.gratuito, fechaContratacion: v.fechaContratacion, stripeSubscriptionId: v.stripeSubscriptionId || null, creadoTs: v.creadoTs || 0 };
     }).sort(function(a,b){ return a.creadoTs - b.creadoTs; });
   });
 }
@@ -3257,6 +3257,15 @@ function pintarSuscripcion() {
 
     html += '<div style="display:flex;flex-direction:column;gap:8px">';
     conProxima.forEach(function(item){
+      if (item.l.gratuito) {
+        // Vehículos de cortesía (cuenta gratuita): sin cobros
+        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1.5px solid rgba(0,230,118,.6)">' +
+          '<span style="font-size:18px">🎁</span><div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;color:var(--text3)">' + item.l.cantidad + ' vehículo' + (item.l.cantidad!==1?'s':'') + ' incluido' + (item.l.cantidad!==1?'s':'') + ' de cortesía</div>' +
+          '<div style="font-size:13px;font-weight:800;color:#fff">Sin cobros · cuenta gratuita de DRIVX</div></div>' +
+          '<span style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--green)">GRATIS</span></div>';
+        return;
+      }
       var urgente = item.dias !== null && item.dias <= 14;
       var totalLote = item.l.cantidad * item.l.precioUnitario;
       html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1px solid ' + (urgente ? 'rgba(255,179,0,.5)' : 'var(--border2)') + '">';
@@ -7454,7 +7463,8 @@ function cargarNombreEmpresa() {
     EMPRESA_NOMBRE = (info && info.nombre) || '';
     pintarNombreEmpresa();
     if (window.MODO_SOPORTE) pintarFranjaSoporte();
-    else if (info && info.estado === 'suspendida') mostrarBloqueoSuspension();
+    else if (info && info.estado === 'suspendida') mostrarBloqueoSuspension(info.motivoSuspension === 'Periodo gratuito terminado' ? 'fin_gratis' : '');
+    else if (info && info.gratuita && info.venceTs && Date.now() > info.venceTs) mostrarBloqueoSuspension('fin_gratis');
   }).catch(function(){});
 }
 // Nombre del concepto de gestión que ve el propietario: en una empresa,
@@ -7717,15 +7727,17 @@ function pintarFranjaSoporte() {
     '<button onclick="window.close(); setTimeout(function(){ location.href=\'/drivx-master.html\'; }, 200);" style="padding:4px 12px;border-radius:8px;border:1.5px solid #fff;background:rgba(255,255,255,.15);color:#fff;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit">Salir del modo soporte</button>';
 }
 // Empresa suspendida desde el panel master: nadie de la empresa puede usarla
-function mostrarBloqueoSuspension() {
+function mostrarBloqueoSuspension(motivo) {
   if (document.getElementById('bloqueo-suspension')) return;
   var b = document.createElement('div');
   b.id = 'bloqueo-suspension';
   b.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(5,8,14,.97);display:flex;align-items:center;justify-content:center;padding:24px';
   b.innerHTML = '<div style="max-width:420px;text-align:center;color:#fff;border:2.5px solid rgba(255,71,87,1);border-radius:20px;padding:30px 24px;background:#0c1420;box-shadow:0 0 18px rgba(255,71,87,.7)">' +
     '<div style="font-size:40px;margin-bottom:10px">⛔</div>' +
-    '<div style="font-size:18px;font-weight:900;margin-bottom:10px">Acceso suspendido</div>' +
-    '<div style="font-size:14px;line-height:1.6;margin-bottom:20px">El acceso de <b>' + String(EMPRESA_NOMBRE || 'tu empresa').replace(/[<>&]/g,'') + '</b> a DRIVX está suspendido. Tus datos están guardados. Para reactivarlo, escríbenos a <b>drivx.apps@gmail.com</b>.</div>' +
+    '<div style="font-size:18px;font-weight:900;margin-bottom:10px">' + (motivo === 'fin_gratis' ? 'Tu periodo gratuito ha terminado' : 'Acceso suspendido') + '</div>' +
+    '<div style="font-size:14px;line-height:1.6;margin-bottom:20px">' + (motivo === 'fin_gratis'
+      ? 'El periodo de cortesía de <b>' + String(EMPRESA_NOMBRE || 'tu empresa').replace(/[<>&]/g,'') + '</b> ha finalizado. Tus datos están guardados. Para seguir usando DRIVX, escríbenos a <b>drivx.apps@gmail.com</b>.'
+      : 'El acceso de <b>' + String(EMPRESA_NOMBRE || 'tu empresa').replace(/[<>&]/g,'') + '</b> a DRIVX está suspendido. Tus datos están guardados. Para reactivarlo, escríbenos a <b>drivx.apps@gmail.com</b>.') + '</div>' +
     '<button onclick="doLogout()" style="padding:12px 20px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);color:#fff;font-weight:800;cursor:pointer;font-family:inherit">Cerrar sesión</button></div>';
   document.body.appendChild(b);
 }

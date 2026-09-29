@@ -401,7 +401,7 @@ function cargarNombreEmpresa() {
     EMPRESA_NOMBRE = (info && info.nombre) || '';
     pintarNombreEmpresa();
     if (window.MODO_SOPORTE) pintarFranjaSoporte();
-    else if (info && info.estado === 'suspendida') mostrarBloqueoSuspension();
+    else if (info && (info.estado === 'suspendida' || (info.gratuita && info.venceTs && Date.now() > info.venceTs))) mostrarBloqueoSuspension();
   }).catch(function(){});
 }
 // Empresa suspendida desde el panel master: la app queda bloqueada
@@ -787,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-2';
+var APP_VERSION = '2026-09-29-3';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })

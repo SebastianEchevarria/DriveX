@@ -183,6 +183,7 @@
       <span class="corona">👑 Master</span>
       <div class="esp"></div>
       <span class="quien" id="quien"></span>
+      <button class="btn btn-verde" onclick="abrirGratuita()">🎁 Crear cuenta gratuita</button>
       <button class="btn btn-cian" id="btn-permisos" onclick="sincronizarPermisosTodas()">🔐 Actualizar permisos</button>
       <button class="btn btn-linea" onclick="cargarEmpresas()">Actualizar</button>
       <button class="btn btn-rojo" onclick="salir()">Salir</button>
@@ -249,6 +250,43 @@
       <button class="btn btn-linea" onclick="cerrarMigrar()">Cerrar</button>
       <button class="btn btn-cian" id="mg-simular" onclick="migrar(true)">Simular</button>
       <button class="btn btn-oro" id="mg-migrar" onclick="migrar(false)" disabled>Migrar ahora</button>
+    </div>
+  </div>
+</div>
+
+<div class="velo" id="velo-gratis" onclick="if(event.target===this)cerrarGratuita()">
+  <div class="caja" role="dialog" aria-modal="true" aria-labelledby="gr-titulo" style="max-width:560px;border-color:var(--green);box-shadow:0 0 18px rgba(0,230,118,.55)">
+    <div class="caja-cab">
+      <h2 id="gr-titulo">🎁 Crear cuenta gratuita</h2>
+      <p id="gr-desc">Una empresa sin suscripción ni pagos. Se le envía su código de acceso por email, igual que a un cliente de pago.</p>
+    </div>
+    <div class="caja-cuerpo" style="padding-top:14px">
+      <div id="gr-solo-crear">
+        <div class="campo"><label>Tipo</label>
+          <div class="filtros" id="gr-tipo"><button type="button" aria-pressed="true" data-v="empresa" onclick="grTipo(this)">🏢 Empresa</button><button type="button" aria-pressed="false" data-v="particular" onclick="grTipo(this)">👤 Particular</button></div>
+        </div>
+        <div class="campo"><label for="gr-nombre">Nombre de la empresa o persona *</label><input id="gr-nombre" type="text" maxlength="120"></div>
+        <div class="campo"><label for="gr-email">Email del administrador *</label><input id="gr-email" type="email" autocomplete="off" placeholder="le llegará el código a este email"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="campo" style="flex:1;min-width:150px"><label for="gr-nif">NIF / CIF (opcional)</label><input id="gr-nif" type="text" maxlength="20"></div>
+          <div class="campo" style="flex:1;min-width:150px"><label for="gr-ciudad">Ciudad (opcional)</label><input id="gr-ciudad" type="text" maxlength="80"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="campo" style="flex:1;min-width:150px"><label for="gr-veh">Vehículos incluidos *</label><input id="gr-veh" type="number" min="1" max="500" value="3"></div>
+        <div class="campo" style="flex:1.3;min-width:180px"><label for="gr-dur">Duración</label>
+          <select id="gr-dur" onchange="grDuracion()" style="width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid rgba(255,197,61,.5);background:#101b2b;color:#fff;font-size:15px">
+            <option value="0">Sin fecha de fin</option><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">1 año</option><option value="fecha">Hasta una fecha…</option>
+          </select></div>
+      </div>
+      <div class="campo" id="gr-fecha-wrap" style="display:none"><label for="gr-fecha">Fecha de fin</label><input id="gr-fecha" type="date" style="color-scheme:dark"></div>
+      <div class="campo"><label for="gr-notas">Notas internas (solo las ves tú)</label><input id="gr-notas" type="text" maxlength="500" placeholder="Ej: empresa piloto, amigo de…, prueba hasta decidir"></div>
+      <div id="gr-menu-wrap"><label style="display:block;font-size:13px;font-weight:700;margin:4px 0 2px">Apartados del menú que tendrá</label><div id="gr-menu"></div></div>
+      <div id="gr-res" style="font-size:14px;line-height:1.6"></div>
+    </div>
+    <div class="caja-pie">
+      <button class="btn btn-linea" onclick="cerrarGratuita()">Cerrar</button>
+      <button class="btn btn-verde" id="gr-guardar" onclick="guardarGratuita()">Crear cuenta</button>
     </div>
   </div>
 </div>
@@ -380,10 +418,12 @@ function pintarCifras(){
   var e = DATOS.empresas || [];
   var activas = e.filter(function(x){ return (x.info.estado || 'activa') !== 'suspendida'; });
   var veh = activas.reduce(function(s,x){ return s + x.vehiculosContratados; }, 0);
+  var vehPago = activas.reduce(function(s,x){ return s + (x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados); }, 0);
+  var gratis = e.filter(function(x){ return x.info.gratuita; }).length;
   var cond = e.reduce(function(s,x){ return s + x.conductores; }, 0);
   document.getElementById('cifras').innerHTML =
-    '<div class="cifra principal"><div class="n">' + euros(veh * (DATOS.precio || 299)) + '</div><div class="t">Ingresos anuales contratados (sin IVA)' + (DATOS.modoPrueba ? '<span class="modo-prueba">Stripe en modo prueba</span>' : '') + '</div></div>' +
-    '<div class="cifra"><div class="n">' + e.length + '</div><div class="t">Empresas y particulares (' + activas.length + ' activas)</div></div>' +
+    '<div class="cifra principal"><div class="n">' + euros(vehPago * (DATOS.precio || 299)) + '</div><div class="t">Ingresos anuales contratados (sin IVA)' + (DATOS.modoPrueba ? '<span class="modo-prueba">Stripe en modo prueba</span>' : '') + '</div></div>' +
+    '<div class="cifra"><div class="n">' + e.length + '</div><div class="t">Empresas y particulares (' + activas.length + ' activas' + (gratis ? ', ' + gratis + ' gratis' : '') + ')</div></div>' +
     '<div class="cifra"><div class="n">' + veh + '</div><div class="t">Vehículos contratados</div></div>' +
     '<div class="cifra"><div class="n">' + cond + '</div><div class="t">Conductores registrados</div></div>';
 }
@@ -436,9 +476,13 @@ function pintar(){
       '<div class="num"><b>' + x.vehiculosContratados + '</b> contratados · <b>' + x.vehiculosEnFlota + '</b> en flota<br>' +
         '<b>' + x.conductores + '</b> conductores · <b>' + x.usuariosDashboard + '</b> admins<br>' +
         '<b>' + x.supervisores + '</b> supervisores · <b>' + x.propietarios + '</b> propietarios</div>' +
-      '<div class="paga">' + euros(x.vehiculosContratados * (DATOS.precio || 299)) + '<small>al año + IVA · ' + x.vehiculosContratados + ' veh. × ' + (DATOS.precio || 299) + ' €</small></div>' +
+      (i.gratuita
+        ? '<div class="paga" style="color:var(--green)">Gratis<small>' + (x.vehiculosGratis || x.vehiculosContratados) + ' veh. · ' + (i.venceTs ? 'hasta ' + fecha(i.venceTs) : 'sin fecha de fin') + '</small></div>'
+        : '<div class="paga">' + euros((x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) * (DATOS.precio || 299)) + '<small>al año + IVA · ' + (x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) + ' veh. × ' + (DATOS.precio || 299) + ' €</small></div>') +
       '<div class="estado-col"><span class="estado ' + est + '">' + (est === 'suspendida' ? 'Suspendida' : 'Activa') + '</span>' +
         '<div class="sub">Alta: ' + fecha(i.creadoTs) + '</div>' +
+        (i.gratuita ? '<span class="estado" style="margin-top:6px;color:var(--green);border:1.5px solid rgba(0,230,118,.7)">GRATIS</span>' : '') +
+        (i.notasMaster ? '<div class="sub" title="' + esc(i.notasMaster) + '">📝 ' + esc(String(i.notasMaster).slice(0, 40)) + (String(i.notasMaster).length > 40 ? '…' : '') + '</div>' : '') +
         (i.pagoPendiente ? '<span class="aviso-pago">⚠ Cobro fallido</span>' : '') +
         (contarOcultos(x.ajustes) ? '<span class="ocultos">' + contarOcultos(x.ajustes) + ' apartado' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + ' oculto' + (contarOcultos(x.ajustes) !== 1 ? 's' : '') + '</span>' : '') +
       '</div>' +
@@ -446,6 +490,7 @@ function pintar(){
         '<button class="btn btn-cian" onclick="entrarSoporte(\'' + x.codigo + '\')">Entrar como soporte</button>' +
         '<button class="btn btn-linea" onclick="abrirUsuarios(\'' + x.codigo + '\')">👥 Usuarios</button>' +
         '<button class="btn btn-linea" onclick="abrirAjustes(\'' + x.codigo + '\')">⚙️ Ajustes</button>' +
+        (i.gratuita ? '<button class="btn btn-verde" onclick="abrirGratuita(\'' + x.codigo + '\')">🎁 Cortesía</button>' : '') +
         (stripe ? '<a class="btn btn-linea" href="' + stripe + '" target="_blank" rel="noopener">Ver en Stripe</a>' : '') +
         (est === 'suspendida'
           ? '<button class="btn btn-verde" onclick="cambiarEstado(\'' + x.codigo + '\',\'activa\',this)">Reactivar</button>' +
@@ -646,6 +691,73 @@ function sincronizarPermisosTodas(){
   }).then(function(){ btn.disabled = false; btn.textContent = '🔐 Actualizar permisos'; });
 }
 
+// ══ CUENTAS GRATUITAS (de cortesía) ══
+var _grEditando = null;
+function grTipo(b){ document.querySelectorAll('#gr-tipo button').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); }
+function grDuracion(){ document.getElementById('gr-fecha-wrap').style.display = document.getElementById('gr-dur').value === 'fecha' ? 'block' : 'none'; }
+function abrirGratuita(codigo){
+  _grEditando = codigo || null;
+  var x = codigo ? (DATOS.empresas || []).find(function(e){ return e.codigo === codigo; }) : null;
+  var i = x ? x.info : {};
+  document.getElementById('gr-titulo').textContent = x ? ('🎁 Cortesía de ' + (i.nombre || codigo)) : '🎁 Crear cuenta gratuita';
+  document.getElementById('gr-desc').textContent = x ? 'Cambia los vehículos incluidos, la fecha de fin o tus notas. Si estaba bloqueada por fin del periodo y amplías la fecha, se reactiva sola.' : 'Una empresa sin suscripción ni pagos. Se le envía su código de acceso por email, igual que a un cliente de pago.';
+  document.getElementById('gr-solo-crear').style.display = x ? 'none' : 'block';
+  document.getElementById('gr-menu-wrap').style.display = x ? 'none' : 'block';
+  ['gr-nombre','gr-email','gr-nif','gr-ciudad'].forEach(function(id){ document.getElementById(id).value = ''; });
+  document.getElementById('gr-veh').value = x ? (x.vehiculosGratis || x.vehiculosContratados || 1) : 3;
+  document.getElementById('gr-notas').value = i.notasMaster || '';
+  if (x && i.venceTs) {
+    document.getElementById('gr-dur').value = 'fecha';
+    document.getElementById('gr-fecha').value = new Date(i.venceTs).toISOString().slice(0, 10);
+  } else { document.getElementById('gr-dur').value = '0'; document.getElementById('gr-fecha').value = ''; }
+  grDuracion();
+  document.getElementById('gr-menu').innerHTML = SECCIONES_MENU.map(function(s){
+    return '<label class="interruptor"><span class="t">' + s[1] + '</span><input type="checkbox" data-sec="' + s[0] + '" checked><span class="pista" aria-hidden="true"></span></label>';
+  }).join('');
+  document.getElementById('gr-res').innerHTML = '';
+  var btn = document.getElementById('gr-guardar'); btn.disabled = false; btn.textContent = x ? 'Guardar cambios' : 'Crear cuenta';
+  document.getElementById('velo-gratis').classList.add('abierto');
+}
+function cerrarGratuita(){ document.getElementById('velo-gratis').classList.remove('abierto'); }
+function grVenceTs(){
+  var d = document.getElementById('gr-dur').value;
+  if (d === '0') return null;
+  if (d === 'fecha') { var f = document.getElementById('gr-fecha').value; if (!f) return undefined; var t = new Date(f + 'T23:59:59'); return t.getTime(); }
+  var t2 = new Date(); t2.setMonth(t2.getMonth() + parseInt(d, 10)); t2.setHours(23, 59, 59, 0); return t2.getTime();
+}
+function guardarGratuita(){
+  var res = document.getElementById('gr-res');
+  var venceTs = grVenceTs();
+  if (venceTs === undefined) { res.innerHTML = '<div class="aviso error">Elige la fecha de fin.</div>'; return; }
+  var datos = { vehiculos: parseInt(document.getElementById('gr-veh').value, 10), venceTs: venceTs, notas: document.getElementById('gr-notas').value.trim() };
+  var accion = 'editar_gratuita';
+  if (_grEditando) datos.empresa = _grEditando;
+  else {
+    accion = 'crear_gratuita';
+    var tipoBtn = document.querySelector('#gr-tipo button[aria-pressed="true"]');
+    datos.tipo = tipoBtn ? tipoBtn.getAttribute('data-v') : 'empresa';
+    datos.nombre = document.getElementById('gr-nombre').value.trim();
+    datos.email = document.getElementById('gr-email').value.trim().toLowerCase();
+    datos.nif = document.getElementById('gr-nif').value.trim();
+    datos.ciudad = document.getElementById('gr-ciudad').value.trim();
+    datos.menu = {};
+    document.querySelectorAll('#gr-menu input[data-sec]').forEach(function(c){ datos.menu[c.getAttribute('data-sec')] = c.checked; });
+    if (!Object.keys(datos.menu).some(function(k){ return datos.menu[k]; })) { res.innerHTML = '<div class="aviso error">Deja al menos un apartado activo.</div>'; return; }
+  }
+  var btn = document.getElementById('gr-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
+  api(accion, datos).then(function(d){
+    if (accion === 'crear_gratuita') {
+      res.innerHTML = '<div class="aviso ok">✅ Cuenta creada con el código <b>' + esc(d.codigo) + '</b>. ' +
+        (d.emailEnviado ? 'Le hemos enviado el código a ' + esc(datos.email) + '.' : '⚠️ No se pudo enviar el email: pásale tú el código.') + '</div>';
+      btn.textContent = 'Creada';
+    } else { toast('Cuenta de cortesía actualizada'); cerrarGratuita(); }
+    cargarEmpresas();
+  }).catch(function(err){
+    res.innerHTML = '<div class="aviso error">' + esc(err.message) + '</div>';
+    btn.disabled = false; btn.textContent = _grEditando ? 'Guardar cambios' : 'Crear cuenta';
+  });
+}
+
 // ══ OCULTAR / ELIMINAR EMPRESAS SUSPENDIDAS ══
 function ocultarEmpresa(codigo, ocultar, btn){
   btn.disabled = true;
@@ -695,7 +807,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-29-4';
+var APP_VERSION = '2026-09-29-5';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
