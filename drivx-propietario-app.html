@@ -561,6 +561,28 @@ function recuperarContrasenaApp(idEmail, idMsg) {
   });
 }
 
+// ══════════════ PRIVACIDAD: listas que pasan por el servidor ══════════════
+// Con las reglas de seguridad, cada persona solo puede leer lo que le toca.
+// Las listas completas (conductores, supervisores, propietarios) las pide
+// al servidor, que devuelve SOLO lo que esta persona puede ver.
+function leerListaSegura(carpeta) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.datos) || {}; }).catch(function(){ return {}; });
+}
+// Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
+function leerCierresConductor(cid) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.cierres) || {}; }).catch(function(){ return {}; });
+}
+
 function resolverEmpresaDeEmail(email) {
   if (!email || email.indexOf('@') === -1) return Promise.resolve(null);
   return fetch(FIREBASE_BASE + '/directorio_usuarios/' + encodeURIComponent(emailKey(email)) + '.json')
@@ -765,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-8';
+var APP_VERSION = '2026-09-29-1';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -954,7 +976,7 @@ function doLogin() {
 function doLoginConSistemaDeSiempre(email, pass, yaAutenticado) {
   var errEl = document.getElementById('log-error');
 
-  fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).then(function(data){
+  leerListaSegura('propietarios').then(function(data){
     data = data || {};
     var pid = null, prop = null;
     Object.keys(data).forEach(function(k){
@@ -1238,7 +1260,7 @@ function cargarInicio() {
   if (!currentUser) return;
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    leerListaSegura('conductores_registro'),
     fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/documentos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
@@ -1498,7 +1520,7 @@ function toggleGastosVeh(vid) {
 function cargarConductores() {
   if (!currentUser) return;
   Promise.all([
-    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    leerListaSegura('conductores_registro'),
     fetch(FIREBASE_URL + '/fichajes.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var invitados = results[0] || {};
@@ -1537,7 +1559,7 @@ function cargarGastosO() {
   if (!currentUser) return;
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    leerListaSegura('conductores_registro'),
     fetch(FIREBASE_URL + '/gastos.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
@@ -1643,7 +1665,7 @@ function cargarFacturacionO() {
   if (!currentUser) return;
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    leerListaSegura('conductores_registro')
   ]).then(function(results){
     var extra = results[0] || {};
     var invitados = results[1] || {};
@@ -2096,9 +2118,8 @@ function _rdCargar(fuente) {
       }).filter(Boolean);
     });
   }
-  return leer(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(mats){
-    return Promise.all(Object.keys(mats).map(function(m){ return leer(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + fuente.cid + '.json'); }));
-  }).then(function(listas){
+  return leerCierresConductor(fuente.cid).then(function(porMatObj){
+    var listas = Object.keys(porMatObj).map(function(m){ return porMatObj[m] || {}; });
     var out = [];
     listas.forEach(function(d){
       Object.keys(d).forEach(function(p){

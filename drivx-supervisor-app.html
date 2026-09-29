@@ -795,7 +795,7 @@ function plateHtml(matricula) {
 function sincronizarPermisosSupervisor() {
   var u = window.currentSupervisorUser;
   if (!u || !u.email) { renderVehiculosHome(); renderITVAlerts(); return; }
-  fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).then(function(data){
+  leerListaSegura('usuarios_supervisor').then(function(data){
     data = data || {};
     var match = null;
     Object.keys(data).forEach(function(uid){
@@ -922,7 +922,7 @@ function renderVehiculosHome() {
   Promise.all([
     fetch(FIREBASE_URL + '/vehiculos_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    leerListaSegura('conductores_registro'),
     fetch(FIREBASE_URL + '/comunidades_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
   ]).then(function(results){
     var extra = results[0] || {};
@@ -1274,7 +1274,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-6';
+var APP_VERSION = '2026-09-29-2';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1498,7 +1498,7 @@ function doLoginConSistemaDeSiempre(email, pass, yaAutenticado) {
   }
 
   // Usuarios creados desde Configuración → Invitación en el Dashboard (Firebase)
-  fetch(FIREBASE_URL + '/usuarios_supervisor.json').then(function(r){ return r.json(); }).then(function(data){
+  leerListaSegura('usuarios_supervisor').then(function(data){
     data = data || {};
     var match = null;
     Object.keys(data).forEach(function(uid){
@@ -1857,13 +1857,29 @@ function startSync() {
 // al siguiente ciclo automático.
 var _supSSE = null;
 var _supSyncDebounce = null;
+// Escuchamos solo lo que usa el Supervisor (citas y vehículos), con la
+// sesión, porque las reglas de seguridad no dejan leer toda la empresa.
+var _supSSEs = {};
 function iniciarSincronizacionInstantaneaSup() {
   if (_supSSE || typeof EventSource === 'undefined') return;
-  try {
-    _supSSE = new EventSource(FIREBASE_URL + '/.json');
-    _supSSE.addEventListener('put', _onCambioRemotoSup);
-    _supSSE.addEventListener('patch', _onCambioRemotoSup);
-  } catch(e) {}
+  _supSSE = true;
+  ['citas_globales', 'vehiculos_extra'].forEach(function(nodo){ _conectarSSESup(nodo, false); });
+}
+function _conectarSSESup(nodo, tokenNuevo) {
+  var u = firebase.auth().currentUser; if (!u) return;
+  u.getIdToken(!!tokenNuevo).then(function(token){
+    try {
+      if (_supSSEs[nodo]) { try { _supSSEs[nodo].close(); } catch(e) {} }
+      var es = new EventSource(FIREBASE_URL + '/' + nodo + '.json?auth=' + encodeURIComponent(token));
+      _supSSEs[nodo] = es;
+      var primero = true;
+      var alCambiar = function(){ if (primero) { primero = false; return; } _onCambioRemotoSup(); };
+      es.addEventListener('put', alCambiar);
+      es.addEventListener('patch', alCambiar);
+      es.addEventListener('auth_revoked', function(){ _conectarSSESup(nodo, true); });
+      es.onerror = function(){ if (es.readyState === 2) setTimeout(function(){ _conectarSSESup(nodo, true); }, 5000); };
+    } catch(e) {}
+  }).catch(function(){});
 }
 function _onCambioRemotoSup() {
   clearTimeout(_supSyncDebounce);
@@ -2443,6 +2459,28 @@ function recuperarContrasenaApp(idEmail, idMsg) {
     if (err && err.code === 'auth/user-not-found') ok();
     else { msg.style.color = '#ff6b7a'; msg.textContent = 'No se pudo enviar: ' + (err && err.message ? err.message : 'inténtalo de nuevo'); }
   });
+}
+
+// ══════════════ PRIVACIDAD: listas que pasan por el servidor ══════════════
+// Con las reglas de seguridad, cada persona solo puede leer lo que le toca.
+// Las listas completas (conductores, supervisores, propietarios) las pide
+// al servidor, que devuelve SOLO lo que esta persona puede ver.
+function leerListaSegura(carpeta) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.datos) || {}; }).catch(function(){ return {}; });
+}
+// Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
+function leerCierresConductor(cid) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.cierres) || {}; }).catch(function(){ return {}; });
 }
 
 function resolverEmpresaDeEmail(email) {

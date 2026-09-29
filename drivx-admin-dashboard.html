@@ -1088,7 +1088,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-21';
+var APP_VERSION = '2026-09-29-1';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1483,6 +1483,7 @@ function enterShell() {
   var navSusc = document.getElementById('nav-suscripcion');
   if (navSusc) navSusc.style.display = isAdmin ? 'flex' : 'none';
   cargarAjustesEmpresa();
+  sincronizarPermisosEmpresa();
 
   // Cargamos el límite de la suscripción para todos los roles — así el
   // aviso de "límite alcanzado" en Flota funciona da igual quién intente
@@ -4171,9 +4172,8 @@ function _rdCargar(fuente) {
       }).filter(Boolean);
     });
   }
-  return leer(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(mats){
-    return Promise.all(Object.keys(mats).map(function(m){ return leer(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + fuente.cid + '.json'); }));
-  }).then(function(listas){
+  return leerCierresConductor(fuente.cid).then(function(porMatObj){
+    var listas = Object.keys(porMatObj).map(function(m){ return porMatObj[m] || {}; });
     var out = [];
     listas.forEach(function(d){
       Object.keys(d).forEach(function(p){
@@ -7549,6 +7549,28 @@ function recuperarContrasenaApp(idEmail, idMsg) {
   });
 }
 
+// ══════════════ PRIVACIDAD: listas que pasan por el servidor ══════════════
+// Con las reglas de seguridad, cada persona solo puede leer lo que le toca.
+// Las listas completas (conductores, supervisores, propietarios) las pide
+// al servidor, que devuelve SOLO lo que esta persona puede ver.
+function leerListaSegura(carpeta) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.datos) || {}; }).catch(function(){ return {}; });
+}
+// Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
+function leerCierresConductor(cid) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.cierres) || {}; }).catch(function(){ return {}; });
+}
+
 function resolverEmpresaDeEmail(email) {
   if (!email || email.indexOf('@') === -1) return Promise.resolve(null);
   return fetch(FIREBASE_BASE + '/directorio_usuarios/' + encodeURIComponent(emailKey(email)) + '.json')
@@ -7737,6 +7759,15 @@ function aplicarAjustesEmpresa() {
       if (p) showDashScreen(p);
     }
   }
+}
+// Mantiene al día qué papel tiene cada persona de la empresa (lo usan las
+// reglas de seguridad para decidir qué puede leer cada uno)
+function sincronizarPermisosEmpresa() {
+  var u = firebase.auth().currentUser; if (!u) return;
+  u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'sincronizar', empresa: EMPRESA_ID || '' }) });
+  }).catch(function(){});
 }
 function cargarAjustesEmpresa() {
   return fetch(FIREBASE_URL + '/ajustes_empresa.json').then(function(r){ return r.json(); }).then(function(a){

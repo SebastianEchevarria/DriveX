@@ -1294,7 +1294,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-28-10';
+var APP_VERSION = '2026-09-29-1';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1604,7 +1604,7 @@ function doLoginConSistemaDeSiempre(email, pass, yaAutenticado) {
     return;
   }
   // ¿Es un conductor activado por invitación? (email + contraseña creada al registrarse)
-  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+  leerListaSegura('conductores_registro').then(function(all){
     all = all || {};
     var match = null;
     Object.keys(all).forEach(function(k){ if (all[k] && all[k].email === email && (all[k].pass === pass || (EMPRESA_ID && yaAutenticado))) match = all[k]; });
@@ -1863,7 +1863,7 @@ function finalizeRegistro() {
   }).then(function(){
     // El servidor comprueba la invitación y vincula este email a su empresa;
     // a partir de ahí ya puede guardar sus datos dentro de la empresa.
-    return apiCuenta('activar_invitacion', { code: inv.code }, true).catch(function(e){ e.code = 'drivx/servidor'; throw e; });
+    return apiCuenta('activar_invitacion', { code: inv.code, cid: cid }, true).catch(function(e){ e.code = 'drivx/servidor'; throw e; });
   }).then(function(){
     return Promise.all([
       fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', {
@@ -2126,7 +2126,7 @@ function cerrarTurnosAnterioresMismoVehiculo(kmNuevaEntrada, timeStr, conductorC
     }).catch(function(){});
   }
   if (conductorConocido) { cerrarUno(conductorConocido); return; }
-  fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+  leerListaSegura('conductores_registro').then(function(all){
     all = all || {};
     var otros = Object.keys(all).map(function(k){ return all[k]; }).filter(function(c){
       return c && c.matricula === currentUser.matricula && c.cid !== currentUser.cid;
@@ -2840,7 +2840,7 @@ function finalizarFicharSalida(km) {
 // Nunca tarda más de 6s: si la red va lenta, se sigue con el fichaje igualmente.
 function buscarConductorActivoMismoVehiculo() {
   if (!currentUser || !currentUser.matricula) return Promise.resolve(null);
-  var busqueda = fetch(FIREBASE_URL + '/conductores_registro.json').then(function(r){ return r.json(); }).then(function(all){
+  var busqueda = leerListaSegura('conductores_registro').then(function(all){
     all = all || {};
     var otros = Object.keys(all).map(function(k){ return all[k]; }).filter(function(c){
       return c && c.matricula === currentUser.matricula && c.cid !== currentUser.cid;
@@ -3196,13 +3196,8 @@ function abrirHistorialIngresos() {
   document.body.style.overflow = 'hidden';
   var cid = currentUser.cid;
   // Solo los cierres de este conductor (en todos los vehículos que haya llevado)
-  fetch(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(r){ return r.json(); }).then(function(mats){
-    mats = (mats && typeof mats === 'object' && !mats.error) ? Object.keys(mats) : [];
-    return Promise.all(mats.map(function(m){
-      return fetch(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + cid + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
-        .then(function(d){ return { mat: m, d: (d && typeof d === 'object' && !d.error) ? d : {} }; });
-    }));
-  }).then(function(porMat){
+  leerCierresConductor(cid).then(function(porMatObj){
+    var porMat = Object.keys(porMatObj).map(function(m){ return { mat: m, d: porMatObj[m] || {} }; });
     var lista = [];
     porMat.forEach(function(x){
       Object.keys(x.d).forEach(function(periodo){
@@ -3856,9 +3851,8 @@ function recalcularLiquidacionDriver() {
   if (!currentUser || !currentUser.cid) return;
   var cid = currentUser.cid;
   var leer = function(url){ return fetch(url).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){ return (d && typeof d === 'object' && !d.error) ? d : {}; }); };
-  leer(FIREBASE_URL + '/facturacion_cierres.json?shallow=true').then(function(mats){
-    return Promise.all(Object.keys(mats).map(function(m){ return leer(FIREBASE_URL + '/facturacion_cierres/' + m + '/' + cid + '.json'); }));
-  }).then(function(listas){
+  leerCierresConductor(cid).then(function(porMatObj){
+    var listas = Object.keys(porMatObj).map(function(m){ return porMatObj[m] || {}; });
     var ultimo = null, ultimoOrden = -1;
     listas.forEach(function(d){
       Object.keys(d).forEach(function(periodo){
@@ -4993,6 +4987,28 @@ function recuperarContrasenaApp(idEmail, idMsg) {
     if (err && err.code === 'auth/user-not-found') ok();
     else { msg.style.color = '#ff6b7a'; msg.textContent = 'No se pudo enviar: ' + (err && err.message ? err.message : 'inténtalo de nuevo'); }
   });
+}
+
+// ══════════════ PRIVACIDAD: listas que pasan por el servidor ══════════════
+// Con las reglas de seguridad, cada persona solo puede leer lo que le toca.
+// Las listas completas (conductores, supervisores, propietarios) las pide
+// al servidor, que devuelve SOLO lo que esta persona puede ver.
+function leerListaSegura(carpeta) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.datos) || {}; }).catch(function(){ return {}; });
+}
+// Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
+function leerCierresConductor(cid) {
+  var u = firebase.auth().currentUser;
+  if (!u) return Promise.resolve({});
+  return u.getIdToken().then(function(t){
+    return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
+  }).then(function(r){ return r.json(); }).then(function(d){ return (d && d.ok && d.cierres) || {}; }).catch(function(){ return {}; });
 }
 
 function resolverEmpresaDeEmail(email) {

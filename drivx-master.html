@@ -163,6 +163,7 @@
       <span class="corona">👑 Master</span>
       <div class="esp"></div>
       <span class="quien" id="quien"></span>
+      <button class="btn btn-cian" id="btn-permisos" onclick="sincronizarPermisosTodas()">🔐 Actualizar permisos</button>
       <button class="btn btn-linea" onclick="cargarEmpresas()">Actualizar</button>
       <button class="btn btn-rojo" onclick="salir()">Salir</button>
     </div>
@@ -568,6 +569,33 @@ function dialogoMaster(titulo, texto, alAceptar){
   setTimeout(function(){ v.querySelector('#dm-input').focus(); }, 30);
 }
 
+// ══ PERMISOS: qué papel tiene cada persona en cada empresa ══
+// Las reglas de seguridad deciden qué puede leer cada uno según su papel
+// (Dashboard, supervisor, propietario o conductor). Esto los recalcula
+// para todas las empresas. Los Dashboards también lo hacen solos al entrar.
+function sincronizarPermisosTodas(){
+  if (!DATOS || !(DATOS.empresas || []).length) { toast('No hay empresas cargadas.'); return; }
+  var btn = document.getElementById('btn-permisos');
+  btn.disabled = true;
+  var lista = DATOS.empresas.map(function(e){ return e.codigo; });
+  var hechas = 0, fallos = [], personas = 0;
+  auth.currentUser.getIdToken().then(function(token){
+    return lista.reduce(function(p, codigo){
+      return p.then(function(){
+        btn.textContent = '🔐 ' + (hechas + 1) + ' / ' + lista.length + '…';
+        return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token },
+          body: JSON.stringify({ accion:'sincronizar', empresa: codigo }) })
+          .then(function(r){ return r.json(); })
+          .then(function(d){ if (d && d.ok) personas += d.personas || 0; else fallos.push(codigo); })
+          .catch(function(){ fallos.push(codigo); })
+          .then(function(){ hechas++; });
+      });
+    }, Promise.resolve());
+  }).then(function(){
+    toast(fallos.length ? ('Permisos actualizados con errores en: ' + fallos.join(', ')) : ('✅ Permisos actualizados: ' + lista.length + ' empresas, ' + personas + ' personas.'));
+  }).then(function(){ btn.disabled = false; btn.textContent = '🔐 Actualizar permisos'; });
+}
+
 function entrarSoporte(codigo){
   window.open('/drivx-admin-dashboard.html?soporte=' + encodeURIComponent(codigo), '_blank', 'noopener');
 }
@@ -587,7 +615,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-09-28-4';
+var APP_VERSION = '2026-09-29-1';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
