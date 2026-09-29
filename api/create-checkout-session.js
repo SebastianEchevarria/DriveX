@@ -6,14 +6,49 @@
 //     Recibe: { modo:'alta', tipo, nombre, nif, direccion, cp, ciudad, email, cantidad }
 //     Al pagar, el webhook crea la empresa con su CÓDIGO ÚNICO.
 //
+//     Con metodo:'transferencia' → en lugar de pagar con tarjeta se crea la
+//     suscripción con FACTURA a pagar por TRANSFERENCIA (Stripe da a cada cliente
+//     un IBAN propio y detecta solo cuándo llega el dinero; entonces el webhook
+//     crea la empresa y le envía su código).
+//
 //  2) DASHBOARD → AMPLIAR vehículos de una empresa que ya existe.
 //     Recibe: { cantidad, email, empresaId? }
 //
+// PRECIO: 299 € + IVA (21 %) por vehículo y año. El IVA se añade en cada cobro.
+//
 // Variables de entorno necesarias en Vercel:
 //   STRIPE_SECRET_KEY, STRIPE_PRICE_ID, APP_URL
+//   (opcional) STRIPE_TAX_RATE_ID = tasa de IVA ya creada en Stripe; si no, se crea sola
+//   Para la transferencia: FIREBASE_SERVICE_ACCOUNT, FIREBASE_DATABASE_URL, SMTP_USER, SMTP_PASS
 
 const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const admin = require('firebase-admin');
+const nodemailer = require('nodemailer');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+  });
+}
+
+const PRECIO_BASE = 299;
+const IVA_PCT = 21;
+
+// Tasa de IVA 21 % (sin incluir en el precio): se busca en Stripe y, si no existe, se crea
+let _tasaIva = null;
+async function tasaIva() {
+  if (process.env.STRIPE_TAX_RATE_ID) return process.env.STRIPE_TAX_RATE_ID;
+  if (_tasaIva) return _tasaIva;
+  const lista = await stripe.taxRates.list({ active: true, limit: 100 });
+  const t = lista.data.find((x) => x.percentage === IVA_PCT && x.inclusive === false && /iva/i.test(x.display_name || ''));
+  if (t) { _tasaIva = t.id; return t.id; }
+  const nueva = await stripe.taxRates.create({ display_name: 'IVA', percentage: IVA_PCT, inclusive: false, country: 'ES', jurisdiction: 'ES', description: 'IVA 21 % España' });
+  _tasaIva = nueva.id;
+  return nueva.id;
+}
+function euros(n) { return (Math.round(n * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
 
 function limpiar(v, max) {
   return String(v == null ? '' : v).trim().slice(0, max || 200);
@@ -78,10 +113,71 @@ module.exports = async function handler(req, res) {
         email: email,
       };
 
+      const iva = await tasaIva();
+
+      // ── Pago por TRANSFERENCIA BANCARIA ──
+      if (body.metodo === 'transferencia') {
+        const sub = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty, tax_rates: [iva] }],
+          collection_method: 'send_invoice',
+          days_until_due: 10,
+          payment_settings: {
+            payment_method_types: ['customer_balance'],
+            payment_method_options: { customer_balance: { funding_type: 'bank_transfer', bank_transfer: { type: 'eu_bank_transfer', eu_bank_transfer: { country: 'ES' } } } },
+          },
+          metadata: meta,
+        });
+        const invId = typeof sub.latest_invoice === 'string' ? sub.latest_invoice : (sub.latest_invoice && sub.latest_invoice.id);
+        let factura = await stripe.invoices.retrieve(invId);
+        if (factura.status === 'draft') factura = await stripe.invoices.finalizeInvoice(invId);
+        try { await stripe.invoices.sendInvoice(invId); } catch (e) { /* en modo prueba Stripe no envía emails */ }
+        // IBAN propio de este cliente (cualquier transferencia a él se asigna sola)
+        const fi = await stripe.customers.createFundingInstructions(customer.id, {
+          currency: 'eur', funding_type: 'bank_transfer',
+          bank_transfer: { type: 'eu_bank_transfer', eu_bank_transfer: { country: 'ES' } },
+        });
+        const addr = ((fi.bank_transfer || {}).financial_addresses || []).find((a) => a.iban) || {};
+        const ib = addr.iban || {};
+        const datos = {
+          iban: ib.iban || '', bic: ib.bic || '', titular: ib.account_holder_name || '',
+          importe: factura.amount_due / 100, concepto: factura.number || '', factura: factura.hosted_invoice_url || '',
+          base: qty * PRECIO_BASE, cantidad: qty,
+        };
+        await admin.database().ref('altas_pendientes/' + sub.id).set({
+          nombre, email, nif, tipo, cantidad: qty, importe: datos.importe, concepto: datos.concepto,
+          factura: datos.factura, iban: datos.iban, customer: customer.id, ts: Date.now(),
+        });
+        // Email con los datos de la transferencia
+        try {
+          if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+            const port = parseInt(process.env.SMTP_PORT || '465', 10);
+            const t = nodemailer.createTransport({ host: process.env.SMTP_HOST || 'smtp.gmail.com', port, secure: port === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+            const fila = (a, b) => `<tr><td style="padding:8px 0;color:#9ab0c8;font-size:13px">${a}</td><td style="padding:8px 0;font-weight:700;font-family:'Courier New',monospace;font-size:15px;text-align:right">${b}</td></tr>`;
+            await t.sendMail({
+              from: process.env.EMAIL_FROM || ('DRIVX <' + process.env.SMTP_USER + '>'), to: email,
+              subject: 'DRIVX · Datos para tu transferencia (' + euros(datos.importe) + ')',
+              text: `Hola ${nombre},\n\nPara activar DRIVX haz una transferencia con estos datos:\nIBAN: ${datos.iban}\nBIC: ${datos.bic}\nTitular: ${datos.titular}\nImporte: ${euros(datos.importe)}\nConcepto: ${datos.concepto}\n\nEn cuanto recibamos el pago te enviaremos tu código de acceso.\nFactura: ${datos.factura}\n`,
+              html: `<div style="background:#070b12;padding:32px 16px;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;background:#0c1420;border:2px solid #00d4ff;border-radius:18px;padding:30px 26px;color:#fff">
+                <div style="font-size:28px;font-weight:900;margin-bottom:22px">DRIV<span style="color:#00d4ff">X</span></div>
+                <h1 style="font-size:20px;margin:0 0 12px">Datos para tu transferencia</h1>
+                <p style="font-size:15px;line-height:1.6;margin:0 0 18px">Hola ${nombre}, para activar DRIVX (${qty} vehículo${qty !== 1 ? 's' : ''}) haz una transferencia con estos datos:</p>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:18px">${fila('IBAN', datos.iban)}${fila('BIC', datos.bic)}${fila('Titular', datos.titular)}${fila('Importe', euros(datos.importe))}${fila('Concepto', datos.concepto)}</table>
+                <p style="font-size:13px;color:#9ab0c8;margin:0 0 18px">${qty} × ${PRECIO_BASE} € + IVA (${IVA_PCT} %). Este IBAN es exclusivo para ti: cualquier transferencia a él se asigna automáticamente a tu cuenta.</p>
+                <div style="background:#0a2a1c;border:1.5px solid #00e676;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 20px">✅ En cuanto recibamos el pago (normalmente 1–2 días hábiles) te enviaremos por email tu <b>código de acceso</b> y el enlace a tu Dashboard.</div>
+                ${datos.factura ? `<div style="text-align:center"><a href="${datos.factura}" style="display:inline-block;background:#00d4ff;color:#02131d;text-decoration:none;font-weight:900;padding:13px 28px;border-radius:12px">Ver factura</a></div>` : ''}
+              </div></div>`,
+            });
+          }
+        } catch (e) { /* si falla el email, los datos se ven igualmente en pantalla */ }
+        res.status(200).json({ transferencia: true, datos });
+        return;
+      }
+
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         customer: customer.id,
-        line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty }],
+        line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty, tax_rates: [iva] }],
         success_url: appUrl + '/drivx-landing.html?alta=ok&session_id={CHECKOUT_SESSION_ID}',
         cancel_url: appUrl + '/drivx-landing.html?alta=cancelado#precios',
         metadata: meta,
@@ -98,9 +194,10 @@ module.exports = async function handler(req, res) {
     const meta = { cantidad: String(qty), origen: 'drivx-suscripcion' };
     if (empresaId) meta.empresaId = empresaId;
 
+    const iva = await tasaIva();
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty }],
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty, tax_rates: [iva] }],
       customer_email: email || undefined,
       success_url: appUrl + '/drivx-admin-dashboard.html?susc=ok&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: appUrl + '/drivx-admin-dashboard.html?susc=cancelado',

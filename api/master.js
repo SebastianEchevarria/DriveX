@@ -101,7 +101,7 @@ async function resumenDe(db, base) {
 // la flota original a empresas/{CODIGO}/, vincula a cada usuario con esa
 // empresa, crea su cuenta de acceso segura con la contraseña que ya tenía y
 // quita las contraseñas legibles de la copia nueva.
-const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original', 'empresas_eliminadas'];
+const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original', 'empresas_eliminadas', 'altas_pendientes', 'suscripciones_stripe'];
 const ALFABETO_COD = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function emailKeyM(email) { return String(email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_'); }
 function passwordParaFirebase(pass) { pass = String(pass || ''); while (pass.length < 6) pass += '·'; return pass; }
@@ -250,8 +250,20 @@ module.exports = async function handler(req, res) {
       // La flota original (datos en la raíz, sin empresa todavía)
       const original = await resumenDe(db, '');
       original.migracion = (await db.ref('migracion_original').once('value')).val();
+      // Altas por transferencia esperando el pago
+      const pend = (await db.ref('altas_pendientes').once('value')).val() || {};
+      const pendientes = Object.keys(pend).map((k) => Object.assign({ suscripcion: k }, pend[k])).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      // Índice suscripción → empresa (para cancelaciones e impagos), por si falta en empresas antiguas
+      const idx = (await db.ref('suscripciones_stripe').once('value')).val() || {};
+      const upIdx = {};
+      for (const codigo of codigos) {
+        const lotes = (await db.ref('empresas/' + codigo + '/suscripcion_lotes').once('value')).val() || {};
+        const orden = Object.keys(lotes).map((k) => lotes[k]).filter((l) => l && l.stripeSubscriptionId).sort((a, b) => (a.creadoTs || 0) - (b.creadoTs || 0));
+        orden.forEach((l, i) => { if (!idx[l.stripeSubscriptionId]) upIdx['suscripciones_stripe/' + l.stripeSubscriptionId] = { empresa: codigo, origen: i === 0 ? 'alta' : 'ampliacion' }; });
+      }
+      if (Object.keys(upIdx).length) await db.ref().update(upIdx);
       const modoPrueba = String(process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test');
-      res.status(200).json({ ok: true, empresas, original, modoPrueba, precio: 299 });
+      res.status(200).json({ ok: true, empresas, original, pendientes, modoPrueba, precio: 299, iva: 21 });
       return;
     }
 
