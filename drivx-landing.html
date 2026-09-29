@@ -307,6 +307,62 @@
   .cx-code{font-family:var(--font-mono);font-size:34px;font-weight:700;letter-spacing:.08em;text-align:center;padding:18px;border-radius:14px;
     border:2.5px solid rgba(0,230,118,1);background:rgba(0,230,118,.1);box-shadow:0 0 14px rgba(0,230,118,.8);color:#fff;margin:16px 0 10px}
   @media(max-width:520px){ .cx-row{grid-template-columns:1fr} .cx-box{padding:24px 18px} }
+
+  /* ══════════════ VERSIÓN MÓVIL ══════════════
+     Se activa sola según el ancho de la pantalla (igual que el Dashboard). */
+  html,body{max-width:100%;overflow-x:hidden}
+  img,svg,video{max-width:100%}
+  .feat-grid-4{grid-template-columns:repeat(4,1fr)}
+  .nav-burger{display:none;width:44px;height:44px;border-radius:12px;border:2px solid rgba(0,212,255,.9);background:rgba(0,212,255,.08);
+    cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 0 10px rgba(0,212,255,.5)}
+  .nav-burger span{display:block;width:20px;height:2px;border-radius:2px;background:#fff;transition:transform .2s,opacity .2s}
+  .nav-burger[aria-expanded="true"] span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .nav-burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+  .nav-burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  .menu-movil{display:none}
+  @media(max-width:1100px){
+    .feat-grid-4{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:980px){
+    .nav-burger{display:flex}
+    .menu-movil{flex-direction:column;gap:4px;padding:8px 18px 18px;border-top:1px solid rgba(0,212,255,.25);background:rgba(5,8,14,.97)}
+    .menu-movil.abierto{display:flex}
+    .menu-movil a{padding:14px 6px;font-size:17px;font-weight:700;color:#fff;border-bottom:1px solid rgba(255,255,255,.07)}
+    .menu-movil .btn{margin-top:12px;width:100%;padding:15px;font-size:16px;font-weight:900}
+    .hero-grid{gap:40px}
+  }
+  @media(max-width:600px){
+    .wrap{padding:0 18px}
+    nav .wrap{gap:10px}
+    .brand img{height:26px}
+    .nav-ver-precios{display:none}
+    .navcta{gap:10px}
+    .navcta .btn{padding:10px 14px;font-size:14px}
+    .hero h1{font-size:clamp(28px,8.5vw,34px);line-height:1.12}
+    .hero p{font-size:15.5px}
+    .hero-ctas{flex-direction:column;align-items:stretch;gap:10px}
+    .hero-ctas .btn{width:100%;text-align:center;justify-content:center}
+    .panel{max-width:100%}
+    .sec-head{margin-bottom:34px}
+    .sec-head h2{font-size:clamp(24px,7vw,30px)}
+    .sec-head p{font-size:15px}
+    .feat-grid-4{grid-template-columns:1fr}
+    .eco-card,.feat-card{padding:22px 18px}
+    .price-grid{grid-template-columns:1fr !important}
+    .price-card{padding:26px 20px}
+    .price-tag{font-size:36px}
+    .final-cta{padding:36px 20px}
+    .final-cta h2{font-size:clamp(24px,7vw,30px)}
+    .faq-q{font-size:16px}
+    .foot-grid{flex-direction:column;align-items:flex-start}
+    .foot-links{flex-wrap:wrap;gap:14px 22px}
+    .cx-box{padding:22px 16px;border-radius:18px}
+    .cx-overlay{padding:12px 10px}
+  }
+  @media(max-width:360px){
+    .navcta .btn-primary{padding:9px 11px;font-size:13px}
+    .brand img{height:22px}
+  }
 </style>
 </head>
 <body>
@@ -321,9 +377,19 @@
       <a href="#faq">Preguntas</a>
     </div>
     <div class="navcta">
-      <a href="#precios" class="btn btn-ghost">Ver precios</a>
+      <a href="#precios" class="btn btn-ghost nav-ver-precios">Ver precios</a>
       <button type="button" onclick="abrirContratacion()" class="btn btn-primary" style="cursor:pointer">Contratar</button>
+      <button type="button" class="nav-burger" id="navBurger" onclick="alternarMenuMovil()" aria-label="Abrir menú" aria-expanded="false" aria-controls="menuMovil">
+        <span></span><span></span><span></span>
+      </button>
     </div>
+  </div>
+  <div class="menu-movil" id="menuMovil">
+    <a href="#ecosistema" onclick="cerrarMenuMovil()">Ecosistema</a>
+    <a href="#funciones" onclick="cerrarMenuMovil()">Funciones</a>
+    <a href="#precios" onclick="cerrarMenuMovil()">Precios</a>
+    <a href="#faq" onclick="cerrarMenuMovil()">Preguntas</a>
+    <button type="button" class="btn btn-primary" onclick="cerrarMenuMovil();abrirContratacion()">Contratar DRIVX</button>
   </div>
 </nav>
 
@@ -376,7 +442,7 @@
       <h2>Todo lo que DRIVX ya hace por tu flota</h2>
       <p>Automatizado, en tiempo real, y accesible desde cualquier dispositivo.</p>
     </div>
-    <div class="feat-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="feat-grid feat-grid-4">
       <div class="feat-card" style="text-align:center">
         <span class="fi" style="font-size:32px">&#128176;</span>
         <h4>Factura sola</h4>
@@ -882,7 +948,7 @@ function cxCopiarCodigo(){
 </div>
 <script>
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-1';
+var APP_VERSION = '2026-09-29-2';
 var APP_VERSION_KEY = 'landing';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -900,6 +966,23 @@ setTimeout(checkForNewVersion, 600);
 setInterval(checkForNewVersion, 15 * 1000);
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) checkForNewVersion(); });
 window.addEventListener('focus', checkForNewVersion);
+</script>
+
+<script>
+// Menú del móvil (☰)
+function alternarMenuMovil(){
+  var m = document.getElementById('menuMovil'), b = document.getElementById('navBurger');
+  var abrir = !m.classList.contains('abierto');
+  m.classList.toggle('abierto', abrir);
+  b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  b.setAttribute('aria-label', abrir ? 'Cerrar menú' : 'Abrir menú');
+}
+function cerrarMenuMovil(){
+  var m = document.getElementById('menuMovil'), b = document.getElementById('navBurger');
+  if (m) m.classList.remove('abierto');
+  if (b) { b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-label', 'Abrir menú'); }
+}
+window.addEventListener('resize', function(){ if (window.innerWidth > 980) cerrarMenuMovil(); });
 </script>
 </body>
 </html>
