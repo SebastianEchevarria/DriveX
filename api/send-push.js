@@ -93,7 +93,9 @@ module.exports = async function handler(req, res) {
       ]);
       const cids = new Set(Object.keys(conds).filter((k) => conds[k] && slug(conds[k].matricula) === mat).map((k) => conds[k].cid || k));
       const pids = new Set(Object.keys(props).filter((k) => props[k] && (props[k].matriculas || []).some((x) => slug(x) === mat)));
-      porVehiculo = (e) => (e.role === 'conductor' && (cids.has(e.cid) || slug(e.matricula) === mat)) || (e.role === 'propietario' && pids.has(e.pid));
+      const deEseVehiculo = (e) => (e.role === 'conductor' && (cids.has(e.cid) || slug(e.matricula) === mat)) || (e.role === 'propietario' && pids.has(e.pid));
+      // incluirGestion: además, a todo el equipo de gestión (Dashboard y supervisores)
+      porVehiculo = (e) => deEseVehiculo(e) || (!!target.incluirGestion && e.role !== 'conductor' && e.role !== 'propietario');
     }
 
     // Filtro opcional por destinatario: { role: 'ccaa_manager', ccaa: 'Andalucía' } o { matricula }
