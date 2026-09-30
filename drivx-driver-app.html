@@ -1296,7 +1296,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-2';
+var APP_VERSION = '2026-10-01-3';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -5534,15 +5534,28 @@ function limpiarCitasVencidas48h(lista) {
   return vivas;
 }
 
+// Matrícula sin espacios ni mayúsculas, para comparar "4499 LKG" con "4499lkg"
+function _normMatCita(m) { return String(m || '').replace(/\s/g, '').toUpperCase(); }
+var _firmaCitasDriver = null, _citasDriverIntervalo = null;
 function loadProximaCita() {
   if (!currentUser) return;
+  // Las citas se revisan cada 30 s: una cita nueva del supervisor o del Dashboard
+  // aparece sola, sin tener que cerrar y abrir la app
+  if (!_citasDriverIntervalo) _citasDriverIntervalo = setInterval(function(){ if (currentUser) loadProximaCita(); }, 30000);
   fetch(FIREBASE_URL + '/citas_globales.json').then(function(r){ return r.json(); }).then(function(lista){
     lista = lista || [];
     if (!Array.isArray(lista)) lista = Object.keys(lista).map(function(k){ return lista[k]; });
     lista = limpiarCitasVencidas48h(lista.filter(Boolean));
+    var miMat = _normMatCita(currentUser.matricula);
     var citas = lista.filter(function(c){
-      return c && (c.cid === currentUser.cid || c.matricula === currentUser.matricula);
+      return c && (c.cid === currentUser.cid ||
+        (Array.isArray(c.cids) && c.cids.indexOf(currentUser.cid) !== -1) ||
+        (miMat && _normMatCita(c.matricula) === miMat));
     });
+    // Solo se repinta si cambió algo (sin parpadeos)
+    var firma = JSON.stringify(citas.map(function(c){ return [c.id, c.tipo, c.fecha, c.hora, c.lugar, c.nota]; }));
+    if (firma === _firmaCitasDriver) return;
+    _firmaCitasDriver = firma;
     pintarProximaCita(citas);
   }).catch(function(){
     // Sin conexión: usamos lo último que se guardó localmente como respaldo
