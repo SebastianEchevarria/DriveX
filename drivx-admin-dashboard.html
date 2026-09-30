@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-11';
+var APP_VERSION = '2026-09-30-12';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4249,11 +4249,19 @@ function abrirNuevoUsuarioModal(app) {
 
   if (esDash) {
     html += '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Rol</label>';
-    html += '<select id="nu-role" onchange="toggleNuCcaaWrap()" style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:6px;box-sizing:border-box">' +
-      '<option value="admin">👑 Administrador MASTER</option>' +
-      '<option value="visual">📊 Administrador Visual</option>' +
-      '<option value="ccaa_manager">🗺️ Manager</option>' +
-    '</select>';
+    // Rol: tres opciones visibles para tocar (el <select> queda oculto para el resto del código)
+    html += '<select id="nu-role" onchange="toggleNuCcaaWrap()" style="display:none">' +
+      '<option value="admin">Administrador MASTER</option><option value="visual">Administrador Visual</option><option value="ccaa_manager">Manager</option></select>';
+    var opRol = function(v, ico, t, sub, on){
+      return '<button type="button" class="nu-rol-op" data-rol="' + v + '" onclick="elegirRolNuevoUsuario(\'' + v + '\')" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 13px;border-radius:12px;border:2px solid ' + (on ? 'rgba(0,212,255,1)' : 'rgba(255,255,255,.15)') + ';background:' + (on ? 'rgba(0,212,255,.12)' : 'rgba(255,255,255,.03)') + ';color:#fff;cursor:pointer;font-family:inherit;box-shadow:' + (on ? '0 0 10px rgba(0,212,255,.55)' : 'none') + '">' +
+        '<span style="font-size:20px">' + ico + '</span><span style="flex:1;min-width:0"><b style="display:block;font-size:13.5px">' + t + '</b><small style="display:block;font-size:11px;opacity:.75;margin-top:2px">' + sub + '</small></span>' +
+        '<span class="nu-rol-marca" style="width:18px;height:18px;border-radius:50%;border:2px solid ' + (on ? '#00d4ff' : 'rgba(255,255,255,.35)') + ';background:' + (on ? '#00d4ff' : 'transparent') + ';box-shadow:inset 0 0 0 3px #0c1420;flex-shrink:0"></span></button>';
+    };
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">' +
+      opRol('admin', '👑', 'Administrador MASTER', 'Lo ve y lo hace todo, incluida la suscripción', true) +
+      opRol('visual', '📊', 'Administrador Visual', 'Solo consulta, sin hacer cambios', false) +
+      opRol('ccaa_manager', '🗺️', 'Manager', 'Gestiona solo las comunidades que marques', false) +
+    '</div>';
     html += '<div id="nu-role-desc" style="font-size:10.5px;color:var(--text3);margin-bottom:12px"></div>';
     html += '<div id="nu-ccaa-wrap" style="display:none;margin-bottom:16px">' +
       '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidades autónomas que gestionará</label>' +
@@ -4605,6 +4613,22 @@ function abrirEditarUsuarioModal(app, uid) {
   modal.innerHTML = html;
   modal.style.display = 'flex';
   if (esDash) toggleEuCcaaWrap();
+}
+// Elegir el rol tocando una de las tres opciones
+function elegirRolNuevoUsuario(v) {
+  var sel = document.getElementById('nu-role'); if (!sel) return;
+  sel.value = v;
+  document.querySelectorAll('.nu-rol-op').forEach(function(b){
+    var on = b.getAttribute('data-rol') === v;
+    b.style.borderColor = on ? 'rgba(0,212,255,1)' : 'rgba(255,255,255,.15)';
+    b.style.background = on ? 'rgba(0,212,255,.12)' : 'rgba(255,255,255,.03)';
+    b.style.boxShadow = on ? '0 0 10px rgba(0,212,255,.55)' : 'none';
+    var m = b.querySelector('.nu-rol-marca');
+    if (m) { m.style.borderColor = on ? '#00d4ff' : 'rgba(255,255,255,.35)'; m.style.background = on ? '#00d4ff' : 'transparent'; }
+  });
+  toggleNuCcaaWrap();
+  // Al elegir Manager, las casillas de comunidades quedan a la vista
+  if (v === 'ccaa_manager') setTimeout(function(){ var w = document.getElementById('nu-ccaa-wrap'); if (w && w.scrollIntoView) w.scrollIntoView({ behavior:'smooth', block:'nearest' }); }, 60);
 }
 function toggleEuCcaaWrap() {
   var sel = document.getElementById('eu-role');
