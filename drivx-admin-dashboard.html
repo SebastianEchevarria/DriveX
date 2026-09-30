@@ -1091,7 +1091,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-2';
+var APP_VERSION = '2026-09-30-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2608,9 +2608,15 @@ function paintInicioStats() {
   html += '<div class="stat-card" onclick="openItvDetalle()" style="cursor:pointer;position:relative">' +
     '<div class="lbl">ITV urgente / vencida</div>' +
     '<div class="val" style="' + (urgentes>0?'color:var(--red)':'color:var(--green)') + '">' + urgentes + '</div>' +
-    '<div class="foot">' + (urgentes>0?'⚠ Toca para ver el detalle':'✓ Todo en orden') + '</div>' +
+    '<div class="foot" id="itv-stat-foot">' + (urgentes>0?'⚠ Toca para ver el detalle':'✓ Todo en orden') + '</div>' +
     '<span style="position:absolute;top:16px;right:16px;color:var(--text3);font-size:16px">›</span>' +
   '</div>';
+  if (urgentes > 0) fetchTodasLasCitas().then(function(lista){
+    var urgVeh = allVeh.filter(function(v){ var d = dU(v.docs.itv.fecha); return d < 0 || d <= 30; });
+    var conCita = urgVeh.filter(function(v){ return !!citaItvDe(v.matricula, lista); }).length;
+    var el = document.getElementById('itv-stat-foot');
+    if (el && conCita) el.textContent = (urgVeh.length - conCita) ? '⚠ ' + (urgVeh.length - conCita) + ' pendiente' + ((urgVeh.length - conCita) !== 1 ? 's' : '') + ' · ✅ ' + conCita + ' con cita' : '✅ Todas con cita programada';
+  }).catch(function(){});
   html += '<div class="stat-card" id="stat-docs-conductor" onclick="openDocsConductorDetalle()" style="cursor:pointer;position:relative">' +
     '<div class="lbl">Documentos de conductores</div>' +
     '<div class="val" style="color:var(--text3)">…</div>' +
@@ -2652,6 +2658,23 @@ function renderDocsConductorStat() {
     el.querySelector('.foot').textContent = urgentesDocs > 0 ? '⚠ Toca para ver el detalle' : '✓ Todo en orden';
   }).catch(function(){});
 }
+// ── ¿Esta matrícula ya tiene una cita de ITV programada? ──
+// Solo cuenta una cita del mismo tipo (ITV) y que no haya pasado.
+function citaItvDe(matricula, citas) {
+  var norm = function(m){ return String(m || '').replace(/\s/g, '').toUpperCase(); };
+  var m = norm(matricula), ahora = Date.now() - 2 * 3600000, mejor = null;
+  (citas || []).forEach(function(c){
+    if (!c || norm(c.matricula) !== m || !/itv/i.test(String(c.tipo || ''))) return;
+    var t = new Date((c.fecha || '') + 'T' + (c.hora || '00:00')).getTime();
+    if (isNaN(t) || t < ahora) return;
+    if (!mejor || t < mejor._t) { mejor = Object.assign({ _t: t }, c); }
+  });
+  return mejor;
+}
+function textoFechaCita(c) {
+  var d = new Date(c._t);
+  return d.toLocaleDateString('es-ES', { weekday:'short', day:'2-digit', month:'short' }) + (c.hora ? ' · ' + c.hora : '');
+}
 function openItvDetalle() {
   var now = new Date();
   function dU(s){ if (!s) return 9999; var d = new Date(s); d.setHours(0,0,0,0); var hoy = new Date(); hoy.setHours(0,0,0,0); return Math.round((d-hoy)/86400000); }
@@ -2683,6 +2706,16 @@ function openItvDetalle() {
     function fila(item) {
       var v = item.v;
       var cita = citaPorMatricula[v.matricula];
+      var citaItv = citaItvDe(v.matricula, lista);
+      if (citaItv) {
+        // Con cita de ITV: al final, apagada y marcada con ✅
+        return '<div style="background:rgba(0,230,118,.04);border:1px solid rgba(0,230,118,.45);border-radius:14px;padding:12px 14px;margin-bottom:10px;opacity:.6">' +
+          '<div style="display:flex;align-items:center;gap:10px">' + plateHtmlSmall(v.matricula) +
+            '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900;color:var(--green)">✅ Cita programada: ' + textoFechaCita(citaItv) + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + v.modelo + ' · ITV: ' + fD(v.docs.itv.fecha) + ' · ' + (item.dias < 0 ? 'vencida hace ' + Math.abs(item.dias) + ' días' : 'vence en ' + item.dias + ' días') + '</div></div>' +
+            (citaItv.id != null ? '<button onclick="event.stopPropagation();openCitaDetail(' + citaItv.id + ')" style="flex-shrink:0;background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.5);color:var(--green);font-size:10px;font-weight:800;padding:5px 9px;border-radius:8px;cursor:pointer">Ver cita</button>' : '') +
+          '</div></div>';
+      }
       var botonCita = cita
         ? '<button onclick="event.stopPropagation();openCitaDetail('+cita.id+')" style="background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.5);color:var(--green);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 0 6px rgba(0,230,118,.35),0 0 12px rgba(0,230,118,.18)">✓ CITA</button>'
         : '<button onclick="event.stopPropagation();openAddCitaModal(\''+v.ccaa+'\')" style="background:rgba(255,71,87,.12);border:1px solid rgba(255,71,87,.5);color:var(--red);font-size:10px;font-weight:800;padding:5px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 0 6px rgba(255,71,87,.3),0 0 12px rgba(255,71,87,.15)">SIN CITA</button>';
@@ -2728,10 +2761,16 @@ function openItvDetalle() {
       }).join('');
     }
 
+    var sinCitaPrimero = function(arr){
+      var a = arr.filter(function(x){ return !citaItvDe(x.v.matricula, lista); }), b = arr.filter(function(x){ return !!citaItvDe(x.v.matricula, lista); });
+      arr.length = 0; Array.prototype.push.apply(arr, a.concat(b));
+      return b.length ? a.length + ' pendiente' + (a.length !== 1 ? 's' : '') + ' · ' + b.length + ' con cita' : String(arr.length);
+    };
+    var cVenc = sinCitaPrimero(vencidas), cPorV = sinCitaPrimero(porVencer);
     var body = '';
-    body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Vencidas (' + vencidas.length + ')</div>';
+    body += '<div style="font-size:12px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Vencidas (' + cVenc + ')</div>';
     body += vencidas.length ? agruparPorCcaa(vencidas) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna vencida</div>';
-    body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por vencer, próximos 30 días (' + porVencer.length + ')</div>';
+    body += '<div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px">⏰ Por vencer, próximos 30 días (' + cPorV + ')</div>';
   body += porVencer.length ? agruparPorCcaa(porVencer) : '<div style="padding:10px 0;color:var(--text3);font-size:12px">Ninguna por vencer</div>';
 
     document.getElementById('itv-detalle-body').innerHTML = body;

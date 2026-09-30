@@ -1144,6 +1144,23 @@ function pintarAvisosVehiculosSup() {
     localStorage.setItem('drivx_dismissed_alerts', JSON.stringify(arr));
   });
 }
+// ── ¿Esta matrícula ya tiene una cita de ITV programada? ──
+// Solo cuenta una cita del mismo tipo (ITV) y que no haya pasado.
+function citaItvDe(matricula, citas) {
+  var norm = function(m){ return String(m || '').replace(/\s/g, '').toUpperCase(); };
+  var m = norm(matricula), ahora = Date.now() - 2 * 3600000, mejor = null;
+  (citas || []).forEach(function(c){
+    if (!c || norm(c.matricula) !== m || !/itv/i.test(String(c.tipo || ''))) return;
+    var t = new Date((c.fecha || '') + 'T' + (c.hora || '00:00')).getTime();
+    if (isNaN(t) || t < ahora) return;
+    if (!mejor || t < mejor._t) { mejor = Object.assign({ _t: t }, c); }
+  });
+  return mejor;
+}
+function textoFechaCita(c) {
+  var d = new Date(c._t);
+  return d.toLocaleDateString('es-ES', { weekday:'short', day:'2-digit', month:'short' }) + (c.hora ? ' · ' + c.hora : '');
+}
 function pintarUrgentesHomeSup() {
   var c = document.getElementById('urgentes-home-sup'); if (!c) return;
   var uSup = window.currentSupervisorUser;
@@ -1156,14 +1173,27 @@ function pintarUrgentesHomeSup() {
     .filter(function(x){ return x.d <= 30 && dismissed.indexOf(x.v.matricula + '|' + (x.v.docs.itv.fecha || '')) === -1; })
     .sort(function(a, b){ return a.d - b.d; });
   if (!urg.length) { c.innerHTML = ''; return; }
-  c.innerHTML = '<div style="margin-bottom:12px;padding:12px 14px;border-radius:14px;border:2px solid rgba(255,179,0,1);background:rgba(255,179,0,.08);box-shadow:0 0 12px rgba(255,179,0,.55)">' +
-    '<div style="font-size:13.5px;font-weight:900;color:#fff;margin-bottom:6px">⚠️ Alertas urgentes (' + urg.length + ')</div>' +
-    urg.map(function(x){
-      var lbl = x.d < 0 ? '🚨 ITV vencida hace ' + Math.abs(x.d) + ' días' : x.d === 0 ? '🚨 ITV vence hoy' : '⚠ ITV en ' + x.d + ' días';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.08)">' + plateHtml(x.v.matricula) +
-        '<span style="flex:1;min-width:0;font-size:12.5px;font-weight:800;color:' + (x.d <= 7 ? '#ff6b7a' : '#ffb300') + '">' + lbl + '</span>' +
+  // Las que ya tienen cita de ITV bajan al final, apagadas y marcadas con ✅
+  var citas = []; try { citas = JSON.parse(localStorage.getItem('drivx_citas') || '[]'); } catch(x) {}
+  urg.forEach(function(x){ x.cita = citaItvDe(x.v.matricula, citas); });
+  var pend = urg.filter(function(x){ return !x.cita; }), conCita = urg.filter(function(x){ return !!x.cita; });
+  var fila = function(x){
+    var lbl = x.d < 0 ? '🚨 ITV vencida hace ' + Math.abs(x.d) + ' días' : x.d === 0 ? '🚨 ITV vence hoy' : '⚠ ITV en ' + x.d + ' días';
+    if (x.cita) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.08);opacity:.6">' + plateHtml(x.v.matricula) +
+        '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900;color:#00e676">✅ Cita programada: ' + textoFechaCita(x.cita) + '</div>' +
+        '<div style="font-size:11px;color:#fff;opacity:.8">' + lbl.replace(/^\S+\s/, '') + '</div></div>' +
         '<button class="btn-sm btn-ghost alerta-ver-btn" data-mat="' + x.v.matricula + '" style="flex-shrink:0">Ver</button></div>';
-    }).join('') + '</div>';
+    }
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.08)">' + plateHtml(x.v.matricula) +
+      '<span style="flex:1;min-width:0;font-size:12.5px;font-weight:800;color:' + (x.d <= 7 ? '#ff6b7a' : '#ffb300') + '">' + lbl + '</span>' +
+      '<button class="btn-sm btn-ghost alerta-ver-btn" data-mat="' + x.v.matricula + '" style="flex-shrink:0">Ver</button></div>';
+  };
+  var titulo = conCita.length ? pend.length + ' pendiente' + (pend.length !== 1 ? 's' : '') + ' · ' + conCita.length + ' con cita' : String(urg.length);
+  var todoResuelto = !pend.length;
+  c.innerHTML = '<div style="margin-bottom:12px;padding:12px 14px;border-radius:14px;border:2px solid ' + (todoResuelto ? 'rgba(0,230,118,.9)' : 'rgba(255,179,0,1)') + ';background:' + (todoResuelto ? 'rgba(0,230,118,.06)' : 'rgba(255,179,0,.08)') + ';box-shadow:0 0 12px ' + (todoResuelto ? 'rgba(0,230,118,.45)' : 'rgba(255,179,0,.55)') + '">' +
+    '<div style="font-size:13.5px;font-weight:900;color:#fff;margin-bottom:6px">' + (todoResuelto ? '✅' : '⚠️') + ' Alertas urgentes (' + titulo + ')</div>' +
+    pend.map(fila).join('') + conCita.map(fila).join('') + '</div>';
   c.querySelectorAll('.alerta-ver-btn').forEach(function(btn){ btn.onclick = function(){ verMatAlerta(btn); }; });
 }
 var ORIGEN_PARADA = 'supervisor';
@@ -1555,7 +1585,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-2';
+var APP_VERSION = '2026-09-30-3';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
