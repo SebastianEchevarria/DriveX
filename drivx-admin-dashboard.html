@@ -1091,7 +1091,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-1';
+var APP_VERSION = '2026-09-30-2';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -11362,7 +11362,7 @@ function botonEstadoVehHtml(matricula, puedeCambiar) {
   return '<button type="button" ' + (puedeCambiar ? 'onclick="event.stopPropagation();desactivarParada(\'' + mat + '\')"' : 'disabled') +
     ' style="width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.14);color:#fff;cursor:' + (puedeCambiar ? 'pointer' : 'default') + ';font-family:inherit;box-shadow:0 0 12px rgba(255,71,87,.75)">' +
     '<div style="font-size:14px;font-weight:900">🔴 PARADO · ' + m.icono + ' ' + m.texto.replace(/[<>&]/g,'') + '</div>' +
-    '<div style="font-size:11.5px;opacity:.85;margin-top:3px">Desde hace ' + tiempoParado(e.desdeTs) + (e.por ? ' · por ' + String(e.por).replace(/[<>&]/g,'') : '') + (e.nota ? ' · ' + String(e.nota).replace(/[<>&]/g,'') : '') + '</div>' +
+    '<div style="font-size:11.5px;opacity:.85;margin-top:3px">Desde hace ' + tiempoParado(e.desdeTs) + (e.por ? ' · por ' + String(e.por).replace(/[<>&]/g,'') + (e.porRol ? ' (' + String(e.porRol).replace(/[<>&]/g,'') + ')' : '') : '') + (e.nota ? ' · ' + String(e.nota).replace(/[<>&]/g,'') : '') + '</div>' +
     (puedeCambiar ? '<div style="font-size:12px;font-weight:800;color:#00e676;margin-top:6px">Pulsa para ponerlo operativo de nuevo</div>' : '') +
   '</button>';
 }
@@ -11411,7 +11411,7 @@ function guardarParada(matricula) {
   var nota = document.getElementById('parada-nota').value.trim();
   var slug = _slugParada(matricula), ahora = Date.now(), por = nombreActorParada();
   var btn = document.getElementById('parada-ok'); btn.disabled = true; btn.textContent = 'Guardando…';
-  var hist = { motivo: motivo, otroTexto: otro || null, nota: nota || null, desdeTs: ahora, por: por, desde: ORIGEN_PARADA };
+  var hist = { motivo: motivo, otroTexto: otro || null, nota: nota || null, desdeTs: ahora, por: por, porRol: rolActorParada(), desde: ORIGEN_PARADA };
   fetch(FIREBASE_URL + '/vehiculos_paradas/' + slug + '.json', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(hist) })
     .then(function(r){ if (!r.ok) throw new Error('Error ' + r.status); return r.json(); })
     .then(function(res){
@@ -11442,15 +11442,24 @@ function _confirmarFinParada(matricula) {
   var e = estadoVehDe(matricula); var slug = _slugParada(matricula);
   var btn = document.getElementById('parada-fin'); if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
   var fin = e && e.paradaId
-    ? fetch(FIREBASE_URL + '/vehiculos_paradas/' + slug + '/' + e.paradaId + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ hastaTs: Date.now(), cerradoPor: nombreActorParada() }) })
+    ? fetch(FIREBASE_URL + '/vehiculos_paradas/' + slug + '/' + e.paradaId + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ hastaTs: Date.now(), cerradoPor: nombreActorParada(), cerradoPorRol: rolActorParada() }) })
     : Promise.resolve();
+  var ahoraFin = Date.now();
   fin.then(function(){ return fetch(FIREBASE_URL + '/vehiculos_estado/' + slug + '.json', { method:'DELETE' }); })
     .then(function(r){
       if (r && !r.ok) throw new Error('Error ' + r.status);
       delete _estadosVeh[slug];
       var v = document.getElementById('parada-modal'); if (v) v.remove();
+      var hora = new Date(ahoraFin).toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+      var quien = nombreActorParada() + ' (' + rolActorParada() + ')';
+      // Si lo desbloquea el supervisor, el Dashboard lo ve en Inicio con el detalle
+      if (ORIGEN_PARADA === 'supervisor') {
+        var aviso = { tipo:'desbloqueo', matricula: matricula, por: nombreActorParada(), porRol: rolActorParada(), ts: ahoraFin,
+          motivoPrevio: e ? motivoParadaInfo(e).texto : '' };
+        fetch(FIREBASE_URL + '/avisos_vehiculos.json', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(aviso) }).catch(function(){});
+      }
       if (typeof enviarPushNotificacion === 'function') enviarPushNotificacion('🟢 ' + matricula + ' vuelve a estar operativo',
-        'Ya se puede fichar con el vehículo con normalidad.', 'parada-' + slug, null, { matricula: matricula });
+        'Desbloqueado por ' + quien + ' a las ' + hora + '. Ya se puede fichar con normalidad.', 'parada-' + slug, null, { matricula: matricula, incluirGestion: ORIGEN_PARADA === 'supervisor' });
       if (typeof registrarActividad === 'function') { try { registrarActividad('Flota', 'Puso vehículo operativo', matricula); } catch(e2) {} }
       alRefrescarEstadosVeh();
     }).catch(function(err){ if (btn) { btn.disabled = false; btn.textContent = 'Poner operativo'; } alert('No se pudo guardar: ' + err.message); });
@@ -11473,6 +11482,16 @@ function _horaAviso(ts) {
 
 var ORIGEN_PARADA = 'dashboard';
 function nombreActorParada() { return (currentUser && currentUser.nombre) || 'Dashboard'; }
+function rolActorParada() {
+  if (window.MODO_SOPORTE && currentUser && currentUser.soporte && !currentUser.role) return 'Soporte DRIVX';
+  var r = currentUser && currentUser.role;
+  return r === 'admin' ? 'Admin' : r === 'ccaa_manager' ? 'Manager' : 'Visual';
+}
+function _cuandoParada(ts) {
+  if (!ts) return '';
+  var d = new Date(ts);
+  return d.toLocaleDateString('es-ES', { day:'numeric', month:'short' }) + ' a las ' + d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+}
 function pintarEstadoVehDetalle() {
   var c = document.getElementById('vd-estado');
   if (c && _vdCurrentMat) c.innerHTML = botonEstadoVehHtml(_vdCurrentMat, puedeEditar());
@@ -11496,7 +11515,8 @@ function renderParadosInicio() {
         var m = motivoParadaInfo(e);
         return '<div onclick="openVehicleDetail(\'' + String(e.matricula).replace(/'/g,'') + '\')" style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08);cursor:pointer">' +
           plateHtmlSmall(e.matricula) +
-          '<span style="flex:1;min-width:0;font-size:12.5px;color:#fff">' + m.icono + ' ' + m.texto.replace(/[<>&]/g,'') + (e.nota ? ' · <span style="opacity:.8">' + String(e.nota).replace(/[<>&]/g,'') + '</span>' : '') + '</span>' +
+          '<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:#fff">' + m.icono + ' ' + m.texto.replace(/[<>&]/g,'') + (e.nota ? ' · <span style="opacity:.8">' + String(e.nota).replace(/[<>&]/g,'') + '</span>' : '') + '</div>' +
+          '<div style="font-size:11px;color:#fff;opacity:.75;margin-top:2px">Parado por <b>' + String(e.por || '—').replace(/[<>&]/g,'') + '</b>' + (e.porRol ? ' (' + String(e.porRol).replace(/[<>&]/g,'') + ')' : '') + (e.desdeTs ? ' · ' + _cuandoParada(e.desdeTs) : '') + '</div></div>' +
           '<span style="font-size:11.5px;font-weight:800;color:#ff6b7a;white-space:nowrap">' + tiempoParado(e.desdeTs) + '</span></div>';
       }).join('') + '</div>';
   }
@@ -11505,7 +11525,7 @@ function renderParadosInicio() {
       '<div style="display:flex;align-items:center;gap:12px">' +
         '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;margin-bottom:8px">✅ Vehículo operativo de nuevo</div>' +
         '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' + plateHtmlSmall(a.matricula) +
-          '<span style="font-size:12.5px;color:#fff">Desbloqueado por <b>' + String(a.por || 'el conductor').replace(/[<>&]/g,'') + '</b> el ' + _horaAviso(a.ts) +
+          '<span style="font-size:12.5px;color:#fff">Desbloqueado por <b>' + String(a.por || 'el conductor').replace(/[<>&]/g,'') + '</b> (' + String(a.porRol || 'Conductor').replace(/[<>&]/g,'') + ') el ' + _horaAviso(a.ts) +
           (a.motivoPrevio ? ' <span style="opacity:.75">· estaba parado por ' + String(a.motivoPrevio).replace(/[<>&]/g,'') + '</span>' : '') + '</span></div></div>' +
         (puedeEditar() ? '<button onclick="cerrarAvisoVehiculo(\'' + a.id + '\')" title="Cerrar aviso" style="flex-shrink:0;width:34px;height:34px;border-radius:10px;border:1.5px solid rgba(0,230,118,.9);background:rgba(0,230,118,.12);color:#fff;font-size:15px;cursor:pointer">✕</button>' : '') +
       '</div></div>';
