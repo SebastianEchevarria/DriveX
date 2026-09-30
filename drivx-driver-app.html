@@ -1296,7 +1296,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-3';
+var APP_VERSION = '2026-09-30-1';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2547,12 +2547,65 @@ function pintarParadaDriver() {
   }
   var e = _paradaDriver;
   c.innerHTML = '<div style="margin:0 16px 14px;padding:14px 16px;border-radius:16px;border:2.5px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);box-shadow:0 0 14px rgba(255,71,87,.75);color:#fff">' +
-    '<div style="font-size:15px;font-weight:900">🔴 Tu vehículo ' + currentUser.matricula + ' está parado</div>' +
-    '<div style="font-size:13.5px;font-weight:700;margin-top:4px">' + textoMotivoParada(e).replace(/[<>&]/g,'') + (e.nota ? ' · ' + String(e.nota).replace(/[<>&]/g,'') : '') + '</div>' +
-    '<div style="font-size:12px;opacity:.85;margin-top:6px">' + (data && data.fichado ? 'Ya estabas en turno: puedes fichar la salida con normalidad.' : 'No puedes fichar la entrada hasta que tu empresa lo vuelva a poner operativo.') + '</div></div>';
+    '<div style="font-size:15px;font-weight:900;margin-bottom:10px">🔴 Tu vehículo está parado</div>' +
+    '<div style="margin-bottom:10px">' + plateHtml(currentUser.matricula) + '</div>' +
+    '<div style="font-size:13.5px;font-weight:700">' + textoMotivoParada(e).replace(/[<>&]/g,'') + (e.nota ? ' · ' + String(e.nota).replace(/[<>&]/g,'') : '') + '</div>' +
+    '<div style="font-size:12px;opacity:.85;margin-top:6px">' + (data && data.fichado ? 'Ya estabas en turno: puedes fichar la salida con normalidad.' : 'No puedes fichar la entrada hasta que el vehículo vuelva a estar operativo.') + '</div>' +
+    '<button type="button" onclick="pedirDesbloqueoVehiculo()" style="width:100%;margin-top:12px;padding:13px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;font-size:14.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.6)">🔓 Desbloquear vehículo</button>' +
+  '</div>';
   if (btn && !(data && data.fichado)) { btn.style.opacity = '.45'; btn.style.filter = 'grayscale(.6)'; }
 }
 setInterval(function(){ if (currentUser) comprobarParadaDriver(); }, 20000);
+
+// ── El conductor desbloquea el vehículo (con doble confirmación) ──
+function pedirDesbloqueoVehiculo() {
+  if (!_paradaDriver) return;
+  var v = document.getElementById('desbloqueo-modal'); if (v) v.remove();
+  v = document.createElement('div');
+  v.id = 'desbloqueo-modal';
+  v.style.cssText = 'position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px';
+  v.innerHTML = '<div style="width:100%;max-width:380px;background:#0c1420;color:#fff;border:2.5px solid rgba(0,230,118,1);border-radius:20px;padding:24px 20px;box-shadow:0 0 18px rgba(0,230,118,.8),0 0 40px rgba(0,230,118,.35);text-align:center;font-family:inherit">' +
+    '<div style="font-size:40px;margin-bottom:8px">🚗</div>' +
+    '<div style="margin-bottom:12px">' + plateHtml(currentUser.matricula) + '</div>' +
+    '<div style="font-size:17px;font-weight:900;margin-bottom:8px">¿El vehículo ya se encuentra disponible para trabajar?</div>' +
+    '<div style="font-size:13px;opacity:.85;margin-bottom:20px;line-height:1.5">Si dices que sí, se desbloquea y se avisa a tu empresa de que lo has puesto operativo tú.</div>' +
+    '<div style="display:flex;gap:10px">' +
+      '<button type="button" onclick="document.getElementById(\'desbloqueo-modal\').remove()" style="flex:1;padding:14px;border-radius:12px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.12);color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit">No</button>' +
+      '<button type="button" id="desbloqueo-si" onclick="confirmarDesbloqueoVehiculo()" style="flex:1;padding:14px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.2);color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.6)">Sí</button>' +
+    '</div></div>';
+  document.body.appendChild(v);
+}
+function confirmarDesbloqueoVehiculo() {
+  var e = _paradaDriver; if (!e || !currentUser) return;
+  var btn = document.getElementById('desbloqueo-si'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  var mat = currentUser.matricula, slug = String(mat).replace(/\s/g, '_'), ahora = Date.now();
+  var quien = currentUser.nombre || 'El conductor';
+  var motivoPrevio = textoMotivoParada(e).replace(/^\S+\s/, '');
+  var cerrarHist = e.paradaId
+    ? fetch(FIREBASE_URL + '/vehiculos_paradas/' + slug + '/' + e.paradaId + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ hastaTs: ahora, cerradoPor: quien + ' (conductor)' }) })
+    : Promise.resolve();
+  cerrarHist.then(function(){
+    return fetch(FIREBASE_URL + '/vehiculos_estado/' + slug + '.json', { method:'DELETE' });
+  }).then(function(r){
+    if (r && !r.ok) throw new Error('Error ' + r.status);
+    return fetch(FIREBASE_URL + '/avisos_vehiculos.json', { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ tipo:'desbloqueo', matricula: mat, por: quien, cid: currentUser.cid || '', ts: ahora, motivoPrevio: motivoPrevio }) });
+  }).then(function(){
+    var hora = new Date(ahora).toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+    var u = firebase.auth().currentUser;
+    if (u) u.getIdToken().then(function(t){
+      return fetch('/api/send-push', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+        body: JSON.stringify({ title: '🟢 ' + mat + ' vuelve a estar operativo', body: 'Desbloqueado por ' + quien + ' (conductor) a las ' + hora + '.', tag: 'parada-' + slug, target: { matricula: mat, incluirGestion: true } }) });
+    }).catch(function(){});
+    var v = document.getElementById('desbloqueo-modal'); if (v) v.remove();
+    _paradaDriver = null; pintarParadaDriver();
+    toast('✅ Vehículo desbloqueado. Ya puedes fichar.');
+  }).catch(function(err){
+    if (btn) { btn.disabled = false; btn.textContent = 'Sí'; }
+    toast('❌ No se pudo desbloquear: ' + err.message);
+  });
+}
 function openKmModal() {
   // Entrada con el vehículo parado: bloqueado (se comprueba en el momento)
   if (currentUser && !data.fichado) {

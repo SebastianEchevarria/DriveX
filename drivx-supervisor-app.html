@@ -308,6 +308,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1}
     </div>
 
     <!-- Vehículos como botones -->
+    <div id="avisos-veh-sup"></div>
     <div class="sec-title">Flota · toca para ver detalle</div>
     <div id="vehiculos-home-list"></div>
 
@@ -1056,9 +1057,70 @@ function _confirmarFinParada(matricula) {
     }).catch(function(err){ if (btn) { btn.disabled = false; btn.textContent = 'Poner operativo'; } alert('No se pudo guardar: ' + err.message); });
 }
 
+
+// ══ AVISOS DE VEHÍCULO DESBLOQUEADO POR UN CONDUCTOR ══
+// avisos_vehiculos/{id} = { tipo:'desbloqueo', matricula, por, ts, motivoPrevio, cerradoDashboard? }
+var _avisosVeh = {};
+function cargarAvisosVehiculos() {
+  return fetch(FIREBASE_URL + '/avisos_vehiculos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){
+    _avisosVeh = (d && typeof d === 'object' && !d.error) ? d : {};
+    return _avisosVeh;
+  });
+}
+function _horaAviso(ts) {
+  var d = new Date(ts || Date.now());
+  return d.toLocaleDateString('es-ES', { day:'numeric', month:'short' }) + ' a las ' + d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+}
+
+// Avisos en el Inicio del supervisor: parados (rojo) y desbloqueados por un conductor (verde,
+// se cierran deslizando hacia la izquierda, como el resto de alertas)
+function pintarAvisosVehiculosSup() {
+  var c = document.getElementById('avisos-veh-sup'); if (!c) return;
+  var mios = {};
+  getAllVehiculos().forEach(function(v){ mios[_slugParada(v.matricula)] = v; });
+  var uSup = window.currentSupervisorUser;
+  var ccaas = (uSup && Array.isArray(uSup.ccaasAsignadas) && uSup.ccaasAsignadas.length) ? uSup.ccaasAsignadas : null;
+  var visible = function(mat){ var v = mios[_slugParada(mat)]; return v && (!ccaas || ccaas.indexOf(v.ccaa) !== -1); };
+  var dismissed = []; try { dismissed = JSON.parse(localStorage.getItem('drivx_dismissed_alerts') || '[]'); } catch(x) {}
+  var parados = Object.keys(_estadosVeh).map(function(k){ return _estadosVeh[k]; }).filter(function(e){ return e && e.parado && visible(e.matricula); });
+  var avisos = Object.keys(_avisosVeh).map(function(k){ var a = Object.assign({}, _avisosVeh[k]); a.id = k; return a; })
+    .filter(function(a){ return a.tipo === 'desbloqueo' && visible(a.matricula) && dismissed.indexOf('desb|' + a.id) === -1 && (Date.now() - (a.ts || 0)) < 7 * 86400000; })
+    .sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+  if (!parados.length && !avisos.length) { c.innerHTML = ''; return; }
+  var h2 = '';
+  if (parados.length) {
+    h2 += '<div style="margin-bottom:12px;padding:12px 14px;border-radius:14px;border:2px solid rgba(255,71,87,1);background:rgba(255,71,87,.1);box-shadow:0 0 12px rgba(255,71,87,.6)">' +
+      '<div style="font-size:13.5px;font-weight:900;color:#fff;margin-bottom:6px">🔧 Vehículos parados (' + parados.length + ')</div>' +
+      parados.map(function(e){ var m = motivoParadaInfo(e);
+        return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.08)">' + plateHtml(e.matricula) +
+          '<span style="flex:1;min-width:0;font-size:12.5px;color:#fff">' + m.icono + ' ' + m.texto.replace(/[<>&]/g,'') + '</span>' +
+          '<span style="font-size:11px;font-weight:800;color:#ff6b7a;white-space:nowrap">' + tiempoParado(e.desdeTs) + '</span></div>'; }).join('') + '</div>';
+  }
+  if (avisos.length) {
+    h2 += '<div class="card" id="avisos-desb-list" style="border:2px solid rgba(0,230,118,1);box-shadow:0 0 12px rgba(0,230,118,.55);margin-bottom:12px">' +
+      avisos.map(function(a){
+        return '<div class="notif-item" data-alert-key="desb|' + a.id + '">' +
+          '<div class="notif-swipe-bg">🗑 Eliminar</div>' +
+          '<div class="notif-swipe-inner" style="align-items:center">' +
+            '<div class="notif-dot" style="background:var(--green)"></div>' +
+            '<div style="flex:1;min-width:0"><div class="notif-title" style="color:var(--green)">✅ Vehículo operativo de nuevo</div>' +
+            '<div style="margin:6px 0">' + plateHtml(a.matricula) + '</div>' +
+            '<div class="notif-sub">Desbloqueado por ' + String(a.por || 'el conductor').replace(/[<>&]/g,'') + ' el ' + _horaAviso(a.ts) + '</div>' +
+            (a.motivoPrevio ? '<div class="notif-time">Estaba parado por ' + String(a.motivoPrevio).replace(/[<>&]/g,'') + '</div>' : '') +
+            '</div></div></div>';
+      }).join('') + '</div>';
+  }
+  c.innerHTML = h2;
+  var lista = document.getElementById('avisos-desb-list');
+  if (lista) enableSwipeToDelete(lista, function(key){
+    var arr = []; try { arr = JSON.parse(localStorage.getItem('drivx_dismissed_alerts') || '[]'); } catch(x) {}
+    if (arr.indexOf(key) === -1) arr.push(key);
+    localStorage.setItem('drivx_dismissed_alerts', JSON.stringify(arr));
+  });
+}
 var ORIGEN_PARADA = 'supervisor';
 function nombreActorParada() { var u = window.currentSupervisorUser; return (u && u.nombre) ? u.nombre + ' (supervisor)' : 'Supervisor'; }
-function alRefrescarEstadosVeh() { try { paintVehiculosHome(); } catch(e) {} }
+function alRefrescarEstadosVeh() { try { paintVehiculosHome(); } catch(e) {} pintarAvisosVehiculosSup(); }
 
 function renderVehiculosHome() {
   var container = document.getElementById('vehiculos-home-list');
@@ -1075,7 +1137,8 @@ function renderVehiculosHome() {
     fetch(FIREBASE_URL + '/vehiculos_ocultos.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
     leerListaSegura('conductores_registro'),
     fetch(FIREBASE_URL + '/comunidades_extra.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
-    cargarEstadosVehiculos()
+    cargarEstadosVehiculos(),
+    cargarAvisosVehiculos()
   ]).then(function(results){
     var extra = results[0] || {};
     var ocultos = results[1] || {};
@@ -1086,6 +1149,7 @@ function renderVehiculosHome() {
     _conductoresInvitadosGlobal = invitados;
     CCAA_EXTRA = Object.keys(comunidadesExtra).filter(function(cc){ return comunidadesExtra[cc]; });
     _flotaLoadedOnce = true;
+    try { pintarAvisosVehiculosSup(); } catch(e) {}
     try {
       paintVehiculosHome();
     } catch (err) {
@@ -1427,7 +1491,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-4';
+var APP_VERSION = '2026-09-30-1';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2016,7 +2080,7 @@ var _supSSEs = {};
 function iniciarSincronizacionInstantaneaSup() {
   if (_supSSE || typeof EventSource === 'undefined') return;
   _supSSE = true;
-  ['citas_globales', 'vehiculos_extra', 'vehiculos_estado'].forEach(function(nodo){ _conectarSSESup(nodo, false); });
+  ['citas_globales', 'vehiculos_extra', 'vehiculos_estado', 'avisos_vehiculos'].forEach(function(nodo){ _conectarSSESup(nodo, false); });
 }
 function _conectarSSESup(nodo, tokenNuevo) {
   var u = firebase.auth().currentUser; if (!u) return;
