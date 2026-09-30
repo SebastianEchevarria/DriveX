@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-10';
+var APP_VERSION = '2026-09-30-11';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1327,7 +1327,7 @@ function activarCuentaDash() {
   }).then(function(r){
     setEmpresa(r.empresa);
     var u = r.registro || {};
-    currentUser = { nombre: u.nombre, email: email, role: u.role || 'admin', ccaaAsignada: u.ccaaAsignada || null };
+    currentUser = { nombre: u.nombre, email: email, role: u.role || 'admin', ccaaAsignada: u.ccaaAsignada || null, ccaasAsignadas: u.ccaasAsignadas || null };
     localStorage.setItem('drivx_admin_user', email);
     finishLoginWithBiometricOffer(email, pass1);
   }).catch(function(err){
@@ -1582,7 +1582,7 @@ function enterShell() {
         });
         if (!match) return;
         var cambioRol = match.role !== currentUser.role;
-        var cambioCcaa = (match.ccaaAsignada || null) !== (currentUser.ccaaAsignada || null);
+        var cambioCcaa = ccaasDelManager(match).join('|') !== ccaasDelManager(currentUser).join('|');
         if (cambioRol || cambioCcaa) {
           toast('🔄 Tus permisos han cambiado — actualizando…');
           setTimeout(function(){ location.reload(); }, 1600);
@@ -1594,7 +1594,7 @@ function enterShell() {
 
   var isAdmin = currentUser.role === 'admin';
   var etiquetaRol = currentUser.role === 'admin' ? 'Administrador MASTER'
-    : currentUser.role === 'ccaa_manager' ? ('Manager · ' + (currentUser.ccaaAsignada || 'sin CCAA'))
+    : currentUser.role === 'ccaa_manager' ? ('Manager · ' + (ccaasDelManager(currentUser).join(', ') || 'sin CCAA'))
     : 'Administrador Visual (solo lectura)';
   var iconoRol = currentUser.role === 'admin' ? '👑' : currentUser.role === 'ccaa_manager' ? '🗺️' : '📊';
   document.getElementById('sb-avatar').textContent = iconoRol;
@@ -1742,6 +1742,7 @@ function activarPush() {
             nombre: currentUser.nombre || '',
             role: currentUser.role || '',
             ccaaAsignada: currentUser.ccaaAsignada || null,
+            ccaasAsignadas: ccaasDelManager(currentUser).length ? ccaasDelManager(currentUser) : null,
             creadoEn: Date.now()
           })
         });
@@ -3461,8 +3462,14 @@ function getCcaaOrder() {
 // asignada, es la ÚNICA que debe poder ver o elegir en cualquier sitio de
 // la app (grupos de Flota, selects, filtros...). Para todos los demás
 // roles (MASTER, Visual) se comporta igual que getCcaaOrder().
+function ccaasDelManager(u) {
+  if (!u) return [];
+  if (Array.isArray(u.ccaasAsignadas) && u.ccaasAsignadas.length) return u.ccaasAsignadas.slice();
+  return u.ccaaAsignada ? [u.ccaaAsignada] : [];
+}
+function esManagerConCcaa() { return !!(currentUser && currentUser.role === 'ccaa_manager' && ccaasDelManager(currentUser).length); }
 function getCcaaOrderVisible() {
-  if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) return [currentUser.ccaaAsignada];
+  if (esManagerConCcaa()) { var mias = ccaasDelManager(currentUser); return getCcaaOrder().filter(function(cc){ return mias.indexOf(cc) !== -1; }).concat(mias.filter(function(cc){ return getCcaaOrder().indexOf(cc) === -1; })); }
   return getCcaaOrder();
 }
 var TODAS_CCAA_ESPANA = [
@@ -3518,8 +3525,9 @@ function getAllVehiculos() {
   // haber datos de) los vehículos de SU comunidad autónoma. Al filtrar
   // aquí, en el único punto que alimenta Flota, Facturación, Gastos y
   // Citas, la restricción se aplica automáticamente en todo el Dashboard.
-  if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) {
-    todos = todos.filter(function(v){ return v.ccaa === currentUser.ccaaAsignada; });
+  if (esManagerConCcaa()) {
+    var _mias = ccaasDelManager(currentUser);
+    todos = todos.filter(function(v){ return _mias.indexOf(v.ccaa) !== -1; });
   }
   return todos;
 }
@@ -4248,11 +4256,16 @@ function abrirNuevoUsuarioModal(app) {
     '</select>';
     html += '<div id="nu-role-desc" style="font-size:10.5px;color:var(--text3);margin-bottom:12px"></div>';
     html += '<div id="nu-ccaa-wrap" style="display:none;margin-bottom:16px">' +
-      '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma asignada</label>' +
-      '<select id="nu-ccaa" style="width:100%;background:var(--surface2);border:1.5px solid rgba(0,212,255,.6);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">' +
-        getCcaaOrder().map(function(cc){ return '<option value="' + cc + '">' + (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</option>'; }).join('') +
-      '</select>' +
-      '<div style="font-size:10.5px;color:var(--text3);margin-top:4px">Este usuario, al iniciar sesión, solo verá los vehículos y datos de esta comunidad.</div>' +
+      '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidades autónomas que gestionará</label>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:8px">Marca una o varias.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1.5px solid rgba(0,212,255,.6);border-radius:10px;padding:10px">' +
+        getCcaaOrder().map(function(cc){
+          return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#fff;cursor:pointer">' +
+            '<input type="checkbox" class="nu-ccaa-man-check" value="' + cc + '"' + (false ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#00d4ff">' +
+            (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</label>';
+        }).join('') +
+      '</div>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-top:6px">Este usuario, al iniciar sesión, solo verá los vehículos y datos de las comunidades marcadas.</div>' +
     '</div>';
   } else {
     // Supervisor: siempre hay que elegir al menos una comunidad autónoma —
@@ -4338,7 +4351,7 @@ function toggleNuCcaaWrap() {
       ? 'Acceso y edición completa, igual que tú.'
       : val === 'visual'
       ? 'Ve todo el Dashboard, pero no puede crear, editar ni eliminar nada.'
-      : 'Puede editar, pero solo dentro de la comunidad autónoma que le asignes abajo.';
+      : 'Puede editar, pero solo dentro de las comunidades autónomas que le marques abajo.';
   }
 }
 
@@ -4356,12 +4369,11 @@ function guardarNuevoUsuario() {
     err.style.display = 'block';
     return;
   }
-  var ccaaAsignada = null;
+  var ccaasManager = [];
   if (app === 'dashboard' && role === 'ccaa_manager') {
-    var ccaaEl = document.getElementById('nu-ccaa');
-    ccaaAsignada = ccaaEl ? ccaaEl.value : null;
-    if (!ccaaAsignada) {
-      err.textContent = 'Elige la comunidad autónoma para este Manager.';
+    ccaasManager = Array.prototype.slice.call(document.querySelectorAll('.nu-ccaa-man-check:checked')).map(function(c){ return c.value; });
+    if (!ccaasManager.length) {
+      err.textContent = 'Marca al menos una comunidad autónoma para este Manager.';
       err.style.display = 'block';
       return;
     }
@@ -4383,7 +4395,7 @@ function guardarNuevoUsuario() {
   var path;
   if (app === 'dashboard') {
     usuario.role = role;
-    if (role === 'ccaa_manager') usuario.ccaaAsignada = ccaaAsignada;
+    if (role === 'ccaa_manager') { usuario.ccaasAsignadas = ccaasManager; usuario.ccaaAsignada = ccaasManager[0]; }
     path = '/usuarios_dashboard/' + uid + '.json';
   } else {
     usuario.ccaasAsignadas = ccaasAsignadasSup;
@@ -4469,7 +4481,7 @@ function _filaUsuarioInvitadoHtml(u, app, uid) {
   var btnId = 'del-usr-' + app + '-' + uid;
   var ROLE_LABELS = { admin:'Administrador MASTER', visual:'Administrador Visual', ccaa_manager:'Manager' };
   var subt = u.role
-    ? (ROLE_LABELS[u.role] || u.role) + (u.role === 'ccaa_manager' && u.ccaaAsignada ? ' · ' + u.ccaaAsignada : '')
+    ? (ROLE_LABELS[u.role] || u.role) + (u.role === 'ccaa_manager' && ccaasDelManager(u).length ? ' · ' + ccaasDelManager(u).join(', ') : '')
     : (app==='dashboard' ? 'Dashboard' : ('Supervisor' + (u.ccaasAsignadas && u.ccaasAsignadas.length ? ' · ' + u.ccaasAsignadas.join(', ') : '')));
   var estado = registrado
     ? '<span style="flex-shrink:0;text-align:center;font-size:10px;font-weight:800;color:var(--green);background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:7px 10px;white-space:nowrap">✓ Registrado</span>'
@@ -4556,8 +4568,16 @@ function abrirEditarUsuarioModal(app, uid) {
       '<option value="ccaa_manager"' + (u.role==='ccaa_manager'?' selected':'') + '>🗺️ Manager</option>' +
     '</select>';
     html += '<div id="eu-ccaa-wrap" style="display:none;margin-bottom:16px">' +
-      '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidad autónoma asignada</label>' +
-      '<select id="eu-ccaa" style="width:100%;background:var(--surface2);border:1.5px solid rgba(0,212,255,.6);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">' +
+      '<label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Comunidades autónomas que gestionará</label>' +
+      '<div style="font-size:10.5px;color:var(--text3);margin-bottom:8px">Marca una o varias.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1.5px solid rgba(0,212,255,.6);border-radius:10px;padding:10px">' +
+        getCcaaOrder().map(function(cc){
+          return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#fff;cursor:pointer">' +
+            '<input type="checkbox" class="eu-ccaa-man-check" value="' + cc + '"' + (ccaasDelManager(u).indexOf(cc) !== -1 ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#00d4ff">' +
+            (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</label>';
+        }).join('') +
+      '</div>' +
+      '<select id="eu-ccaa-old" style="display:none;width:100%;background:var(--surface2);border:1.5px solid rgba(0,212,255,.6);color:var(--text);padding:11px 12px;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">' +
         getCcaaOrder().map(function(cc){ return '<option value="' + cc + '"' + (u.ccaaAsignada===cc?' selected':'') + '>' + (CCAA_ICONS[cc]||'📍') + ' ' + cc + '</option>'; }).join('') +
       '</select>' +
     '</div>';
@@ -4603,11 +4623,13 @@ function guardarEdicionUsuario() {
     var role = document.getElementById('eu-role').value;
     cambios.role = role;
     if (role === 'ccaa_manager') {
-      var ccaa = document.getElementById('eu-ccaa').value;
-      if (!ccaa) { err.textContent = 'Elige una comunidad autónoma.'; err.style.display = 'block'; return; }
-      cambios.ccaaAsignada = ccaa;
+      var marcadasMan = Array.prototype.slice.call(document.querySelectorAll('.eu-ccaa-man-check:checked')).map(function(c){ return c.value; });
+      if (!marcadasMan.length) { err.textContent = 'Marca al menos una comunidad autónoma.'; err.style.display = 'block'; return; }
+      cambios.ccaasAsignadas = marcadasMan;
+      cambios.ccaaAsignada = marcadasMan[0];
     } else {
-      cambios.ccaaAsignada = null; // ya no aplica, se quita si tenía una de antes
+      cambios.ccaaAsignada = null; // ya no aplica, se quita si tenía de antes
+      cambios.ccaasAsignadas = null;
     }
   } else {
     var marcadas = Array.prototype.slice.call(document.querySelectorAll('.eu-ccaa-sup-check:checked')).map(function(c){ return c.value; });
@@ -4706,7 +4728,7 @@ function paintConductoresScreen() {
   // Un Manager con CCAA asignada no debe ver ni el cajón "Sin asignar" ni
   // conductores de vehículos de otras comunidades — si su matrícula no
   // pertenece a la lista ya filtrada de vehículos visibles, se descarta.
-  if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) {
+  if (esManagerConCcaa()) {
     delete groups['Sin asignar'];
   }
 
@@ -10826,7 +10848,7 @@ function renderPropietarios() {
     // otras). getAllVehiculos() ya devuelve solo los vehículos de su CCAA
     // cuando el usuario es Manager, así que basta con comprobar si alguna
     // de las matrículas del propietario está en esa lista.
-    if (currentUser && currentUser.role === 'ccaa_manager' && currentUser.ccaaAsignada) {
+    if (esManagerConCcaa()) {
       var matsVisibles = {};
       getAllVehiculos().forEach(function(v){ matsVisibles[v.matricula] = true; });
       var filtrados = {};
