@@ -62,6 +62,34 @@ function limpiar(v, max) {
   return String(v == null ? '' : v).trim().slice(0, max || 200);
 }
 
+// ══ CÓDIGOS DE DESCUENTO (los crea la cuenta master) ══
+// codigos_descuento/{CÓDIGO} = { tipo:'precio'|'porcentaje', valor, precioUnitario, nota,
+//   creadoTs, venceTs (24 h), usado, usadoPor, usadoTs, reservadoHasta }
+// Un solo uso: se marca como usado cuando se completa el pago (webhook). Mientras
+// alguien está pagando, queda reservado 1 hora para que no se use dos veces a la vez.
+function normCodigoDescuento(c) { return String(c || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20); }
+async function comprobarDescuento(codigoCrudo) {
+  const codigo = normCodigoDescuento(codigoCrudo);
+  if (!codigo) return { ok: false, error: 'Escribe el código.' };
+  const d = (await admin.database().ref('codigos_descuento/' + codigo).once('value')).val();
+  if (!d) return { ok: false, error: 'Ese código no existe.' };
+  if (d.usado) return { ok: false, error: 'Ese código ya se ha utilizado.' };
+  if (Date.now() > (d.venceTs || 0)) return { ok: false, error: 'Ese código ha caducado.' };
+  if (d.reservadoHasta && Date.now() < d.reservadoHasta) return { ok: false, error: 'Ese código se está usando en otro pago ahora mismo. Inténtalo en unos minutos.' };
+  const precio = Math.round(Number(d.precioUnitario) * 100) / 100;
+  if (!(precio > 0) || precio > PRECIO_BASE) return { ok: false, error: 'Ese código no es válido.' };
+  return { ok: true, codigo, precioUnitario: precio, tipo: d.tipo, valor: d.valor };
+}
+// Precio anual por vehículo distinto del normal (mismo producto de Stripe)
+let _productoStripe = null;
+async function precioEspecial(importe) {
+  if (!_productoStripe) {
+    const p = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID);
+    _productoStripe = typeof p.product === 'string' ? p.product : p.product.id;
+  }
+  return { currency: 'eur', product: _productoStripe, unit_amount: Math.round(importe * 100), recurring: { interval: 'year' } };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método no permitido' });
@@ -70,6 +98,11 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = req.body || {};
+    if (body.accion === 'validar_descuento') {
+      const r = await comprobarDescuento(body.codigo);
+      res.status(200).json(r.ok ? { ok: true, codigo: r.codigo, precioUnitario: r.precioUnitario, tipo: r.tipo, valor: r.valor } : { ok: false, error: r.error });
+      return;
+    }
     const qty = parseInt(body.cantidad, 10);
     if (!qty || qty < 1 || qty > 500) {
       res.status(400).json({ error: 'Cantidad de vehículos inválida' });
@@ -109,8 +142,19 @@ module.exports = async function handler(req, res) {
         metadata: { tipo: tipo, nif: nif },
       });
 
+      // Código de descuento (opcional)
+      let desc = null;
+      if (body.descuento) {
+        desc = await comprobarDescuento(body.descuento);
+        if (!desc.ok) { res.status(400).json({ error: desc.error }); return; }
+        await admin.database().ref('codigos_descuento/' + desc.codigo).update({ reservadoHasta: Date.now() + 3600000 });
+      }
+      const lineaPrecio = desc ? { price_data: await precioEspecial(desc.precioUnitario) } : { price: process.env.STRIPE_PRICE_ID };
+
       const meta = {
         origen: 'drivx-alta',
+        descuento: desc ? desc.codigo : '',
+        precioUnitario: String(desc ? desc.precioUnitario : PRECIO_BASE),
         cantidad: String(qty),
         tipo: tipo,
         nombre: nombre,
@@ -127,7 +171,7 @@ module.exports = async function handler(req, res) {
       if (body.metodo === 'transferencia') {
         const sub = await stripe.subscriptions.create({
           customer: customer.id,
-          items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty, tax_rates: [iva] }],
+          items: [Object.assign({}, lineaPrecio, { quantity: qty, tax_rates: [iva] })],
           collection_method: 'send_invoice',
           days_until_due: 10,
           payment_settings: {
@@ -150,7 +194,7 @@ module.exports = async function handler(req, res) {
         const datos = {
           iban: ib.iban || '', bic: ib.bic || '', titular: ib.account_holder_name || '',
           importe: factura.amount_due / 100, concepto: factura.number || '', factura: factura.hosted_invoice_url || '',
-          base: qty * PRECIO_BASE, cantidad: qty,
+          base: qty * (desc ? desc.precioUnitario : PRECIO_BASE), cantidad: qty,
         };
         await admin.database().ref('altas_pendientes/' + sub.id).set({
           nombre, email, nif, tipo, cantidad: qty, importe: datos.importe, concepto: datos.concepto,
@@ -171,7 +215,7 @@ module.exports = async function handler(req, res) {
                 <h1 style="font-size:20px;margin:0 0 12px">Datos para tu transferencia</h1>
                 <p style="font-size:15px;line-height:1.6;margin:0 0 18px">Hola ${nombre}, para activar DRIVX (${qty} vehículo${qty !== 1 ? 's' : ''}) haz una transferencia con estos datos:</p>
                 <table style="width:100%;border-collapse:collapse;margin-bottom:18px">${fila('IBAN', datos.iban)}${fila('BIC', datos.bic)}${fila('Titular', datos.titular)}${fila('Importe', euros(datos.importe))}${fila('Concepto', datos.concepto)}</table>
-                <p style="font-size:13px;color:#9ab0c8;margin:0 0 18px">${qty} × ${PRECIO_BASE} € + IVA (${IVA_PCT} %). Este IBAN es exclusivo para ti: cualquier transferencia a él se asigna automáticamente a tu cuenta. Es una transferencia SEPA normal: se hace desde cualquier banco español y cuesta lo mismo que una nacional.</p>
+                <p style="font-size:13px;color:#9ab0c8;margin:0 0 18px">${qty} × ${desc ? desc.precioUnitario : PRECIO_BASE} € + IVA (${IVA_PCT} %). Este IBAN es exclusivo para ti: cualquier transferencia a él se asigna automáticamente a tu cuenta. Es una transferencia SEPA normal: se hace desde cualquier banco español y cuesta lo mismo que una nacional.</p>
                 <div style="background:#0a2a1c;border:1.5px solid #00e676;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 20px">✅ En cuanto recibamos el pago (normalmente 1–2 días hábiles) te enviaremos por email tu <b>código de acceso</b> y el enlace a tu Dashboard.</div>
                 ${datos.factura ? `<div style="text-align:center"><a href="${datos.factura}" style="display:inline-block;background:#00d4ff;color:#02131d;text-decoration:none;font-weight:900;padding:13px 28px;border-radius:12px">Ver factura</a></div>` : ''}
               </div></div>`,
@@ -185,7 +229,7 @@ module.exports = async function handler(req, res) {
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         customer: customer.id,
-        line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty, tax_rates: [iva] }],
+        line_items: [Object.assign({}, lineaPrecio, { quantity: qty, tax_rates: [iva] })],
         success_url: appUrl + '/drivx-landing.html?alta=ok&session_id={CHECKOUT_SESSION_ID}',
         cancel_url: appUrl + '/drivx-landing.html?alta=cancelado#precios',
         metadata: meta,

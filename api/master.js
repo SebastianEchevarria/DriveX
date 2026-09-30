@@ -12,6 +12,8 @@
 //   { accion: 'crear_gratuita', tipo, nombre, nif?, email, ciudad?, vehiculos, venceTs?, notas?, menu? }
 //        → crea una empresa SIN suscripción (cuenta de cortesía) y envía su código por email
 //   { accion: 'editar_gratuita', empresa, vehiculos, venceTs, notas }
+//   { accion: 'crear_descuento', tipo:'precio'|'porcentaje', valor, nota? } → código de un solo uso, 24 h
+//   { accion: 'borrar_descuento', codigo }
 //   { accion: 'ocultar', empresa, ocultar:true|false } → ocultar/mostrar en el listado master
 //   { accion: 'eliminar_empresa', empresa, confirmacion:<CÓDIGO> } → borra TODO de una empresa
 //        suspendida: sus datos, las cuentas de sus usuarios, sus invitaciones y sus
@@ -85,6 +87,13 @@ async function resumenDe(db, base) {
   ]);
   const vehiculosContratados = Object.keys(lotes).reduce((s, k) => s + (Number(lotes[k] && lotes[k].cantidad) || 0), 0);
   const vehiculosGratis = Object.keys(lotes).reduce((s, k) => s + ((lotes[k] && lotes[k].gratuito) ? (Number(lotes[k].cantidad) || 0) : 0), 0);
+  // Lo que paga al año (sin IVA), con el precio de cada lote (normal o pactado)
+  const importeAnual = Object.keys(lotes).reduce((s, k) => {
+    const l = lotes[k]; if (!l || l.gratuito) return s;
+    const pu = l.precioUnitario != null ? Number(l.precioUnitario) : 299;
+    return s + (Number(l.cantidad) || 0) * pu;
+  }, 0);
+  const precioPactado = Object.keys(lotes).some((k) => lotes[k] && !lotes[k].gratuito && lotes[k].precioUnitario != null && Number(lotes[k].precioUnitario) !== 299);
   const activos = (o) => Object.keys(o).filter((k) => o[k] && o[k].inviteUsado).length;
   let ultimaContratacion = 0;
   Object.keys(lotes).forEach((k) => { ultimaContratacion = Math.max(ultimaContratacion, Number(lotes[k] && lotes[k].creadoTs) || 0); });
@@ -93,6 +102,8 @@ async function resumenDe(db, base) {
     vehiculosContratados,
     vehiculosGratis,
     vehiculosPago: vehiculosContratados - vehiculosGratis,
+    importeAnual: Math.round(importeAnual * 100) / 100,
+    precioPactado,
     vehiculosEnFlota: Object.keys(vehExtra).length,
     conductores: Object.keys(conductores).length,
     usuariosDashboard: activos(dash),
@@ -108,7 +119,7 @@ async function resumenDe(db, base) {
 // la flota original a empresas/{CODIGO}/, vincula a cada usuario con esa
 // empresa, crea su cuenta de acceso segura con la contraseña que ya tenía y
 // quita las contraseñas legibles de la copia nueva.
-const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original', 'empresas_eliminadas', 'altas_pendientes', 'suscripciones_stripe'];
+const NODOS_SISTEMA = ['empresas', 'directorio_usuarios', 'indice_invitaciones', 'altas_por_sesion', 'migracion_original', 'empresas_eliminadas', 'altas_pendientes', 'suscripciones_stripe', 'codigos_descuento'];
 const ALFABETO_COD = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function emailKeyM(email) { return String(email || '').trim().toLowerCase().replace(/\./g, ',').replace(/[#$\[\]\/]/g, '_'); }
 function passwordParaFirebase(pass) { pass = String(pass || ''); while (pass.length < 6) pass += '·'; return pass; }
@@ -302,7 +313,11 @@ module.exports = async function handler(req, res) {
       }
       if (Object.keys(upIdx).length) await db.ref().update(upIdx);
       const modoPrueba = String(process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test');
-      res.status(200).json({ ok: true, empresas, original, pendientes, modoPrueba, precio: 299, iva: 21 });
+      const descRaw = (await db.ref('codigos_descuento').once('value')).val() || {};
+      const descuentos = Object.keys(descRaw).map((k) => Object.assign({ codigo: k }, descRaw[k]))
+        .filter((d) => Date.now() - (d.creadoTs || 0) < 30 * 86400000)   // últimos 30 días
+        .sort((a, b) => (b.creadoTs || 0) - (a.creadoTs || 0));
+      res.status(200).json({ ok: true, empresas, original, pendientes, descuentos, modoPrueba, precio: 299, iva: 21 });
       return;
     }
 
@@ -375,6 +390,41 @@ module.exports = async function handler(req, res) {
       let emailEnviado = false;
       try { await emailCortesia({ email, nombre, codigo, vehiculos, venceTs }); emailEnviado = true; } catch (e) { /* se puede reenviar a mano */ }
       res.status(200).json({ ok: true, codigo, emailEnviado });
+      return;
+    }
+
+    if (accion === 'crear_descuento') {
+      const tipo = (req.body && req.body.tipo) === 'porcentaje' ? 'porcentaje' : 'precio';
+      const valor = Math.round(Number(req.body && req.body.valor) * 100) / 100;
+      let precioUnitario;
+      if (tipo === 'porcentaje') {
+        if (!(valor > 0 && valor < 100)) { res.status(400).json({ error: 'El porcentaje tiene que estar entre 1 y 99.' }); return; }
+        precioUnitario = Math.round(299 * (100 - valor)) / 100;
+      } else {
+        if (!(valor > 0 && valor < 299)) { res.status(400).json({ error: 'El precio especial tiene que ser mayor que 0 y menor que 299 €.' }); return; }
+        precioUnitario = valor;
+      }
+      const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let codigo = '';
+      for (let intento = 0; intento < 10; intento++) {
+        let c = 'DESC-';
+        for (let i = 0; i < 6; i++) c += letras[Math.floor(Math.random() * letras.length)];
+        if (!(await db.ref('codigos_descuento/' + c).once('value')).exists()) { codigo = c; break; }
+      }
+      if (!codigo) { res.status(500).json({ error: 'No se pudo generar el código. Inténtalo otra vez.' }); return; }
+      const ahora = Date.now();
+      const d = { tipo, valor, precioUnitario, nota: String((req.body && req.body.nota) || '').trim().slice(0, 120) || null,
+        creadoTs: ahora, venceTs: ahora + 24 * 3600000, usado: false };
+      await db.ref('codigos_descuento/' + codigo).set(d);
+      res.status(200).json(Object.assign({ ok: true, codigo }, d));
+      return;
+    }
+
+    if (accion === 'borrar_descuento') {
+      const codigo = String((req.body && req.body.codigo) || '').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      if (!codigo) { res.status(400).json({ error: 'Falta el código' }); return; }
+      await db.ref('codigos_descuento/' + codigo).remove();
+      res.status(200).json({ ok: true });
       return;
     }
 

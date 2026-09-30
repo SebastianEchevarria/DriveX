@@ -165,13 +165,20 @@ async function handler(req, res) {
         direccion: meta.direccion || '', cp: meta.cp || '', ciudad: meta.ciudad || '', email: meta.email || '',
         stripeCustomerId: customer, estado: 'activa', creadoTs: Date.now(),
       });
+      const precioUnitario = Number(meta.precioUnitario) > 0 ? Number(meta.precioUnitario) : 299;
       await db.ref('empresas/' + codigo + '/suscripcion_lotes').push({
-        cantidad, precioUnitario: 299, iva: 21, fechaContratacion: hoy,
+        cantidad, precioUnitario, iva: 21, fechaContratacion: hoy, descuento: meta.descuento || null,
         stripeSubscriptionId: subscriptionId, stripeCustomerId: customer, creadoTs: Date.now(),
       });
       await db.ref('suscripciones_stripe/' + subscriptionId).set({ empresa: codigo, origen: 'alta' });
       await db.ref('altas_por_sesion/' + clave).set({ codigo, nombre: meta.nombre || '', email: meta.email || '', ts: Date.now() });
       await db.ref('altas_pendientes/' + subscriptionId).remove();
+      // Código de descuento: queda gastado (un solo uso)
+      if (meta.descuento) {
+        await db.ref('codigos_descuento/' + meta.descuento).update({
+          usado: true, usadoTs: Date.now(), usadoPor: (meta.nombre || '') + ' (' + codigo + ')', reservadoHasta: null,
+        }).catch(() => {});
+      }
       // Email de bienvenida (si falla, la empresa ya está creada y queda anotado)
       try {
         await enviarEmailBienvenida({ email: meta.email, nombre: meta.nombre || '', codigo, cantidad });
