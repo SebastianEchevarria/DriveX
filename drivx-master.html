@@ -157,6 +157,9 @@
     header.top .quien{display:none}
   }
   @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
+  .grupo-app.plegable{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:rgba(255,255,255,.03);margin-top:10px}
+  .grupo-app.plegable:hover{border-color:rgba(0,212,255,.6)}
+  .grupo-cuerpo{padding:4px 2px 2px}
 </style>
 </head>
 <body>
@@ -184,6 +187,7 @@
       <div class="esp"></div>
       <span class="quien" id="quien"></span>
       <button class="btn btn-verde" onclick="abrirGratuita()">🎁 Crear cuenta gratuita</button>
+      <button class="btn btn-oro" onclick="abrirDescuentos()">🏷️ Descuentos</button>
       <button class="btn btn-cian" id="btn-permisos" onclick="sincronizarPermisosTodas()">🔐 Actualizar permisos</button>
       <button class="btn btn-linea" onclick="cargarEmpresas()">Actualizar</button>
       <button class="btn btn-rojo" onclick="salir()">Salir</button>
@@ -288,6 +292,33 @@
       <button class="btn btn-linea" onclick="cerrarGratuita()">Cerrar</button>
       <button class="btn btn-verde" id="gr-guardar" onclick="guardarGratuita()">Crear cuenta</button>
     </div>
+  </div>
+</div>
+
+<div class="velo" id="velo-desc" onclick="if(event.target===this)cerrarDescuentos()">
+  <div class="caja" role="dialog" aria-modal="true" aria-labelledby="ds-titulo" style="max-width:600px;border-color:var(--gold);box-shadow:0 0 18px rgba(255,197,61,.5)">
+    <div class="caja-cab">
+      <h2 id="ds-titulo">🏷️ Códigos de descuento</h2>
+      <p>Para empresas con un precio pactado. Cada código sirve <b>una sola vez</b> y <b>caduca a las 24 horas</b>. La empresa lo escribe al contratar en la web y su precio especial se aplica también en las renovaciones.</p>
+    </div>
+    <div class="caja-cuerpo" style="padding-top:14px">
+      <div class="campo"><label>Tipo de descuento</label>
+        <div class="filtros" id="ds-tipo">
+          <button type="button" aria-pressed="true" data-v="precio" onclick="dsTipo(this)">💶 Precio especial por vehículo</button>
+          <button type="button" aria-pressed="false" data-v="porcentaje" onclick="dsTipo(this)">％ Porcentaje</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div class="campo" style="flex:1;min-width:160px"><label for="ds-valor" id="ds-valor-lbl">Precio por vehículo y año (€, sin IVA)</label><input id="ds-valor" type="number" min="1" step="0.01" placeholder="Ej: 199" oninput="dsVista()"></div>
+        <div class="campo" style="flex:1.4;min-width:200px"><label for="ds-nota">Nota (para ti)</label><input id="ds-nota" type="text" maxlength="120" placeholder="Ej: Transportes García, pactado 29/09"></div>
+      </div>
+      <div class="sub" id="ds-vista" style="margin:-4px 0 12px"></div>
+      <button class="btn btn-oro" id="ds-crear" onclick="crearDescuento()" style="width:100%">Generar código</button>
+      <div id="ds-res" style="margin-top:12px"></div>
+      <div style="margin-top:18px;font-family:var(--display);font-weight:700;font-size:15px">Códigos de los últimos 30 días</div>
+      <div id="ds-lista" style="margin-top:8px"></div>
+    </div>
+    <div class="caja-pie"><button class="btn btn-linea" onclick="cerrarDescuentos()">Cerrar</button></div>
   </div>
 </div>
 
@@ -422,7 +453,7 @@ function pintarCifras(){
   var gratis = e.filter(function(x){ return x.info.gratuita; }).length;
   var cond = e.reduce(function(s,x){ return s + x.conductores; }, 0);
   document.getElementById('cifras').innerHTML =
-    '<div class="cifra principal"><div class="n">' + euros(vehPago * (DATOS.precio || 299)) + '</div><div class="t">Ingresos anuales contratados (sin IVA)' + (DATOS.modoPrueba ? '<span class="modo-prueba">Stripe en modo prueba</span>' : '') + '</div></div>' +
+    '<div class="cifra principal"><div class="n">' + euros(activas.reduce(function(s,x){ return s + (x.importeAnual != null ? x.importeAnual : (x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) * (DATOS.precio || 299)); }, 0)) + '</div><div class="t">Ingresos anuales contratados (sin IVA)' + (DATOS.modoPrueba ? '<span class="modo-prueba">Stripe en modo prueba</span>' : '') + '</div></div>' +
     '<div class="cifra"><div class="n">' + e.length + '</div><div class="t">Empresas y particulares (' + activas.length + ' activas' + (gratis ? ', ' + gratis + ' gratis' : '') + ')</div></div>' +
     '<div class="cifra"><div class="n">' + veh + '</div><div class="t">Vehículos contratados</div></div>' +
     '<div class="cifra"><div class="n">' + cond + '</div><div class="t">Conductores registrados</div></div>';
@@ -478,7 +509,8 @@ function pintar(){
         '<b>' + x.supervisores + '</b> supervisores · <b>' + x.propietarios + '</b> propietarios</div>' +
       (i.gratuita
         ? '<div class="paga" style="color:var(--green)">Gratis<small>' + (x.vehiculosGratis || x.vehiculosContratados) + ' veh. · ' + (i.venceTs ? 'hasta ' + fecha(i.venceTs) : 'sin fecha de fin') + '</small></div>'
-        : '<div class="paga">' + euros((x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) * (DATOS.precio || 299)) + '<small>al año + IVA · ' + (x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) + ' veh. × ' + (DATOS.precio || 299) + ' €</small></div>') +
+        : '<div class="paga">' + euros(x.importeAnual != null ? x.importeAnual : (x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) * (DATOS.precio || 299)) +
+            '<small>al año + IVA · ' + (x.vehiculosPago != null ? x.vehiculosPago : x.vehiculosContratados) + ' veh.' + (x.precioPactado ? ' · 🏷️ precio pactado' : ' × ' + (DATOS.precio || 299) + ' €') + '</small></div>') +
       '<div class="estado-col"><span class="estado ' + est + '">' + (est === 'suspendida' ? 'Suspendida' : 'Activa') + '</span>' +
         '<div class="sub">Alta: ' + fecha(i.creadoTs) + '</div>' +
         (i.gratuita ? '<span class="estado" style="margin-top:6px;color:var(--green);border:1.5px solid rgba(0,230,118,.7)">GRATIS</span>' : '') +
@@ -571,20 +603,36 @@ function abrirUsuarios(codigo){
     var html = '';
     APPS_SOPORTE.forEach(function(a){
       var gente = d[a[0]] || [];
-      html += '<div class="grupo-app"><span class="pto" style="background:' + a[2] + ';box-shadow:0 0 8px ' + a[2] + '"></span>' + a[1] + ' <span style="color:var(--dim);font-weight:500;font-size:13px">(' + gente.length + ')</span></div>';
-      if (!gente.length) { html += '<div class="sub" style="padding:4px 0 8px">Nadie todavía.</div>'; return; }
-      gente.sort(function(x,y){ return (x.nombre||'').localeCompare(y.nombre||''); }).forEach(function(u){
+      // Cada app es un grupo plegable (se recuerda cómo lo dejaste)
+      var clave = 'drivx_master_us_' + a[0];
+      var abierto = localStorage.getItem(clave) !== '0';
+      html += '<div class="grupo-app plegable" role="button" tabindex="0" aria-expanded="' + abierto + '" onclick="plegarGrupoUsuarios(this,\'' + a[0] + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();plegarGrupoUsuarios(this,\'' + a[0] + '\')}">' +
+        '<span class="pto" style="background:' + a[2] + ';box-shadow:0 0 8px ' + a[2] + '"></span>' + a[1] +
+        ' <span style="color:var(--dim);font-weight:500;font-size:13px">(' + gente.length + ')</span>' +
+        '<span class="chev" style="margin-left:auto;transition:transform .2s;transform:rotate(' + (abierto ? '180' : '0') + 'deg)">▾</span></div>';
+      html += '<div class="grupo-cuerpo" data-app="' + a[0] + '" style="display:' + (abierto ? 'block' : 'none') + '">';
+      if (!gente.length) html += '<div class="sub" style="padding:4px 0 8px">Nadie todavía.</div>';
+      else gente.sort(function(x,y){ return (x.nombre||'').localeCompare(y.nombre||''); }).forEach(function(u){
         html += '<div class="persona"><div class="quien2"><b>' + esc(u.nombre || u.email || 'Sin nombre') +
           (u.activo ? '' : '<span class="pendiente">Invitación pendiente</span>') + '</b>' +
           '<span>' + esc(u.email || '') + (u.rol ? ' · ' + esc(u.rol) : '') + (u.detalle ? ' · ' + esc(u.detalle) : '') + '</span></div>' +
           (u.activo ? '<button class="btn btn-cian" onclick="verComo(\'' + a[3] + '\',\'' + codigo + '\',\'' + esc(u.id) + '\')">Ver como</button>' : '') +
         '</div>';
       });
+      html += '</div>';
     });
     document.getElementById('us-lista').innerHTML = html;
   }).catch(function(err){
     document.getElementById('us-lista').innerHTML = '<div class="vacio" style="padding:20px">No se pudieron cargar: ' + esc(err.message) + '</div>';
   });
+}
+function plegarGrupoUsuarios(cab, app){
+  var cuerpo = cab.nextElementSibling; if (!cuerpo) return;
+  var abrir = cuerpo.style.display === 'none';
+  cuerpo.style.display = abrir ? 'block' : 'none';
+  cab.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  var ch = cab.querySelector('.chev'); if (ch) ch.style.transform = 'rotate(' + (abrir ? '180' : '0') + 'deg)';
+  try { localStorage.setItem('drivx_master_us_' + app, abrir ? '1' : '0'); } catch(e) {}
 }
 function cerrarUsuarios(){ document.getElementById('velo-usuarios').classList.remove('abierto'); }
 function verComo(archivo, codigo, id){
@@ -689,6 +737,70 @@ function sincronizarPermisosTodas(){
   }).then(function(){
     toast(fallos.length ? ('Permisos actualizados con errores en: ' + fallos.join(', ')) : ('✅ Permisos actualizados: ' + lista.length + ' empresas, ' + personas + ' personas.'));
   }).then(function(){ btn.disabled = false; btn.textContent = '🔐 Actualizar permisos'; });
+}
+
+// ══ CÓDIGOS DE DESCUENTO ══
+function abrirDescuentos(){
+  document.getElementById('ds-valor').value = ''; document.getElementById('ds-nota').value = '';
+  document.getElementById('ds-res').innerHTML = '';
+  dsTipo(document.querySelector('#ds-tipo button[data-v="precio"]'));
+  pintarDescuentos();
+  document.getElementById('velo-desc').classList.add('abierto');
+}
+function cerrarDescuentos(){ document.getElementById('velo-desc').classList.remove('abierto'); }
+function dsTipo(b){
+  document.querySelectorAll('#ds-tipo button').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+  var pct = b.getAttribute('data-v') === 'porcentaje';
+  document.getElementById('ds-valor-lbl').textContent = pct ? 'Descuento (%)' : 'Precio por vehículo y año (€, sin IVA)';
+  document.getElementById('ds-valor').placeholder = pct ? 'Ej: 20' : 'Ej: 199';
+  dsVista();
+}
+function dsVista(){
+  var pct = (document.querySelector('#ds-tipo button[aria-pressed="true"]') || {}).getAttribute && document.querySelector('#ds-tipo button[aria-pressed="true"]').getAttribute('data-v') === 'porcentaje';
+  var v = parseFloat(document.getElementById('ds-valor').value);
+  var el = document.getElementById('ds-vista');
+  if (!(v > 0)) { el.textContent = 'Precio normal: 299 € + IVA por vehículo y año.'; return; }
+  var precio = pct ? Math.round(299 * (100 - v)) / 100 : v;
+  el.innerHTML = 'Con este código pagará <b>' + euros(precio) + ' + IVA</b> por vehículo y año (en lugar de 299 €).';
+}
+function crearDescuento(){
+  var tipo = document.querySelector('#ds-tipo button[aria-pressed="true"]').getAttribute('data-v');
+  var valor = parseFloat(document.getElementById('ds-valor').value);
+  var btn = document.getElementById('ds-crear'); btn.disabled = true;
+  api('crear_descuento', { tipo: tipo, valor: valor, nota: document.getElementById('ds-nota').value.trim() }).then(function(d){
+    document.getElementById('ds-res').innerHTML = '<div class="aviso ok">✅ Código creado: <b style="font-family:var(--mono);font-size:18px;letter-spacing:1px">' + esc(d.codigo) + '</b> · ' + euros(d.precioUnitario) + ' + IVA por vehículo · caduca en 24 h. ' +
+      '<button class="btn btn-linea" style="margin-left:6px;padding:6px 10px" onclick="copiarDescuento(\'' + esc(d.codigo) + '\')">Copiar</button></div>';
+    document.getElementById('ds-valor').value = ''; document.getElementById('ds-nota').value = ''; dsVista();
+    DATOS.descuentos = [Object.assign({ codigo: d.codigo }, d)].concat(DATOS.descuentos || []);
+    pintarDescuentos();
+  }).catch(function(err){ document.getElementById('ds-res').innerHTML = '<div class="aviso error">' + esc(err.message) + '</div>'; })
+    .then(function(){ btn.disabled = false; });
+}
+function copiarDescuento(c){ try { navigator.clipboard.writeText(c); toast('Código copiado: ' + c); } catch(e) { toast(c); } }
+function borrarDescuento(c){
+  if (!confirm('¿Borrar el código ' + c + '? Ya no se podrá usar.')) return;
+  api('borrar_descuento', { codigo: c }).then(function(){
+    DATOS.descuentos = (DATOS.descuentos || []).filter(function(d){ return d.codigo !== c; });
+    pintarDescuentos(); toast('Código borrado');
+  }).catch(function(err){ toast('No se pudo: ' + err.message); });
+}
+function pintarDescuentos(){
+  var cont = document.getElementById('ds-lista'); if (!cont) return;
+  var l = (DATOS && DATOS.descuentos) || [];
+  if (!l.length) { cont.innerHTML = '<div class="sub" style="padding:8px 0">Todavía no has creado ningún código.</div>'; return; }
+  var ahora = Date.now();
+  cont.innerHTML = l.map(function(d){
+    var estado, color;
+    if (d.usado) { estado = '✅ Usado por ' + esc(d.usadoPor || '—') + (d.usadoTs ? ' · ' + fecha(d.usadoTs) : ''); color = 'var(--green)'; }
+    else if (ahora > d.venceTs) { estado = '⌛ Caducado'; color = 'var(--dim)'; }
+    else { var h2 = Math.max(0, Math.floor((d.venceTs - ahora) / 3600000)), m2 = Math.max(0, Math.floor(((d.venceTs - ahora) % 3600000) / 60000)); estado = '🟢 Activo · caduca en ' + h2 + ' h ' + m2 + ' min'; color = 'var(--gold)'; }
+    return '<div class="persona" style="align-items:center">' +
+      '<div class="quien2"><b style="font-family:var(--mono);letter-spacing:.5px">' + esc(d.codigo) + ' · ' + euros(d.precioUnitario) + ' + IVA/veh.' + (d.tipo === 'porcentaje' ? ' (−' + d.valor + ' %)' : '') + '</b>' +
+      '<span style="color:' + color + '">' + estado + '</span>' + (d.nota ? '<span>📝 ' + esc(d.nota) + '</span>' : '') + '</div>' +
+      (!d.usado && ahora <= d.venceTs ? '<button class="btn btn-linea" onclick="copiarDescuento(\'' + esc(d.codigo) + '\')">Copiar</button>' : '') +
+      (!d.usado ? '<button class="btn btn-rojo" onclick="borrarDescuento(\'' + esc(d.codigo) + '\')">🗑</button>' : '') +
+    '</div>';
+  }).join('');
 }
 
 // ══ CUENTAS GRATUITAS (de cortesía) ══
@@ -807,7 +919,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-10-01-1';
+var APP_VERSION = '2026-10-01-2';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {

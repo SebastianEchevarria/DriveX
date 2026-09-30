@@ -733,7 +733,13 @@ document.querySelectorAll('.faq-item').forEach(function(item){
         <div class="hint">Aqu&iacute; recibir&aacute;s las facturas. Ser&aacute; tambi&eacute;n el email de tu cuenta de administrador.</div>
       </div>
 
-      <label style="display:block;font-size:12.5px;font-weight:700;margin-top:4px">Veh&iacute;culos con los que empiezas *</label>
+      <label for="cxDescuento" style="display:block;font-size:12.5px;font-weight:700;margin-top:4px">C&oacute;digo de descuento <span style="font-weight:500;opacity:.7">(opcional)</span></label>
+      <div style="display:flex;gap:8px;margin:6px 0 4px">
+        <input id="cxDescuento" type="text" autocomplete="off" maxlength="20" placeholder="Ej: DESC-AB12CD" style="flex:1;min-width:0;box-sizing:border-box;padding:12px 14px;border-radius:10px;border:1.5px solid rgba(255,197,61,.7);background:rgba(255,255,255,.04);color:#fff;font-size:15px;outline:none;text-transform:uppercase;font-family:var(--font-mono);letter-spacing:.5px">
+        <button type="button" id="cxDescBtn" onclick="cxAplicarDescuento()" class="btn btn-ghost" style="flex-shrink:0;padding:10px 16px;cursor:pointer">Aplicar</button>
+      </div>
+      <div id="cxDescMsg" style="display:none;font-size:12.5px;margin:0 0 14px;line-height:1.45"></div>
+      <label style="display:block;font-size:12.5px;font-weight:700;margin-top:10px">Veh&iacute;culos con los que empiezas *</label>
       <div class="cx-qty">
         <button type="button" onclick="cxCambiarCantidad(-1)">&minus;</button>
         <input id="cxCantidad" type="number" min="1" max="500" value="1" oninput="cxActualizarTotal()">
@@ -782,9 +788,40 @@ document.querySelectorAll('.faq-item').forEach(function(item){
 <script>
 // ══════════════ CONTRATACIÓN ══════════════
 var PRECIO_VEHICULO = 299;
+var cxPrecioUnit = PRECIO_VEHICULO, cxCodigoDesc = '';
+// Código de descuento pactado con DRIVX: se comprueba en el servidor
+function cxAplicarDescuento(){
+  var inp = document.getElementById('cxDescuento'), msg = document.getElementById('cxDescMsg'), btn = document.getElementById('cxDescBtn');
+  var codigo = String(inp.value || '').trim().toUpperCase();
+  msg.style.display = 'block';
+  if (!codigo) { cxQuitarDescuento(); msg.style.display = 'none'; return; }
+  btn.disabled = true; btn.textContent = '…';
+  fetch('/api/create-checkout-session', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ accion:'validar_descuento', codigo: codigo }) })
+    .then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        cxPrecioUnit = d.precioUnitario; cxCodigoDesc = d.codigo;
+        msg.style.color = '#00e676';
+        msg.innerHTML = '&#9989; C&oacute;digo aplicado: <b>' + cxEur(d.precioUnitario) + ' + IVA</b> por veh&iacute;culo y a&ntilde;o (en lugar de ' + PRECIO_VEHICULO + '&euro;). <a href="#" onclick="cxQuitarDescuento();return false" style="color:#fff;text-decoration:underline">Quitar</a>';
+        inp.readOnly = true;
+      } else {
+        cxQuitarDescuento();
+        msg.style.display = 'block'; msg.style.color = '#ff6b7a';
+        msg.textContent = '❌ ' + ((d && d.error) || 'Código no válido.');
+      }
+      cxActualizarTotal();
+    }).catch(function(){ msg.style.color = '#ff6b7a'; msg.textContent = '❌ No se pudo comprobar el código. Inténtalo de nuevo.'; })
+    .then(function(){ btn.disabled = false; btn.textContent = 'Aplicar'; });
+}
+function cxQuitarDescuento(){
+  cxPrecioUnit = PRECIO_VEHICULO; cxCodigoDesc = '';
+  var inp = document.getElementById('cxDescuento'); if (inp) { inp.readOnly = false; inp.value = ''; }
+  var msg = document.getElementById('cxDescMsg'); if (msg) msg.style.display = 'none';
+  cxActualizarTotal();
+}
 var cxTipo = 'empresa';
 
 function abrirContratacion(){
+  if (typeof cxQuitarDescuento === 'function') { cxPrecioUnit = PRECIO_VEHICULO; cxCodigoDesc = ''; var _i = document.getElementById('cxDescuento'); if (_i) { _i.readOnly = false; _i.value = ''; } var _m = document.getElementById('cxDescMsg'); if (_m) _m.style.display = 'none'; }
   document.getElementById('cxPasoForm').style.display = 'block';
   document.getElementById('cxPasoTransferencia').style.display = 'none';
   document.getElementById('cxPasoBienvenida').style.display = 'none';
@@ -814,7 +851,7 @@ var IVA_PCT = 21;
 var cxMetodo = 'tarjeta';
 function cxEur(n){ return (Math.round(n * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€'; }
 function cxActualizarTotal(){
-  var base = cxCantidadActual() * PRECIO_VEHICULO;
+  var base = cxCantidadActual() * cxPrecioUnit;
   var iva = Math.round(base * IVA_PCT) / 100;
   document.getElementById('cxTotal').textContent = cxEur(base + iva);
   document.getElementById('cxTotalDet').textContent = cxEur(base) + ' + ' + cxEur(iva) + ' IVA · al año';
@@ -864,7 +901,7 @@ function cxEnviar(){
     modo: 'alta', tipo: cxTipo,
     nombre: v('cxNombre'), nif: v('cxNif').toUpperCase(),
     direccion: v('cxDireccion'), cp: v('cxCp'), ciudad: v('cxCiudad'),
-    email: v('cxEmail'), cantidad: cxCantidadActual(), metodo: cxMetodo
+    email: v('cxEmail'), cantidad: cxCantidadActual(), metodo: cxMetodo, descuento: cxCodigoDesc || ''
   };
   if (!datos.nombre || !datos.nif || !datos.direccion || !datos.cp || !datos.ciudad || !datos.email) {
     cxMostrarError('Rellena todos los campos marcados con *.'); return;
@@ -948,7 +985,7 @@ function cxCopiarCodigo(){
 </div>
 <script>
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-29-2';
+var APP_VERSION = '2026-10-01-1';
 var APP_VERSION_KEY = 'landing';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
