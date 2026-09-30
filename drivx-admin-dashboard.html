@@ -1178,7 +1178,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-6';
+var APP_VERSION = '2026-09-30-7';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4777,14 +4777,18 @@ function rendimientoMontar(contId, fuente) {
   var cont = document.getElementById(contId); if (!cont) return;
   var titulo = fuente.tipo === 'vehiculo' ? 'Facturación del vehículo' : 'Ingresos del conductor';
   var previo = _rdEstado[contId];
-  // Si ya se había pintado (refresco automático), se repinta al momento con lo
-  // que había y se conserva la semana/mes que estabas mirando.
-  if (previo && previo.lista) rendimientoPintar(contId);
-  else cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
+  var mismo = !!(previo && previo.fuente && JSON.stringify(previo.fuente) === JSON.stringify(fuente));
+  var yaPintado = !!cont.querySelector('.rd-caja');
+  // Refresco automático: si ya está en pantalla, NO se toca (así no parpadea).
+  // Si el contenedor es nuevo (la pantalla se rehízo), se pinta al momento con lo que había.
+  if (mismo && previo.lista && !yaPintado) rendimientoPintar(contId);
+  else if (!mismo || !previo || !previo.lista) cont.innerHTML = '<div class="rd-caja"><div class="rd-titulo">📈 RENDIMIENTO <span>· ' + titulo + '</span></div><div class="rd-vacio">Cargando…</div></div>';
   _rdCargar(fuente).then(function(lista){
-    var mismo = previo && previo.fuente && JSON.stringify(previo.fuente) === JSON.stringify(fuente);
+    var cambiaron = !mismo || !previo.lista || JSON.stringify(previo.lista) !== JSON.stringify(lista);
     _rdEstado[contId] = { fuente: fuente, titulo: titulo, lista: lista, modo: mismo ? previo.modo : 'semana', idx: mismo ? previo.idx : -1 };
-    rendimientoPintar(contId);
+    var c2 = document.getElementById(contId);
+    // Solo se repinta si llegaron datos nuevos o si el gráfico no está en pantalla
+    if (cambiaron || !c2 || !c2.querySelector('.rd-caja')) rendimientoPintar(contId);
   });
 }
 function rendimientoPintar(contId) {
