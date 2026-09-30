@@ -104,7 +104,9 @@ module.exports = async function handler(req, res) {
       if (porVehiculo) return porVehiculo(e);
       if (!target) return true;
       if (target.role && e.role !== target.role && e.role !== 'admin') return false;
-      if (target.ccaa && e.ccaaAsignada && e.ccaaAsignada !== target.ccaa) return false;
+      // Managers con una o varias comunidades: solo reciben avisos de las suyas
+      const ccaasSub = Array.isArray(e.ccaasAsignadas) && e.ccaasAsignadas.length ? e.ccaasAsignadas : (e.ccaaAsignada ? [e.ccaaAsignada] : []);
+      if (target.ccaa && ccaasSub.length && ccaasSub.indexOf(target.ccaa) === -1) return false;
       return true;
     });
 
