@@ -1296,7 +1296,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-1';
+var APP_VERSION = '2026-10-01-1';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1919,9 +1919,101 @@ function finalizeRegistro() {
   });
 }
 
+// ══════════════ FECHAS DE CADUCIDAD DE DNI / NIE Y CARNET (lectura con IA) ══════════════
+// Tras activar la cuenta (o al entrar, si aún no se leyeron), la IA lee de las
+// fotos del registro la fecha de caducidad y la guarda en la ficha del
+// conductor (dniCaducidad / carnetCaducidad). Así el Dashboard la tiene sin
+// escribirla a mano y avisa en Inicio cuando se acerque el vencimiento.
+// · Nunca sustituye una fecha que ya exista (escrita a mano en el Dashboard).
+// · Máximo 2 intentos por conductor; si no se puede leer, se deja para rellenar a mano.
+// · Todo en segundo plano: si falla, no afecta a nada más de la app.
+var PROMPT_CAD_DNI = 'Esta foto es un documento de identidad español: un DNI o una tarjeta de extranjero (NIE / permiso de residencia). La foto puede estar girada. ' +
+  'Busca la FECHA DE CADUCIDAD del documento: ' +
+  '- En el DNI es la fecha que aparece debajo de "VALIDEZ" (NO la de "EMISIÓN" ni la de "NACIMIENTO"). ' +
+  '- En la tarjeta NIE / permiso de residencia es la fecha que aparece debajo de "VALIDEZ TARJETA" / "CARD EXPIRY" (NO la de "FECHA NAC." / "BIRTH DATE"). ' +
+  'Las fechas suelen estar escritas como DD MM AAAA. Si pone "PERMANENTE" o no se lee con seguridad, usa null. ' +
+  'Responde SOLO con un JSON, sin texto adicional: {"tipo":"dni" o "nie" o "otro","caducidad":"AAAA-MM-DD" o null}';
+var PROMPT_CAD_CARNET = 'Esta foto es un permiso de conducción (carnet de conducir) europeo/español. La foto puede estar girada. ' +
+  'La FECHA DE CADUCIDAD es la del campo numerado "4b." (NO la del "4a.", que es la fecha de expedición, ni la del "3.", que es la de nacimiento). ' +
+  'Suele estar escrita como DD-MM-AAAA o DD.MM.AAAA. Si no se lee con seguridad, usa null. ' +
+  'Responde SOLO con un JSON, sin texto adicional: {"caducidad":"AAAA-MM-DD" o null}';
+// Imagen de Cloudinary en tamaño manejable → base64
+function _imagenUrlABase64(url) {
+  // Recién registrado: la foto sigue en la memoria del móvil → se usa directamente
+  var enMemoria = null;
+  try { Object.keys(_regPhotos || {}).forEach(function(k){ var p = _regPhotos[k]; if (p && p.url === url && p.base64) enMemoria = p; }); } catch(e) {}
+  if (enMemoria) {
+    return comprimirImagenBase64(enMemoria.base64, (enMemoria.file && enMemoria.file.type) || 'image/jpeg', 1600, 0.8)
+      .then(function(r){ return { base64: r.base64, mt: r.mediaType || 'image/jpeg' }; });
+  }
+  var u = String(url || '');
+  if (u.indexOf('/upload/') !== -1 && u.indexOf('/upload/w_') === -1) u = u.replace('/upload/', '/upload/w_1600,c_limit,q_80,f_jpg/');
+  return fetch(u).then(function(r){ if (!r.ok) throw new Error('img ' + r.status); return r.blob(); }).then(function(blob){
+    return new Promise(function(res, rej){
+      var fr = new FileReader();
+      fr.onload = function(){ res({ base64: String(fr.result).split(',')[1], mt: blob.type || 'image/jpeg' }); };
+      fr.onerror = rej; fr.readAsDataURL(blob);
+    });
+  });
+}
+function _preguntarIAImagen(img, prompt) {
+  var u = firebase.auth().currentUser; if (!u) return Promise.reject(new Error('sin sesión'));
+  return u.getIdToken().then(function(t){
+    return fetch('/api/ai', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
+      body: JSON.stringify({ base64: img.base64, mediaType: img.mt, prompt: prompt }) });
+  }).then(function(r){ return r.json(); }).then(function(d){
+    var txt = String((d && d.text) || '').replace(/```json|```/g, '');
+    try { return JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1)); } catch(e) { return null; }
+  });
+}
+// Acepta AAAA-MM-DD o DD/MM/AAAA y comprueba que sea una fecha razonable
+function _normFechaCaducidad(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s), y, mo, d;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else { m = /^(\d{1,2})[\/.\-\s](\d{1,2})[\/.\-\s](\d{4})$/.exec(s); if (!m) return null; d = +m[1]; mo = +m[2]; y = +m[3]; }
+  if (y < 2000 || y > 2099 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  var f = new Date(y, mo - 1, d); if (f.getMonth() !== mo - 1) return null;
+  return y + '-' + ('0' + mo).slice(-2) + '-' + ('0' + d).slice(-2);
+}
+function _leerCaducidad(urls, prompt) {
+  var i = 0;
+  var probar = function(){
+    if (i >= urls.length) return Promise.resolve(null);
+    var url = urls[i++]; if (!url) return probar();
+    return _imagenUrlABase64(url).then(function(img){ return _preguntarIAImagen(img, prompt); })
+      .then(function(j){ var f = j && _normFechaCaducidad(j.caducidad); return f || probar(); })
+      .catch(function(){ return probar(); });
+  };
+  return probar();
+}
+function leerCaducidadesDocsSiHaceFalta() {
+  if (!currentUser || !currentUser.cid || window.MODO_SOPORTE) return;
+  var cid = currentUser.cid;
+  fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json').then(function(r){ return r.json(); }).then(function(c){
+    if (!c || c.error) return;
+    var ia = c.docsIA || {};
+    if ((ia.intentos || 0) >= 2) return;
+    var faltaDni = !c.dniCaducidad && (c.dniFrenteUrl || c.dniDorsoUrl);
+    var faltaCarnet = !c.carnetCaducidad && (c.carnetFrenteUrl || c.carnetDorsoUrl);
+    if (!faltaDni && !faltaCarnet) return;
+    return Promise.all([
+      faltaDni ? _leerCaducidad([c.dniFrenteUrl, c.dniDorsoUrl], PROMPT_CAD_DNI) : Promise.resolve(null),
+      faltaCarnet ? _leerCaducidad([c.carnetFrenteUrl, c.carnetDorsoUrl], PROMPT_CAD_CARNET) : Promise.resolve(null)
+    ]).then(function(res){
+      var cambios = { docsIA: { ts: Date.now(), intentos: (ia.intentos || 0) + 1, dni: res[0] || ia.dni || null, carnet: res[1] || ia.carnet || null } };
+      if (res[0]) cambios.dniCaducidad = res[0];
+      if (res[1]) cambios.carnetCaducidad = res[1];
+      return fetch(FIREBASE_URL + '/conductores_registro/' + cid + '.json', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(cambios) });
+    });
+  }).catch(function(){});
+}
+
 function loginAs(u) {
   currentUser = u;
   setTimeout(comprobarParadaDriver, 300);
+  setTimeout(leerCaducidadesDocsSiHaceFalta, 4000);
   cargarNombreEmpresa();
   localStorage.setItem('drivx_current_user', u.email || u.cid);
   localStorage.setItem('drivx_session_user', JSON.stringify(u));
