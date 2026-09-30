@@ -234,6 +234,59 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
 .rd-etqs span.sel{opacity:1;color:#00e676;text-shadow:0 0 6px rgba(0,230,118,.9)}
 .rd-vacio{margin-top:12px;padding:18px 10px;text-align:center;font-size:13px;opacity:.85;line-height:1.5}
 #vehicle-detail-modal .rd-caja,#conductor-perfil-modal .rd-caja{backdrop-filter:none;-webkit-backdrop-filter:none}
+
+/* ══════ AYUDA DEL DASHBOARD ══════ */
+#ayuda-dash{max-width:860px;margin:0 auto;color:#fff}
+.ay-cab{display:flex;flex-direction:column;gap:12px;margin-bottom:6px}
+.ay-ia{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px 18px;border-radius:16px;border:2.5px solid rgba(0,230,118,1);background:rgba(0,230,118,.08);color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 0 14px rgba(0,230,118,.6)}
+.ay-ia b{display:block;font-size:16px}
+.ay-ia small{display:block;font-size:12.5px;opacity:.85;margin-top:3px}
+.ay-ia-ico{font-size:30px}
+.ay-buscar{width:100%;box-sizing:border-box;padding:13px 16px;border-radius:12px;border:2px solid rgba(0,212,255,.8);background:rgba(0,212,255,.06);color:#fff;font-size:14.5px;font-family:inherit;outline:none;box-shadow:0 0 8px rgba(0,212,255,.35)}
+.ay-grupo{margin:22px 4px 8px;font-size:12px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--cyan);text-shadow:0 0 6px rgba(0,212,255,.6)}
+.ay-tema{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin-bottom:10px;padding:14px 16px;border-radius:14px;border:2px solid rgba(0,212,255,.75);background:rgba(10,16,26,.72);color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,212,255,.35)}
+.ay-tema:hover{box-shadow:0 0 16px rgba(0,212,255,.7)}
+.ay-tema-ico{font-size:24px;width:34px;text-align:center;flex-shrink:0}
+.ay-tema-txt{flex:1;min-width:0}
+.ay-tema-txt b{display:block;font-size:14.5px}
+.ay-tema-txt small{display:block;font-size:12px;opacity:.8;margin-top:2px}
+.ay-flecha{font-size:22px;color:var(--cyan);flex-shrink:0}
+.ay-vacio{margin:20px 0;padding:24px;text-align:center;border-radius:14px;border:1.5px dashed rgba(255,255,255,.25);font-size:14px}
+.ay-volver{margin:0 0 14px;padding:9px 14px;border-radius:10px;border:1.5px solid rgba(0,212,255,.7);background:rgba(0,212,255,.08);color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit}
+.ay-detalle{padding:20px 22px;border-radius:18px;border:2.5px solid rgba(0,212,255,1);background:rgba(10,16,26,.8);box-shadow:0 0 16px rgba(0,212,255,.55)}
+.ay-det-cab{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(0,212,255,.25)}
+.ay-det-cab h3{margin:0;font-size:19px}
+.ay-det-cab small{font-size:12.5px;opacity:.8}
+.ay-det-cuerpo{font-size:14.5px;line-height:1.7}
+.ay-det-cuerpo h4{margin:18px 0 6px;font-size:14px;color:var(--cyan);text-transform:uppercase;letter-spacing:.5px}
+.ay-det-cuerpo p{margin:0 0 10px}
+.ay-det-cuerpo ol,.ay-det-cuerpo ul{margin:0 0 10px;padding-left:22px}
+.ay-det-cuerpo li{margin-bottom:6px}
+.ay-nota{margin-top:12px;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(255,179,0,.85);background:rgba(255,179,0,.08);font-size:13.5px}
+.ay-ir{display:block;width:100%;margin-top:16px;padding:13px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.15);color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.6)}
+.ay-preguntar{display:block;width:100%;margin-top:10px;padding:11px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:none;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer;font-family:inherit}
+.ay-chat{display:flex;flex-direction:column;height:calc(100vh - 230px);min-height:420px;border-radius:18px;border:2.5px solid rgba(0,230,118,1);background:rgba(10,16,26,.8);box-shadow:0 0 16px rgba(0,230,118,.5);overflow:hidden}
+.ay-chat-cab{padding:14px 18px;font-weight:900;font-size:15px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px}
+.ay-punto{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.ay-chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.ay-msg{display:flex}
+.ay-msg > div{max-width:82%;padding:11px 14px;border-radius:14px;font-size:14px;line-height:1.55}
+.ay-msg.yo{justify-content:flex-end}
+.ay-msg.yo > div{background:rgba(0,212,255,.18);border:1.5px solid rgba(0,212,255,.7)}
+.ay-msg.bot > div{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.15)}
+.ay-acciones{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.ay-acciones .ay-ir{margin-top:0;padding:10px;font-size:13.5px}
+.ay-leer{padding:9px;border-radius:10px;border:1.5px solid rgba(0,212,255,.8);background:rgba(0,212,255,.08);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit}
+.ay-pensando{opacity:.7;font-style:italic}
+.ay-chat-sug{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 10px}
+.ay-chat-sug button{padding:7px 11px;border-radius:100px;border:1.5px solid rgba(0,212,255,.6);background:rgba(0,212,255,.06);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.ay-chat-in{display:flex;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)}
+.ay-chat-in input{flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:2px solid var(--cyan);background:rgba(255,255,255,.04);color:#fff;font-size:14px;font-family:inherit;outline:none}
+.ay-chat-in button{width:46px;border-radius:12px;border:none;background:var(--cyan);color:#02131d;font-size:18px;font-weight:900;cursor:pointer}
+#ayuda-guia{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140px);z-index:100040;display:flex;align-items:center;gap:12px;max-width:min(620px,92vw);padding:13px 16px;border-radius:14px;border:2.5px solid rgba(0,230,118,1);background:rgba(10,16,26,.96);color:#fff;font-size:14px;font-weight:700;box-shadow:0 0 18px rgba(0,230,118,.75);transition:transform .3s}
+#ayuda-guia.ver{transform:translate(-50%,0)}
+#ayuda-guia button{flex-shrink:0;padding:7px 11px;border-radius:9px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06);color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit}
+@media(max-width:700px){ .ay-chat{height:calc(100vh - 200px)} .ay-msg > div{max-width:92%} }
 </style>
 </head>
 <body>
@@ -384,6 +437,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
     <button class="sb-item disabled" id="nav-informes">Informes <span class="sb-soon">PRÓXIMAMENTE</span></button>
     <button class="sb-item" id="nav-suscripcion" onclick="showDashScreen('suscripcion')" style="display:none">💳 Suscripción</button>
     <button class="sb-item" id="nav-configuracion" onclick="showDashScreen('configuracion')">Configuración</button>
+    <button class="sb-item" id="nav-ayuda" onclick="showDashScreen('ayuda')">❓ Ayuda</button>
 
     <div class="sb-foot">
       <div class="sb-user">
@@ -472,6 +526,7 @@ html::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg
       </div>
 
       <!-- ── CONFIGURACIÓN ── -->
+      <div class="dash-screen" id="dash-ayuda"><div id="ayuda-dash"></div></div>
       <div class="dash-screen" id="dash-configuracion">
         <div id="configuracion-content"></div>
       </div>
@@ -1091,7 +1146,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-3';
+var APP_VERSION = '2026-09-30-4';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1876,6 +1931,7 @@ function _onEventoRemotoDash(e) {
   var act = document.querySelector('.dash-screen.active');
   if (!act) return;
   var pid = act.id.replace('dash-', '');
+  if (pid === 'ayuda') return; // la ayuda no depende de datos: no se refresca mientras lees o chateas
   var usadas = _dashRutasLeidasPorPantalla[pid];
   // Solo refrescamos si el cambio es de algo que esta pantalla muestra
   if (usadas && !usadas[carpeta]) return;
@@ -2071,6 +2127,376 @@ function toggleMobileSidebar() {
   document.getElementById('sidebar-overlay').classList.toggle('open');
 }
 
+// ══════════════ AYUDA DEL DASHBOARD (guía + asistente IA) ══════════════
+// Temas organizados por apartado del menú. Cada tema tiene:
+//   seccion → pantalla a la que lleva el botón "Ir a…" (null = tema general)
+//   guia    → frase corta que aparece al llegar, indicando dónde tocar
+var AYUDA_GRUPOS = [
+  { k: 'general', t: 'Para empezar' },
+  { k: 'inicio', t: 'Inicio' }, { k: 'flota', t: 'Flota' }, { k: 'gastos', t: 'Gastos' },
+  { k: 'citas', t: 'Citas y revisiones' }, { k: 'propietarios', t: 'Propietarios' },
+  { k: 'conductores', t: 'Conductores' }, { k: 'facturacion', t: 'Facturación' },
+  { k: 'estadisticas', t: 'Estadísticas' }, { k: 'suscripcion', t: 'Suscripción' },
+  { k: 'configuracion', t: 'Configuración' }
+];
+function _p(t) { return '<p>' + t + '</p>'; }
+function _ol(arr) { return '<ol>' + arr.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ol>'; }
+function _ul(arr) { return '<ul>' + arr.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul>'; }
+function _h(t) { return '<h4>' + t + '</h4>'; }
+function _nota(t) { return '<div class="ay-nota">💡 ' + t + '</div>'; }
+
+var AYUDA_TEMAS = [
+  // ─── PARA EMPEZAR ───
+  { id: 'primeros-pasos', grupo: 'general', icono: '🚀', titulo: 'Primeros pasos', sub: 'Cómo poner en marcha tu empresa en DRIVX', seccion: 'flota',
+    guia: 'Empieza aquí: pulsa «Añadir vehículo» para crear tu primer vehículo.',
+    contenido: _p('Para tener DRIVX funcionando, sigue este orden:') + _ol([
+      '<b>Crea tus vehículos</b> en <b>Flota → Añadir vehículo</b>: matrícula, modelo, ciudad, comunidad autónoma, tipo de facturación (semanal o mensual) y fecha de la ITV.',
+      '<b>Invita a tus conductores</b>: abre la ficha de un vehículo (botón <b>VER</b>) y pulsa <b>INVITAR NUEVO CONDUCTOR</b>. Les llega un email con su código de un solo uso y el enlace a la app Driver.',
+      '<b>Da de alta a los propietarios</b> de los vehículos en <b>Propietarios → Nuevo propietario</b>, si los hay.',
+      '<b>Invita a tu equipo</b> (otros administradores, managers o supervisores) desde <b>Configuración</b>.',
+      '<b>Cada lunes</b>, sube los datos de Bolt y Cabify en <b>Facturación</b>, revisa la semana y pulsa <b>Cerrar semana</b>.'
+    ]) + _nota('Cada invitación va ligada a un email. Una misma persona puede tener varios papeles (por ejemplo, conductor y supervisor) con el mismo email y la misma contraseña.') },
+
+  { id: 'roles', grupo: 'general', icono: '👥', titulo: 'Roles y permisos', sub: 'Qué puede ver y hacer cada persona', seccion: 'configuracion',
+    guia: 'Aquí gestionas quién forma parte de tu equipo y con qué rol.',
+    contenido: _h('En el Dashboard') + _ul([
+      '<b>MASTER (administrador):</b> puede verlo y hacerlo todo, incluida la suscripción y los cobros.',
+      '<b>Manager:</b> gestiona el día a día (vehículos, conductores, citas, facturación) de las comunidades autónomas que tenga asignadas.',
+      '<b>Visual:</b> solo puede consultar, sin hacer cambios.'
+    ]) + _h('En las apps') + _ul([
+      '<b>Supervisor:</b> ve solo sus comunidades: vehículos, citas y alertas. Puede marcar vehículos como parados y programar citas. No ve DNI, carnets, IBAN ni facturación.',
+      '<b>Conductor (app Driver):</b> ve su ficha, su vehículo, su facturación y sus semanas cerradas. De sus compañeros solo ve nombre y turno.',
+      '<b>Propietario:</b> ve todo lo de <b>sus</b> vehículos y sus conductores (incluido el IBAN para pagarles), y nada de otros vehículos.'
+    ]) + _nota('Cada persona solo puede acceder a los datos de tu empresa. Ninguna otra empresa puede ver nada de la tuya.') },
+
+  { id: 'apps-equipo', grupo: 'general', icono: '📱', titulo: 'Las apps de tu equipo', sub: 'Driver, Supervisor y Propietario', seccion: 'configuracion',
+    guia: 'Las invitaciones a Supervisor y Dashboard se envían desde aquí; las de conductores, desde la ficha del vehículo en Flota.',
+    contenido: _ul([
+      '<b>DRIVX Driver</b> (conductores): fichar turno con foto del cuentakilómetros, subir tickets de gastos (la IA los lee sola), ver su liquidación y su historial en «Mis ingresos».',
+      '<b>DRIVX Supervisor</b>: flota de sus comunidades, calendario de citas, alertas de ITV y vehículos parados.',
+      '<b>DRIVX Propietario</b>: resumen de sus vehículos, facturación, gastos, conductores y citas.'
+    ]) + _h('Cómo se invita') + _ol([
+      '<b>Conductor:</b> Flota → ficha del vehículo (VER) → <b>INVITAR NUEVO CONDUCTOR</b>.',
+      '<b>Propietario:</b> Propietarios → <b>Nuevo propietario</b>.',
+      '<b>Supervisor o usuario del Dashboard:</b> Configuración → <b>Invitar usuario</b>.'
+    ]) + _p('A la persona le llega un email con su <b>código de un solo uso</b> y un botón que abre su app con el código ya relleno. Las invitaciones pendientes aparecen en <b>Inicio</b>, donde puedes <b>reenviarlas (✉️)</b> o <b>borrarlas (🗑)</b>.') +
+    _nota('Para instalarla como app: en Android, menú ⋮ → «Añadir a pantalla de inicio»; en iPhone, botón Compartir → «Añadir a pantalla de inicio».') },
+
+  // ─── INICIO ───
+  { id: 'inicio', grupo: 'inicio', icono: '🏠', titulo: 'La pantalla de Inicio', sub: 'Tus avisos importantes de un vistazo', seccion: 'inicio',
+    guia: 'Estos son tus avisos: lo más urgente aparece arriba.',
+    contenido: _p('Inicio reúne todo lo que requiere tu atención:') + _ul([
+      '<b>🔧 Vehículos parados</b> (rojo): coches en revisión, ITV, taller… con quién lo paró, su puesto y desde cuándo. Tocando uno se abre su ficha.',
+      '<b>✅ Vehículo operativo de nuevo</b> (verde): cuando un conductor o supervisor desbloquea un vehículo. Lo cierras con ✕.',
+      '<b>Invitaciones pendientes</b>: puedes reenviarlas por email o borrarlas.',
+      '<b>Huecos en la flota</b>: vehículos sin actividad desde hace días.',
+      '<b>Próximas citas</b> de los próximos 7 días.',
+      '<b>Tarjetas de resumen</b>: vehículos en flota, <b>ITV urgente o vencida</b> (separando las pendientes de las que ya tienen cita) y documentos de conductores. Toca una tarjeta para ver el detalle.'
+    ]) + _nota('Todo se actualiza solo, al instante, cuando alguien hace un cambio en cualquier app.') },
+
+  // ─── FLOTA ───
+  { id: 'flota', grupo: 'flota', icono: '🚗', titulo: 'Flota: tus vehículos', sub: 'Crear vehículos y gestionar su ficha', seccion: 'flota',
+    guia: 'Abre una comunidad y pulsa «VER» en un vehículo para ver su ficha completa.',
+    contenido: _p('Los vehículos aparecen agrupados por <b>comunidad autónoma</b>. Pulsa una comunidad para desplegarla y usa la lupa 🔍 para buscar una matrícula.') +
+    _h('Crear un vehículo') + _p('Pulsa <b>Añadir vehículo</b> e introduce matrícula, modelo, ciudad, comunidad, tipo de facturación y fecha de ITV. Necesitas tener vehículos disponibles en tu suscripción.') +
+    _h('La ficha del vehículo (botón VER)') + _ul([
+      '<b>Estado:</b> 🟢 operativo o 🔴 parado (ver «Vehículo parado»).',
+      '<b>📈 Rendimiento:</b> facturación del vehículo por semana o por mes.',
+      '<b>Estado ITV</b> con el botón <b>Editar fecha</b>.',
+      '<b>Kilómetros totales</b>.',
+      '<b>Tipo de facturación</b> (semanal o mensual) y <b>comunidad autónoma</b>, con su botón Cambiar.',
+      '<b>Conductores y turnos</b>, con <b>INVITAR NUEVO CONDUCTOR</b>.',
+      '<b>Documentación del vehículo</b> (seguro, permiso de circulación, ficha técnica, ITV).'
+    ]) },
+
+  { id: 'vehiculo-parado', grupo: 'flota', icono: '🔧', titulo: 'Vehículo parado', sub: 'Revisión, ITV, taller, avería…', seccion: 'flota',
+    guia: 'Abre la ficha de un vehículo (VER): el botón de estado está arriba del todo.',
+    contenido: _p('Cuando un vehículo no puede trabajar, márcalo como <b>parado</b>:') + _ol([
+      'En <b>Flota</b>, abre la ficha del vehículo con <b>VER</b>.',
+      'Arriba del todo pulsa <b>🟢 Vehículo operativo · marcar parada</b>.',
+      'Elige el motivo (Revisión, ITV, Taller, Chapa y pintura, Neumáticos, Avería, Accidente u Otro) y añade una nota si quieres.'
+    ]) + _h('Qué pasa mientras está parado') + _ul([
+      'Aparece en <b>Inicio</b> en el aviso rojo, con quién lo paró y desde cuándo.',
+      'Sus conductores <b>no pueden fichar la entrada</b> con él.',
+      'Los conductores y el propietario reciben un aviso push y lo ven en sus apps.'
+    ]) + _h('Volver a ponerlo operativo') + _p('Pulsa el botón rojo <b>🔴 PARADO</b> en la ficha. También pueden desbloquearlo el <b>supervisor</b> o el <b>conductor</b> (tras confirmar que ya está disponible). En ese caso te aparece en Inicio un aviso verde con quién lo desbloqueó y a qué hora.') },
+
+  // ─── GASTOS ───
+  { id: 'gastos', grupo: 'gastos', icono: '🧾', titulo: 'Gastos y tickets', sub: 'Revisar, editar y descargar tickets', seccion: 'gastos',
+    guia: 'Despliega una comunidad y una matrícula para ver sus tickets.',
+    contenido: _p('Aquí están todos los tickets que suben los conductores desde la app Driver (gasolina, peajes, parking, lavado, datáfono…). La IA lee el importe, la fecha y el establecimiento automáticamente.') + _ul([
+      'Se agrupan por <b>comunidad</b> y <b>matrícula</b>. Dentro puedes filtrar por <b>fechas</b> y por <b>conductor</b>.',
+      '<b>Ver</b> abre la foto, <b>⬇</b> la descarga y <b>✏️</b> permite corregir el importe.',
+      '<b>DESCARGAR TODO</b> baja todos los tickets de esa matrícula; <b>ELIMINAR TODO</b> los borra (con confirmación).',
+      'Los tickets marcados <b>«⚠ Posible duplicado»</b> coinciden con otro ya subido: revísalos y bórralos si es el mismo.',
+      'Los tickets <b>pagados por el propietario</b> no cuentan en la cuenta del conductor.'
+    ]) + _nota('La app Driver bloquea automáticamente los tickets repetidos (mismo número de ticket, misma foto, o misma fecha, hora e importe).') },
+
+  { id: 'ajustes', grupo: 'gastos', icono: '±', titulo: 'Ajustes de semanas anteriores', sub: 'Corregir errores de una semana ya cerrada', seccion: 'gastos',
+    guia: 'Arriba de Gastos está el recuadro «± Ajustes de semanas anteriores» con el botón «＋ Nuevo ajuste».',
+    contenido: _p('Una semana cerrada <b>nunca se modifica</b>: los errores se corrigen con un ajuste que se suma o descuenta en la semana abierta.') +
+    _h('Ajuste manual') + _ol([
+      'En <b>Gastos</b>, pulsa <b>＋ Nuevo ajuste</b>.',
+      'Filtra por comunidad o busca por matrícula o nombre, y elige vehículo y conductor (o propietario).',
+      'Elige <b>Abono</b> (a su favor) o <b>Cargo</b> (en su contra), el importe, la semana de origen y un <b>concepto</b> claro (lo verá la persona afectada).'
+    ]) + _h('Ajustes automáticos') + _ul([
+      'Si <b>editas</b> (✏️) un ticket de una semana cerrada, se abre el ajuste ya relleno con la diferencia.',
+      'Si <b>borras</b> un ticket de una semana cerrada, se crea un cargo automático al conductor.'
+    ]) + _p('Los ajustes pendientes se ven en el mismo recuadro y se aplican al <b>cerrar la semana</b>.') },
+
+  // ─── CITAS ───
+  { id: 'citas', grupo: 'citas', icono: '📅', titulo: 'Citas y revisiones', sub: 'ITV, taller y revisiones programadas', seccion: 'citas',
+    guia: 'Pulsa «Nueva cita» o toca un día del calendario para crear una.',
+    contenido: _ul([
+      'Hay un <b>calendario por comunidad autónoma</b> con todas sus citas.',
+      'Pulsa <b>Nueva cita</b> para crear una: vehículo, tipo (ITV, taller, revisión…), fecha, hora y lugar. Los conductores del vehículo reciben el aviso.',
+      'Toca una cita para ver su detalle, editarla o borrarla.',
+      'Las citas pasadas se eliminan solas 48 horas después.',
+      'Una cita de <b>ITV</b> marca como «✅ con cita» la alerta de ITV de ese vehículo en Inicio.'
+    ]) + _nota('Los supervisores también pueden crear citas desde su app, y se ven aquí al instante.') },
+
+  // ─── PROPIETARIOS ───
+  { id: 'propietarios', grupo: 'propietarios', icono: '🏢', titulo: 'Propietarios', sub: 'Titulares de los vehículos y su liquidación', seccion: 'propietarios',
+    guia: 'Pulsa «Nuevo propietario» para dar de alta uno.',
+    contenido: _h('Dar de alta un propietario') + _ol([
+      'Pulsa <b>Nuevo propietario</b>.',
+      'Rellena sus datos, fecha de alta e <b>IBAN</b>.',
+      'Configura el <b>% de gestión</b>, el <b>nombre del concepto</b> que verá (por defecto, el nombre de tu empresa) y si se le suma el <b>21 % de IVA</b>.',
+      'Marca las <b>matrículas que posee</b>.',
+      'Se le envía una invitación por email a la app Propietario.'
+    ]) + _h('Su historial') + _p('Cada propietario tiene un botón <b>Historial</b> con un calendario de sus semanas cerradas y el detalle de cada una.') },
+
+  // ─── CONDUCTORES ───
+  { id: 'conductores', grupo: 'conductores', icono: '🪪', titulo: 'Conductores y su ficha', sub: 'Datos, documentos, turno y cambios de vehículo', seccion: 'conductores',
+    guia: 'Toca un conductor para abrir su ficha completa.',
+    contenido: _p('Los conductores aparecen por comunidad autónoma. Toca uno para abrir su <b>ficha</b>:') + _ul([
+      '<b>📈 Rendimiento:</b> sus ingresos por semana o por mes.',
+      '<b>📚 Historial de facturación:</b> todas sus semanas cerradas con el detalle.',
+      'Email, teléfono y fecha de alta.',
+      '<b>DNI y licencia de conducir</b> (solo los ve el Dashboard).',
+      '<b>Turno de trabajo</b>, <b>cuenta bancaria</b> y <b>% neto de facturación</b>, cada uno con su botón Guardar.',
+      '<b>CAMBIO DE VEHÍCULO</b>, para pasarlo a otro coche.'
+    ]) },
+
+  { id: 'historial', grupo: 'conductores', icono: '📚', titulo: 'Dónde ver el historial', sub: 'Semanas cerradas de conductores, vehículos y propietarios', seccion: 'conductores',
+    guia: 'Toca un conductor y pulsa «📚 Historial de facturación», arriba del todo de su ficha.',
+    contenido: _p('Cada semana que cierras queda guardada para siempre. Puedes consultarla en varios sitios:') + _ul([
+      '<b>De un conductor:</b> Conductores → toca el conductor → <b>📚 Historial de facturación</b> (también en Facturación, botón <b>📚 Historial</b> junto a «Cerrar semana»).',
+      '<b>Gráfico de un conductor:</b> en su ficha, el recuadro <b>📈 Rendimiento</b>.',
+      '<b>De un vehículo:</b> Flota → VER → <b>📈 Rendimiento</b> (facturación total del vehículo).',
+      '<b>De un propietario:</b> Propietarios → <b>Historial</b>.'
+    ]) + _p('Los conductores ven su propio historial en la app Driver, en <b>📊 Mis ingresos</b>.') },
+
+  // ─── FACTURACIÓN ───
+  { id: 'facturacion', grupo: 'facturacion', icono: '💶', titulo: 'Facturación semanal', sub: 'Subir datos de las apps y revisar la liquidación', seccion: 'facturacion',
+    guia: 'Abre una comunidad: arriba tienes el botón para subir el CSV de Bolt; dentro de cada vehículo, la liquidación de sus conductores.',
+    contenido: _h('Qué hay que hacer cada lunes') + _ol([
+      '<b>Bolt:</b> sube el CSV con <b>Subir CSV de Bolt</b> (reparte los datos entre todos los conductores).',
+      '<b>Cabify:</b> sube el Excel de Cabify.',
+      '<b>Uber:</b> lo sube cada conductor desde su app Driver.',
+      'Revisa la liquidación de cada conductor: facturación por plataforma, propinas, promociones, efectivo, gastos y el <b>resultado</b> (lo que se le paga o lo que devuelve).',
+      'Cuando todo esté bien, pulsa <b>Cerrar semana</b>.'
+    ]) + _p('Arriba de cada conductor verás la semana que se liquida: en amarillo <b>PENDIENTE DE CIERRE</b>, y en cian <b>SEMANA EN CURSO</b> cuando ya está cerrada.') +
+    _nota('El % que cobra cada conductor se cambia pulsando sobre él en su liquidación o en su ficha.') },
+
+  { id: 'cierre-semanal', grupo: 'facturacion', icono: '🔒', titulo: 'Cómo funciona el cierre de semana', sub: 'Semana natural, gastos por fecha y cierre mensual', seccion: 'facturacion',
+    guia: 'El botón «Cerrar semana» está en cada conductor o vehículo.',
+    contenido: _ul([
+      'La semana de facturación es la <b>semana natural</b>: de lunes 00:00 a domingo 23:59.',
+      'Si cierras el <b>lunes 28</b>, se cierra la <b>semana del 21 al 27</b>, y así se llamará en el historial.',
+      'Los CSV de Bolt, Cabify y Uber cuentan una sola vez, en el primer cierre después de subirlos.',
+      'No se puede cerrar una semana que aún no ha terminado.',
+      'Si se te pasa una semana, el siguiente cierre incluye las dos, sin perder nada.',
+      'Al cerrar, el conductor ve su liquidación en la app Driver y el propietario la suya.'
+    ]) + _h('Vehículos con facturación mensual') + _p('En lugar de «Cerrar semana» aparece <b>Cerrar mes</b>.') },
+
+  // ─── ESTADÍSTICAS ───
+  { id: 'estadisticas', grupo: 'estadisticas', icono: '🏆', titulo: 'Estadísticas', sub: 'Competición semanal entre conductores y vehículos', seccion: 'estadisticas',
+    guia: 'Aquí tienes el ranking de la semana.',
+    contenido: _p('Muestra una <b>competición semanal</b>: rankings de conductores y vehículos según su rendimiento, con gráficos de evolución. Es útil para motivar al equipo y detectar qué coches rinden mejor o peor.') },
+
+  // ─── SUSCRIPCIÓN ───
+  { id: 'suscripcion', grupo: 'suscripcion', icono: '💳', titulo: 'Suscripción', sub: 'Vehículos contratados, altas y bajas', seccion: 'suscripcion',
+    guia: 'Usa − y + para cambiar el número de vehículos y pulsa «Actualizar suscripción».',
+    contenido: _ul([
+      'El precio es <b>299 € + IVA por vehículo y año</b>.',
+      'Para <b>añadir vehículos</b>, usa + y pulsa <b>Actualizar suscripción</b>: te lleva al pago seguro con Stripe. El vehículo se añade cuando el pago se completa.',
+      'Para <b>quitar vehículos</b>, usa − y confirma. Dejan de renovarse.',
+      'En <b>Próximos cobros</b> ves cuándo se renueva cada vehículo (un año después de contratarlo).',
+      'Si tienes más vehículos en Flota que contratados, verás un aviso rojo.'
+    ]) + _nota('Solo el administrador MASTER puede ver y cambiar la suscripción.') },
+
+  // ─── CONFIGURACIÓN ───
+  { id: 'configuracion', grupo: 'configuracion', icono: '⚙️', titulo: 'Configuración y equipo', sub: 'Usuarios, invitaciones y registro de actividad', seccion: 'configuracion',
+    guia: 'Aquí puedes invitar a tu equipo y ver el registro de actividad.',
+    contenido: _ul([
+      '<b>Invitar usuario de Dashboard</b>: otros administradores, managers o usuarios de solo consulta. Elige su rol y, si es manager, sus comunidades.',
+      '<b>Invitar usuario de Supervisor</b>: elige las comunidades que gestionará.',
+      'Puedes <b>editar los permisos</b> de cada usuario o eliminarlo.',
+      '<b>Registro de actividad</b>: quién hizo qué y cuándo, en todo el Dashboard.',
+      '<b>Notificaciones push</b>: actívalas para recibir avisos en este dispositivo.'
+    ]) + _nota('Las invitaciones llegan por email con un código de un solo uso. Si se borra una invitación pendiente, ese email queda libre para invitarlo otra vez.') },
+
+  { id: 'contrasena', grupo: 'configuracion', icono: '🔑', titulo: 'Contraseñas y acceso', sub: 'He olvidado mi contraseña, cambiar de dispositivo…', seccion: null,
+    contenido: _ul([
+      'En la pantalla de acceso de cualquier app pulsa <b>«¿Has olvidado tu contraseña?»</b>: te llega un email para crear una nueva.',
+      'La contraseña es la misma para todas las apps DRIVX en las que uses ese email.',
+      'Cada email solo puede pertenecer a una empresa.'
+    ]) }
+];
+
+// ── Pantalla de ayuda ──
+var _ayudaVista = 'menu';
+function pintarAyuda() {
+  var c = document.getElementById('ayuda-dash'); if (!c) return;
+  if (_ayudaVista === 'chat') { pintarChatAyuda(); return; }
+  var q = (document.getElementById('ayuda-buscar') || {}).value || '';
+  var temas = AYUDA_TEMAS.filter(function(t){ return !t.seccion || typeof seccionVisible !== 'function' || seccionVisible(t.seccion); });
+  if (q) {
+    var res = buscarTemasAyuda(q);
+    temas = res.length ? res.map(function(r){ return r.t; }) : [];
+  }
+  var html = '<div class="ay-cab">' +
+      '<button class="ay-ia" onclick="abrirChatAyuda()"><span class="ay-ia-ico">🤖</span><span><b>Pregunta al asistente</b><small>Escribe tu duda y te explico cómo hacerlo y dónde está</small></span><span class="ay-flecha">›</span></button>' +
+      '<input id="ayuda-buscar" type="search" class="ay-buscar" placeholder="🔍 Buscar en la ayuda (ej: historial, cerrar semana, ITV…)" value="' + String(q).replace(/"/g, '&quot;') + '" oninput="pintarAyuda();var i=document.getElementById(\'ayuda-buscar\');i.focus();i.setSelectionRange(i.value.length,i.value.length)">' +
+    '</div>';
+  if (q) {
+    html += temas.length ? '<div class="ay-grupo">Resultados</div>' + temas.map(tarjetaTemaAyuda).join('') : '<div class="ay-vacio">No encuentro nada con «' + String(q).replace(/[<>&]/g,'') + '». Prueba a preguntárselo al asistente.</div>';
+  } else {
+    AYUDA_GRUPOS.forEach(function(g){
+      var ts = temas.filter(function(t){ return t.grupo === g.k; });
+      if (!ts.length) return;
+      html += '<div class="ay-grupo">' + g.t + '</div>' + ts.map(tarjetaTemaAyuda).join('');
+    });
+  }
+  c.innerHTML = html;
+}
+function tarjetaTemaAyuda(t) {
+  return '<button class="ay-tema" onclick="abrirTemaAyuda(\'' + t.id + '\')"><span class="ay-tema-ico">' + t.icono + '</span>' +
+    '<span class="ay-tema-txt"><b>' + t.titulo + '</b><small>' + t.sub + '</small></span><span class="ay-flecha">›</span></button>';
+}
+function abrirTemaAyuda(id) {
+  var t = AYUDA_TEMAS.find(function(x){ return x.id === id; }); if (!t) return;
+  _ayudaVista = 'tema';
+  var c = document.getElementById('ayuda-dash');
+  var nombreSec = t.seccion ? (AYUDA_GRUPOS.find(function(g){ return g.k === t.seccion; }) || {}).t || t.seccion : '';
+  c.innerHTML = '<button class="ay-volver" onclick="volverAyuda()">‹ Volver a la ayuda</button>' +
+    '<div class="ay-detalle"><div class="ay-det-cab"><span class="ay-tema-ico">' + t.icono + '</span><div><h3>' + t.titulo + '</h3><small>' + t.sub + '</small></div></div>' +
+    '<div class="ay-det-cuerpo">' + t.contenido + '</div>' +
+    (t.seccion ? '<button class="ay-ir" onclick="irASeccionAyuda(\'' + t.seccion + '\',\'' + t.id + '\')">➜ Ir a ' + nombreSec + '</button>' : '') +
+    '<button class="ay-preguntar" onclick="abrirChatAyuda()">🤖 ¿Tienes otra duda? Pregunta al asistente</button></div>';
+  var sc = document.getElementById('content'); if (sc) sc.scrollTop = 0;
+}
+function volverAyuda() { _ayudaVista = 'menu'; pintarAyuda(); }
+
+// Ir a la sección y mostrar dónde tocar
+function irASeccionAyuda(seccion, temaId) {
+  var t = AYUDA_TEMAS.find(function(x){ return x.id === temaId; }) || {};
+  showDashScreen(seccion);
+  mostrarGuiaAyuda(t.guia || '', temaId);
+}
+function mostrarGuiaAyuda(texto, temaId) {
+  var g = document.getElementById('ayuda-guia'); if (g) g.remove();
+  if (!texto) return;
+  g = document.createElement('div');
+  g.id = 'ayuda-guia';
+  g.innerHTML = '<span style="font-size:22px">👉</span><span style="flex:1">' + texto + '</span>' +
+    (temaId ? '<button onclick="showDashScreen(\'ayuda\');abrirTemaAyuda(\'' + temaId + '\')">Ver ayuda</button>' : '') +
+    '<button onclick="document.getElementById(\'ayuda-guia\').remove()" aria-label="Cerrar">✕</button>';
+  document.body.appendChild(g);
+  setTimeout(function(){ var x = document.getElementById('ayuda-guia'); if (x) x.classList.add('ver'); }, 20);
+  clearTimeout(window._guiaAyudaT);
+  window._guiaAyudaT = setTimeout(function(){ var x = document.getElementById('ayuda-guia'); if (x) x.remove(); }, 20000);
+}
+
+// Búsqueda local (también sirve de respaldo si la IA no responde)
+function _normAy(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+function buscarTemasAyuda(q) {
+  var palabras = _normAy(q).split(/[^a-z0-9ñ]+/).filter(function(w){ return w.length > 2 && ['como','donde','que','para','los','las','del','una','uno','con','por','ver','veo','hago','puedo','esta','este'].indexOf(w) === -1; });
+  if (!palabras.length) return [];
+  return AYUDA_TEMAS.map(function(t){
+    var titulo = _normAy(t.titulo + ' ' + t.sub), cuerpo = _normAy(t.contenido.replace(/<[^>]+>/g, ' '));
+    var p = 0;
+    palabras.forEach(function(w){
+      var raiz = w.length > 5 ? w.slice(0, w.length - 2) : w;
+      if (titulo.indexOf(raiz) !== -1) p += 5;
+      if (cuerpo.indexOf(raiz) !== -1) p += 1;
+    });
+    return { t: t, p: p };
+  }).filter(function(x){ return x.p > 0; }).sort(function(a, b){ return b.p - a.p; });
+}
+
+// ── Asistente IA ──
+var _chatAyuda = [];
+function abrirChatAyuda() { _ayudaVista = 'chat'; pintarChatAyuda(); setTimeout(function(){ var i = document.getElementById('ayuda-chat-input'); if (i) i.focus(); }, 50); }
+function pintarChatAyuda() {
+  var c = document.getElementById('ayuda-dash'); if (!c) return;
+  if (!_chatAyuda.length) _chatAyuda.push({ de: 'bot', texto: '👋 Hola. Pregúntame lo que necesites sobre el Dashboard: cómo cerrar la semana, dónde ver el historial de un conductor, cómo invitar a alguien… Te lo explico y te llevo al sitio exacto.' });
+  c.innerHTML = '<button class="ay-volver" onclick="volverAyuda()">‹ Volver a la ayuda</button>' +
+    '<div class="ay-chat"><div class="ay-chat-cab">🤖 Asistente DRIVX <span class="ay-punto"></span></div>' +
+    '<div class="ay-chat-msgs" id="ayuda-chat-msgs">' + _chatAyuda.map(burbujaAyuda).join('') + '</div>' +
+    '<div class="ay-chat-sug">' + ['¿Dónde veo el historial de los conductores?', '¿Cómo cierro la semana?', '¿Cómo invito a un supervisor?', '¿Cómo corrijo un ticket de una semana cerrada?'].map(function(s){
+      return '<button onclick="enviarPreguntaAyuda(\'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>'; }).join('') + '</div>' +
+    '<div class="ay-chat-in"><input id="ayuda-chat-input" type="text" placeholder="Escribe tu pregunta…" onkeydown="if(event.key===\'Enter\')enviarPreguntaAyuda()"><button onclick="enviarPreguntaAyuda()" aria-label="Enviar">➤</button></div></div>';
+  var m = document.getElementById('ayuda-chat-msgs'); if (m) m.scrollTop = m.scrollHeight;
+}
+function burbujaAyuda(msg) {
+  if (msg.de === 'yo') return '<div class="ay-msg yo"><div>' + String(msg.texto).replace(/[<>&]/g,'') + '</div></div>';
+  var html = '<div class="ay-msg bot"><div>' + (msg.pensando ? '<span class="ay-pensando">Pensando…</span>' : String(msg.texto).replace(/[<>&]/g,'').replace(/\n/g, '<br>'));
+  if (msg.tema || msg.seccion) {
+    html += '<div class="ay-acciones">';
+    if (msg.seccion) html += '<button class="ay-ir" onclick="irASeccionAyuda(\'' + msg.seccion + '\',\'' + (msg.tema || '') + '\');' + (msg.guia ? 'mostrarGuiaAyuda(\'' + String(msg.guia).replace(/[\\'"<>]/g, '') + '\',\'' + (msg.tema || '') + '\')' : '') + '">➜ Ir a ' + ((AYUDA_GRUPOS.find(function(g){ return g.k === msg.seccion; }) || {}).t || msg.seccion) + '</button>';
+    if (msg.tema) { var t = AYUDA_TEMAS.find(function(x){ return x.id === msg.tema; }); if (t) html += '<button class="ay-leer" onclick="abrirTemaAyuda(\'' + t.id + '\')">📖 ' + t.titulo + '</button>'; }
+    html += '</div>';
+  }
+  return html + '</div></div>';
+}
+function _contextoAyudaIA() {
+  return AYUDA_TEMAS.map(function(t){
+    return '### [' + t.id + '] ' + t.titulo + ' (sección: ' + (t.seccion || 'ninguna') + ')\n' +
+      (t.guia ? 'Dónde tocar: ' + t.guia + '\n' : '') +
+      t.contenido.replace(/<li>/g, '\n- ').replace(/<\/(p|h4|ol|ul)>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\n{2,}/g, '\n').trim();
+  }).join('\n\n');
+}
+function enviarPreguntaAyuda(texto) {
+  var inp = document.getElementById('ayuda-chat-input');
+  var q = String(texto || (inp && inp.value) || '').trim();
+  if (!q) return;
+  _chatAyuda.push({ de: 'yo', texto: q });
+  var pens = { de: 'bot', pensando: true }; _chatAyuda.push(pens);
+  pintarChatAyuda();
+  var secciones = AYUDA_GRUPOS.filter(function(g){ return g.k !== 'general'; }).map(function(g){ return g.k; }).join(', ');
+  var prompt = 'Eres el asistente de ayuda del Dashboard de DRIVX, un software de gestión de flotas VTC. Responde SIEMPRE en español, de forma clara, amable y breve (máximo 110 palabras), explicando los pasos concretos y dónde está cada cosa. ' +
+    'Usa SOLO la información de la guía de abajo; si algo no está en la guía, dilo con sinceridad y sugiere escribir a drivx.apps@gmail.com. No inventes botones ni pantallas.\n\n' +
+    'Devuelve ÚNICAMENTE un JSON válido, sin texto antes ni después, con este formato:\n' +
+    '{"respuesta":"texto de la respuesta (puedes usar saltos de línea \\n y pasos numerados)","tema":"id del tema de la guía más relacionado o null","seccion":"una de: ' + secciones + ' o null","guia":"frase corta (máx 20 palabras) de qué tocar al llegar a esa sección, o null"}\n\n' +
+    '=== GUÍA DEL DASHBOARD ===\n' + _contextoAyudaIA() + '\n=== FIN DE LA GUÍA ===\n\nPregunta del usuario: ' + q;
+  var respaldo = function(){
+    var r = buscarTemasAyuda(q);
+    var t = r.length ? r[0].t : null;
+    return t ? { texto: 'Esto es lo que encuentro en la ayuda sobre tu pregunta: «' + t.titulo + '». ' + (t.guia || ''), tema: t.id, seccion: t.seccion, guia: t.guia }
+             : { texto: 'No he encontrado nada sobre eso en la ayuda. Prueba con otras palabras o escríbenos a drivx.apps@gmail.com.' };
+  };
+  var u = firebase.auth().currentUser;
+  var tokenP = u ? u.getIdToken() : Promise.resolve('');
+  tokenP.then(function(token){
+    return fetch('/api/ai', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body: JSON.stringify({ prompt: prompt }) });
+  }).then(function(r){ return r.json(); }).then(function(d){
+    var txt = String((d && d.text) || '').replace(/```json|```/g, '').trim();
+    var j = null; try { j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1)); } catch(e) {}
+    if (!j || !j.respuesta) return respaldo();
+    var temaOk = AYUDA_TEMAS.some(function(t){ return t.id === j.tema; }) ? j.tema : null;
+    var secOk = AYUDA_GRUPOS.some(function(g){ return g.k === j.seccion && g.k !== 'general'; }) ? j.seccion : null;
+    if (secOk && typeof seccionVisible === 'function' && !seccionVisible(secOk)) secOk = null;
+    return { texto: j.respuesta, tema: temaOk, seccion: secOk, guia: j.guia || null };
+  }).catch(respaldo).then(function(res){
+    var i = _chatAyuda.indexOf(pens); if (i !== -1) _chatAyuda.splice(i, 1);
+    _chatAyuda.push({ de: 'bot', texto: res.texto, tema: res.tema, seccion: res.seccion, guia: res.guia });
+    if (_ayudaVista === 'chat') pintarChatAyuda();
+  });
+  if (inp) inp.value = '';
+}
+
 function showDashScreen(id) {
   // Apartado desactivado para esta empresa → vamos al primero disponible
   if (!window.MODO_SOPORTE && typeof seccionVisible === 'function' && !seccionVisible(id)) {
@@ -2099,8 +2525,10 @@ function showDashScreen(id) {
     estadisticas: ['🏆 Estadísticas', 'Competición semanal entre conductores y vehículos'],
     conductores: ['Conductores', 'Todos los conductores, por comunidad autónoma'],
     suscripcion: ['💳 Suscripción', 'Vehículos contratados en la plataforma'],
-    configuracion: ['Configuración', 'Ajustes generales de la plataforma']
+    configuracion: ['Configuración', 'Ajustes generales de la plataforma'],
+    ayuda: ['❓ Ayuda', 'Guía de uso de cada apartado y asistente IA']
   };
+  if (id === 'ayuda') { _ayudaVista = 'menu'; pintarAyuda(); }
   document.getElementById('tb-title').textContent = titles[id][0];
   document.getElementById('tb-sub').textContent = titles[id][1];
   if (id === 'gastos') renderGastos();
