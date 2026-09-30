@@ -22,7 +22,8 @@ function emailKey(email) {
 }
 
 const MAX_IMAGEN = 12 * 1024 * 1024; // ~9 MB de imagen en base64
-const MAX_PROMPT = 8000;
+const MAX_PROMPT = 8000;          // con imagen (tickets, nóminas…)
+const MAX_PROMPT_TEXTO = 30000;   // solo texto (asistente de ayuda del Dashboard, que incluye la guía)
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -40,7 +41,7 @@ module.exports = async function handler(req, res) {
   }
 
   const { base64, mediaType, prompt } = req.body || {};
-  if (!prompt || typeof prompt !== 'string' || prompt.length > MAX_PROMPT) { res.status(400).json({ error: 'Petición no válida' }); return; }
+  if (!prompt || typeof prompt !== 'string' || prompt.length > (base64 ? MAX_PROMPT : MAX_PROMPT_TEXTO)) { res.status(400).json({ error: 'Petición no válida' }); return; }
   if (base64 && (typeof base64 !== 'string' || base64.length > MAX_IMAGEN)) { res.status(413).json({ error: 'La imagen es demasiado grande' }); return; }
 
   const key = process.env.ANTHROPIC_API_KEY;
