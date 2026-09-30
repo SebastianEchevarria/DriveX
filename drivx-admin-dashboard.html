@@ -318,7 +318,7 @@ body.panel-ayuda-abierto #ayuda-panel{display:flex}
 #ayuda-flotante:hover{transform:scale(1.07)}
 #ayuda-flotante span{font-size:24px;line-height:1}
 #ayuda-flotante small{font-size:9.5px;font-weight:900;letter-spacing:.4px;margin-top:2px}
-body.panel-ayuda-abierto #ayuda-flotante{display:none}
+body.panel-ayuda-abierto #ayuda-flotante,body.en-ayuda #ayuda-flotante{display:none}
 /* En escritorio la Ayuda se abre con el botón flotante; el apartado del menú solo queda en móvil */
 @media(min-width:1100px){ #nav-ayuda{display:none !important} }
 @media(max-width:1099px){ #ayuda-flotante{right:14px;bottom:14px;width:56px;height:56px} #ayuda-flotante span{font-size:21px} }
@@ -335,7 +335,10 @@ body.panel-ayuda-abierto #ayuda-flotante{display:none}
 .ayp-cuerpo .ay-tema-txt b{font-size:13.5px}
 .ayp-cuerpo .ay-tema-txt small{font-size:11.5px}
 .ay-al-lateral{display:none}
-@media(min-width:1100px){ .ay-al-lateral{display:inline-block;margin:0 0 12px 8px} }
+.ay-barra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.ay-barra .ay-volver{margin:0}
+.ay-cerrar-grande{border-color:rgba(255,71,87,.85) !important;background:rgba(255,71,87,.1) !important}
+@media(min-width:1100px){ .ay-al-lateral{display:inline-block} }
 </style>
 </head>
 <body>
@@ -1206,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-8';
+var APP_VERSION = '2026-09-30-10';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2442,7 +2445,10 @@ function panelAyudaAPantalla() {
 // Desde la pantalla completa, volver al panel lateral
 function ayudaAlLateral() {
   var t = (_ayudaVista === 'tema' && window._ayudaTemaActual) ? window._ayudaTemaActual : null;
-  _panelAyuda.modo = _ayudaVista === 'chat' ? 'chat' : (t ? 'tema' : 'menu');
+  var modo = _ayudaVista === 'chat' ? 'chat' : (t ? 'tema' : 'menu');
+  // Volvemos a la pantalla en la que estabas y la ayuda se queda solo en el lateral
+  showDashScreen(window._pantallaAntesAyuda || 'inicio');
+  _panelAyuda.modo = modo;
   _panelAyuda.tema = t;
   document.body.classList.add('panel-ayuda-abierto');
   pintarPanelAyuda();
@@ -2494,7 +2500,7 @@ function pintarAyuda() {
     temas = res.length ? res.map(function(r){ return r.t; }) : [];
   }
   var html = '<div class="ay-cab">' +
-      '<div><button class="ay-volver ay-al-lateral" style="margin:0" onclick="ayudaAlLateral()">📌 Ver en el lateral</button></div>' +
+      barraAyudaGrande(false) +
       '<button class="ay-ia" onclick="abrirChatAyuda()"><span class="ay-ia-ico">🤖</span><span><b>Pregunta al asistente</b><small>Escribe tu duda y te explico cómo hacerlo y dónde está</small></span><span class="ay-flecha">›</span></button>' +
       '<input id="ayuda-buscar" type="search" class="ay-buscar" placeholder="🔍 Buscar en la ayuda (ej: historial, cerrar semana, ITV…)" value="' + String(q).replace(/"/g, '&quot;') + '" oninput="pintarAyuda();var i=document.getElementById(\'ayuda-buscar\');i.focus();i.setSelectionRange(i.value.length,i.value.length)">' +
     '</div>';
@@ -2519,8 +2525,7 @@ function abrirTemaAyuda(id) {
   _ayudaVista = 'tema';
   var c = document.getElementById('ayuda-dash');
   var nombreSec = t.seccion ? (AYUDA_GRUPOS.find(function(g){ return g.k === t.seccion; }) || {}).t || t.seccion : '';
-  c.innerHTML = '<button class="ay-volver" onclick="volverAyuda()">‹ Volver a la ayuda</button>' +
-    '<button class="ay-volver ay-al-lateral" onclick="ayudaAlLateral()">📌 Ver en el lateral</button>' +
+  c.innerHTML = barraAyudaGrande(true) +
     '<div class="ay-detalle"><div class="ay-det-cab"><span class="ay-tema-ico">' + t.icono + '</span><div><h3>' + t.titulo + '</h3><small>' + t.sub + '</small></div></div>' +
     '<div class="ay-det-cuerpo">' + t.contenido + '</div>' +
     (t.seccion ? '<button class="ay-ir" onclick="irASeccionAyuda(\'' + t.seccion + '\',\'' + t.id + '\')">➜ Ir a ' + nombreSec + '</button>' +
@@ -2529,6 +2534,19 @@ function abrirTemaAyuda(id) {
   var sc = document.getElementById('content'); if (sc) sc.scrollTop = 0;
 }
 function volverAyuda() { _ayudaVista = 'menu'; pintarAyuda(); }
+function barraAyudaGrande(conVolver) {
+  return '<div class="ay-barra">' +
+    (conVolver ? '<button class="ay-volver" onclick="volverAyuda()">‹ Volver a la ayuda</button>' : '') +
+    '<span style="flex:1"></span>' +
+    '<button class="ay-volver ay-al-lateral" onclick="ayudaAlLateral()">📌 Ver en el lateral</button>' +
+    '<button class="ay-volver ay-cerrar-grande" onclick="cerrarAyudaGrande()">✕ Cerrar</button></div>';
+}
+// ✕ en la vista grande: se cierra la ayuda y vuelves a donde estabas
+function cerrarAyudaGrande() {
+  if (typeof cerrarPanelAyudaDelTodo === 'function') cerrarPanelAyudaDelTodo();
+  _ayudaVista = 'menu';
+  showDashScreen(window._pantallaAntesAyuda || 'inicio');
+}
 
 // Ir a la sección y mostrar dónde tocar
 function irASeccionAyuda(seccion, temaId) {
@@ -2577,7 +2595,7 @@ function pintarChatAyudaEn(contId, sfx) {
   var c = document.getElementById(contId); if (!c) return;
   if (!_chatAyuda.length) _chatAyuda.push({ de: 'bot', texto: '👋 Hola. Pregúntame lo que necesites sobre el Dashboard: cómo cerrar la semana, dónde ver el historial de un conductor, cómo invitar a alguien… Te lo explico y te llevo al sitio exacto.' });
   c.innerHTML = (enPanel ? '<button class="ay-volver" onclick="_panelAyuda.modo=(_panelAyuda.tema?\'tema\':\'menu\');pintarPanelAyuda()">‹ ' + (_panelAyuda.tema ? 'Volver a los pasos' : 'Todos los temas') + '</button>'
-                        : '<button class="ay-volver" onclick="volverAyuda()">‹ Volver a la ayuda</button>') +
+                        : barraAyudaGrande(true)) +
     '<div class="ay-chat"><div class="ay-chat-cab">🤖 Asistente DRIVX <span class="ay-punto"></span></div>' +
     '<div class="ay-chat-msgs" id="ayuda-chat-msgs' + sfx + '">' + _chatAyuda.map(function(m){ return burbujaAyuda(m, enPanel); }).join('') + '</div>' +
     '<div class="ay-chat-sug">' + ['¿Dónde veo el historial de los conductores?', '¿Cómo cierro la semana?', '¿Cómo invito a un supervisor?', '¿Cómo corrijo un ticket de una semana cerrada?'].map(function(s){
@@ -2651,6 +2669,8 @@ function enviarPreguntaAyuda(texto, sfx) {
 }
 
 function showDashScreen(id) {
+  var _actAntes = document.querySelector('.dash-screen.active');
+  if (id === 'ayuda' && _actAntes && _actAntes.id !== 'dash-ayuda') window._pantallaAntesAyuda = _actAntes.id.replace('dash-', '');
   // Apartado desactivado para esta empresa → vamos al primero disponible
   if (!window.MODO_SOPORTE && typeof seccionVisible === 'function' && !seccionVisible(id)) {
     var _alt = primeraSeccionVisible();
@@ -2681,7 +2701,9 @@ function showDashScreen(id) {
     configuracion: ['Configuración', 'Ajustes generales de la plataforma'],
     ayuda: ['❓ Ayuda', 'Guía de uso de cada apartado y asistente IA']
   };
-  if (id === 'ayuda') { _ayudaVista = 'menu'; pintarAyuda(); }
+  // La ayuda en grande y el panel lateral nunca a la vez
+  document.body.classList.toggle('en-ayuda', id === 'ayuda');
+  if (id === 'ayuda') { if (typeof cerrarPanelAyuda === 'function') cerrarPanelAyuda(); _ayudaVista = 'menu'; pintarAyuda(); }
   document.getElementById('tb-title').textContent = titles[id][0];
   document.getElementById('tb-sub').textContent = titles[id][1];
   if (id === 'gastos') renderGastos();
