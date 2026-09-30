@@ -1585,7 +1585,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-09-30-3';
+var APP_VERSION = '2026-10-01-1';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4514,6 +4514,62 @@ if ("serviceWorker" in navigator) {
     });
   });
 }
+</script>
+<script>
+// ══ Ojo para ver u ocultar la contraseña ══
+// Se añade solo a TODAS las casillas de contraseña de la app, también a las
+// de ventanas que se abren después (activar cuenta, crear contraseña…).
+(function(){
+  var OJO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var OJO_TACHADO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  function mejorar(inp) {
+    if (!inp || inp.getAttribute('data-ojo') || !inp.parentNode) return;
+    inp.setAttribute('data-ojo', '1');
+    var cs = window.getComputedStyle(inp);
+    var envoltura = document.createElement('span');
+    envoltura.className = 'pass-ojo-caja';
+    envoltura.style.cssText = 'position:relative;display:block;width:' + (inp.style.width || '100%') +
+      ';margin:' + cs.marginTop + ' ' + cs.marginRight + ' ' + cs.marginBottom + ' ' + cs.marginLeft +
+      (inp.style.flex ? ';flex:' + inp.style.flex : '') + (cs.display === 'none' ? ';display:none' : '');
+    inp.parentNode.insertBefore(envoltura, inp);
+    envoltura.appendChild(inp);
+    inp.style.margin = '0';
+    inp.style.width = '100%';
+    inp.style.boxSizing = 'border-box';
+    inp.style.paddingRight = '46px';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pass-ojo';
+    b.setAttribute('aria-label', 'Mostrar contraseña');
+    b.title = 'Mostrar contraseña';
+    b.innerHTML = OJO;
+    b.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;display:flex;align-items:center;justify-content:center;' +
+      'background:none;border:none;border-radius:8px;color:rgba(255,255,255,.75);cursor:pointer;padding:0';
+    b.addEventListener('click', function(ev){
+      ev.preventDefault();
+      var ver = inp.type === 'password';
+      inp.type = ver ? 'text' : 'password';
+      b.innerHTML = ver ? OJO_TACHADO : OJO;
+      b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      b.title = ver ? 'Ocultar contraseña' : 'Mostrar contraseña';
+      b.style.color = ver ? '#00d4ff' : 'rgba(255,255,255,.75)';
+      try { var p = inp.value.length; inp.focus(); inp.setSelectionRange(p, p); } catch(e) {}
+    });
+    envoltura.appendChild(b);
+  }
+  function revisar(raiz) {
+    if (!raiz || !raiz.querySelectorAll) return;
+    if (raiz.matches && raiz.matches('input[type="password"]')) mejorar(raiz);
+    raiz.querySelectorAll('input[type="password"]').forEach(mejorar);
+  }
+  function iniciar() {
+    revisar(document.body);
+    new MutationObserver(function(muts){
+      muts.forEach(function(m){ m.addedNodes && m.addedNodes.forEach(function(n){ if (n.nodeType === 1) revisar(n); }); });
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
+})();
 </script>
 </body>
 </html>
