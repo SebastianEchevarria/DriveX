@@ -84,6 +84,8 @@ async function vincular(db, email, empresa) {
 //                                 cid?, pid?, supId? }
 // Las reglas de Firebase usan estos datos para decidir qué puede leer cada uno.
 function slugMat(m) { return String(m || '').replace(/\s/g, '_'); }
+// Formato único (sin espacios, mayúsculas): el que usan las facturas
+function claveMat(m) { return String(m || '').replace(/\s/g, '').toUpperCase(); }
 async function leerListas(db, empresa) {
   const b = 'empresas/' + empresa + '/';
   const [dash, sup, props, cond, vehs] = await Promise.all(
@@ -126,7 +128,7 @@ async function sincronizarEmpresa(db, empresa) {
   const upd = {};
   Object.keys(L.props).forEach((pid) => {
     const m = {};
-    (L.props[pid].matriculas || []).forEach((x) => { m[slugMat(x)] = true; });
+    (L.props[pid].matriculas || []).forEach((x) => { m[slugMat(x)] = true; m[claveMat(x)] = true; });
     upd['empresas/' + empresa + '/propietarios/' + pid + '/matriculasMap'] = Object.keys(m).length ? m : null;
   });
   if (Object.keys(upd).length) await db.ref().update(upd);
@@ -199,7 +201,7 @@ module.exports = async function handler(req, res) {
       if (inv.tipo === 'supervisor') { extra.roles.supervisor = true; extra.supId = inv.id; }
       if (inv.tipo === 'propietario') {
         extra.roles.propietario = true; extra.pid = inv.id;
-        const m = {}; (inv.registro.matriculas || []).forEach((x) => { m[slugMat(x)] = true; });
+        const m = {}; (inv.registro.matriculas || []).forEach((x) => { m[slugMat(x)] = true; m[claveMat(x)] = true; });
         await db.ref(inv.ruta + '/matriculasMap').set(Object.keys(m).length ? m : null);
       }
       await sincronizarPersona(db, inv.empresa, inv.email, await leerListas(db, inv.empresa), extra);
