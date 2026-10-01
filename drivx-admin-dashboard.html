@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-5';
+var APP_VERSION = '2026-10-01-6';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -10905,7 +10905,14 @@ function renderPropietarios() {
 //                              subidoPor, subidoPorRol:'dashboard'|'propietario'|'supervisor', subidoPorId }
 // facturas_supervisor/{supId}/{id} = copia de las que sube cada supervisor (solo ve las suyas)
 var FACT_CLOUD = 'zipoxtg7', FACT_PRESET = 'drivx_uploads';
-function _slugFact(m) { return String(m || '').replace(/\s/g, '_'); }
+// Clave única de la matrícula para guardar facturas: sin espacios y en mayúsculas
+// ("7972 NLJ" y "7972nlj" → "7972NLJ"), así todas las apps la escriben igual
+function _slugFact(m) { return String(m || '').replace(/\s/g, '').toUpperCase(); }
+// Formas antiguas en las que pudieron guardarse facturas (para seguir encontrándolas)
+function _clavesFact(m) {
+  var a = [_slugFact(m), String(m || '').replace(/\s/g, '_'), String(m || '').replace(/\s/g, '_').toUpperCase()];
+  return a.filter(function(x, i){ return x && a.indexOf(x) === i; });
+}
 function _escF(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
 function _fechaFact(ts) {
   var d = new Date(ts || 0);
@@ -10946,14 +10953,20 @@ function guardarFactura(datos) {
 }
 // Facturas de varias matrículas, de la más reciente a la más antigua
 function leerFacturasDe(matriculas) {
-  return Promise.all((matriculas || []).map(function(m){
-    return fetch(FIREBASE_URL + '/facturas/' + _slugFact(m) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
-      .then(function(o){
-        o = (o && typeof o === 'object' && !o.error) ? o : {};
-        return Object.keys(o).map(function(k){ var f = Object.assign({}, o[k]); f.id = k; f.matricula = f.matricula || m; return f; });
-      });
-  })).then(function(listas){
-    return [].concat.apply([], listas).sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+  var peticiones = [];
+  (matriculas || []).forEach(function(m){
+    _clavesFact(m).forEach(function(clave){
+      peticiones.push(fetch(FIREBASE_URL + '/facturas/' + clave + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+        .then(function(o){
+          o = (o && typeof o === 'object' && !o.error) ? o : {};
+          return Object.keys(o).map(function(k){ var f = Object.assign({}, o[k]); f.id = k; f._clave = clave; f.matricula = f.matricula || m; return f; });
+        }));
+    });
+  });
+  return Promise.all(peticiones).then(function(listas){
+    var vistos = {}, out = [];
+    [].concat.apply([], listas).forEach(function(f){ if (!vistos[f.id]) { vistos[f.id] = 1; out.push(f); } });
+    return out.sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
   });
 }
 function filtrarFacturasPorFecha(lista, desde, hasta) {
@@ -11150,7 +11163,7 @@ function borrarFacturaProp(pid, fid) {
   var f = (_factProp[pid].lista || []).find(function(x){ return x.id === fid; }); if (!f) return;
   dialogoLed({ icono:'🗑', titulo:'¿Borrar esta factura?', texto: f.concepto + '\n' + _fechaFact(f.ts), color:'rojo', aceptar:'Borrar' }).then(function(ok){
     if (!ok) return;
-    var borrados = [fetch(FIREBASE_URL + '/facturas/' + _slugFact(f.matricula) + '/' + fid + '.json', { method:'DELETE' })];
+    var borrados = [fetch(FIREBASE_URL + '/facturas/' + (f._clave || _slugFact(f.matricula)) + '/' + fid + '.json', { method:'DELETE' })];
     if (f.subidoPorRol === 'supervisor' && f.subidoPorId) borrados.push(fetch(FIREBASE_URL + '/facturas_supervisor/' + f.subidoPorId + '/' + fid + '.json', { method:'DELETE' }));
     Promise.all(borrados).then(function(){
       toast('🗑 Factura borrada');
