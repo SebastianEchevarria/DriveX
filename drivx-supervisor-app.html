@@ -1585,7 +1585,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-2';
+var APP_VERSION = '2026-10-01-3';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -4591,5 +4591,95 @@ if ("serviceWorker" in navigator) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();
 </script>
+<script>
+// ══ VISOR DE PDF ══
+// Cloudinary bloquea por defecto abrir archivos PDF tal cual (error 401).
+// Pero sí entrega cada página convertida en imagen. Así que, cuando la app
+// intenta abrir un PDF de Cloudinary (en cualquier sitio: documentos del
+// vehículo, nóminas, documentos de conductores…), lo mostramos aquí página
+// a página, en vez de abrir el PDF directamente.
+(function(){
+  function esPdfCloudinary(url) {
+    var u = String(url || '');
+    return /res\.cloudinary\.com\//.test(u) && /\/upload\//.test(u) && /\.pdf(\?|#|$)/i.test(u.split('?')[0] + '');
+  }
+  // URL de la página n del PDF convertida en imagen JPG
+  function urlPagina(url, n) {
+    var u = String(url).split('?')[0].split('#')[0];
+    u = u.replace('/raw/upload/', '/image/upload/');
+    u = u.replace(/\/upload\/(fl_attachment[^/]*\/)?/, '/upload/pg_' + n + ',w_1400,c_limit,q_80/');
+    return u.replace(/\.pdf$/i, '.jpg');
+  }
+  function urlLimpia(url) { return String(url).replace(/\/upload\/fl_attachment[^/]*\//, '/upload/'); }
+  window.abrirPdfDrivx = function(url, titulo) {
+    url = urlLimpia(url);
+    var v = document.getElementById('visor-pdf-drivx'); if (v) v.remove();
+    v = document.createElement('div');
+    v.id = 'visor-pdf-drivx';
+    v.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:14px';
+    v.innerHTML = '<div style="width:100%;max-width:760px;max-height:94vh;display:flex;flex-direction:column;background:#0c1420;border:2px solid rgba(0,212,255,.9);border-radius:18px;box-shadow:0 0 18px rgba(0,212,255,.5);color:#fff;font-family:inherit;overflow:hidden">' +
+      '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1)">' +
+        '<span style="flex:1;min-width:0;font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📄 ' + String(titulo || 'Documento PDF').replace(/[<>&]/g,'') + ' <span id="visor-pdf-cnt" style="font-weight:600;opacity:.7"></span></span>' +
+        '<button id="visor-pdf-x" aria-label="Cerrar" style="flex-shrink:0;width:36px;height:36px;border-radius:10px;border:1.5px solid rgba(255,71,87,.8);background:rgba(255,71,87,.1);color:#fff;font-size:16px;cursor:pointer">✕</button></div>' +
+      '<div id="visor-pdf-paginas" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px;align-items:center">' +
+        '<div id="visor-pdf-cargando" style="padding:30px;opacity:.8;font-size:14px">Cargando documento…</div></div></div>';
+    document.body.appendChild(v);
+    var cerrar = function(){ v.remove(); document.removeEventListener('keydown', esc, true); };
+    var esc = function(e){ if (e.key === 'Escape') cerrar(); };
+    document.addEventListener('keydown', esc, true);
+    v.addEventListener('click', function(e){ if (e.target === v) cerrar(); });
+    document.getElementById('visor-pdf-x').onclick = cerrar;
+    var cont = document.getElementById('visor-pdf-paginas'), cnt = document.getElementById('visor-pdf-cnt');
+    // Carga las páginas una a una hasta que no haya más (máx. 40)
+    var cargar = function(n){
+      if (n > 40) return;
+      var img = new Image();
+      img.alt = 'Página ' + n;
+      img.style.cssText = 'width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#fff;display:block';
+      img.onload = function(){
+        var c = document.getElementById('visor-pdf-cargando'); if (c) c.remove();
+        var w = document.createElement('div'); w.style.cssText = 'width:100%';
+        w.innerHTML = '<div style="font-size:11px;opacity:.7;text-align:center;margin-bottom:6px">Página ' + n + '</div>';
+        w.appendChild(img); cont.appendChild(w);
+        cnt.textContent = '· ' + n + ' página' + (n !== 1 ? 's' : '');
+        cargar(n + 1);
+      };
+      img.onerror = function(){
+        if (n === 1) {
+          var c = document.getElementById('visor-pdf-cargando');
+          if (c) c.innerHTML = 'No se pudo mostrar este documento. Prueba a volver a subirlo.';
+        }
+      };
+      img.src = urlPagina(url, n);
+    };
+    cargar(1);
+  };
+  // 1) window.open(...) de un PDF → visor
+  var abrirOriginal = window.open;
+  window.open = function(url, destino, opciones) {
+    if (esPdfCloudinary(url)) { window.abrirPdfDrivx(url); return null; }
+    return abrirOriginal.apply(window, arguments);
+  };
+  // 2) Enlaces <a href="…pdf"> → visor
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || !esPdfCloudinary(a.getAttribute('href'))) return;
+    e.preventDefault(); e.stopPropagation();
+    window.abrirPdfDrivx(a.getAttribute('href'), (a.textContent || '').trim().slice(0, 60));
+  }, true);
+  // 3) Imágenes cuyo origen es un PDF (p. ej. un documento de una sola "página") → primera página
+  document.addEventListener('error', function(e){
+    var img = e.target;
+    if (!img || img.tagName !== 'IMG' || img.getAttribute('data-pdf-ok') || !esPdfCloudinary(img.src)) return;
+    img.setAttribute('data-pdf-ok', '1');
+    var orig = img.src;
+    img.src = urlPagina(orig, 1);
+    img.style.cursor = 'pointer';
+    img.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopPropagation(); window.abrirPdfDrivx(orig); }, true);
+  }, true);
+  window.esPdfCloudinaryDrivx = esPdfCloudinary;
+})();
+</script>
 </body>
+
 </html>
