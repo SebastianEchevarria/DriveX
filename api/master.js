@@ -14,6 +14,7 @@
 //   { accion: 'editar_gratuita', empresa, vehiculos, venceTs, notas }
 //   { accion: 'crear_descuento', tipo:'precio'|'porcentaje', valor, nota? } → código de un solo uso, 24 h
 //   { accion: 'borrar_descuento', codigo }
+//   { accion: 'anular_precio_pactado', empresa } → desde su próxima renovación paga el precio normal
 //   { accion: 'ocultar', empresa, ocultar:true|false } → ocultar/mostrar en el listado master
 //   { accion: 'eliminar_empresa', empresa, confirmacion:<CÓDIGO> } → borra TODO de una empresa
 //        suspendida: sus datos, las cuentas de sus usuarios, sus invitaciones y sus
@@ -93,7 +94,7 @@ async function resumenDe(db, base) {
     const pu = l.precioUnitario != null ? Number(l.precioUnitario) : 299;
     return s + (Number(l.cantidad) || 0) * pu;
   }, 0);
-  const precioPactado = Object.keys(lotes).some((k) => lotes[k] && !lotes[k].gratuito && lotes[k].precioUnitario != null && Number(lotes[k].precioUnitario) !== 299);
+  const precioPactado = !!(info && info.precioEspecial) || Object.keys(lotes).some((k) => lotes[k] && !lotes[k].gratuito && lotes[k].precioUnitario != null && Number(lotes[k].precioUnitario) !== 299);
   const activos = (o) => Object.keys(o).filter((k) => o[k] && o[k].inviteUsado).length;
   let ultimaContratacion = 0;
   Object.keys(lotes).forEach((k) => { ultimaContratacion = Math.max(ultimaContratacion, Number(lotes[k] && lotes[k].creadoTs) || 0); });
@@ -425,6 +426,41 @@ module.exports = async function handler(req, res) {
       if (!codigo) { res.status(400).json({ error: 'Falta el código' }); return; }
       await db.ref('codigos_descuento/' + codigo).remove();
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (accion === 'anular_precio_pactado') {
+      const empresa = String((req.body && req.body.empresa) || '');
+      if (!/^DRX-[A-Z0-9]{5}$/.test(empresa)) { res.status(400).json({ error: 'Empresa inválida' }); return; }
+      const infoRef = db.ref('empresas/' + empresa + '/empresa_info');
+      const info = (await infoRef.once('value')).val();
+      if (!info) { res.status(404).json({ error: 'No existe esa empresa' }); return; }
+      const lotes = (await db.ref('empresas/' + empresa + '/suscripcion_lotes').once('value')).val() || {};
+      const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+      const resumen = { suscripciones: 0, errores: [] };
+      const upd = {};
+      for (const k of Object.keys(lotes)) {
+        const l = lotes[k];
+        if (!l || l.gratuito || l.precioUnitario == null || Number(l.precioUnitario) >= 299) continue;
+        // En Stripe: la siguiente renovación ya se cobra al precio normal (sin cobrar diferencias ahora)
+        if (stripe && l.stripeSubscriptionId) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(l.stripeSubscriptionId);
+            if (sub && sub.status !== 'canceled') {
+              const items = sub.items.data.map((it) => ({ id: it.id, price: process.env.STRIPE_PRICE_ID,
+                tax_rates: (it.tax_rates || []).map((t) => (typeof t === 'string' ? t : t.id)) }));
+              await stripe.subscriptions.update(sub.id, { items, proration_behavior: 'none' });
+              resumen.suscripciones++;
+            }
+          } catch (e) { resumen.errores.push(l.stripeSubscriptionId + ': ' + e.message); }
+        }
+        upd['empresas/' + empresa + '/suscripcion_lotes/' + k + '/precioUnitario'] = 299;
+        upd['empresas/' + empresa + '/suscripcion_lotes/' + k + '/precioAnteriorPactado'] = Number(l.precioUnitario);
+      }
+      upd['empresas/' + empresa + '/empresa_info/precioEspecial'] = null;
+      upd['empresas/' + empresa + '/empresa_info/precioEspecialAnulado'] = { ts: Date.now(), anterior: info.precioEspecial || null };
+      await db.ref().update(upd);
+      res.status(200).json(Object.assign({ ok: true }, resumen));
       return;
     }
 

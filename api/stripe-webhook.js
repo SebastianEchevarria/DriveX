@@ -173,6 +173,10 @@ async function handler(req, res) {
       await db.ref('suscripciones_stripe/' + subscriptionId).set({ empresa: codigo, origen: 'alta' });
       await db.ref('altas_por_sesion/' + clave).set({ codigo, nombre: meta.nombre || '', email: meta.email || '', ts: Date.now() });
       await db.ref('altas_pendientes/' + subscriptionId).remove();
+      // Precio pactado: queda en la empresa para renovaciones y ampliaciones
+      if (meta.descuento && precioUnitario < 299) {
+        await db.ref('empresas/' + codigo + '/empresa_info/precioEspecial').set({ precioUnitario, codigo: meta.descuento, desdeTs: Date.now() });
+      }
       // Código de descuento: queda gastado (un solo uso)
       if (meta.descuento) {
         await db.ref('codigos_descuento/' + meta.descuento).update({
@@ -201,7 +205,7 @@ async function handler(req, res) {
           await crearEmpresaDeAlta(session.id, meta, session.customer, session.subscription);
         } else {
           const lote = {
-            cantidad: parseInt(meta.cantidad || '1', 10), precioUnitario: 299, iva: 21, fechaContratacion: hoy,
+            cantidad: parseInt(meta.cantidad || '1', 10), precioUnitario: Number(meta.precioUnitario) > 0 ? Number(meta.precioUnitario) : 299, iva: 21, fechaContratacion: hoy,
             stripeSubscriptionId: session.subscription, stripeCustomerId: session.customer, creadoTs: Date.now(),
           };
           if (meta.empresaId) {

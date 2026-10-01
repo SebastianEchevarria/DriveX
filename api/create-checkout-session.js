@@ -246,10 +246,19 @@ module.exports = async function handler(req, res) {
     const meta = { cantidad: String(qty), origen: 'drivx-suscripcion' };
     if (empresaId) meta.empresaId = empresaId;
 
+    // Precio pactado de la empresa (si lo tiene y no se ha anulado desde master)
+    let pactado = null;
+    if (/^DRX-[A-Z0-9]{5}$/.test(empresaId)) {
+      const pe = (await admin.database().ref('empresas/' + empresaId + '/empresa_info/precioEspecial').once('value')).val();
+      if (pe && Number(pe.precioUnitario) > 0 && Number(pe.precioUnitario) < PRECIO_BASE) pactado = Math.round(Number(pe.precioUnitario) * 100) / 100;
+    }
+    meta.precioUnitario = String(pactado || PRECIO_BASE);
+    const lineaAmpliar = pactado ? { price_data: await precioEspecial(pactado) } : { price: process.env.STRIPE_PRICE_ID };
+
     const iva = await tasaIva();
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: qty, tax_rates: [iva] }],
+      line_items: [Object.assign({}, lineaAmpliar, { quantity: qty, tax_rates: [iva] })],
       customer_email: email || undefined,
       success_url: appUrl + '/drivx-admin-dashboard.html?susc=ok&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: appUrl + '/drivx-admin-dashboard.html?susc=cancelado',
