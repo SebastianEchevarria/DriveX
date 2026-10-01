@@ -1296,7 +1296,7 @@ Object.values(USERS).forEach(function(u){ INVITE_MAP[u.invite] = u; });
 
 // ── STATE ──
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-5';
+var APP_VERSION = '2026-10-01-6';
 var APP_VERSION_KEY = 'driver';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2013,6 +2013,7 @@ function leerCaducidadesDocsSiHaceFalta() {
 function loginAs(u) {
   currentUser = u;
   setTimeout(comprobarParadaDriver, 300);
+  setTimeout(function(){ escucharParadaDriver(false); }, 800);
   setTimeout(leerCaducidadesDocsSiHaceFalta, 4000);
   cargarNombreEmpresa();
   localStorage.setItem('drivx_current_user', u.email || u.cid);
@@ -2620,31 +2621,62 @@ function textoMotivoParada(e) { return (e.motivo === 'otro' && e.otroTexto) ? '�
 // Si tu vehículo está parado (revisión, ITV, taller…) lo ves aquí y NO puedes
 // fichar la entrada hasta que tu empresa lo vuelva a poner operativo.
 var _paradaDriver = null;
+function _normMatParada(m) { return String(m || '').replace(/[\s_]/g, '').toUpperCase(); }
+function _paradaDeMiVehiculo(todos) {
+  var mia = _normMatParada(currentUser && currentUser.matricula), hallada = null;
+  Object.keys(todos || {}).forEach(function(k){
+    var e = todos[k];
+    if (e && e.parado && (_normMatParada(k) === mia || _normMatParada(e.matricula) === mia)) hallada = e;
+  });
+  return hallada;
+}
 function comprobarParadaDriver() {
   if (!currentUser || !currentUser.matricula) return Promise.resolve(null);
-  var slug = String(currentUser.matricula).replace(/\s/g, '_');
-  return fetch(FIREBASE_URL + '/vehiculos_estado/' + slug + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(e){
-    _paradaDriver = (e && e.parado) ? e : null;
+  return fetch(FIREBASE_URL + '/vehiculos_estado.json').then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(todos){
+    if (todos && todos.error) todos = null;
+    _paradaDriver = _paradaDeMiVehiculo(todos || {});
     pintarParadaDriver();
     return _paradaDriver;
   });
+}
+// ── Tiempo real: en cuanto se para o se desbloquea el vehículo desde otra app,
+// Firebase avisa y el aviso aparece o desaparece al momento (sin parpadeos).
+var _paradaSSE = null, _paradaSSEEspera = null;
+function escucharParadaDriver(tokenNuevo) {
+  if (typeof EventSource === 'undefined' || !currentUser) return;
+  if (_paradaSSE && !tokenNuevo) return;
+  var u = firebase.auth().currentUser; if (!u) return;
+  u.getIdToken(!!tokenNuevo).then(function(token){
+    if (_paradaSSE) { try { _paradaSSE.close(); } catch(e) {} }
+    var es = new EventSource(FIREBASE_URL + '/vehiculos_estado.json?auth=' + encodeURIComponent(token));
+    _paradaSSE = es;
+    var alCambiar = function(){
+      clearTimeout(_paradaSSEEspera);
+      _paradaSSEEspera = setTimeout(comprobarParadaDriver, 150);
+    };
+    es.addEventListener('put', alCambiar);
+    es.addEventListener('patch', alCambiar);
+    es.addEventListener('auth_revoked', function(){ escucharParadaDriver(true); });
+    es.onerror = function(){ if (es.readyState === 2) setTimeout(function(){ escucharParadaDriver(true); }, 5000); };
+  }).catch(function(){});
 }
 function pintarParadaDriver() {
   var c = document.getElementById('parada-driver-banner'); if (!c) return;
   var btn = document.getElementById('btn-fichar');
   if (!_paradaDriver) {
-    c.innerHTML = '';
+    if (c.innerHTML !== '') { c.innerHTML = ''; c._ultimoAviso = ''; }
     if (btn) { btn.style.opacity = ''; btn.style.filter = ''; }
     return;
   }
   var e = _paradaDriver;
-  c.innerHTML = '<div style="margin:0 16px 14px;padding:14px 16px;border-radius:16px;border:2.5px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);box-shadow:0 0 14px rgba(255,71,87,.75);color:#fff">' +
+  var _nuevoAviso = '<div style="margin:0 16px 14px;padding:14px 16px;border-radius:16px;border:2.5px solid rgba(255,71,87,1);background:rgba(255,71,87,.12);box-shadow:0 0 14px rgba(255,71,87,.75);color:#fff">' +
     '<div style="font-size:15px;font-weight:900;margin-bottom:10px">🔴 Tu vehículo está parado</div>' +
     '<div style="margin-bottom:10px">' + plateHtml(currentUser.matricula) + '</div>' +
     '<div style="font-size:13.5px;font-weight:700">' + textoMotivoParada(e).replace(/[<>&]/g,'') + (e.nota ? ' · ' + String(e.nota).replace(/[<>&]/g,'') : '') + '</div>' +
     '<div style="font-size:12px;opacity:.85;margin-top:6px">' + (data && data.fichado ? 'Ya estabas en turno: puedes fichar la salida con normalidad.' : 'No puedes fichar la entrada hasta que el vehículo vuelva a estar operativo.') + '</div>' +
     '<button type="button" onclick="pedirDesbloqueoVehiculo()" style="width:100%;margin-top:12px;padding:13px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.14);color:#fff;font-size:14.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.6)">🔓 Desbloquear vehículo</button>' +
   '</div>';
+  if (c._ultimoAviso !== _nuevoAviso) { c.innerHTML = _nuevoAviso; c._ultimoAviso = _nuevoAviso; }
   if (btn && !(data && data.fichado)) { btn.style.opacity = '.45'; btn.style.filter = 'grayscale(.6)'; }
 }
 setInterval(function(){ if (currentUser) comprobarParadaDriver(); }, 20000);
@@ -2687,7 +2719,14 @@ function confirmarDesbloqueoVehiculo() {
     toast('✅ Vehículo desbloqueado. Ya puedes fichar.');
   }).catch(function(err){
     if (btn) { btn.disabled = false; btn.textContent = 'Sí'; }
-    toast('❌ No se pudo desbloquear: ' + ((err && err.message) || 'inténtalo de nuevo'));
+    var msg = (err && err.message) || 'inténtalo de nuevo';
+    toast('❌ No se pudo desbloquear: ' + msg);
+    var caja = document.querySelector('#desbloqueo-modal > div');
+    if (caja) {
+      var e2 = document.getElementById('desbloqueo-error');
+      if (!e2) { e2 = document.createElement('div'); e2.id = 'desbloqueo-error'; e2.style.cssText = 'margin-top:14px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(255,71,87,.9);background:rgba(255,71,87,.1);font-size:13px;line-height:1.45;color:#fff;text-align:left'; caja.appendChild(e2); }
+      e2.textContent = '❌ No se pudo desbloquear: ' + msg;
+    }
   });
 }
 function openKmModal() {
