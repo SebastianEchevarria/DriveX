@@ -787,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-4';
+var APP_VERSION = '2026-10-01-5';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1501,13 +1501,9 @@ function pintarFacturasOwner() {
     var m = el.getAttribute('data-mat');
     var st = _factO[m] = _factO[m] || { abierto: false, desde: '', hasta: '', lista: null };
     pintarFacturaVehO(m);
-    // Se vuelven a leer en cada refresco (por si la empresa o el supervisor subieron alguna)
-    leerFacturasDe([m]).then(function(l){
-      var primeraVez = st.lista === null;
-      var antes = JSON.stringify((st.lista || []).map(function(x){ return x.id; }));
-      st.lista = l;
-      if (primeraVez || antes !== JSON.stringify(l.map(function(x){ return x.id; }))) pintarFacturaVehO(m);
-    });
+    escucharFacturasO(m);
+    // Se vuelven a leer en cada refresco, como respaldo de la escucha en tiempo real
+    recargarFacturasO(m);
   });
 }
 function pintarFacturaVehO(m) {
@@ -1528,6 +1524,42 @@ function pintarFacturaVehO(m) {
   html += '</div>';
   if (el._ultimoHtml !== html) { el.innerHTML = html; el._ultimoHtml = html; }
 }
+// ── Tiempo real: en cuanto se sube una factura de este vehículo (desde el
+// Dashboard, el supervisor o el propio propietario), Firebase avisa y se
+// actualiza la lista al momento. Solo se repinta si hay facturas nuevas
+// o borradas, y solo esa parte de la pantalla (sin parpadeos).
+var _factSSE = {};
+function recargarFacturasO(m) {
+  var st = _factO[m]; if (!st) return;
+  leerFacturasDe([m]).then(function(l){
+    var primeraVez = st.lista === null;
+    var antes = JSON.stringify((st.lista || []).map(function(x){ return x.id; }));
+    st.lista = l;
+    if (primeraVez || antes !== JSON.stringify(l.map(function(x){ return x.id; }))) pintarFacturaVehO(m);
+  });
+}
+function escucharFacturasO(m, tokenNuevo) {
+  if (window.MODO_SOPORTE || typeof EventSource === 'undefined') return;
+  if (_factSSE[m] && !tokenNuevo) return;
+  var u = firebase.auth().currentUser; if (!u) return;
+  _factSSE[m] = _factSSE[m] || { es: null, espera: null };
+  u.getIdToken(!!tokenNuevo).then(function(token){
+    var reg = _factSSE[m];
+    if (reg.es) { try { reg.es.close(); } catch(e) {} }
+    var es = new EventSource(FIREBASE_URL + '/facturas/' + _slugFact(m) + '.json?auth=' + encodeURIComponent(token));
+    reg.es = es;
+    var primero = true;
+    var alCambiar = function(){
+      if (primero) { primero = false; return; }   // el primer aviso es el estado inicial
+      clearTimeout(reg.espera);
+      reg.espera = setTimeout(function(){ recargarFacturasO(m); }, 300);
+    };
+    es.addEventListener('put', alCambiar);
+    es.addEventListener('patch', alCambiar);
+    es.addEventListener('auth_revoked', function(){ escucharFacturasO(m, true); });   // pase de sesión caducado → se renueva
+    es.onerror = function(){ if (es.readyState === 2) setTimeout(function(){ escucharFacturasO(m, true); }, 5000); };
+  }).catch(function(){});
+}
 function alternarFacturasO(m) { _factO[m].abierto = !_factO[m].abierto; pintarFacturaVehO(m); }
 function filtrarFacturasO(m, desde, hasta) {
   if (desde !== null) _factO[m].desde = desde;
@@ -1538,7 +1570,7 @@ function subirFacturaO(m) {
   abrirSubirFactura({ matriculas: [m], rol: 'propietario', porNombre: (currentUser && currentUser.nombre) || '', porId: (currentUser && currentUser.pid) || '',
     alTerminar: function(){
       if (typeof toast === 'function') toast('✓ Factura subida');
-      leerFacturasDe([m]).then(function(l){ _factO[m].lista = l; pintarFacturaVehO(m); });
+      recargarFacturasO(m);
     } });
 }
 
