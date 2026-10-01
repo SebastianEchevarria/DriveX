@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-4';
+var APP_VERSION = '2026-10-01-5';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1991,6 +1991,7 @@ function _onEventoRemotoDash(e) {
   if (Date.now() - _dashUltimaEscrituraPropia < 2500) return;
   var carpeta = msg.path.replace(/^\//, '').split('/')[0];
   if (carpeta === 'ajustes_empresa') { cargarAjustesEmpresa(); return; }
+  if (carpeta === 'facturas' || carpeta === 'facturas_supervisor') { Object.keys(_factProp).forEach(function(p){ _factProp[p].lista = null; }); pintarFacturasPropietarios(); return; }
   if (carpeta === 'vehiculos_estado' || carpeta === 'avisos_vehiculos') { Promise.all([cargarEstadosVehiculos(), cargarAvisosVehiculos()]).then(alRefrescarEstadosVeh); return; }
   var act = document.querySelector('.dash-screen.active');
   if (!act) return;
@@ -10899,6 +10900,266 @@ function renderPropietarios() {
   });
 }
 
+// ══════════════ FACTURAS (común a Dashboard, Propietario y Supervisor) ══════════════
+// facturas/{matrícula}/{id} = { concepto, url, nombreArchivo, esPdf, matricula, ts,
+//                              subidoPor, subidoPorRol:'dashboard'|'propietario'|'supervisor', subidoPorId }
+// facturas_supervisor/{supId}/{id} = copia de las que sube cada supervisor (solo ve las suyas)
+var FACT_CLOUD = 'zipoxtg7', FACT_PRESET = 'drivx_uploads';
+function _slugFact(m) { return String(m || '').replace(/\s/g, '_'); }
+function _escF(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function _fechaFact(ts) {
+  var d = new Date(ts || 0);
+  return d.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }) + ' · ' + d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+}
+var ROL_FACT = { dashboard:'🏢 Empresa', propietario:'👤 Propietario', supervisor:'🦺 Supervisor' };
+
+function subirArchivoFactura(file) {
+  return new Promise(function(resolve, reject){
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', FACT_PRESET);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/' + FACT_CLOUD + '/auto/upload');
+    xhr.onload = function(){
+      if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(new Error('Respuesta inválida al subir')); } }
+      else reject(new Error('No se pudo subir el archivo (' + xhr.status + ')'));
+    };
+    xhr.onerror = function(){ reject(new Error('Error de red al subir el archivo')); };
+    xhr.send(fd);
+  });
+}
+function guardarFactura(datos) {
+  var reg = {
+    concepto: datos.concepto, url: datos.url, nombreArchivo: datos.nombreArchivo || '', esPdf: !!datos.esPdf,
+    matricula: datos.matricula, ts: Date.now(), subidoPor: datos.porNombre || '', subidoPorRol: datos.rol, subidoPorId: datos.porId || ''
+  };
+  return fetch(FIREBASE_URL + '/facturas/' + _slugFact(datos.matricula) + '.json', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(reg) })
+    .then(function(r){ if (!r.ok) throw new Error('No se pudo guardar la factura (' + r.status + ')'); return r.json(); })
+    .then(function(res){
+      reg.id = res && res.name;
+      if (datos.rol === 'supervisor' && datos.porId && reg.id) {
+        return fetch(FIREBASE_URL + '/facturas_supervisor/' + datos.porId + '/' + reg.id + '.json', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(reg) })
+          .then(function(){ return reg; });
+      }
+      return reg;
+    });
+}
+// Facturas de varias matrículas, de la más reciente a la más antigua
+function leerFacturasDe(matriculas) {
+  return Promise.all((matriculas || []).map(function(m){
+    return fetch(FIREBASE_URL + '/facturas/' + _slugFact(m) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+      .then(function(o){
+        o = (o && typeof o === 'object' && !o.error) ? o : {};
+        return Object.keys(o).map(function(k){ var f = Object.assign({}, o[k]); f.id = k; f.matricula = f.matricula || m; return f; });
+      });
+  })).then(function(listas){
+    return [].concat.apply([], listas).sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+  });
+}
+function filtrarFacturasPorFecha(lista, desde, hasta) {
+  var d = desde ? new Date(desde + 'T00:00:00').getTime() : null;
+  var h = hasta ? new Date(hasta + 'T23:59:59').getTime() : null;
+  return lista.filter(function(f){ return (!d || f.ts >= d) && (!h || f.ts <= h); });
+}
+function verFactura(url, titulo) {
+  if (window.esPdfCloudinaryDrivx && window.esPdfCloudinaryDrivx(url)) { window.abrirPdfDrivx(url, titulo); return; }
+  window.open(url, '_blank');
+}
+// ── Descargar (los PDF se rehacen a partir de sus páginas si Cloudinary no deja bajar el original) ──
+function _nombreDescarga(f) {
+  var base = String(f.concepto || 'factura').replace(/[^\w\sáéíóúñÁÉÍÓÚÑ-]/g, '').trim().replace(/\s+/g, '_').slice(0, 50) || 'factura';
+  var d = new Date(f.ts || Date.now());
+  return base + '_' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+}
+function _bajarBlob(blob, nombre) {
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nombre;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+function _cargarJsPdf() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  return new Promise(function(res, rej){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = function(){ res(window.jspdf.jsPDF); }; s.onerror = function(){ rej(new Error('No se pudo preparar la descarga')); };
+    document.head.appendChild(s);
+  });
+}
+function _imgDataUrl(url) {
+  return fetch(url).then(function(r){ if (!r.ok) throw new Error(r.status); return r.blob(); }).then(function(b){
+    return new Promise(function(res, rej){ var fr = new FileReader(); fr.onload = function(){ res(fr.result); }; fr.onerror = rej; fr.readAsDataURL(b); });
+  }).then(function(du){
+    return new Promise(function(res){ var i = new Image(); i.onload = function(){ res({ du: du, w: i.width, h: i.height }); }; i.onerror = function(){ res(null); }; i.src = du; });
+  });
+}
+function descargarFactura(f, aviso) {
+  aviso = aviso || function(){};
+  var url = String(f.url || '');
+  var esPdf = window.esPdfCloudinaryDrivx ? window.esPdfCloudinaryDrivx(url) : /\.pdf$/i.test(url);
+  var nombre = _nombreDescarga(f) + (esPdf ? '.pdf' : (url.match(/\.(jpe?g|png|webp|heic)$/i) ? url.match(/\.(jpe?g|png|webp|heic)$/i)[0] : '.jpg'));
+  aviso('Preparando la descarga…');
+  if (!esPdf) return fetch(url).then(function(r){ return r.blob(); }).then(function(b){ _bajarBlob(b, nombre); aviso(''); }).catch(function(){ window.open(url, '_blank'); aviso(''); });
+  // 1) Intentar el PDF original
+  return fetch(url).then(function(r){ if (!r.ok) throw new Error('bloqueado'); return r.blob(); })
+    .then(function(b){ _bajarBlob(b, nombre); aviso(''); })
+    .catch(function(){
+      // 2) Cloudinary no deja bajar el PDF: lo rehacemos con sus páginas
+      var pagUrl = function(n){ return url.split('?')[0].replace(/\/upload\/(fl_attachment[^/]*\/)?/, '/upload/pg_' + n + ',w_1600,c_limit,q_85/').replace(/\.pdf$/i, '.jpg'); };
+      return _cargarJsPdf().then(function(JsPDF){
+        var pags = [];
+        var siguiente = function(n){
+          if (n > 40) return Promise.resolve();
+          return _imgDataUrl(pagUrl(n)).then(function(p){ if (!p) return; pags.push(p); return siguiente(n + 1); }).catch(function(){});
+        };
+        return siguiente(1).then(function(){
+          if (!pags.length) throw new Error('No se pudo descargar el documento');
+          var doc = null;
+          pags.forEach(function(p){
+            var o = p.w > p.h ? 'l' : 'p';
+            if (!doc) doc = new JsPDF({ orientation: o, unit: 'px', format: [p.w, p.h] });
+            else doc.addPage([p.w, p.h], o);
+            doc.addImage(p.du, 'JPEG', 0, 0, p.w, p.h);
+          });
+          doc.save(nombre); aviso('');
+        });
+      });
+    }).catch(function(e){ aviso('❌ ' + e.message); });
+}
+
+// ── Ventana para subir una factura ──
+// op = { matriculas:[...], rol, porNombre, porId, titulo?, alTerminar(reg) }
+function abrirSubirFactura(op) {
+  var v = document.getElementById('subir-factura-modal'); if (v) v.remove();
+  v = document.createElement('div');
+  v.id = 'subir-factura-modal';
+  v.style.cssText = 'position:fixed;inset:0;z-index:100045;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  var campo = 'width:100%;box-sizing:border-box;padding:12px 13px;border-radius:10px;border:1.5px solid rgba(0,212,255,.65);background:rgba(255,255,255,.04);color:#fff;font-size:14.5px;font-family:inherit;color-scheme:dark';
+  var etq = 'display:block;font-size:11px;font-weight:800;letter-spacing:.4px;color:#fff;margin:12px 0 6px';
+  var mats = op.matriculas || [];
+  v.innerHTML = '<div style="width:100%;max-width:440px;margin:auto;background:#0c1420;color:#fff;border:2.5px solid rgba(0,212,255,1);border-radius:20px;padding:22px 20px;box-shadow:0 0 18px rgba(0,212,255,.7);font-family:inherit">' +
+    '<div style="font-size:17px;font-weight:900;text-align:center">🧾 ' + _escF(op.titulo || 'Subir factura') + '</div>' +
+    (mats.length > 1
+      ? '<label style="' + etq + '">VEHÍCULO</label><select id="sf-mat" style="' + campo + '">' + mats.map(function(m){ return '<option>' + _escF(m) + '</option>'; }).join('') + '</select>'
+      : '<div style="text-align:center;font-size:12.5px;opacity:.8;margin-top:6px">Vehículo ' + _escF(mats[0] || '') + '</div>') +
+    '<label style="' + etq + '">CONCEPTO *</label><input id="sf-concepto" type="text" maxlength="120" placeholder="Ej: Revisión 30.000 km · Taller García" style="' + campo + '">' +
+    '<label style="' + etq + '">ARCHIVO (PDF o foto) *</label><input id="sf-archivo" type="file" accept="application/pdf,image/*" style="' + campo + ';padding:10px">' +
+    '<div id="sf-error" style="display:none;color:#ff6b7a;font-size:12.5px;text-align:center;margin-top:10px"></div>' +
+    '<div style="display:flex;gap:10px;margin-top:16px">' +
+      '<button type="button" onclick="document.getElementById(\'subir-factura-modal\').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.25);background:none;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Cancelar</button>' +
+      '<button type="button" id="sf-ok" style="flex:1;padding:12px;border-radius:12px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.18);color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 10px rgba(0,230,118,.6)">Subir factura</button>' +
+    '</div></div>';
+  document.body.appendChild(v);
+  v.addEventListener('click', function(e){ if (e.target === v) v.remove(); });
+  setTimeout(function(){ var i = document.getElementById('sf-concepto'); if (i) i.focus(); }, 50);
+  document.getElementById('sf-ok').onclick = function(){
+    var err = document.getElementById('sf-error');
+    var fallo = function(t){ err.textContent = t; err.style.display = 'block'; };
+    var concepto = document.getElementById('sf-concepto').value.trim();
+    var file = (document.getElementById('sf-archivo').files || [])[0];
+    var mat = mats.length > 1 ? document.getElementById('sf-mat').value : mats[0];
+    if (!concepto) return fallo('Escribe el concepto de la factura.');
+    if (!file) return fallo('Elige el archivo de la factura.');
+    if (file.size > 15 * 1024 * 1024) return fallo('El archivo es demasiado grande (máx. 15 MB).');
+    var btn = document.getElementById('sf-ok'); btn.disabled = true; btn.textContent = 'Subiendo…';
+    var esPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    subirArchivoFactura(file).then(function(up){
+      return guardarFactura({ concepto: concepto, url: up.secure_url, nombreArchivo: file.name, esPdf: esPdf, matricula: mat, rol: op.rol, porNombre: op.porNombre, porId: op.porId });
+    }).then(function(reg){
+      v.remove();
+      if (op.alTerminar) op.alTerminar(reg);
+    }).catch(function(e){ btn.disabled = false; btn.textContent = 'Subir factura'; fallo(e.message); });
+  };
+}
+
+// ── Lista de facturas (con filtro por fechas) ──
+// op = { id (contenedor), lista, desde, hasta, puedeBorrar, mostrarMatricula, alFiltrar(desde,hasta), alBorrar(f) }
+function htmlListaFacturas(op) {
+  var lista = filtrarFacturasPorFecha(op.lista || [], op.desde, op.hasta);
+  var inp = 'flex:1;min-width:120px;box-sizing:border-box;padding:8px 10px;border-radius:9px;border:1.5px solid rgba(0,212,255,.55);background:rgba(255,255,255,.04);color:#fff;font-size:13px;font-family:inherit;color-scheme:dark';
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:4px 0 10px">' +
+    '<label style="flex:1;min-width:120px;font-size:10.5px;font-weight:800;color:#fff;opacity:.85">DESDE<input type="date" value="' + (op.desde || '') + '" onchange="' + op.alFiltrar + '(\'' + op.id + '\',this.value,null)" style="' + inp + ';width:100%;margin-top:4px"></label>' +
+    '<label style="flex:1;min-width:120px;font-size:10.5px;font-weight:800;color:#fff;opacity:.85">HASTA<input type="date" value="' + (op.hasta || '') + '" onchange="' + op.alFiltrar + '(\'' + op.id + '\',null,this.value)" style="' + inp + ';width:100%;margin-top:4px"></label>' +
+    ((op.desde || op.hasta) ? '<button type="button" onclick="' + op.alFiltrar + '(\'' + op.id + '\',\'\',\'\')" style="padding:8px 10px;border-radius:9px;border:1.5px solid rgba(255,255,255,.25);background:none;color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">✕ Quitar filtro</button>' : '') +
+  '</div>';
+  if (!lista.length) return h + '<div style="padding:14px;text-align:center;font-size:12.5px;opacity:.75">' + ((op.lista || []).length ? 'No hay facturas en esas fechas.' : 'Todavía no hay facturas.') + '</div>';
+  window._factDatos = window._factDatos || {};
+  lista.forEach(function(f){ window._factDatos[f.id] = f; });
+  return h + lista.map(function(f){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)">' +
+      '<span style="font-size:20px;flex-shrink:0">' + (f.esPdf || /\.pdf$/i.test(f.url || '') ? '📄' : '🖼️') + '</span>' +
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#fff;overflow-wrap:anywhere">' + _escF(f.concepto) + '</div>' +
+        '<div style="font-size:11px;color:#fff;opacity:.72">' + _fechaFact(f.ts) + (op.mostrarMatricula ? ' · ' + _escF(f.matricula) : '') +
+        ' · ' + (ROL_FACT[f.subidoPorRol] || '') + (f.subidoPor ? ' ' + _escF(f.subidoPor) : '') + '</div></div>' +
+      '<button type="button" title="Ver" onclick="verFactura(window._factDatos[\'' + f.id + '\'].url, window._factDatos[\'' + f.id + '\'].concepto)" style="flex-shrink:0;padding:7px 10px;border-radius:9px;border:1.5px solid rgba(0,212,255,.8);background:rgba(0,212,255,.08);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">Ver</button>' +
+      (op.puedeDescargar !== false ? '<button type="button" title="Descargar" onclick="descargarFactura(window._factDatos[\'' + f.id + '\'], function(t){ if (t && typeof toast === \'function\') toast(t); })" style="flex-shrink:0;padding:7px 10px;border-radius:9px;border:1.5px solid rgba(0,230,118,.8);background:rgba(0,230,118,.08);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">⬇</button>' : '') +
+      (op.puedeBorrar ? '<button type="button" title="Borrar" onclick="' + op.alBorrar + '(\'' + op.id + '\',\'' + f.id + '\')" style="flex-shrink:0;padding:7px 9px;border-radius:9px;border:1.5px solid rgba(255,71,87,.8);background:rgba(255,71,87,.08);color:#fff;font-size:12px;cursor:pointer">🗑</button>' : '') +
+    '</div>';
+  }).join('');
+}
+
+// ══ FACTURAS en la tarjeta de cada propietario (Dashboard) ══
+var _factProp = {}; // pid → { abierto, desde, hasta, lista }
+function pintarFacturasPropietarios() {
+  document.querySelectorAll('.fact-prop').forEach(function(el){
+    var pid = el.getAttribute('data-pid');
+    var st = _factProp[pid] = _factProp[pid] || { abierto: false, desde: '', hasta: '', lista: null };
+    pintarFacturasProp(pid);
+    if (st.lista === null) recargarFacturasProp(pid);
+  });
+}
+function recargarFacturasProp(pid) {
+  var p = _propietariosCache[pid] || {};
+  leerFacturasDe(p.matriculas || []).then(function(l){ _factProp[pid].lista = l; pintarFacturasProp(pid); });
+}
+function pintarFacturasProp(pid) {
+  var el = document.querySelector('.fact-prop[data-pid="' + pid + '"]'); if (!el) return;
+  var st = _factProp[pid], p = _propietariosCache[pid] || {};
+  var n = st.lista ? st.lista.length : '…';
+  var html = '<div style="border:2px solid rgba(255,179,0,.9);border-radius:12px;background:rgba(255,179,0,.05);box-shadow:0 0 8px rgba(255,179,0,.35)">' +
+    '<div onclick="alternarFacturasProp(\'' + pid + '\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer">' +
+      '<span style="font-size:18px">🧾</span><span style="flex:1;font-size:13px;font-weight:900;color:#fff;letter-spacing:.4px">FACTURAS <span style="opacity:.7;font-weight:700">(' + n + ')</span></span>' +
+      '<span style="color:#ffb300;font-size:16px;transition:transform .2s;transform:rotate(' + (st.abierto ? '180' : '0') + 'deg)">▾</span></div>';
+  if (st.abierto) {
+    html += '<div style="padding:0 14px 12px">' +
+      (puedeEditar() && (p.matriculas || []).length ? '<button onclick="subirFacturaProp(\'' + pid + '\')" style="width:100%;padding:10px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.12);color:#fff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.5);margin-bottom:8px">＋ Subir factura</button>' : '') +
+      (st.lista === null ? '<div style="padding:10px;text-align:center;font-size:12.5px;opacity:.75">Cargando…</div>'
+        : htmlListaFacturas({ id: pid, lista: st.lista, desde: st.desde, hasta: st.hasta, puedeBorrar: puedeEditar(), mostrarMatricula: (p.matriculas || []).length > 1, alFiltrar: 'filtrarFacturasProp', alBorrar: 'borrarFacturaProp' })) +
+    '</div>';
+  }
+  el.innerHTML = html + '</div>';
+}
+function alternarFacturasProp(pid) { _factProp[pid].abierto = !_factProp[pid].abierto; pintarFacturasProp(pid); }
+function filtrarFacturasProp(pid, desde, hasta) {
+  var st = _factProp[pid];
+  if (desde !== null) st.desde = desde;
+  if (hasta !== null) st.hasta = hasta;
+  pintarFacturasProp(pid);
+}
+function subirFacturaProp(pid) {
+  var p = _propietariosCache[pid] || {};
+  abrirSubirFactura({ matriculas: p.matriculas || [], rol: 'dashboard', porNombre: (currentUser && currentUser.nombre) || '', porId: (currentUser && currentUser.email) || '',
+    titulo: 'Subir factura · ' + (p.nombre || ''),
+    alTerminar: function(reg){
+      toast('✓ Factura subida');
+      registrarActividad('Propietarios', 'Subió una factura', (p.nombre || '') + ' · ' + reg.matricula + ' · ' + reg.concepto);
+      recargarFacturasProp(pid);
+    } });
+}
+function borrarFacturaProp(pid, fid) {
+  var f = (_factProp[pid].lista || []).find(function(x){ return x.id === fid; }); if (!f) return;
+  dialogoLed({ icono:'🗑', titulo:'¿Borrar esta factura?', texto: f.concepto + '\n' + _fechaFact(f.ts), color:'rojo', aceptar:'Borrar' }).then(function(ok){
+    if (!ok) return;
+    var borrados = [fetch(FIREBASE_URL + '/facturas/' + _slugFact(f.matricula) + '/' + fid + '.json', { method:'DELETE' })];
+    if (f.subidoPorRol === 'supervisor' && f.subidoPorId) borrados.push(fetch(FIREBASE_URL + '/facturas_supervisor/' + f.subidoPorId + '/' + fid + '.json', { method:'DELETE' }));
+    Promise.all(borrados).then(function(){
+      toast('🗑 Factura borrada');
+      registrarActividad('Propietarios', 'Borró una factura', f.matricula + ' · ' + f.concepto);
+      recargarFacturasProp(pid);
+    }).catch(function(e){ alert('No se pudo borrar: ' + e.message); });
+  });
+}
+
 function paintPropietarios() {
   var container = document.getElementById('propietarios-list');
   if (!container) return;
@@ -10994,6 +11255,7 @@ function paintPropietarios() {
           '<button onclick="event.stopPropagation();copiarCuentaPropietario(\''+item.pid+'\')" class="edit-btn">📋 Copiar</button>' +
         '</div>';
       }
+      html += '<div class="fact-prop" data-pid="' + item.pid + '" onclick="event.stopPropagation()" style="margin:10px 0"></div>';
       html += '<button onclick="event.stopPropagation();abrirHistorialPropietario(\''+item.pid+'\')" style="width:100%;text-align:center;padding:9px;border-radius:10px;border:2.5px solid rgba(0,212,255,1);background:rgba(0,212,255,.14);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 12px rgba(0,212,255,.85),0 0 26px rgba(0,212,255,.5)">📜 Ver historial de facturación</button>';
       html += '</div>';
       html += '</div>';
@@ -11002,6 +11264,7 @@ function paintPropietarios() {
   });
 
   container.innerHTML = html;
+  pintarFacturasPropietarios();
 
   ccaas.forEach(function(cc){
     var gid = 'pg' + cc.replace(/[^a-zA-Z0-9]/g, '');
