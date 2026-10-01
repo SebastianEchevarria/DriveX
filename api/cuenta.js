@@ -296,12 +296,18 @@ module.exports = async function handler(req, res) {
       const pedida = norm(b.matricula);
       if (!pedida) { res.status(400).json({ error: 'Falta la matrícula' }); return; }
       const mail = String(tok.email || '').toLowerCase();
-      let quien = null;
-      Object.keys(L.cond).forEach((k) => {
-        const c = L.cond[k];
-        if (c && String(c.email || '').toLowerCase() === mail && norm(c.matricula) === pedida) quien = Object.assign({ cid: c.cid || k }, c);
-      });
-      if (!quien && tok.superadmin !== true) { res.status(403).json({ error: 'Solo un conductor de este vehículo puede desbloquearlo.' }); return; }
+      // Quién es: por su email o por su identificador de conductor del directorio
+      const dirYo = (await db.ref('directorio_usuarios/' + emailKey(tok.email)).once('value')).val() || {};
+      const susFichas = Object.keys(L.cond).map((k) => Object.assign({ cid: (L.cond[k] && L.cond[k].cid) || k, _k: k }, L.cond[k]))
+        .filter((c) => c && (String(c.email || '').toLowerCase() === mail || (dirYo.cid && (c.cid === dirYo.cid || c._k === dirYo.cid))));
+      const quien = susFichas.find((c) => norm(c.matricula) === pedida) || null;
+      if (!quien && tok.superadmin !== true) {
+        const motivo = !susFichas.length
+          ? 'No encuentro tu ficha de conductor en esta empresa.'
+          : 'Tu ficha de conductor está en el vehículo ' + (susFichas[0].matricula || '—') + ', no en ' + b.matricula + '.';
+        res.status(403).json({ error: motivo + ' Pide a tu empresa que lo revise.' });
+        return;
+      }
       const base = 'empresas/' + empresa + '/';
       const estados = (await db.ref(base + 'vehiculos_estado').once('value')).val() || {};
       const clave = Object.keys(estados).find((k) => norm(k) === pedida || norm(estados[k] && estados[k].matricula) === pedida);
