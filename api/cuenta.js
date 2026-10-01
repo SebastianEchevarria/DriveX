@@ -286,6 +286,46 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ═══ El conductor desbloquea SU vehículo parado (revisión, ITV, taller…) ═══
+    // Se hace aquí y no desde la app, para no depender de que las reglas
+    // cuadren matrícula, directorio y ficha exactamente: el servidor compara
+    // la matrícula sin espacios ni mayúsculas.
+    if (b.accion === 'desbloquear_vehiculo') {
+      const { tok, empresa, L } = await quienLlama(db, req, b);
+      const norm = (m) => String(m || '').replace(/[\s_]/g, '').toUpperCase();
+      const pedida = norm(b.matricula);
+      if (!pedida) { res.status(400).json({ error: 'Falta la matrícula' }); return; }
+      const mail = String(tok.email || '').toLowerCase();
+      let quien = null;
+      Object.keys(L.cond).forEach((k) => {
+        const c = L.cond[k];
+        if (c && String(c.email || '').toLowerCase() === mail && norm(c.matricula) === pedida) quien = Object.assign({ cid: c.cid || k }, c);
+      });
+      if (!quien && tok.superadmin !== true) { res.status(403).json({ error: 'Solo un conductor de este vehículo puede desbloquearlo.' }); return; }
+      const base = 'empresas/' + empresa + '/';
+      const estados = (await db.ref(base + 'vehiculos_estado').once('value')).val() || {};
+      const clave = Object.keys(estados).find((k) => norm(k) === pedida || norm(estados[k] && estados[k].matricula) === pedida);
+      if (!clave || !estados[clave] || !estados[clave].parado) { res.status(200).json({ ok: true, yaEstaba: true }); return; }
+      const e = estados[clave];
+      const ahora = Date.now();
+      const nombre = (quien && quien.nombre) || 'Conductor';
+      const upd = {};
+      upd[base + 'vehiculos_estado/' + clave] = null;
+      if (e.paradaId) {
+        upd[base + 'vehiculos_paradas/' + clave + '/' + e.paradaId + '/hastaTs'] = ahora;
+        upd[base + 'vehiculos_paradas/' + clave + '/' + e.paradaId + '/cerradoPor'] = nombre;
+        upd[base + 'vehiculos_paradas/' + clave + '/' + e.paradaId + '/cerradoPorRol'] = 'Conductor';
+      }
+      const avisoId = db.ref(base + 'avisos_vehiculos').push().key;
+      upd[base + 'avisos_vehiculos/' + avisoId] = {
+        tipo: 'desbloqueo', matricula: e.matricula || b.matricula, por: nombre, porRol: 'Conductor',
+        cid: (quien && quien.cid) || '', ts: ahora, motivoPrevio: String(b.motivoPrevio || '').slice(0, 80),
+      };
+      await db.ref().update(upd);
+      res.status(200).json({ ok: true, matricula: e.matricula || b.matricula });
+      return;
+    }
+
     if (b.accion === 'sincronizar') {
       const { empresa, p } = await quienLlama(db, req, b);
       if (!p.roles.dashboard) { res.status(403).json({ error: 'Solo el Dashboard' }); return; }
