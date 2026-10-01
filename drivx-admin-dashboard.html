@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-7';
+var APP_VERSION = '2026-10-01-8';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -6669,6 +6669,78 @@ function calcularResumenVehiculoParaFacturacion(matricula) {
     });
   });
 }
+// Suma del resumen del propietario a partir de las liquidaciones de sus conductores.
+// La usan el cálculo de cada cierre y la reconstrucción de semanas antiguas del historial.
+function _sumarResumenPropietario(matricula, datosConductores, propietario, pid, kmPorConductor) {
+  propietario = propietario || {};
+  kmPorConductor = kmPorConductor || [];
+  var kmTotalVehiculo = kmPorConductor.reduce(function(s,k){ return s + (k.km||0); }, 0);
+  var CAT_LABELS_VEH = { gasolina:'⛽ Combustible', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', otros:'📄 Otros' };
+
+  var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0;
+  var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0;
+  var sueldosTotal=0, pagosARealizarTotal=0, pagosDetalle=[];
+  var ticketsConductor=[], ticketsPropietario=[];
+
+  datosConductores.forEach(function(d){
+    uberTotal += d.uberNetoReal || 0;
+    boltTotal += d.boltNetoReal || 0;
+    cabifyTotal += d.cabifyNetoReal || 0;
+    privadosFacturacionTotal += d.privadosCutTotal || 0;
+    transfersFacturacionTotal += d.transfersCutTotal || 0;
+    sueldosTotal += d.sueldo || 0;
+    pagosARealizarTotal += d.resultado || 0;
+    pagosDetalle.push({ nombre: d.nombreConductor, resultado: d.resultado || 0, turno: d.turno });
+
+    (d.gastosItems || []).forEach(function(t){
+      var importe = Number(t.importe||0);
+      if (t.cat === 'gasolina') combustibleTotal += importe;
+      else if (t.cat === 'peaje') peajesTotal += importe;
+      else if (t.cat === 'parking') parkingTotal += importe;
+      else if (t.cat === 'lavado') limpiezaTotal += importe;
+      else if (t.cat === 'otros') otrosTotal += importe;
+
+      var ticketItem = { catRaw: t.cat, cat: CAT_LABELS_VEH[t.cat] || t.cat, importe: importe, fecha: t.fecha||'', conductor: d.nombreConductor, matricula: matricula, url: t.url||'', propina: Number(t.propina||0) };
+      if (t.pagadoPorPropietario) ticketsPropietario.push(ticketItem); else ticketsConductor.push(ticketItem);
+    });
+  });
+
+  var brandingTotal = Number(propietario.branding || 0);
+  var porcentajeGestion = Number(propietario.porcentajeGestion || 0);
+  var nombreGestion = propietario.nombreCampoGestion || nombreGestionPorDefecto();
+  var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
+  var facturacionTotal = facturacionAppsTotal + brandingTotal;
+
+  var abonadosPorPropietarioTotal = ticketsPropietario.reduce(function(s,t){ return s+t.importe; }, 0);
+  var infinityTotal = facturacionAppsTotal * (porcentajeGestion / 100);
+  var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
+
+  var ivaGestion = propietario.ivaGestion !== false; // por defecto sí, salvo que se haya marcado expresamente "No"
+  var infinityConIvaTotal = ivaGestion ? (infinityTotal * 1.21) : infinityTotal;
+  if (infinityTotal > 0) {
+    pagosARealizarTotal += infinityConIvaTotal;
+    pagosDetalle.push({ nombre: nombreGestion, resultado: infinityConIvaTotal, esEmpresa: true, conIva: ivaGestion });
+  }
+
+  var beneficio = facturacionTotal - gastosTotalGeneral;
+
+  return {
+    matricula: matricula, pid: pid || null, sinPropietario: !pid,
+    uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
+    privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
+    brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
+    combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
+    abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
+    infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
+    gastosTotalGeneral:gastosTotalGeneral,
+    pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
+    beneficio:beneficio,
+    ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario,
+    kmSemana: { total: kmTotalVehiculo, porConductor: kmPorConductor },
+    ajustesConductoresTotal: Math.round(datosConductores.reduce(function(s, d){ return s + Number((d && d.ajustesTotal) || 0); }, 0) * 100) / 100,
+    periodoLiq: (datosConductores.find(function(d){ return d && d.periodo; }) || {}).periodo || null
+  };
+}
 function _calcularResumenVehiculoBase(matricula) {
   var v = getAllVehiculos().find(function(x){ return x.matricula === matricula; });
   if (!v) return Promise.resolve(null);
@@ -6710,71 +6782,7 @@ function _calcularResumenVehiculoBase(matricula) {
     var kmPorConductor = results[2];
     var kmTotalVehiculo = kmPorConductor.reduce(function(s,k){ return s + (k.km||0); }, 0);
 
-    var CAT_LABELS_VEH = { gasolina:'⛽ Combustible', peaje:'🛣️ Peaje', parking:'🅿️ Parking', lavado:'🚿 Limpieza', otros:'📄 Otros' };
-
-    var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0;
-    var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0;
-    var sueldosTotal=0, pagosARealizarTotal=0, pagosDetalle=[];
-    var ticketsConductor=[], ticketsPropietario=[];
-
-    datosConductores.forEach(function(d){
-      uberTotal += d.uberNetoReal || 0;
-      boltTotal += d.boltNetoReal || 0;
-      cabifyTotal += d.cabifyNetoReal || 0;
-      privadosFacturacionTotal += d.privadosCutTotal || 0;
-      transfersFacturacionTotal += d.transfersCutTotal || 0;
-      sueldosTotal += d.sueldo || 0;
-      pagosARealizarTotal += d.resultado || 0;
-      pagosDetalle.push({ nombre: d.nombreConductor, resultado: d.resultado || 0, turno: d.turno });
-
-      (d.gastosItems || []).forEach(function(t){
-        var importe = Number(t.importe||0);
-        if (t.cat === 'gasolina') combustibleTotal += importe;
-        else if (t.cat === 'peaje') peajesTotal += importe;
-        else if (t.cat === 'parking') parkingTotal += importe;
-        else if (t.cat === 'lavado') limpiezaTotal += importe;
-        else if (t.cat === 'otros') otrosTotal += importe;
-
-        var ticketItem = { catRaw: t.cat, cat: CAT_LABELS_VEH[t.cat] || t.cat, importe: importe, fecha: t.fecha||'', conductor: d.nombreConductor, matricula: matricula, url: t.url||'', propina: Number(t.propina||0) };
-        if (t.pagadoPorPropietario) ticketsPropietario.push(ticketItem); else ticketsConductor.push(ticketItem);
-      });
-    });
-
-    var brandingTotal = Number(propietario.branding || 0);
-    var porcentajeGestion = Number(propietario.porcentajeGestion || 0);
-    var nombreGestion = propietario.nombreCampoGestion || nombreGestionPorDefecto();
-    var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
-    var facturacionTotal = facturacionAppsTotal + brandingTotal;
-
-    var abonadosPorPropietarioTotal = ticketsPropietario.reduce(function(s,t){ return s+t.importe; }, 0);
-    var infinityTotal = facturacionAppsTotal * (porcentajeGestion / 100);
-    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal;
-
-    var ivaGestion = propietario.ivaGestion !== false; // por defecto sí, salvo que se haya marcado expresamente "No"
-    var infinityConIvaTotal = ivaGestion ? (infinityTotal * 1.21) : infinityTotal;
-    if (infinityTotal > 0) {
-      pagosARealizarTotal += infinityConIvaTotal;
-      pagosDetalle.push({ nombre: nombreGestion, resultado: infinityConIvaTotal, esEmpresa: true, conIva: ivaGestion });
-    }
-
-    var beneficio = facturacionTotal - gastosTotalGeneral;
-
-    return {
-      matricula: matricula, pid: pid || null, sinPropietario: !pid,
-      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
-      privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
-      brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
-      combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
-      abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
-      infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
-      gastosTotalGeneral:gastosTotalGeneral,
-      pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
-      beneficio:beneficio,
-      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario,
-      kmSemana: { total: kmTotalVehiculo, porConductor: kmPorConductor },
-      ajustesConductoresTotal: Math.round(datosConductores.reduce(function(s, d){ return s + Number((d && d.ajustesTotal) || 0); }, 0) * 100) / 100,
-      periodoLiq: (datosConductores.find(function(d){ return d && d.periodo; }) || {}).periodo || null
-    };
+    return _sumarResumenPropietario(matricula, datosConductores, propietario, pid, kmPorConductor);
   });
 }
 
@@ -6923,7 +6931,7 @@ function pintarResumenGeneralVehiculo(d, esHistorico) {
 
   var html = '';
   if (esHistorico) {
-    html += '<div style="font-size:11px;color:var(--text3);background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:8px 10px;margin-bottom:14px">📜 Esto es exactamente lo que recibió el propietario en su momento — es un archivo, ya no se puede editar ni reenviar desde aquí.</div>';
+    if (!d.reconstruido) html += '<div style="font-size:11px;color:var(--text3);background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.4);border-radius:8px;padding:8px 10px;margin-bottom:14px">📜 Esto es exactamente lo que recibió el propietario en su momento — es un archivo, ya no se puede editar ni reenviar desde aquí.</div>';
   } else {
     html += '<div style="font-size:11px;color:var(--text3);background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;margin-bottom:10px">👁️ Esto es lo que verá el propietario en su app — pero solo se actualiza cuando pulses <strong style="color:#fff">🔒 Cerrar y enviar</strong>. ' + (_vehResumenUltimoEnvio ? 'Última vez enviado: ' + new Date(_vehResumenUltimoEnvio).toLocaleString('es-ES') : 'Todavía no se ha enviado nada de este vehículo.') + '</div>';
     html += '<button id="veh-resumen-corregir-btn" onclick="corregirYReenviarFacturacion(\'' + d.matricula.replace(/'/g,"\\'") + '\')" title="Usa esto tras corregir algún dato (Uber/Bolt/Cabify, un ticket, un porcentaje...) para que la corrección llegue ya al conductor y al propietario, sin esperar al próximo cierre" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(255,71,87,.5);background:rgba(255,71,87,.08);color:var(--red);font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:14px">🔁 Corregir y reenviar</button>';
@@ -9183,6 +9191,12 @@ function cambiarMesCalendarioHistorialResumen(mgid, pid) {
 function abrirResumenPropietarioAgregado(pid, periodo) {
   var p = _propietariosCache[pid];
   if (!p) return;
+  var pares = (p.matriculas || []).map(function(m){ return { mSlug: matSlug(m), periodo: periodo, matricula: m }; });
+  asegurarSnapsHistorial(pares).then(function(){ _abrirResumenPropietarioAgregadoBase(pid, periodo); });
+}
+function _abrirResumenPropietarioAgregadoBase(pid, periodo) {
+  var p = _propietariosCache[pid];
+  if (!p) return;
 
   var snapsDeEstaSemana = [];
   (p.matriculas || []).forEach(function(matricula){
@@ -9225,6 +9239,7 @@ function abrirResumenPropietarioAgregado(pid, periodo) {
   document.getElementById('veh-resumen-plate').innerHTML = '<div style="font-size:14px;font-weight:900;color:#fff">' + (p.nombre||'') + '</div><div style="font-size:11px;color:var(--text3)">' + (p.matriculas||[]).length + ' vehículos combinados</div>';
   document.getElementById('veh-resumen-modal').style.display = 'flex';
   pintarResumenGeneralVehiculo(acc, true);
+  _avisoSnapReconstruido(snapsDeEstaSemana);
 }
 
 function toggleMatHistorial(mgid) {
@@ -9577,11 +9592,77 @@ function abrirTicketsHistorialModal(uidLocal, tipo) {
 // Reutiliza literalmente el mismo modal y la misma función de pintado que
 // el botón "Resumen" de Facturación en vivo — mismo aspecto exacto, solo
 // que en modo solo-lectura sobre el archivo de esa semana. ──
+// ══ Historial del propietario: semanas cerradas antes de que se guardara su copia ══
+// Si a una semana le falta la copia del resumen del propietario, se reconstruye
+// con las liquidaciones cerradas de sus conductores (las mismas que ves en el
+// historial) y los ajustes que se liquidaron esa semana, y se guarda.
+function _normMatHist(m) { return String(m || '').replace(/[\s_]/g, '').toUpperCase(); }
+function _reconstruirSnapPropietario(mSlug, periodo, matricula, propietarios, ajustes) {
+  var porCond = _historialCierresCondCache[mSlug] || {};
+  var regs = Object.keys(porCond).map(function(cid){ return (porCond[cid] || {})[periodo]; }).filter(Boolean);
+  if (!regs.length) return null;
+  var datos = regs.map(function(r){ return Object.assign({}, r, { nombreConductor: r.nombreConductor || r.nombre || 'Conductor', turno: r.turno }); });
+  var pid = Object.keys(propietarios || {}).find(function(k){
+    return ((propietarios[k] || {}).matriculas || []).some(function(x){ return _normMatHist(x) === _normMatHist(matricula); });
+  });
+  var r = _sumarResumenPropietario(matricula, datos, pid ? propietarios[pid] : {}, pid || null, []);
+  // Igual que en cada cierre: ajustes de conductores (coste) y del propietario
+  var ajC = Math.round(datos.reduce(function(s, d){ return s + Number(d.ajustesTotal || 0); }, 0) * 100) / 100;
+  r.gastosTotalGeneral += ajC; r.beneficio -= ajC; r.ajustesConductoresTotal = ajC;
+  var ajP = (ajustes || []).filter(function(a){ return a.afecta === 'propietario' && a.liquidadoEn === periodo && _normMatHist(a.matricula) === _normMatHist(matricula); });
+  r.ajustesPropietarioItems = ajP;
+  r.ajustesPropietarioTotal = Math.round(ajP.reduce(function(s, a){ return s + importeConSignoAjuste(a); }, 0) * 100) / 100;
+  r.beneficio += r.ajustesPropietarioTotal;
+  delete r.periodoLiq;
+  r.periodo = periodo; r.etiqueta = regs[0].etiqueta || null; r.reconstruido = true;
+  return r;
+}
+// Se asegura de que existan las copias de esas semanas (reconstruyendo las que falten)
+function asegurarSnapsHistorial(pares) {
+  var faltan = (pares || []).filter(function(x){
+    var tiene = (_historialCierresVehCache[x.mSlug] || {})[x.periodo];
+    var hayConductores = Object.keys(_historialCierresCondCache[x.mSlug] || {}).some(function(cid){ return (_historialCierresCondCache[x.mSlug][cid] || {})[x.periodo]; });
+    return !tiene && hayConductores;
+  });
+  if (!faltan.length) return Promise.resolve();
+  return Promise.all([
+    fetch(FIREBASE_URL + '/propietarios.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    cargarAjustesFacturacion()
+  ]).then(function(res){
+    var propietarios = (res[0] && !res[0].error) ? res[0] : {};
+    faltan.forEach(function(x){
+      var snap = _reconstruirSnapPropietario(x.mSlug, x.periodo, x.matricula, propietarios, res[1] || []);
+      if (!snap) return;
+      _historialCierresVehCache[x.mSlug] = _historialCierresVehCache[x.mSlug] || {};
+      _historialCierresVehCache[x.mSlug][x.periodo] = snap;
+      // Se guarda, así la próxima vez ya está (y lo usan también los gráficos de Rendimiento)
+      if (puedeEditar()) fetch(FIREBASE_URL + '/facturacion_cierres_vehiculo/' + x.mSlug + '/' + x.periodo + '.json', {
+        method: 'PUT', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(snap)
+      }).catch(function(){});
+    });
+  });
+}
+function _avisoSnapReconstruido(snaps) {
+  if (!snaps.some(function(s){ return s && s.reconstruido; })) return;
+  var cont = document.getElementById('veh-resumen-body'); if (!cont) return;
+  cont.insertAdjacentHTML('afterbegin', '<div style="margin-bottom:12px;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(0,212,255,.7);background:rgba(0,212,255,.07);font-size:11.5px;line-height:1.5;color:#fff">' +
+    'ℹ️ Resumen reconstruido con las liquidaciones cerradas de los conductores de esa semana (el % de gestión, el branding y el IVA son los que tiene ahora el propietario).</div>');
+}
+
 function abrirResumenPropietarioHistorial(mSlug, periodo, matricula) {
-  var snap = (_historialCierresVehCache[mSlug] || {})[periodo] || {};
   document.getElementById('veh-resumen-plate').innerHTML = plateHtml(matricula);
   document.getElementById('veh-resumen-modal').style.display = 'flex';
-  pintarResumenGeneralVehiculo(snap, true);
+  var cont = document.getElementById('veh-resumen-body');
+  if (cont) cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">Cargando resumen…</div>';
+  asegurarSnapsHistorial([{ mSlug: mSlug, periodo: periodo, matricula: matricula }]).then(function(){
+    var snap = (_historialCierresVehCache[mSlug] || {})[periodo];
+    if (!snap) {
+      if (cont) cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No hay datos del propietario para esta semana.</div>';
+      return;
+    }
+    pintarResumenGeneralVehiculo(snap, true);
+    _avisoSnapReconstruido([snap]);
+  });
 }
 function filaHistorial(label, valor) {
   return '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:3px 0"><span>' + label + '</span><span style="font-family:var(--mono);color:#fff">€ ' + Number(valor||0).toFixed(2).replace('.',',') + '</span></div>';
