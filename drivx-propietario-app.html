@@ -787,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-6';
+var APP_VERSION = '2026-10-01-7';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2067,7 +2067,10 @@ function cargarFacturacionO() {
       return (ai<0?99:ai) - (bi<0?99:bi);
     });
 
-    var htmlOut = '<div id="resumen-general-o" style="margin-bottom:16px"></div>';
+    var htmlOut = '<div id="resumen-general-o" style="margin-bottom:12px"></div>' +
+      '<button type="button" onclick="abrirHistorialFacturacionO()" style="width:100%;margin:0 0 16px;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.08);color:#fff;cursor:pointer;font-family:inherit;text-align:left;box-shadow:0 0 12px rgba(0,230,118,.55)">' +
+        '<span style="font-size:24px">📚</span><span style="flex:1"><span style="display:block;font-size:15px;font-weight:900">Historial de facturación</span>' +
+        '<span style="display:block;font-size:12px;opacity:.8;margin-top:2px">Cada semana cerrada y el total ganado hasta hoy</span></span><span style="font-size:22px;opacity:.8">›</span></button>';
     ccaasPresentes.forEach(function(cc){
       var borderCc = CCAA_BORDER_O[cc] || '#2a4a6e';
       var iconCc = CCAA_ICONS_O[cc] || '📍';
@@ -2117,6 +2120,166 @@ function cargarFacturacionO() {
 // vehículo, desde el Dashboard. Así el propietario nunca ve cifras a medio
 // periodo — solo la facturación ya cerrada de cada coche. Si un vehículo
 // todavía no se ha cerrado nunca, no aporta datos al resumen y se avisa.
+// Suma de las semanas cerradas de varios vehículos (la tarjeta de Facturación
+// general y cada semana del historial usan esta misma cuenta)
+function _agregarSnapsO(vehiculosConDatos, vehiculosSinEnviar) {
+  vehiculosSinEnviar = vehiculosSinEnviar || [];
+  var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0, brandingTotal=0;
+  var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0, abonadosPorPropietarioTotal=0;
+  var sueldosTotal=0, infinityTotal=0, pagosARealizarTotal=0;
+  var nombreGestion = EMPRESA_NOMBRE || 'INFINITY', porcentajeGestion = 0;
+  var pagosDetalle=[], ticketsConductor=[], ticketsPropietario=[];
+  var kmTotalGeneral = 0, kmPorVehiculo = [];
+  var ajustesConductoresTotal = 0, ajustesPropietarioTotal = 0, ajustesPropietarioItems = [];
+
+  vehiculosConDatos.forEach(function(snap){
+    uberTotal += snap.uberTotal||0; boltTotal += snap.boltTotal||0; cabifyTotal += snap.cabifyTotal||0;
+    privadosFacturacionTotal += snap.privadosFacturacionTotal||0; transfersFacturacionTotal += snap.transfersFacturacionTotal||0;
+    brandingTotal += snap.brandingTotal||0;
+    combustibleTotal += snap.combustibleTotal||0; peajesTotal += snap.peajesTotal||0; parkingTotal += snap.parkingTotal||0;
+    limpiezaTotal += snap.limpiezaTotal||0; otrosTotal += snap.otrosTotal||0;
+    abonadosPorPropietarioTotal += snap.abonadosPorPropietarioTotal||0;
+    sueldosTotal += snap.sueldosTotal||0; infinityTotal += snap.infinityTotal||0;
+    pagosARealizarTotal += snap.pagosARealizarTotal||0;
+    nombreGestion = snap.nombreGestion || nombreGestion;
+    porcentajeGestion = snap.porcentajeGestion || porcentajeGestion;
+    (snap.pagosDetalle||[]).forEach(function(p){ pagosDetalle.push(p); });
+    (snap.ticketsConductor||[]).forEach(function(t){ ticketsConductor.push(t); });
+    (snap.ticketsPropietario||[]).forEach(function(t){ ticketsPropietario.push(t); });
+    ajustesConductoresTotal += Number(snap.ajustesConductoresTotal || 0);
+    ajustesPropietarioTotal += Number(snap.ajustesPropietarioTotal || 0);
+    (snap.ajustesPropietarioItems || []).forEach(function(a){ ajustesPropietarioItems.push(a); });
+    if (snap.kmSemana && snap.kmSemana.total > 0) {
+      kmTotalGeneral += snap.kmSemana.total;
+      kmPorVehiculo.push({ matricula: snap.matricula, total: snap.kmSemana.total, porConductor: snap.kmSemana.porConductor || [] });
+    }
+  });
+
+  var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
+  var facturacionTotal = facturacionAppsTotal + brandingTotal;
+  var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal + ajustesConductoresTotal;
+  var beneficio = facturacionTotal - gastosTotalGeneral + ajustesPropietarioTotal;
+
+  return ({
+    ajustesConductoresTotal: ajustesConductoresTotal, ajustesPropietarioTotal: ajustesPropietarioTotal, ajustesPropietarioItems: ajustesPropietarioItems,
+    vehiculosSinEnviar: vehiculosSinEnviar,
+    uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
+    privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
+    brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
+    combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
+    abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
+    infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
+    gastosTotalGeneral:gastosTotalGeneral,
+    pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
+    beneficio:beneficio,
+    ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario,
+    kmTotalGeneral:kmTotalGeneral, kmPorVehiculo:kmPorVehiculo
+  });
+}
+// ══ SEMANAS de facturación del propietario ══
+var _MESES_O = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+var _MESES_CORTOS_O = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function _etqSemanaO(periodo) {
+  var m = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo || '');
+  if (!m) return periodo || '';
+  var a = new Date(+m[1], +m[2]-1, +m[3]), b = new Date(a.getTime() + 6 * 86400000);
+  return 'SEMANA DEL ' + a.getDate() + (a.getMonth() !== b.getMonth() ? ' DE ' + _MESES_O[a.getMonth()] : '') + ' AL ' + b.getDate() + ' DE ' + _MESES_O[b.getMonth()];
+}
+function _semanaEnCursoO() {
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  var lunes = new Date(hoy); lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
+  var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  var proxLunes = new Date(lunes); proxLunes.setDate(lunes.getDate() + 7);
+  var f = function(d){ return d.getDate() + ' ' + _MESES_CORTOS_O[d.getMonth()]; };
+  return 'del lunes ' + f(lunes) + ' al domingo ' + f(domingo) + ' · se cierra a partir del lunes ' + f(proxLunes);
+}
+// Cierres semanales de los vehículos del propietario: { periodo: [copias de cada vehículo] }
+function _leerSemanasO(matriculas) {
+  return Promise.all((matriculas || []).map(function(m){
+    return fetch(FIREBASE_URL + '/facturacion_cierres_vehiculo/' + matSlugO(m) + '.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+      .then(function(o){ return (o && typeof o === 'object' && !o.error) ? o : {}; });
+  })).then(function(listas){
+    var porSemana = {};
+    listas.forEach(function(o){
+      Object.keys(o).forEach(function(p){ if (o[p] && /^\d{4}-S\d{4}$/.test(p)) (porSemana[p] = porSemana[p] || []).push(o[p]); });
+    });
+    return porSemana;
+  });
+}
+// Añade a la tarjeta general la semana de sus datos y la semana en curso
+function _anadirSemanasO(resumen, misVehiculos) {
+  resumen.semanaEnCurso = _semanaEnCursoO();
+  return _leerSemanasO(misVehiculos.map(function(v){ return v.matricula; })).then(function(porSemana){
+    var ultima = Object.keys(porSemana).sort().pop();
+    if (ultima) {
+      var conEtq = porSemana[ultima].find(function(s){ return s.etiqueta; });
+      resumen.etiquetaSemana = (conEtq && conEtq.etiqueta) || _etqSemanaO(ultima);
+    }
+  }).catch(function(){});
+}
+function _eurO(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+
+// ── Historial de facturación: total ganado y cada semana cerrada ──
+var _histO = { semanas: [], abierta: null };
+function abrirHistorialFacturacionO() {
+  var v = document.getElementById('hist-fact-o'); if (v) v.remove();
+  v = document.createElement('div');
+  v.id = 'hist-fact-o';
+  v.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow-y:auto;padding:16px 14px calc(env(safe-area-inset-bottom,0px) + 20px)';
+  v.innerHTML = '<div style="max-width:680px;margin:0 auto">' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+      '<div style="flex:1;font-size:17px;font-weight:900;color:#fff">📚 Historial de facturación</div>' +
+      '<button onclick="document.getElementById(\'hist-fact-o\').remove()" aria-label="Cerrar" style="width:40px;height:40px;border-radius:12px;border:2px solid rgba(255,71,87,.9);background:rgba(255,71,87,.12);color:#fff;font-size:17px;cursor:pointer;box-shadow:0 0 8px rgba(255,71,87,.5)">✕</button></div>' +
+    '<div id="hist-fact-o-cuerpo"><div style="padding:30px;text-align:center;color:#fff;opacity:.8">Cargando historial…</div></div></div>';
+  document.body.appendChild(v);
+  _leerSemanasO(currentUser.matriculas || []).then(function(porSemana){
+    _histO.semanas = Object.keys(porSemana).sort().reverse().map(function(p){
+      var d = _agregarSnapsO(porSemana[p], []);
+      var conEtq = porSemana[p].find(function(s){ return s.etiqueta; });
+      d.etiquetaSemana = (conEtq && conEtq.etiqueta) || _etqSemanaO(p);
+      d.esHistorial = true;
+      d.periodo = p;
+      return d;
+    });
+    _histO.abierta = null;
+    pintarHistorialFacturacionO();
+  }).catch(function(){
+    var c = document.getElementById('hist-fact-o-cuerpo');
+    if (c) c.innerHTML = '<div style="padding:30px;text-align:center;color:#fff">No se pudo cargar el historial. Comprueba tu conexión.</div>';
+  });
+}
+function pintarHistorialFacturacionO() {
+  var c = document.getElementById('hist-fact-o-cuerpo'); if (!c) return;
+  var sem = _histO.semanas;
+  if (!sem.length) { c.innerHTML = '<div style="padding:30px;text-align:center;color:#fff;opacity:.85;line-height:1.6">Todavía no hay semanas cerradas.<br>Aparecerán aquí en cuanto tu empresa cierre la primera.</div>'; return; }
+  var total = sem.reduce(function(s, d){ return s + (d.beneficio || 0); }, 0);
+  var facturado = sem.reduce(function(s, d){ return s + (d.facturacionTotal || 0); }, 0);
+  var desde = sem[sem.length - 1].etiquetaSemana;
+  var html = '<div style="margin-bottom:16px;padding:18px 16px;border-radius:18px;border:2.5px solid rgba(0,230,118,1);background:rgba(10,16,26,.85);box-shadow:0 0 16px rgba(0,230,118,.6);text-align:center;color:#fff">' +
+    '<div style="font-size:12px;font-weight:900;letter-spacing:.6px;opacity:.9">💰 TOTAL GANADO HASTA HOY</div>' +
+    '<div style="font-family:var(--mono);font-size:32px;font-weight:900;margin:8px 0 6px;color:' + (total >= 0 ? '#00e676' : '#ff6b7a') + ';text-shadow:0 0 12px ' + (total >= 0 ? 'rgba(0,230,118,.8)' : 'rgba(255,71,87,.8)') + '">' + (total < 0 ? '− ' : '') + _eurO(Math.abs(total)) + '</div>' +
+    '<div style="font-size:11.5px;opacity:.85;line-height:1.5">' + sem.length + ' semana' + (sem.length !== 1 ? 's' : '') + ' cerrada' + (sem.length !== 1 ? 's' : '') + ' · facturación total ' + _eurO(facturado) +
+    '<br>Desde la ' + String(desde).toLowerCase() + '</div></div>';
+  html += sem.map(function(d, i){
+    var abierta = _histO.abierta === d.periodo;
+    return '<div style="margin-bottom:10px;border-radius:14px;border:2px solid ' + (abierta ? 'rgba(255,215,0,.95)' : 'rgba(0,212,255,.7)') + ';background:rgba(10,16,26,.8);box-shadow:0 0 10px ' + (abierta ? 'rgba(255,215,0,.45)' : 'rgba(0,212,255,.35)') + ';overflow:hidden">' +
+      '<div onclick="alternarSemanaHistO(\'' + d.periodo + '\')" style="display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;color:#fff">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900">' + d.etiquetaSemana + '</div>' +
+        '<div style="font-size:11px;opacity:.75;margin-top:2px">Facturación ' + _eurO(d.facturacionTotal) + '</div></div>' +
+        '<div style="text-align:right"><div style="font-size:10px;opacity:.75">Beneficio</div><div style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + ((d.beneficio || 0) >= 0 ? '#00e676' : '#ff6b7a') + '">' + ((d.beneficio || 0) < 0 ? '− ' : '') + _eurO(Math.abs(d.beneficio || 0)) + '</div></div>' +
+        '<span style="color:#ffd700;font-size:15px;transition:transform .2s;transform:rotate(' + (abierta ? '180' : '0') + 'deg)">▾</span></div>' +
+      (abierta ? '<div id="hist-o-det-' + i + '" style="padding:0 10px 10px"></div>' : '') +
+    '</div>';
+  }).join('');
+  c.innerHTML = html;
+  var idx = sem.findIndex(function(d){ return d.periodo === _histO.abierta; });
+  if (idx !== -1) pintarResumenGeneralO(sem[idx], 'hist-o-det-' + idx);
+}
+function alternarSemanaHistO(periodo) {
+  _histO.abierta = _histO.abierta === periodo ? null : periodo;
+  pintarHistorialFacturacionO();
+}
+
 function calcularResumenGeneralO(misVehiculos, invitados) {
   var cont = document.getElementById('resumen-general-o');
   if (!cont) return;
@@ -2140,57 +2303,8 @@ function calcularResumenGeneralO(misVehiculos, invitados) {
       return;
     }
 
-    var uberTotal=0, boltTotal=0, cabifyTotal=0, privadosFacturacionTotal=0, transfersFacturacionTotal=0, brandingTotal=0;
-    var combustibleTotal=0, peajesTotal=0, parkingTotal=0, limpiezaTotal=0, otrosTotal=0, abonadosPorPropietarioTotal=0;
-    var sueldosTotal=0, infinityTotal=0, pagosARealizarTotal=0;
-    var nombreGestion = EMPRESA_NOMBRE || 'INFINITY', porcentajeGestion = 0;
-    var pagosDetalle=[], ticketsConductor=[], ticketsPropietario=[];
-    var kmTotalGeneral = 0, kmPorVehiculo = [];
-    var ajustesConductoresTotal = 0, ajustesPropietarioTotal = 0, ajustesPropietarioItems = [];
-
-    vehiculosConDatos.forEach(function(snap){
-      uberTotal += snap.uberTotal||0; boltTotal += snap.boltTotal||0; cabifyTotal += snap.cabifyTotal||0;
-      privadosFacturacionTotal += snap.privadosFacturacionTotal||0; transfersFacturacionTotal += snap.transfersFacturacionTotal||0;
-      brandingTotal += snap.brandingTotal||0;
-      combustibleTotal += snap.combustibleTotal||0; peajesTotal += snap.peajesTotal||0; parkingTotal += snap.parkingTotal||0;
-      limpiezaTotal += snap.limpiezaTotal||0; otrosTotal += snap.otrosTotal||0;
-      abonadosPorPropietarioTotal += snap.abonadosPorPropietarioTotal||0;
-      sueldosTotal += snap.sueldosTotal||0; infinityTotal += snap.infinityTotal||0;
-      pagosARealizarTotal += snap.pagosARealizarTotal||0;
-      nombreGestion = snap.nombreGestion || nombreGestion;
-      porcentajeGestion = snap.porcentajeGestion || porcentajeGestion;
-      (snap.pagosDetalle||[]).forEach(function(p){ pagosDetalle.push(p); });
-      (snap.ticketsConductor||[]).forEach(function(t){ ticketsConductor.push(t); });
-      (snap.ticketsPropietario||[]).forEach(function(t){ ticketsPropietario.push(t); });
-      ajustesConductoresTotal += Number(snap.ajustesConductoresTotal || 0);
-      ajustesPropietarioTotal += Number(snap.ajustesPropietarioTotal || 0);
-      (snap.ajustesPropietarioItems || []).forEach(function(a){ ajustesPropietarioItems.push(a); });
-      if (snap.kmSemana && snap.kmSemana.total > 0) {
-        kmTotalGeneral += snap.kmSemana.total;
-        kmPorVehiculo.push({ matricula: snap.matricula, total: snap.kmSemana.total, porConductor: snap.kmSemana.porConductor || [] });
-      }
-    });
-
-    var facturacionAppsTotal = uberTotal + boltTotal + cabifyTotal + privadosFacturacionTotal + transfersFacturacionTotal;
-    var facturacionTotal = facturacionAppsTotal + brandingTotal;
-    var gastosTotalGeneral = combustibleTotal + peajesTotal + parkingTotal + limpiezaTotal + otrosTotal + sueldosTotal + infinityTotal + ajustesConductoresTotal;
-    var beneficio = facturacionTotal - gastosTotalGeneral + ajustesPropietarioTotal;
-
-    pintarResumenGeneralO({
-      ajustesConductoresTotal: ajustesConductoresTotal, ajustesPropietarioTotal: ajustesPropietarioTotal, ajustesPropietarioItems: ajustesPropietarioItems,
-      vehiculosSinEnviar: vehiculosSinEnviar,
-      uberTotal:uberTotal, boltTotal:boltTotal, cabifyTotal:cabifyTotal,
-      privadosFacturacionTotal:privadosFacturacionTotal, transfersFacturacionTotal:transfersFacturacionTotal,
-      brandingTotal:brandingTotal, facturacionTotal:facturacionTotal,
-      combustibleTotal:combustibleTotal, peajesTotal:peajesTotal, parkingTotal:parkingTotal, limpiezaTotal:limpiezaTotal, otrosTotal:otrosTotal,
-      abonadosPorPropietarioTotal:abonadosPorPropietarioTotal, sueldosTotal:sueldosTotal,
-      infinityTotal:infinityTotal, nombreGestion:nombreGestion, porcentajeGestion:porcentajeGestion,
-      gastosTotalGeneral:gastosTotalGeneral,
-      pagosARealizarTotal:pagosARealizarTotal, pagosDetalle:pagosDetalle,
-      beneficio:beneficio,
-      ticketsConductor:ticketsConductor, ticketsPropietario:ticketsPropietario,
-      kmTotalGeneral:kmTotalGeneral, kmPorVehiculo:kmPorVehiculo
-    });
+    var _resumen = _agregarSnapsO(vehiculosConDatos, vehiculosSinEnviar);
+    _anadirSemanasO(_resumen, misVehiculos).then(function(){ pintarResumenGeneralO(_resumen); });
   }).catch(function(){
     cont.innerHTML = '';
   });
@@ -2322,8 +2436,8 @@ function abrirPagosResumenO() {
   modal.style.display = 'flex';
 }
 
-function pintarResumenGeneralO(d) {
-  var cont = document.getElementById('resumen-general-o');
+function pintarResumenGeneralO(d, idContenedor) {
+  var cont = document.getElementById(idContenedor || 'resumen-general-o');
   if (!cont) return;
   if (!d) { cont.innerHTML = ''; return; }
 
@@ -2336,6 +2450,11 @@ function pintarResumenGeneralO(d) {
 
   var html = '<div style="background:rgba(10,8,2,.88);border:2.5px solid rgba(255,215,0,.9);border-radius:16px;padding:16px;box-shadow:0 0 16px rgba(255,215,0,.7),0 0 34px rgba(255,215,0,.4)">';
   html += '<div style="font-size:15px;font-weight:900;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 14px rgba(255,215,0,.6);margin-bottom:14px;display:flex;align-items:center;gap:8px">📊 FACTURACIÓN GENERAL</div>';
+  // De qué semana son estos datos y cuál es la semana en curso
+  if (d.etiquetaSemana) html += '<div style="margin:-6px 0 12px;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(0,230,118,.85);background:rgba(0,230,118,.08);font-size:12px;color:#fff;line-height:1.45">' +
+    '<b>📅 ' + d.etiquetaSemana + '</b>' + (d.esHistorial ? '' : '<div style="font-size:10.5px;opacity:.8;margin-top:2px">Última semana cerrada</div>') + '</div>';
+  if (d.semanaEnCurso) html += '<div style="margin:0 0 14px;padding:8px 12px;border-radius:10px;border:1.5px solid rgba(255,179,0,.8);background:rgba(255,179,0,.07);font-size:11.5px;color:#fff;line-height:1.45">' +
+    '⏳ <b>Semana en curso:</b> ' + d.semanaEnCurso + '</div>';
 
   if (d.vehiculosSinEnviar && d.vehiculosSinEnviar.length) {
     html += '<div style="font-size:11px;color:var(--amber);background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.35);border-radius:8px;padding:8px 10px;margin-bottom:14px">⚠ ' + d.vehiculosSinEnviar.join(', ') + (d.vehiculosSinEnviar.length===1 ? ' todavía no tiene' : ' todavía no tienen') + ' ningún periodo cerrado y enviado, así que no ' + (d.vehiculosSinEnviar.length===1 ? 'está' : 'están') + ' incluidos en este resumen.</div>';
