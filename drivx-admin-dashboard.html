@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-2';
+var APP_VERSION = '2026-10-01-3';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -3860,7 +3860,7 @@ function pintarSuscripcion() {
   html += '<div style="font-size:13px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Estado de tu suscripción</div>';
   html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
   html += '<span style="font-family:var(--mono);font-size:28px;font-weight:900;color:#fff">' + registrados + ' <span style="font-size:16px;color:var(--text3);font-weight:600">/ ' + contratados + ' contratados</span></span>';
-  html += '<span style="font-size:12px;color:var(--text3)">€ ' + PRECIO_VEHICULO + ' + IVA /veh/año</span>';
+  html += '<span style="font-size:12px;color:var(--text3)">€ ' + PRECIO_VEHICULO + ' + IVA /veh/año' + (window.PRECIO_PACTADO ? ' · <b style="color:var(--gold,#ffc53d)">🏷️ precio pactado</b>' : '') + '</span>';
   html += '</div>';
   html += '<div style="background:rgba(255,255,255,.08);border-radius:8px;height:12px;overflow:hidden;margin-bottom:8px">';
   html += '<div style="width:' + pct + '%;height:100%;background:' + colorBarra + ';box-shadow:0 0 8px ' + colorBarra + ';border-radius:8px"></div>';
@@ -8161,6 +8161,10 @@ function cargarNombreEmpresa() {
   if (!EMPRESA_ID) { EMPRESA_NOMBRE = ''; pintarNombreEmpresa(); return Promise.resolve(); }
   return fetch(FIREBASE_URL + '/empresa_info.json').then(function(r){ return r.json(); }).then(function(info){
     EMPRESA_NOMBRE = (info && info.nombre) || '';
+    // Precio pactado con DRIVX (si lo tiene): se usa para los vehículos que añada
+    var pe = info && info.precioEspecial;
+    window.PRECIO_PACTADO = (pe && Number(pe.precioUnitario) > 0 && Number(pe.precioUnitario) < 299) ? Number(pe.precioUnitario) : null;
+    PRECIO_VEHICULO = window.PRECIO_PACTADO || 299;
     pintarNombreEmpresa();
     if (window.MODO_SOPORTE) pintarFranjaSoporte();
     else if (info && info.estado === 'suspendida') mostrarBloqueoSuspension(info.motivoSuspension === 'Periodo gratuito terminado' ? 'fin_gratis' : '');

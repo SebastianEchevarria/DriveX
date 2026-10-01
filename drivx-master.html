@@ -523,6 +523,7 @@ function pintar(){
         '<button class="btn btn-linea" onclick="abrirUsuarios(\'' + x.codigo + '\')">👥 Usuarios</button>' +
         '<button class="btn btn-linea" onclick="abrirAjustes(\'' + x.codigo + '\')">⚙️ Ajustes</button>' +
         (i.gratuita ? '<button class="btn btn-verde" onclick="abrirGratuita(\'' + x.codigo + '\')">🎁 Cortesía</button>' : '') +
+        (i.precioEspecial ? '<button class="btn btn-oro" onclick="anularPrecioPactado(\'' + x.codigo + '\')">🏷️ ' + euros(i.precioEspecial.precioUnitario) + '</button>' : '') +
         (stripe ? '<a class="btn btn-linea" href="' + stripe + '" target="_blank" rel="noopener">Ver en Stripe</a>' : '') +
         (est === 'suspendida'
           ? '<button class="btn btn-verde" onclick="cambiarEstado(\'' + x.codigo + '\',\'activa\',this)">Reactivar</button>' +
@@ -776,6 +777,21 @@ function crearDescuento(){
   }).catch(function(err){ document.getElementById('ds-res').innerHTML = '<div class="aviso error">' + esc(err.message) + '</div>'; })
     .then(function(){ btn.disabled = false; });
 }
+function anularPrecioPactado(codigo){
+  var x = (DATOS.empresas || []).find(function(e){ return e.codigo === codigo; }); if (!x) return;
+  var pe = x.info.precioEspecial || {};
+  dialogoMaster('Precio pactado de ' + (x.info.nombre || codigo),
+    'Ahora paga ' + euros(pe.precioUnitario) + ' + IVA por vehículo y año' + (pe.codigo ? ' (código ' + pe.codigo + ')' : '') + ', en renovaciones y en los vehículos que añada.\n\n' +
+    'Si lo anulas, a partir de su PRÓXIMA RENOVACIÓN pagará el precio normal (299 € + IVA), y también los vehículos nuevos. Lo ya pagado no cambia y no se le cobra ninguna diferencia.\n\n' +
+    'Para confirmar, escribe ANULAR:',
+    function(txt){
+      if (String(txt).trim().toUpperCase() !== 'ANULAR') { toast('No se ha cambiado nada.'); return; }
+      api('anular_precio_pactado', { empresa: codigo }).then(function(d){
+        toast('Precio pactado anulado · ' + d.suscripciones + ' suscripción(es) actualizada(s) en Stripe' + (d.errores && d.errores.length ? ' · avisos: ' + d.errores.length : ''));
+        cargarEmpresas();
+      }).catch(function(err){ toast('No se pudo: ' + err.message); });
+    }, 'ANULAR', 'Anular precio pactado');
+}
 function copiarDescuento(c){ try { navigator.clipboard.writeText(c); toast('Código copiado: ' + c); } catch(e) { toast(c); } }
 function borrarDescuento(c){
   if (!confirm('¿Borrar el código ' + c + '? Ya no se podrá usar.')) return;
@@ -919,7 +935,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-10-01-2';
+var APP_VERSION = '2026-10-01-3';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {
