@@ -787,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-7';
+var APP_VERSION = '2026-10-01-8';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2067,8 +2067,7 @@ function cargarFacturacionO() {
       return (ai<0?99:ai) - (bi<0?99:bi);
     });
 
-    var htmlOut = '<div id="resumen-general-o" style="margin-bottom:12px"></div>' +
-      '<button type="button" onclick="abrirHistorialFacturacionO()" style="width:100%;margin:0 0 16px;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.08);color:#fff;cursor:pointer;font-family:inherit;text-align:left;box-shadow:0 0 12px rgba(0,230,118,.55)">' +
+    var htmlOut = '<button type="button" onclick="abrirHistorialFacturacionO()" style="width:100%;margin:0 0 16px;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.08);color:#fff;cursor:pointer;font-family:inherit;text-align:left;box-shadow:0 0 12px rgba(0,230,118,.55)">' +
         '<span style="font-size:24px">📚</span><span style="flex:1"><span style="display:block;font-size:15px;font-weight:900">Historial de facturación</span>' +
         '<span style="display:block;font-size:12px;opacity:.8;margin-top:2px">Cada semana cerrada y el total ganado hasta hoy</span></span><span style="font-size:22px;opacity:.8">›</span></button>';
     ccaasPresentes.forEach(function(cc){
@@ -2090,7 +2089,7 @@ function cargarFacturacionO() {
 
         var condHtml = conductoresVeh.length ? conductoresVeh.map(function(c){
           var fuid = 'ofact_' + c.cid;
-          return '<div style="border:1.5px solid rgba(0,212,255,.4);border-radius:12px;margin-bottom:8px;overflow:hidden;background:rgba(255,255,255,.02)">' +
+          return '<div class="cond-fact-o" data-cid="' + c.cid + '" data-mat="' + v.matricula + '" style="border:1.5px solid rgba(0,212,255,.4);border-radius:12px;margin-bottom:8px;overflow:hidden;background:rgba(255,255,255,.02);transition:border-color .3s,box-shadow .3s">' +
             '<div onclick="toggleFacturacionCondO(\''+fuid+'\',\''+c.cid+'\',\''+v.matricula+'\')" class="cond-row" style="cursor:pointer;margin:0;padding:10px 12px;border-bottom:none"><div><div style="font-weight:700;font-size:13px">'+c.nombre+'</div></div>' +
             '<span id="chev_'+fuid+'" style="color:var(--cyan);font-size:13px">▾</span></div>' +
             '<div id="body_'+fuid+'" style="display:none;padding:0 12px 12px;border-top:1px solid var(--border)"><div style="padding:10px 0;color:var(--text3);font-size:11px">Cargando…</div></div>' +
@@ -2100,6 +2099,7 @@ function cargarFacturacionO() {
         return '<div class="veh-card" style="border:1.5px solid rgba(0,212,255,.75);box-shadow:0 4px 16px rgba(0,0,0,.25),0 0 12px rgba(0,212,255,.55),0 0 26px rgba(0,212,255,.35),0 0 44px rgba(0,212,255,.18)">' +
           '<div class="veh-top" style="align-items:center;margin-bottom:4px">' + plateHtmlO(v.matricula) + '</div>' +
           '<div class="veh-model" style="margin:0 0 12px 0">'+v.modelo+' · '+v.ccaa+'</div>' +
+          '<div class="fact-gen-veh-o" data-mat="' + v.matricula + '" style="margin-bottom:12px"></div>' +
           '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Conductores</div>' +
           condHtml +
         '</div>';
@@ -2107,7 +2107,13 @@ function cargarFacturacionO() {
     });
 
     pintarSiCambia(cont, htmlOut);
-    calcularResumenGeneralO(misVehiculos, invitados);
+    // Facturación general de CADA vehículo (dentro de su tarjeta)
+    misVehiculos.forEach(function(v){
+      var conds = [];
+      CONDUCTORES.forEach(function(c){ if (v.conductores.indexOf(c.cid) !== -1) conds.push(c.cid); });
+      Object.keys(invitados).forEach(function(cid){ var r = invitados[cid]; if (r && r.matricula === v.matricula) conds.push(cid); });
+      prepararFactVehO(v.matricula, conds);
+    });
   }).catch(function(){
     document.getElementById('facturacion-content-o').innerHTML = '<div class="empty-msg">No se pudo cargar. Comprueba tu conexión.</div>';
   });
@@ -2221,6 +2227,205 @@ function _eurO(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('es
 
 // ── Historial de facturación: total ganado y cada semana cerrada ──
 var _histO = { semanas: [], abierta: null };
+// ══════════════ FACTURACIÓN GENERAL POR VEHÍCULO ══════════════
+// Cada vehículo tiene su propia facturación general, plegada en su tarjeta.
+// Estados (con colores):
+//   🟢 'cerrada'   → la semana está cerrada; se ve 48 h desde el cierre para poder pagar
+//   🟠 'pendiente' → la semana terminó y se está cerrando (cada conductor se pone verde al cerrarse)
+//   🔵 'encurso'   → pasadas las 48 h: los gastos que se van registrando esta semana
+// Solo se abre una a la vez (los botones de dentro usan datos compartidos).
+var _fvO = {};
+var _fvAbierta = null;
+var DIA_MS_O = 86400000;
+// Misma regla que el Dashboard para saber a qué semana pertenece un ticket
+function fechaGastoTsO(t) {
+  var ts = Number(t.ts || 0);
+  var f = String(t.fecha || '').trim(), d = null, m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(f))) d = new Date(+m[1], +m[2]-1, +m[3]);
+  else if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(f))) { var y = +m[3]; if (y < 100) y += 2000; d = new Date(y, +m[2]-1, +m[1]); }
+  if (d && !isNaN(d.getTime())) {
+    var hm = /^(\d{1,2}):(\d{2})/.exec(String(t.hora || ''));
+    d.setHours(hm ? +hm[1] : 12, hm ? +hm[2] : 0, 0, 0);
+    var dt = d.getTime();
+    if (!ts || (dt >= ts - 45 * DIA_MS_O && dt <= ts + 2 * DIA_MS_O)) return dt;
+  }
+  return ts;
+}
+function _lunesO(ts) { var d = new Date(ts); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }
+function _claveSemanaO(lunesTs) { var d = new Date(lunesTs); return d.getFullYear() + '-S' + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2); }
+function _fechaCortaO(ts) { var d = new Date(ts); return d.getDate() + ' ' + _MESES_CORTOS_O[d.getMonth()]; }
+function _fechaHoraO(ts) {
+  var d = new Date(ts);
+  return ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()] + ' ' + _fechaCortaO(ts) + ' a las ' + d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+}
+function prepararFactVehO(matricula, conds) {
+  var st = _fvO[matricula] = _fvO[matricula] || { abierta: false, vista: 'auto' };
+  st.conds = conds || [];
+  recargarFactVehO(matricula);
+  // Tiempo real: cierres del vehículo y de cada conductor
+  escucharRutaO('facturacion_cierres_vehiculo/' + matSlugO(matricula), function(){ recargarFactVehO(matricula); });
+  st.conds.forEach(function(cid){ escucharRutaO('facturacion_cierres/' + matSlugO(matricula) + '/' + cid, function(){ recargarFactVehO(matricula); }); });
+}
+function recargarFactVehO(matricula) {
+  var st = _fvO[matricula]; if (!st) return;
+  var slug = matSlugO(matricula);
+  var leer = function(u){ return fetch(FIREBASE_URL + u).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(o){ return (o && typeof o === 'object' && !o.error) ? o : {}; }); };
+  Promise.all([
+    leer('/facturacion_cierres_vehiculo/' + slug + '.json'),
+    Promise.all(st.conds.map(function(cid){ return leer('/facturacion_cierres/' + slug + '/' + cid + '.json').then(function(o){ return { cid: cid, cierres: o }; }); })),
+    leer('/gastos/' + slug + '.json')
+  ]).then(function(res){
+    st.cierres = res[0];
+    st.condCierres = res[1];
+    st.gastosRaw = res[2];
+    calcularEstadoFactVehO(matricula);
+    pintarFactVehO(matricula);
+  });
+}
+function calcularEstadoFactVehO(matricula) {
+  var st = _fvO[matricula], ahora = Date.now();
+  var semanas = Object.keys(st.cierres || {}).filter(function(p){ return /^\d{4}-S\d{4}$/.test(p); }).sort();
+  var ultima = semanas[semanas.length - 1] || null;
+  var lunesActual = _lunesO(ahora), lunesAnterior = lunesActual - 7 * DIA_MS_O;
+  var claveAnterior = _claveSemanaO(lunesAnterior);
+  // Hora del último cierre: la guardada con el cierre o, si no, la de la liquidación de un conductor
+  var cerradoTs = null;
+  if (ultima) {
+    var s = st.cierres[ultima] || {};
+    cerradoTs = s.cerradoTs || null;
+    if (!cerradoTs) (st.condCierres || []).forEach(function(x){ var r = (x.cierres || {})[ultima]; var t = r && Date.parse(r.fecha || ''); if (t && (!cerradoTs || t > cerradoTs)) cerradoTs = t; });
+    if (!cerradoTs) { var m = /^(\d{4})-S(\d{2})(\d{2})$/.exec(ultima); cerradoTs = new Date(+m[1], +m[2]-1, +m[3]).getTime() + 7 * DIA_MS_O; }
+  }
+  st.ultima = ultima; st.cerradoTs = cerradoTs; st.visibleHasta = cerradoTs ? cerradoTs + 48 * 3600000 : null;
+  // ¿Qué conductores ya tienen cerrada la semana que toca?
+  var semanaObjetivo = (ultima && ultima >= claveAnterior) ? ultima : claveAnterior;
+  st.semanaObjetivo = semanaObjetivo;
+  st.condCerrado = {};
+  (st.condCierres || []).forEach(function(x){ st.condCerrado[x.cid] = !!(x.cierres || {})[semanaObjetivo]; });
+  if (ultima && ultima >= claveAnterior && ahora < st.visibleHasta) st.estado = 'cerrada';
+  else if (!ultima || ultima < claveAnterior) st.estado = (st.conds.length ? 'pendiente' : 'encurso');
+  else st.estado = 'encurso';
+  // Gastos de la semana en curso (del lunes al domingo)
+  var g = { total: 0, n: 0, porCat: {} }, desde = lunesActual, hasta = lunesActual + 7 * DIA_MS_O - 1;
+  var NOM = { gasolina:'⛽ Combustible', peaje:'🛣️ Peajes', parking:'🅿️ Parking', lavado:'🚿 Limpieza', datafono:'💳 Datáfono', otros:'📄 Otros' };
+  Object.keys(st.gastosRaw || {}).forEach(function(cat){
+    var lista = st.gastosRaw[cat] || {};
+    Object.keys(lista).forEach(function(k){
+      var t = lista[k]; if (!t || typeof t !== 'object') return;
+      var ts = fechaGastoTsO(t);
+      if (ts < desde || ts > hasta) return;
+      var imp = Number(t.importe || 0);
+      g.total += imp; g.n++;
+      var etq = NOM[cat] || cat;
+      g.porCat[etq] = (g.porCat[etq] || 0) + imp;
+    });
+  });
+  g.desde = desde; g.hasta = hasta;
+  st.gastos = g;
+}
+var _ESTILO_FV = {
+  cerrada:   { rgb:'0,230,118',  ico:'🟢', txt:'Cerrada' },
+  pendiente: { rgb:'255,179,0',  ico:'🟠', txt:'Pendiente de cierre' },
+  encurso:   { rgb:'0,212,255',  ico:'🔵', txt:'Semana en curso' }
+};
+function pintarFactVehO(matricula) {
+  var el = document.querySelector('.fact-gen-veh-o[data-mat="' + matricula + '"]');
+  var st = _fvO[matricula];
+  if (!el || !st || !st.estado) return;
+  var vista = st.vista === 'auto' ? st.estado : st.vista;
+  var E = _ESTILO_FV[st.estado];
+  var abierta = _fvAbierta === matricula;
+  var html = '<div style="border:2.5px solid rgba(' + E.rgb + ',1);border-radius:14px;background:rgba(10,16,26,.6);box-shadow:0 0 12px rgba(' + E.rgb + ',.55);transition:border-color .3s,box-shadow .3s">' +
+    '<div onclick="alternarFactVehO(\'' + matricula + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;color:#fff">' +
+      '<span style="font-size:20px">📊</span><span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:900">Facturación general</span>' +
+      '<span style="display:block;font-size:11px;margin-top:2px;color:rgb(' + E.rgb + ');font-weight:800">' + E.ico + ' ' + E.txt + '</span></span>' +
+      '<span style="color:rgb(' + E.rgb + ');font-size:16px;transition:transform .2s;transform:rotate(' + (abierta ? '180' : '0') + 'deg)">▾</span></div>';
+  if (abierta) {
+    html += '<div style="padding:0 12px 12px">';
+    var boton = function(txt, fn, rgb){ return '<button type="button" onclick="' + fn + '" style="flex:1;padding:10px;border-radius:10px;border:2px solid rgba(' + rgb + ',1);background:rgba(' + rgb + ',.12);color:#fff;font-size:12.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(' + rgb + ',.45)">' + txt + '</button>'; };
+    var cambiar = function(v){ return 'verFactVehO(\'' + matricula + '\',\'' + v + '\')'; };
+    var etqUlt = st.ultima ? ((st.cierres[st.ultima] || {}).etiqueta || _etqSemanaO(st.ultima)) : '';
+    if (vista === 'cerrada' || vista === 'cierre') {
+      html += '<div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(0,230,118,.9);background:rgba(0,230,118,.08);color:#fff;font-size:12px;line-height:1.5">' +
+        '<b>✅ ' + etqUlt + ' · CERRADA</b>' +
+        (st.estado === 'cerrada' ? '<div style="opacity:.85;margin-top:3px">Se muestra hasta el ' + _fechaHoraO(st.visibleHasta) + ' para que puedas hacer los pagos. Después verás la semana en curso.</div>' : '') + '</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:10px">' + boton('👀 Ver semana actual', cambiar('encurso'), '0,212,255') +
+          (vista === 'cierre' ? boton('↩ Volver', cambiar('auto'), '255,255,255') : '') + '</div>' +
+        '<div id="fv-res-' + matSlugO(matricula) + '"></div>';
+    } else if (vista === 'pendiente') {
+      html += '<div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(255,179,0,.9);background:rgba(255,179,0,.08);color:#fff;font-size:12px;line-height:1.5">' +
+        '<b>⏳ ' + _etqSemanaO(st.semanaObjetivo) + ' · PENDIENTE DE CIERRE</b><div style="opacity:.85;margin-top:3px">Tu empresa está cerrando las cuentas de esta semana. Cada conductor se pondrá en verde en cuanto se cierre el suyo.</div></div>' +
+        '<div style="display:flex;gap:8px">' + boton('👀 Ver semana actual', cambiar('encurso'), '0,212,255') + (st.ultima ? boton('📚 Ver último cierre', cambiar('cierre'), '0,230,118') : '') + '</div>';
+    } else {
+      var g = st.gastos || { total:0, n:0, porCat:{} };
+      html += '<div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(0,212,255,.9);background:rgba(0,212,255,.08);color:#fff;font-size:12px;line-height:1.5">' +
+        '<b>🔵 SEMANA EN CURSO · del lunes ' + _fechaCortaO(g.desde) + ' al domingo ' + _fechaCortaO(g.hasta) + '</b>' +
+        '<div style="opacity:.85;margin-top:3px">Aquí ves los gastos que se van registrando. La facturación de las plataformas y los pagos a conductores aparecerán cuando tu empresa cierre la semana (a partir del lunes ' + _fechaCortaO(g.hasta + 1) + ').</div></div>' +
+        '<div style="padding:12px 14px;border-radius:12px;border:2px solid rgba(0,212,255,.8);background:rgba(10,16,26,.7);color:#fff;margin-bottom:10px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12.5px;font-weight:900">🧾 Gastos de esta semana</span>' +
+          '<span style="font-family:var(--mono);font-size:16px;font-weight:900;color:#ff6b7a">− ' + _eurO(g.total) + '</span></div>' +
+          '<div style="font-size:11px;opacity:.75;margin:2px 0 8px">' + g.n + ' ticket' + (g.n !== 1 ? 's' : '') + ' registrado' + (g.n !== 1 ? 's' : '') + ' hasta ahora</div>' +
+          (Object.keys(g.porCat).length ? Object.keys(g.porCat).map(function(c){
+            return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid rgba(255,255,255,.07);font-size:12px"><span>' + c + '</span><span style="font-family:var(--mono);font-weight:800">− ' + _eurO(g.porCat[c]) + '</span></div>';
+          }).join('') : '<div style="font-size:12px;opacity:.7">Todavía no hay gastos esta semana.</div>') +
+        '</div>' +
+        '<div style="display:flex;gap:8px">' + (st.ultima ? boton('📚 Ver último cierre', cambiar('cierre'), '0,230,118') : '') +
+          (st.vista !== 'auto' ? boton('↩ Volver', cambiar('auto'), '255,255,255') : '') + '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  if (el._ultimoHtml !== html) {
+    el.innerHTML = html; el._ultimoHtml = html;
+    // Resumen del cierre (el de siempre, solo de esta matrícula, con contornos en verde)
+    if (abierta && (vista === 'cerrada' || vista === 'cierre') && st.ultima) {
+      var id = 'fv-res-' + matSlugO(matricula);
+      var snap = Object.assign({}, st.cierres[st.ultima]); snap.esHistorial = true;
+      pintarResumenGeneralO(_agregarSnapsO([snap], []), id);
+      var c = document.getElementById(id);
+      if (c) c.innerHTML = c.innerHTML.replace(/255,\s?215,\s?0/g, '0,230,118');
+    }
+  }
+  // Conductores de este vehículo: verde si su semana ya está cerrada, ámbar si no
+  document.querySelectorAll('.cond-fact-o[data-mat="' + matricula + '"]').forEach(function(row){
+    var cid = row.getAttribute('data-cid');
+    var col = st.estado === 'encurso' ? null : (st.condCerrado[cid] ? '0,230,118' : '255,179,0');
+    row.style.borderColor = col ? 'rgba(' + col + ',.95)' : 'rgba(0,212,255,.4)';
+    row.style.boxShadow = col ? '0 0 8px rgba(' + col + ',.5)' : 'none';
+  });
+}
+function alternarFactVehO(matricula) {
+  var antes = _fvAbierta;
+  _fvAbierta = (_fvAbierta === matricula) ? null : matricula;
+  if (antes && antes !== matricula) { if (_fvO[antes]) _fvO[antes].vista = 'auto'; pintarFactVehO(antes); }
+  if (_fvO[matricula]) _fvO[matricula].vista = 'auto';
+  pintarFactVehO(matricula);
+}
+function verFactVehO(matricula, vista) { if (_fvO[matricula]) { _fvO[matricula].vista = vista; pintarFactVehO(matricula); } }
+// Escucha en tiempo real una ruta de Firebase (se reconecta sola)
+var _rutasSSE_O = {};
+function escucharRutaO(ruta, alCambiar, tokenNuevo) {
+  if (window.MODO_SOPORTE || typeof EventSource === 'undefined') return;
+  if (_rutasSSE_O[ruta] && !tokenNuevo) return;
+  var u = firebase.auth().currentUser; if (!u) return;
+  _rutasSSE_O[ruta] = _rutasSSE_O[ruta] || { es: null, t: null };
+  u.getIdToken(!!tokenNuevo).then(function(token){
+    var reg = _rutasSSE_O[ruta];
+    if (reg.es) { try { reg.es.close(); } catch(e) {} }
+    var es = new EventSource(FIREBASE_URL + '/' + ruta + '.json?auth=' + encodeURIComponent(token));
+    reg.es = es;
+    var primero = true;
+    var aviso = function(){ if (primero) { primero = false; return; } clearTimeout(reg.t); reg.t = setTimeout(alCambiar, 300); };
+    es.addEventListener('put', aviso); es.addEventListener('patch', aviso);
+    es.addEventListener('auth_revoked', function(){ escucharRutaO(ruta, alCambiar, true); });
+    es.onerror = function(){ if (es.readyState === 2) setTimeout(function(){ escucharRutaO(ruta, alCambiar, true); }, 5000); };
+  }).catch(function(){});
+}
+// Al pasar las 48 h (o empezar semana nueva) el estado cambia solo
+setInterval(function(){
+  Object.keys(_fvO).forEach(function(m){ var st = _fvO[m]; if (!st || !st.cierres) return; var antes = st.estado; calcularEstadoFactVehO(m); if (st.estado !== antes) pintarFactVehO(m); });
+}, 60000);
+
 function abrirHistorialFacturacionO() {
   var v = document.getElementById('hist-fact-o'); if (v) v.remove();
   v = document.createElement('div');
@@ -2239,6 +2444,7 @@ function abrirHistorialFacturacionO() {
       d.etiquetaSemana = (conEtq && conEtq.etiqueta) || _etqSemanaO(p);
       d.esHistorial = true;
       d.periodo = p;
+      d.snaps = porSemana[p];   // cada vehículo por separado
       return d;
     });
     _histO.abierta = null;
@@ -2259,7 +2465,7 @@ function pintarHistorialFacturacionO() {
     '<div style="font-size:12px;font-weight:900;letter-spacing:.6px;opacity:.9">💰 TOTAL GANADO HASTA HOY</div>' +
     '<div style="font-family:var(--mono);font-size:32px;font-weight:900;margin:8px 0 6px;color:' + (total >= 0 ? '#00e676' : '#ff6b7a') + ';text-shadow:0 0 12px ' + (total >= 0 ? 'rgba(0,230,118,.8)' : 'rgba(255,71,87,.8)') + '">' + (total < 0 ? '− ' : '') + _eurO(Math.abs(total)) + '</div>' +
     '<div style="font-size:11.5px;opacity:.85;line-height:1.5">' + sem.length + ' semana' + (sem.length !== 1 ? 's' : '') + ' cerrada' + (sem.length !== 1 ? 's' : '') + ' · facturación total ' + _eurO(facturado) +
-    '<br>Desde la ' + String(desde).toLowerCase() + '</div></div>';
+    '<br>Desde la ' + String(desde).toLowerCase() + '</div>' + _totalesPorVehiculoHistO(sem) + '</div>';
   html += sem.map(function(d, i){
     var abierta = _histO.abierta === d.periodo;
     return '<div style="margin-bottom:10px;border-radius:14px;border:2px solid ' + (abierta ? 'rgba(255,215,0,.95)' : 'rgba(0,212,255,.7)') + ';background:rgba(10,16,26,.8);box-shadow:0 0 10px ' + (abierta ? 'rgba(255,215,0,.45)' : 'rgba(0,212,255,.35)') + ';overflow:hidden">' +
@@ -2273,10 +2479,38 @@ function pintarHistorialFacturacionO() {
   }).join('');
   c.innerHTML = html;
   var idx = sem.findIndex(function(d){ return d.periodo === _histO.abierta; });
-  if (idx !== -1) pintarResumenGeneralO(sem[idx], 'hist-o-det-' + idx);
+  if (idx !== -1) {
+    // Detalle POR MATRÍCULA: una pestaña por vehículo si hay varios
+    var snaps = (sem[idx].snaps || []).slice().sort(function(a, b){ return String(a.matricula).localeCompare(String(b.matricula)); });
+    var cont = document.getElementById('hist-o-det-' + idx);
+    if (cont && snaps.length) {
+      var sel = snaps.find(function(s){ return s.matricula === _histO.vehSel; }) || snaps[0];
+      _histO.vehSel = sel.matricula;
+      var pest = snaps.length > 1 ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 10px">' + snaps.map(function(s){
+        var on = s.matricula === sel.matricula;
+        return '<button type="button" onclick="_histO.vehSel=\'' + s.matricula + '\';pintarHistorialFacturacionO()" style="padding:7px 12px;border-radius:10px;border:2px solid ' + (on ? 'rgba(255,215,0,1)' : 'rgba(255,255,255,.25)') + ';background:' + (on ? 'rgba(255,215,0,.15)' : 'rgba(255,255,255,.04)') + ';color:#fff;font-family:var(--mono);font-size:13px;font-weight:900;cursor:pointer">' + s.matricula + '</button>';
+      }).join('') + '</div>' : '';
+      cont.innerHTML = pest + '<div id="hist-o-det-veh"></div>';
+      var d = _agregarSnapsO([sel], []);
+      d.etiquetaSemana = sem[idx].etiquetaSemana + ' · ' + sel.matricula; d.esHistorial = true;
+      pintarResumenGeneralO(d, 'hist-o-det-veh');
+    }
+  }
+}
+// Lo que ha ganado cada vehículo en todas las semanas cerradas
+function _totalesPorVehiculoHistO(sem) {
+  var porVeh = {};
+  sem.forEach(function(d){ (d.snaps || []).forEach(function(s){ var x = _agregarSnapsO([s], []); porVeh[s.matricula] = (porVeh[s.matricula] || 0) + (x.beneficio || 0); }); });
+  var mats = Object.keys(porVeh).sort();
+  if (mats.length < 2) return '';
+  return '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12)">' + mats.map(function(m){
+    return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="font-family:var(--mono);font-weight:800">' + m + '</span>' +
+      '<span style="font-family:var(--mono);font-weight:900;color:' + (porVeh[m] >= 0 ? '#00e676' : '#ff6b7a') + '">' + (porVeh[m] < 0 ? '− ' : '') + _eurO(Math.abs(porVeh[m])) + '</span></div>';
+  }).join('') + '</div>';
 }
 function alternarSemanaHistO(periodo) {
   _histO.abierta = _histO.abierta === periodo ? null : periodo;
+  _histO.vehSel = null;
   pintarHistorialFacturacionO();
 }
 

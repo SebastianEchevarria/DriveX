@@ -1209,7 +1209,7 @@ var CONDUCTORES = [
 var USERS_DASH = {}; // (las cuentas fijas en el código se eliminaron por seguridad)
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-8';
+var APP_VERSION = '2026-10-01-9';
 var APP_VERSION_KEY = 'dashboard';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -9194,52 +9194,31 @@ function abrirResumenPropietarioAgregado(pid, periodo) {
   var pares = (p.matriculas || []).map(function(m){ return { mSlug: matSlug(m), periodo: periodo, matricula: m }; });
   asegurarSnapsHistorial(pares).then(function(){ _abrirResumenPropietarioAgregadoBase(pid, periodo); });
 }
-function _abrirResumenPropietarioAgregadoBase(pid, periodo) {
+// Resumen del propietario en una semana: UNO POR MATRÍCULA (pestañas si tiene varios vehículos)
+function _abrirResumenPropietarioAgregadoBase(pid, periodo, matElegida) {
   var p = _propietariosCache[pid];
   if (!p) return;
-
-  var snapsDeEstaSemana = [];
+  var conDatos = [];
   (p.matriculas || []).forEach(function(matricula){
-    var mSlug = matSlug(matricula);
-    var snap = (_historialCierresVehCache[mSlug] || {})[periodo];
-    if (snap) snapsDeEstaSemana.push(snap);
+    var snap = (_historialCierresVehCache[matSlug(matricula)] || {})[periodo];
+    if (snap) conDatos.push({ matricula: matricula, snap: snap });
   });
-  if (!snapsDeEstaSemana.length) return;
-
-  var acc = {
-    matricula: (p.matriculas||[]).join(', '), pid: pid, sinPropietario: false,
-    uberTotal:0, boltTotal:0, cabifyTotal:0, privadosFacturacionTotal:0, transfersFacturacionTotal:0, brandingTotal:0,
-    combustibleTotal:0, peajesTotal:0, parkingTotal:0, limpiezaTotal:0, otrosTotal:0, abonadosPorPropietarioTotal:0,
-    sueldosTotal:0, infinityTotal:0, pagosARealizarTotal:0, nombreGestion:nombreGestionPorDefecto(), porcentajeGestion:0,
-    pagosDetalle:[], ticketsConductor:[], ticketsPropietario:[], kmSemana:{ total:0, porConductor:[] }
-  };
-  snapsDeEstaSemana.forEach(function(snap){
-    acc.uberTotal += snap.uberTotal||0; acc.boltTotal += snap.boltTotal||0; acc.cabifyTotal += snap.cabifyTotal||0;
-    acc.privadosFacturacionTotal += snap.privadosFacturacionTotal||0; acc.transfersFacturacionTotal += snap.transfersFacturacionTotal||0;
-    acc.brandingTotal += snap.brandingTotal||0;
-    acc.combustibleTotal += snap.combustibleTotal||0; acc.peajesTotal += snap.peajesTotal||0; acc.parkingTotal += snap.parkingTotal||0;
-    acc.limpiezaTotal += snap.limpiezaTotal||0; acc.otrosTotal += snap.otrosTotal||0;
-    acc.abonadosPorPropietarioTotal += snap.abonadosPorPropietarioTotal||0;
-    acc.sueldosTotal += snap.sueldosTotal||0; acc.infinityTotal += snap.infinityTotal||0;
-    acc.pagosARealizarTotal += snap.pagosARealizarTotal||0;
-    acc.nombreGestion = snap.nombreGestion || acc.nombreGestion;
-    acc.porcentajeGestion = snap.porcentajeGestion || acc.porcentajeGestion;
-    (snap.pagosDetalle||[]).forEach(function(x){ acc.pagosDetalle.push(x); });
-    (snap.ticketsConductor||[]).forEach(function(x){ acc.ticketsConductor.push(x); });
-    (snap.ticketsPropietario||[]).forEach(function(x){ acc.ticketsPropietario.push(x); });
-    if (snap.kmSemana && snap.kmSemana.total > 0) {
-      acc.kmSemana.total += snap.kmSemana.total;
-      (snap.kmSemana.porConductor||[]).forEach(function(k){ acc.kmSemana.porConductor.push(k); });
-    }
-  });
-  acc.facturacionTotal = acc.uberTotal + acc.boltTotal + acc.cabifyTotal + acc.privadosFacturacionTotal + acc.transfersFacturacionTotal + acc.brandingTotal;
-  acc.gastosTotalGeneral = acc.combustibleTotal + acc.peajesTotal + acc.parkingTotal + acc.limpiezaTotal + acc.otrosTotal + acc.sueldosTotal + acc.infinityTotal;
-  acc.beneficio = acc.facturacionTotal - acc.gastosTotalGeneral;
-
-  document.getElementById('veh-resumen-plate').innerHTML = '<div style="font-size:14px;font-weight:900;color:#fff">' + (p.nombre||'') + '</div><div style="font-size:11px;color:var(--text3)">' + (p.matriculas||[]).length + ' vehículos combinados</div>';
+  if (!conDatos.length) return;
+  var elegido = conDatos.find(function(x){ return x.matricula === matElegida; }) || conDatos[0];
+  var cab = '<div style="font-size:14px;font-weight:900;color:#fff">' + (p.nombre || '') + '</div>';
+  if (conDatos.length > 1) {
+    cab += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + conDatos.map(function(x){
+      var on = x.matricula === elegido.matricula;
+      return '<button type="button" onclick="_abrirResumenPropietarioAgregadoBase(\'' + pid + '\',\'' + periodo + '\',\'' + String(x.matricula).replace(/'/g, '') + '\')" ' +
+        'style="padding:7px 12px;border-radius:10px;border:2px solid ' + (on ? 'rgba(255,215,0,1)' : 'rgba(255,255,255,.25)') + ';background:' + (on ? 'rgba(255,215,0,.15)' : 'rgba(255,255,255,.04)') + ';color:#fff;font-family:var(--mono);font-size:13px;font-weight:900;cursor:pointer;box-shadow:' + (on ? '0 0 8px rgba(255,215,0,.5)' : 'none') + '">' + x.matricula + '</button>';
+    }).join('') + '</div>';
+  } else {
+    cab += '<div style="margin-top:6px">' + plateHtmlSmall(elegido.matricula) + '</div>';
+  }
+  document.getElementById('veh-resumen-plate').innerHTML = cab;
   document.getElementById('veh-resumen-modal').style.display = 'flex';
-  pintarResumenGeneralVehiculo(acc, true);
-  _avisoSnapReconstruido(snapsDeEstaSemana);
+  pintarResumenGeneralVehiculo(elegido.snap, true);
+  _avisoSnapReconstruido([elegido.snap]);
 }
 
 function toggleMatHistorial(mgid) {
@@ -12127,6 +12106,7 @@ function confirmarCierrePeriodo() {
     enviarFacturacionPropietarioSnapshot(p.matricula).then(function(d){
       _liqRangoForzado = null;
       if (d && p.etiqueta) { d.etiqueta = p.etiqueta; d.periodo = p.periodo; }
+      if (d) d.cerradoTs = Date.now();   // hora del cierre (la app del propietario lo muestra 48 h)
       if (d) toast('✅ Facturación enviada al propietario · ' + p.matricula);
       // Guardamos también una copia fija de este resumen del propietario
       // bajo su periodo — esto es lo que alimenta "Historial Facturación",
