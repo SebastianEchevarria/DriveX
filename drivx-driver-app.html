@@ -2645,7 +2645,8 @@ var _paradaSSE = null, _paradaSSEEspera = null;
 function escucharParadaDriver(tokenNuevo) {
   if (typeof EventSource === 'undefined' || !currentUser) return;
   if (_paradaSSE && !tokenNuevo) return;
-  var u = firebase.auth().currentUser; if (!u) return;
+  var u = firebase.auth().currentUser;
+  if (!u) { if (!tokenNuevo && typeof _firebaseAuthListo !== 'undefined') _firebaseAuthListo.then(function(){ if (firebase.auth().currentUser) escucharParadaDriver(false); }); return; }
   u.getIdToken(!!tokenNuevo).then(function(token){
     if (_paradaSSE) { try { _paradaSSE.close(); } catch(e) {} }
     var es = new EventSource(FIREBASE_URL + '/vehiculos_estado.json?auth=' + encodeURIComponent(token));
@@ -5215,8 +5216,15 @@ function recuperarContrasenaApp(idEmail, idMsg) {
 // Las listas completas (conductores, supervisores, propietarios) las pide
 // al servidor, que devuelve SOLO lo que esta persona puede ver.
 function leerListaSegura(carpeta) {
-  var u = firebase.auth().currentUser;
-  if (!u) return Promise.resolve({});
+  // Espera a que Firebase haya recuperado la sesión (al abrir la app tarda un
+  // momento); si no, devolvería una lista vacía y la app arrancaría sin datos.
+  return (typeof _firebaseAuthListo !== 'undefined' ? _firebaseAuthListo : Promise.resolve()).then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) return {};
+    return _leerListaSeguraConSesion(u, carpeta);
+  });
+}
+function _leerListaSeguraConSesion(u, carpeta) {
   return u.getIdToken().then(function(t){
     return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
       body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
@@ -5224,8 +5232,13 @@ function leerListaSegura(carpeta) {
 }
 // Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
 function leerCierresConductor(cid) {
-  var u = firebase.auth().currentUser;
-  if (!u) return Promise.resolve({});
+  return (typeof _firebaseAuthListo !== 'undefined' ? _firebaseAuthListo : Promise.resolve()).then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) return {};
+    return _leerCierresConductorConSesion(u, cid);
+  });
+}
+function _leerCierresConductorConSesion(u, cid) {
   return u.getIdToken().then(function(t){
     return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
       body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
