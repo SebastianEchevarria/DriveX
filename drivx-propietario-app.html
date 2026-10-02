@@ -787,7 +787,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-8';
+var APP_VERSION = '2026-10-01-9';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2226,7 +2226,7 @@ function _anadirSemanasO(resumen, misVehiculos) {
 function _eurO(n) { return (Math.round((n || 0) * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
 
 // ── Historial de facturación: total ganado y cada semana cerrada ──
-var _histO = { semanas: [], abierta: null };
+var _histO = { semanas: [], abierta: null, filtroAnio: '', filtroMes: '', filtroTxt: '', aniosAbiertos: {}, mesesAbiertos: {} };
 // ══════════════ FACTURACIÓN GENERAL POR VEHÍCULO ══════════════
 // Cada vehículo tiene su propia facturación general, plegada en su tarjeta.
 // Estados (con colores):
@@ -2448,11 +2448,53 @@ function abrirHistorialFacturacionO() {
       return d;
     });
     _histO.abierta = null;
+    _histO.filtroAnio = ''; _histO.filtroMes = ''; _histO.filtroTxt = '';
+    _histO.aniosAbiertos = {}; _histO.mesesAbiertos = {};
+    if (_histO.semanas.length) {
+      var am = _mesDeSemanaO(_histO.semanas[0].periodo);
+      _histO.aniosAbiertos[am.anio] = true;
+      _histO.mesesAbiertos[am.anio + '-' + am.mes] = true;
+    }
     pintarHistorialFacturacionO();
   }).catch(function(){
     var c = document.getElementById('hist-fact-o-cuerpo');
     if (c) c.innerHTML = '<div style="padding:30px;text-align:center;color:#fff">No se pudo cargar el historial. Comprueba tu conexión.</div>';
   });
+}
+function _filaSemanaHistO(d, i) {
+    var abierta = _histO.abierta === d.periodo;
+    return '<div style="margin-bottom:10px;border-radius:14px;border:2px solid ' + (abierta ? 'rgba(255,215,0,.95)' : 'rgba(0,212,255,.7)') + ';background:rgba(10,16,26,.8);box-shadow:0 0 10px ' + (abierta ? 'rgba(255,215,0,.45)' : 'rgba(0,212,255,.35)') + ';overflow:hidden">' +
+      '<div onclick="alternarSemanaHistO(\'' + d.periodo + '\')" style="display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;color:#fff">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900">' + d.etiquetaSemana + '</div>' +
+        '<div style="font-size:11px;opacity:.75;margin-top:2px">Facturación ' + _eurO(d.facturacionTotal) + '</div></div>' +
+        '<div style="text-align:right"><div style="font-size:10px;opacity:.75">Beneficio</div><div style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + ((d.beneficio || 0) >= 0 ? '#00e676' : '#ff6b7a') + '">' + ((d.beneficio || 0) < 0 ? '− ' : '') + _eurO(Math.abs(d.beneficio || 0)) + '</div></div>' +
+        '<span style="color:#ffd700;font-size:15px;transition:transform .2s;transform:rotate(' + (abierta ? '180' : '0') + 'deg)">▾</span></div>' +
+      (abierta ? '<div id="hist-o-det-' + i + '" style="padding:0 10px 10px"></div>' : '') +
+    '</div>';
+}
+// Año y mes al que pertenece una semana (el mes en que termina, como en "Mis ingresos")
+function _mesDeSemanaO(periodo) {
+  var m = /^(\d{4})-S(\d{2})(\d{2})$/.exec(periodo || '');
+  if (!m) return { anio: 0, mes: 0 };
+  var dom = new Date(+m[1], +m[2]-1, +m[3] + 6);
+  return { anio: dom.getFullYear(), mes: dom.getMonth() };
+}
+// Botón plegable de un año o de un mes, con sus semanas y lo ganado
+function _grupoHistO(tipo, clave, titulo, sub, beneficio, abierto, rgb, tam) {
+  return '<div onclick="' + (tipo === 'anio' ? 'alternarAnioHistO' : 'alternarMesHistO') + '(\'' + clave + '\')" role="button" tabindex="0" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:' + (tipo === 'anio' ? '14px 16px' : '11px 14px') + ';border-radius:14px;cursor:pointer;color:#fff;' +
+      'border:2px solid rgba(' + rgb + ',' + (abierto ? '1' : '.6') + ');background:rgba(' + rgb + ',' + (abierto ? '.12' : '.05') + ');box-shadow:0 0 ' + (abierto ? '12px' : '6px') + ' rgba(' + rgb + ',.45)">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:' + tam + 'px;font-weight:900">' + titulo + '</div><div style="font-size:11px;opacity:.75;margin-top:2px">' + sub + '</div></div>' +
+    '<div style="font-family:var(--mono);font-size:' + (tam - 1) + 'px;font-weight:900;color:' + (beneficio >= 0 ? '#00e676' : '#ff6b7a') + '">' + (beneficio < 0 ? '− ' : '') + _eurO(Math.abs(beneficio)) + '</div>' +
+    '<span style="color:rgb(' + rgb + ');font-size:15px;transition:transform .2s;transform:rotate(' + (abierto ? '180' : '0') + 'deg)">▾</span></div>';
+}
+function alternarAnioHistO(y) { _histO.aniosAbiertos[y] = !_histO.aniosAbiertos[y]; pintarHistorialFacturacionO(); }
+function alternarMesHistO(k) { _histO.mesesAbiertos[k] = !_histO.mesesAbiertos[k]; pintarHistorialFacturacionO(); }
+function filtrarHistO(campo, valor) {
+  if (campo === 'anio') _histO.filtroAnio = valor;
+  else if (campo === 'mes') _histO.filtroMes = valor;
+  else _histO.filtroTxt = valor;
+  pintarHistorialFacturacionO();
+  if (campo === 'txt') { var i = document.getElementById('hist-o-buscar'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
 function pintarHistorialFacturacionO() {
   var c = document.getElementById('hist-fact-o-cuerpo'); if (!c) return;
@@ -2465,18 +2507,58 @@ function pintarHistorialFacturacionO() {
     '<div style="font-size:12px;font-weight:900;letter-spacing:.6px;opacity:.9">💰 TOTAL GANADO HASTA HOY</div>' +
     '<div style="font-family:var(--mono);font-size:32px;font-weight:900;margin:8px 0 6px;color:' + (total >= 0 ? '#00e676' : '#ff6b7a') + ';text-shadow:0 0 12px ' + (total >= 0 ? 'rgba(0,230,118,.8)' : 'rgba(255,71,87,.8)') + '">' + (total < 0 ? '− ' : '') + _eurO(Math.abs(total)) + '</div>' +
     '<div style="font-size:11.5px;opacity:.85;line-height:1.5">' + sem.length + ' semana' + (sem.length !== 1 ? 's' : '') + ' cerrada' + (sem.length !== 1 ? 's' : '') + ' · facturación total ' + _eurO(facturado) +
-    '<br>Desde la ' + String(desde).toLowerCase() + '</div>' + _totalesPorVehiculoHistO(sem) + '</div>';
-  html += sem.map(function(d, i){
-    var abierta = _histO.abierta === d.periodo;
-    return '<div style="margin-bottom:10px;border-radius:14px;border:2px solid ' + (abierta ? 'rgba(255,215,0,.95)' : 'rgba(0,212,255,.7)') + ';background:rgba(10,16,26,.8);box-shadow:0 0 10px ' + (abierta ? 'rgba(255,215,0,.45)' : 'rgba(0,212,255,.35)') + ';overflow:hidden">' +
-      '<div onclick="alternarSemanaHistO(\'' + d.periodo + '\')" style="display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;color:#fff">' +
-        '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900">' + d.etiquetaSemana + '</div>' +
-        '<div style="font-size:11px;opacity:.75;margin-top:2px">Facturación ' + _eurO(d.facturacionTotal) + '</div></div>' +
-        '<div style="text-align:right"><div style="font-size:10px;opacity:.75">Beneficio</div><div style="font-family:var(--mono);font-size:15px;font-weight:900;color:' + ((d.beneficio || 0) >= 0 ? '#00e676' : '#ff6b7a') + '">' + ((d.beneficio || 0) < 0 ? '− ' : '') + _eurO(Math.abs(d.beneficio || 0)) + '</div></div>' +
-        '<span style="color:#ffd700;font-size:15px;transition:transform .2s;transform:rotate(' + (abierta ? '180' : '0') + 'deg)">▾</span></div>' +
-      (abierta ? '<div id="hist-o-det-' + i + '" style="padding:0 10px 10px"></div>' : '') +
-    '</div>';
-  }).join('');
+    '<br>Desde la ' + String(desde).toLowerCase() + '</div>' + _totalesPorVehiculoHistO(sem) + '<!--total-filtro--></div>';
+  // ── Buscador: año, mes y texto ──
+  var anios = [], mesesN = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  sem.forEach(function(d){ var am = _mesDeSemanaO(d.periodo); if (anios.indexOf(am.anio) === -1) anios.push(am.anio); });
+  var sel = 'flex:1;min-width:110px;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:2px solid rgba(0,212,255,.75);background:rgba(10,16,26,.85);color:#fff;font-size:13.5px;font-family:inherit;color-scheme:dark';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' +
+    '<select aria-label="Año" onchange="filtrarHistO(\'anio\', this.value)" style="' + sel + '"><option value="">📅 Todos los años</option>' +
+      anios.map(function(y){ return '<option value="' + y + '"' + (String(_histO.filtroAnio) === String(y) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>' +
+    '<select aria-label="Mes" onchange="filtrarHistO(\'mes\', this.value)" style="' + sel + '"><option value="">🗓 Todos los meses</option>' +
+      mesesN.map(function(m, k){ return '<option value="' + k + '"' + (String(_histO.filtroMes) === String(k) ? ' selected' : '') + '>' + m.charAt(0).toUpperCase() + m.slice(1) + '</option>'; }).join('') + '</select>' +
+    '<input id="hist-o-buscar" type="search" placeholder="🔍 Buscar (ej: septiembre)" value="' + String(_histO.filtroTxt || '').replace(/"/g, '&quot;') + '" oninput="filtrarHistO(\'txt\', this.value)" style="' + sel + ';flex-basis:100%">' +
+  '</div>';
+  var hayFiltro = _histO.filtroAnio !== '' || _histO.filtroMes !== '' || !!_histO.filtroTxt;
+  var q = String(_histO.filtroTxt || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  var visibles = [];
+  sem.forEach(function(d, i){
+    var am = _mesDeSemanaO(d.periodo);
+    if (_histO.filtroAnio !== '' && String(am.anio) !== String(_histO.filtroAnio)) return;
+    if (_histO.filtroMes !== '' && String(am.mes) !== String(_histO.filtroMes)) return;
+    if (q) {
+      var texto = (d.etiquetaSemana + ' ' + mesesN[am.mes] + ' ' + am.anio).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (texto.indexOf(q) === -1) return;
+    }
+    visibles.push({ d: d, i: i, anio: am.anio, mes: am.mes });
+  });
+  if (hayFiltro) {
+    var totF = visibles.reduce(function(s, x){ return s + (x.d.beneficio || 0); }, 0);
+    html = html.replace('<!--total-filtro-->', '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12);font-size:12.5px">🔎 En lo filtrado (' + visibles.length + ' semana' + (visibles.length !== 1 ? 's' : '') + '): <b style="font-family:var(--mono);color:' + (totF >= 0 ? '#00e676' : '#ff6b7a') + '">' + (totF < 0 ? '− ' : '') + _eurO(Math.abs(totF)) + '</b></div>');
+  }
+  if (!visibles.length) {
+    html += '<div style="padding:24px;text-align:center;color:#fff;opacity:.8;font-size:13.5px">No hay semanas que coincidan con la búsqueda.</div>';
+  }
+  // ── Año (botón) → meses (botón) → semanas ──
+  var porAnio = {};
+  visibles.forEach(function(x){ ((porAnio[x.anio] = porAnio[x.anio] || {})[x.mes] = porAnio[x.anio][x.mes] || []).push(x); });
+  Object.keys(porAnio).sort().reverse().forEach(function(y){
+    var mesesDelAnio = porAnio[y];
+    var todasAnio = [].concat.apply([], Object.keys(mesesDelAnio).map(function(m){ return mesesDelAnio[m]; }));
+    var benAnio = todasAnio.reduce(function(s, x){ return s + (x.d.beneficio || 0); }, 0);
+    var anioAbierto = hayFiltro || !!_histO.aniosAbiertos[y];
+    html += _grupoHistO('anio', y, '📅 ' + y, todasAnio.length + ' semana' + (todasAnio.length !== 1 ? 's' : ''), benAnio, anioAbierto, '255,215,0', 16);
+    if (!anioAbierto) return;
+    html += '<div style="padding-left:10px;margin:-2px 0 10px">';
+    Object.keys(mesesDelAnio).map(Number).sort(function(a, b){ return b - a; }).forEach(function(m){
+      var lista = mesesDelAnio[m], clave = y + '-' + m;
+      var benMes = lista.reduce(function(s, x){ return s + (x.d.beneficio || 0); }, 0);
+      var mesAbierto = hayFiltro || !!_histO.mesesAbiertos[clave];
+      html += _grupoHistO('mes', clave, mesesN[m].charAt(0).toUpperCase() + mesesN[m].slice(1), lista.length + ' semana' + (lista.length !== 1 ? 's' : ''), benMes, mesAbierto, '0,212,255', 14);
+      if (mesAbierto) html += '<div style="padding-left:8px">' + lista.map(function(x){ return _filaSemanaHistO(x.d, x.i); }).join('') + '</div>';
+    });
+    html += '</div>';
+  });
   c.innerHTML = html;
   var idx = sem.findIndex(function(d){ return d.periodo === _histO.abierta; });
   if (idx !== -1) {
