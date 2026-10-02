@@ -566,8 +566,15 @@ function recuperarContrasenaApp(idEmail, idMsg) {
 // Las listas completas (conductores, supervisores, propietarios) las pide
 // al servidor, que devuelve SOLO lo que esta persona puede ver.
 function leerListaSegura(carpeta) {
-  var u = firebase.auth().currentUser;
-  if (!u) return Promise.resolve({});
+  // Espera a que Firebase haya recuperado la sesión (al abrir la app tarda un
+  // momento); si no, devolvería una lista vacía y la app arrancaría sin datos.
+  return (typeof _firebaseAuthListo !== 'undefined' ? _firebaseAuthListo : Promise.resolve()).then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) return {};
+    return _leerListaSeguraConSesion(u, carpeta);
+  });
+}
+function _leerListaSeguraConSesion(u, carpeta) {
   return u.getIdToken().then(function(t){
     return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
       body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
@@ -575,8 +582,13 @@ function leerListaSegura(carpeta) {
 }
 // Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
 function leerCierresConductor(cid) {
-  var u = firebase.auth().currentUser;
-  if (!u) return Promise.resolve({});
+  return (typeof _firebaseAuthListo !== 'undefined' ? _firebaseAuthListo : Promise.resolve()).then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) return {};
+    return _leerCierresConductorConSesion(u, cid);
+  });
+}
+function _leerCierresConductorConSesion(u, cid) {
   return u.getIdToken().then(function(t){
     return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
       body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
@@ -787,7 +799,7 @@ function plateHtmlO(matricula) {
 }
 
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-9';
+var APP_VERSION = '2026-10-01-10';
 var APP_VERSION_KEY = 'propietario';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -1565,11 +1577,12 @@ function pintarFacturasOwner() {
 function pintarFacturaVehO(m) {
   var el = document.querySelector('.fact-veh-o[data-mat="' + m + '"]'); if (!el) return;
   var st = _factO[m];
-  var html = '<div style="border:2px solid rgba(255,179,0,.9);border-radius:14px;background:rgba(10,16,26,.55);box-shadow:0 0 8px rgba(255,179,0,.35)">' +
+  // Mismo estilo que los botones de Documentos y Gastos (clase docs-btn)
+  var html = '<div class="docs-btn" style="border-radius:12px;overflow:hidden">' +
     '<div onclick="alternarFacturasO(\'' + m + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">' +
-      '<span style="font-size:18px">🧾</span><span style="flex:1;font-size:14px;font-weight:900;color:#fff">Facturas</span>' +
-      '<span style="font-size:11px;font-weight:800;color:#ffb300">' + (st.lista ? st.lista.length : '…') + '</span>' +
-      '<span style="color:#ffb300;font-size:15px;transition:transform .2s;transform:rotate(' + (st.abierto ? '180' : '0') + 'deg)">▾</span></div>';
+      '<span style="font-size:18px">🧾</span><span style="flex:1;text-align:left;font-size:13px;font-weight:800;color:var(--text)">Facturas</span>' +
+      '<span style="font-size:10px;font-weight:800;color:var(--cyan)">' + (st.lista ? st.lista.length : '…') + '</span>' +
+      '<span style="color:var(--cyan);font-size:15px;transition:transform .2s;transform:rotate(' + (st.abierto ? '180' : '0') + 'deg)">▾</span></div>';
   if (st.abierto) {
     html += '<div style="padding:0 14px 12px">' +
       (window.MODO_SOPORTE ? '' : '<button onclick="subirFacturaO(\'' + m + '\')" style="width:100%;padding:10px;border-radius:10px;border:2px solid rgba(0,230,118,1);background:rgba(0,230,118,.12);color:#fff;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 0 8px rgba(0,230,118,.5);margin-bottom:8px">＋ Subir factura</button>') +
@@ -1597,7 +1610,8 @@ function recargarFacturasO(m) {
 function escucharFacturasO(m, tokenNuevo) {
   if (window.MODO_SOPORTE || typeof EventSource === 'undefined') return;
   if (_factSSE[m] && !tokenNuevo) return;
-  var u = firebase.auth().currentUser; if (!u) return;
+  var u = firebase.auth().currentUser;
+  if (!u) { if (!tokenNuevo && typeof _firebaseAuthListo !== 'undefined') _firebaseAuthListo.then(function(){ if (firebase.auth().currentUser) escucharFacturasO(m); }); return; }
   _factSSE[m] = _factSSE[m] || { es: null, espera: null };
   u.getIdToken(!!tokenNuevo).then(function(token){
     var reg = _factSSE[m];
@@ -2407,7 +2421,8 @@ var _rutasSSE_O = {};
 function escucharRutaO(ruta, alCambiar, tokenNuevo) {
   if (window.MODO_SOPORTE || typeof EventSource === 'undefined') return;
   if (_rutasSSE_O[ruta] && !tokenNuevo) return;
-  var u = firebase.auth().currentUser; if (!u) return;
+  var u = firebase.auth().currentUser;
+  if (!u) { if (!tokenNuevo && typeof _firebaseAuthListo !== 'undefined') _firebaseAuthListo.then(function(){ if (firebase.auth().currentUser) escucharRutaO(ruta, alCambiar); }); return; }
   _rutasSSE_O[ruta] = _rutasSSE_O[ruta] || { es: null, t: null };
   u.getIdToken(!!tokenNuevo).then(function(token){
     var reg = _rutasSSE_O[ruta];
@@ -3369,7 +3384,21 @@ function closeCitaDetail() { document.getElementById('cita-detail-modal').classL
   try {
     var saved = JSON.parse(localStorage.getItem('drivx_propietario_actual') || 'null');
     var _empGuardada = localStorage.getItem('drivx_empresa');
-    if (saved && _empGuardada) { setEmpresa(_empGuardada); currentUser = saved; entrarApp(); return; }
+    if (saved && _empGuardada) {
+      setEmpresa(_empGuardada); currentUser = saved; entrarApp();
+      // Si la sesión de Firebase ya no es válida (caducó o se cerró en otro sitio),
+      // la app no podría leer nada: mejor volver al inicio de sesión con un aviso
+      _firebaseAuthListo.then(function(){
+        if (window.MODO_SOPORTE) return;
+        var fu = firebase.auth().currentUser;
+        var mismo = fu && (!saved.email || String(fu.email || '').toLowerCase() === String(saved.email).toLowerCase());
+        if (mismo) return;
+        confirmLogout();
+        var err = document.getElementById('log-error');
+        if (err) { err.textContent = 'Tu sesión ha caducado. Vuelve a entrar con tu email y contraseña.'; err.style.display = 'block'; }
+      });
+      return;
+    }
     if (saved) localStorage.removeItem('drivx_propietario_actual'); // sesión antigua sin empresa: hay que volver a entrar
   } catch(e) {}
   // Sin sesión guardada: la pantalla por defecto debe ser el LOGIN,

@@ -156,6 +156,19 @@
     .acciones{justify-content:flex-start}
     header.top .quien{display:none}
   }
+  /* ── Móvil: la barra de arriba pasa a dos filas y los botones a dos columnas ── */
+  @media (max-width:700px){
+    .wrap{padding:0 14px}
+    header.top{position:static}
+    header.top .wrap{height:auto;flex-wrap:wrap;gap:8px;padding:12px 14px}
+    header.top .esp{display:none}
+    header.top .marca{font-size:22px}
+    header.top .corona{margin-right:auto}
+    header.top .btn{flex:1 1 calc(50% - 8px);min-width:0;padding:10px 8px;font-size:12.5px;white-space:normal;line-height:1.25}
+    header.top .btn-rojo{flex-basis:100%}
+    .caja{width:100%;max-width:100% !important;border-radius:16px}
+    .velo{padding:10px !important}
+  }
   @media (prefers-reduced-motion:reduce){ #toast{transition:none} }
   .grupo-app.plegable{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:rgba(255,255,255,.03);margin-top:10px}
   .grupo-app.plegable:hover{border-color:rgba(0,212,255,.6)}
@@ -935,7 +948,7 @@ function cambiarEstado(codigo, estado, btn){
 }
 
 // ══ AVISO DE NUEVA VERSIÓN (como en las demás apps) ══
-var APP_VERSION = '2026-10-01-3';
+var APP_VERSION = '2026-10-01-4';
 function comprobarVersion(){
   fetch('/version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.json(); }).then(function(v){
     if (v && v.master && v.master !== APP_VERSION && !document.getElementById('aviso-version')) {

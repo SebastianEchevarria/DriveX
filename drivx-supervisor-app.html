@@ -1923,7 +1923,7 @@ function openCitaForMat() {
 
 // ══ CONDUCTORES DATA ══
 // ══════════════ AVISO DE NUEVA VERSIÓN ══════════════
-var APP_VERSION = '2026-10-01-6';
+var APP_VERSION = '2026-10-01-7';
 var APP_VERSION_KEY = 'supervisor';
 function checkForNewVersion() {
   fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
@@ -2053,6 +2053,7 @@ function mostrarLoginSup() {
     var code = (q.get('invite') || '').trim().toUpperCase();
     if (!code) return;
     var em = (q.get('email') || '').trim().toLowerCase();
+    window._abiertoConInvitacionSup = true;   // así no se entra sola con una sesión guardada
     history.replaceState(null, '', location.pathname);
     function abrir(){
       mostrarActivarSup();
@@ -2123,6 +2124,7 @@ function doLogin() {
   var email = (document.getElementById('login-email').value||'').trim().toLowerCase();
   var pass  = document.getElementById('login-pass').value||'';
   var err   = document.getElementById('login-error');
+  if (err && err.textContent.indexOf('caducado') !== -1) { err.textContent = 'Email o contraseña incorrectos'; err.style.display = 'none'; }
   err.style.display = 'none';
 
   loginSeguroConEmpresa(email, pass).then(function(){
@@ -2170,6 +2172,7 @@ function doLoginConSistemaDeSiempre(email, pass, yaAutenticado) {
 }
 
 function loginSuccessCustom(usuario) {
+  _guardarSesionSup(usuario);
   cargarNombreEmpresa();
   loginSuccess(false);
   var sub = document.getElementById('home-sub');
@@ -3115,8 +3118,15 @@ function recuperarContrasenaApp(idEmail, idMsg) {
 // Las listas completas (conductores, supervisores, propietarios) las pide
 // al servidor, que devuelve SOLO lo que esta persona puede ver.
 function leerListaSegura(carpeta) {
-  var u = firebase.auth().currentUser;
-  if (!u) return Promise.resolve({});
+  // Espera a que Firebase haya recuperado la sesión (al abrir la app tarda un
+  // momento); si no, devolvería una lista vacía y la app arrancaría sin datos.
+  return (typeof _firebaseAuthListo !== 'undefined' ? _firebaseAuthListo : Promise.resolve()).then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) return {};
+    return _leerListaSeguraConSesion(u, carpeta);
+  });
+}
+function _leerListaSeguraConSesion(u, carpeta) {
   return u.getIdToken().then(function(t){
     return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
       body: JSON.stringify({ accion:'lista', carpeta: carpeta, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
@@ -3124,8 +3134,13 @@ function leerListaSegura(carpeta) {
 }
 // Semanas cerradas de un conductor: { matSlug: { periodo: registro } }
 function leerCierresConductor(cid) {
-  var u = firebase.auth().currentUser;
-  if (!u) return Promise.resolve({});
+  return (typeof _firebaseAuthListo !== 'undefined' ? _firebaseAuthListo : Promise.resolve()).then(function(){
+    var u = firebase.auth().currentUser;
+    if (!u) return {};
+    return _leerCierresConductorConSesion(u, cid);
+  });
+}
+function _leerCierresConductorConSesion(u, cid) {
   return u.getIdToken().then(function(t){
     return fetch('/api/cuenta', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + t },
       body: JSON.stringify({ accion:'cierres', cid: cid, empresa: (typeof EMPRESA_ID !== 'undefined' && EMPRESA_ID) || '' }) });
@@ -5017,6 +5032,40 @@ if ("serviceWorker" in navigator) {
   }, true);
   window.esPdfCloudinaryDrivx = esPdfCloudinary;
 })();
+</script>
+<script>
+// ══ SESIÓN DEL SUPERVISOR ══
+// Al dejar la app en segundo plano, el móvil a veces la cierra para ahorrar
+// memoria y la vuelve a cargar al volver. Guardamos la sesión para que entre
+// sola, igual que las apps Driver y Propietario. Solo se pide iniciar sesión
+// si se pulsa "Cerrar sesión" o si la sesión de Firebase ha caducado.
+function _guardarSesionSup(usuario) {
+  if (window.MODO_SOPORTE || !usuario || !EMPRESA_ID) return;
+  try { localStorage.setItem('drivx_supervisor_session', JSON.stringify({ u: usuario, empresa: EMPRESA_ID, ts: Date.now() })); } catch(e) {}
+}
+function restaurarSesionSup() {
+  if (window._PARAM_SOPORTE) return;
+  if (window._abiertoConInvitacionSup) return;   // se abrió desde un enlace de invitación
+  try { var q = new URLSearchParams(location.search); if (q.get('invite')) return; } catch(e) {}
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem('drivx_supervisor_session') || 'null'); } catch(e) {}
+  if (!s || !s.u || !s.empresa) return;
+  setEmpresa(s.empresa);
+  window.currentSupervisorUser = s.u;
+  loginSuccessCustom(s.u);
+  // Si la sesión de Firebase ya no es válida, volver al inicio de sesión con un aviso
+  _firebaseAuthListo.then(function(){
+    if (window.MODO_SOPORTE) return;
+    var fu = firebase.auth().currentUser;
+    var mismo = fu && (!s.u.email || String(fu.email || '').toLowerCase() === String(s.u.email).toLowerCase());
+    if (mismo) return;
+    confirmLogout();
+    var err = document.getElementById('login-error');
+    if (err) { err.textContent = 'Tu sesión ha caducado. Vuelve a entrar con tu email y contraseña.'; err.style.display = 'block'; }
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(restaurarSesionSup, 0); });
+else setTimeout(restaurarSesionSup, 0);
 </script>
 </body>
 
